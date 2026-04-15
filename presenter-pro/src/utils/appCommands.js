@@ -20,6 +20,7 @@ export async function runAppCommand(command) {
     case 'file:new':
       return createNewPresentation()
     case 'file:open':
+      appState.setHomeTab('open')
       appState.setCurrentView('home')
       return true
     case 'file:save':
@@ -28,12 +29,19 @@ export async function runAppCommand(command) {
       return saveCurrentPresentationAs()
     case 'file:close': {
       const canClose = await resolveUnsavedChanges(
-        editorState.presentation,
-        editorState.isDirty,
-        editorState.setDirty,
-        'close this presentation'
+        {
+          presentation: editorState.presentation,
+          isDirty: editorState.isDirty,
+          requiresInitialSave: editorState.requiresInitialSave,
+          setDirty: editorState.setDirty,
+          setRequiresInitialSave: editorState.setRequiresInitialSave,
+          actionLabel: 'close this presentation',
+        }
       )
-      if (canClose) appState.setCurrentView('home')
+      if (canClose) {
+        appState.setHomeTab('home')
+        appState.setCurrentView('home')
+      }
       return canClose
     }
     case 'insert:newSlide':
@@ -61,7 +69,11 @@ export async function runAppCommand(command) {
       return openOutputWindow()
     case 'present:start':
       if (editorState.presentation && !presenterState.isPresenting) {
-        return startPresentationSession(editorState.presentation)
+        const started = await startPresentationSession(editorState.presentation)
+        if (!started) {
+          window.alert('Add at least one slide before presenting.')
+        }
+        return started
       }
       return false
     case 'present:stop':
@@ -77,7 +89,10 @@ export async function runAppCommand(command) {
       appState.setShortcutsOpen(true)
       return true
     case 'help:tutorial':
-      appState.setTutorialStepIndex(appState.currentView === 'editor' ? 1 : 0)
+      if (appState.currentView === 'home') {
+        appState.setHomeTab('home')
+      }
+      appState.setTutorialStepIndex(appState.currentView === 'editor' ? 2 : 0)
       appState.setTutorialOpen(true)
       return true
     case 'help:about':

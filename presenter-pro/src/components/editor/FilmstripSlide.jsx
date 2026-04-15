@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
+import { Film, Image } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { useAppStore } from '@/store/appStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import ContextMenu from '@/components/shared/ContextMenu'
+import { isMediaSlide } from '@/utils/sectionTypes'
 
 export default function FilmstripSlide({ slide, index, selected, onSelect, onDoubleClick, onDuplicate, onDelete }) {
   const presentation = useEditorStore((s) => s.presentation)
@@ -11,8 +13,9 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onDou
   const liveSlideId = usePresenterStore((s) => s.liveSlideId)
   const isLive = liveSlideId === slide.id
   const [menu, setMenu] = useState(null)
+  const mediaOnly = isMediaSlide(slide)
 
-  const lines = (slide.body || '').split('\n').filter(Boolean)
+  const lines = mediaOnly ? [slide.label || 'Media'] : (slide.body || '').split('\n').filter(Boolean)
   const previewFontSize = Math.max(6, Math.min(12, Math.round((slide.textStyle?.size || 52) / 8)))
 
   function handleContextMenu(e) {
@@ -88,10 +91,19 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onDou
               textAlign: slide.textStyle?.align || 'center',
             }}
           >
-            {lines.slice(0, 4).map((line, i) => (
-              <div key={i} className="truncate">{line}</div>
-            ))}
-            {lines.length > 4 && <div style={{ color: '#666', fontSize: 6 }}>…</div>}
+            {mediaOnly ? (
+              <div className="flex flex-col items-center justify-center gap-1" style={{ color: '#d1d5db' }}>
+                <Film size={16} />
+                <div className="truncate">{slide.label || 'Media'}</div>
+              </div>
+            ) : (
+              <>
+                {lines.slice(0, 4).map((line, i) => (
+                  <div key={i} className="truncate">{line}</div>
+                ))}
+                {lines.length > 4 && <div style={{ color: '#666', fontSize: 6 }}>…</div>}
+              </>
+            )}
           </div>
 
           {isLive && (
@@ -99,6 +111,15 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onDou
               className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full"
               style={{ background: 'var(--live)' }}
             />
+          )}
+          {!isLive && slide.backgroundId && (
+            <div
+              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.48)', color: '#d1d5db' }}
+              title="Slide background override"
+            >
+              <Image size={8} />
+            </div>
           )}
         </div>
 

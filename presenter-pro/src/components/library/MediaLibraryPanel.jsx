@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { X, Image, Upload, Film } from 'lucide-react'
+import { X, Image, Upload, Film, Search, Pencil, Trash2 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
-import { getMedia, importMedia } from '@/utils/ipc'
+import { deleteMedia, getMedia, importMedia, updateMedia } from '@/utils/ipc'
 import { fileUrlForPath, isVideoMedia } from '@/utils/backgrounds'
+import { getSectionTypeLabel } from '@/utils/sectionTypes'
+import { insertMediaSlideIntoCurrentPresentation } from '@/utils/presentationCommands'
 
 export default function MediaLibraryPanel() {
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -11,9 +13,10 @@ export default function MediaLibraryPanel() {
   const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const setSlideBackground = useEditorStore((s) => s.setSlideBackground)
-  const setPresentationBackground = useEditorStore((s) => s.setPresentationBackground)
+  const setSectionBackground = useEditorStore((s) => s.setSectionBackground)
   const [media, setMedia] = useState([])
   const [tab, setTab] = useState('images')
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     loadMedia()
@@ -29,19 +32,43 @@ export default function MediaLibraryPanel() {
     if (result?.success) loadMedia()
   }
 
+  async function handleRename(item) {
+    const nextName = window.prompt('Rename media item:', item.name)?.trim()
+    if (!nextName || nextName === item.name) return
+    const result = await updateMedia(item.id, { name: nextName })
+    if (result?.success) loadMedia()
+  }
+
+  async function handleDelete(item) {
+    if (!window.confirm(`Delete "${item.name}" from the media library?`)) return
+    const result = await deleteMedia(item.id)
+    if (result?.success) loadMedia()
+  }
+
   function applyToSlide(mediaId) {
     if (!selectedSectionId || !selectedSlideId) return
     setSlideBackground(selectedSectionId, selectedSlideId, mediaId)
+    setMediaLibraryOpen(false)
   }
 
-  function applyToPresentation(mediaId) {
-    if (!presentation) return
-    setPresentationBackground(mediaId)
+  function applyToSection(mediaId) {
+    if (!selectedSectionId) return
+    setSectionBackground(selectedSectionId, mediaId)
+    setMediaLibraryOpen(false)
   }
 
-  const filtered = media.filter((m) =>
-    tab === 'images' ? m.type === 'image' : m.type === 'video'
-  )
+  function insertAsMediaSlide(item) {
+    const result = insertMediaSlideIntoCurrentPresentation(item)
+    if (result) setMediaLibraryOpen(false)
+  }
+
+  const filtered = media.filter((m) => {
+    const matchesType = tab === 'images' ? m.type === 'image' : m.type === 'video'
+    const matchesQuery = !query.trim() || m.name.toLowerCase().includes(query.trim().toLowerCase())
+    return matchesType && matchesQuery
+  })
+  const selectedSection = presentation?.sections?.find((section) => section.id === selectedSectionId) || null
+  const sectionLabel = selectedSection ? getSectionTypeLabel(selectedSection.type) : 'Section'
 
   return (
     <div
@@ -96,6 +123,43 @@ export default function MediaLibraryPanel() {
         ))}
       </div>
 
+      <div
+        className="px-3 py-2.5 shrink-0"
+        style={{ borderBottom: '1px solid var(--border-subtle)' }}
+      >
+        <div
+          className="rounded-xl px-3 py-2 mb-2"
+          style={{
+            background: 'var(--bg-app)',
+            border: '1px solid var(--border-default)',
+          }}
+        >
+          <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: 'var(--text-tertiary)' }}>
+            Applying To
+          </p>
+          <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+            {selectedSection ? `${sectionLabel}: ${selectedSection.title}` : 'Choose a section first'}
+          </p>
+          <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+            Library items can become a section background or a media slide in the flow.
+          </p>
+        </div>
+
+        <div
+          className="flex items-center gap-2 px-2.5 py-2 rounded-xl"
+          style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
+        >
+          <Search size={13} style={{ color: 'var(--text-tertiary)' }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search library..."
+            className="flex-1 bg-transparent outline-none text-xs"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </div>
+      </div>
+
       {/* Media grid */}
       <div className="flex-1 overflow-y-auto p-2">
         {filtered.length === 0 ? (
@@ -104,7 +168,7 @@ export default function MediaLibraryPanel() {
               ? <Image size={24} style={{ color: 'var(--text-tertiary)' }} />
               : <Film size={24} style={{ color: 'var(--text-tertiary)' }} />}
             <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              No {tab} imported yet
+              {query ? 'No media matches that search' : `No ${tab} imported yet`}
             </p>
           </div>
         ) : (
@@ -113,6 +177,7 @@ export default function MediaLibraryPanel() {
               <div
                 key={item.id}
                 className="rounded overflow-hidden group"
+                title={item.name}
                 style={{
                   background: '#1a1a1a',
                   border: '1px solid var(--border-subtle)',
@@ -127,6 +192,7 @@ export default function MediaLibraryPanel() {
                     <button
                       onClick={() => applyToSlide(item.id)}
                       disabled={!selectedSlideId}
+                      title={selectedSlideId ? 'Apply only to the selected slide' : 'Select a slide first'}
                       className="w-full rounded px-2 py-1 text-[11px] font-medium"
                       style={{
                         background: selectedSlideId ? 'var(--accent)' : 'rgba(255,255,255,0.15)',
@@ -137,16 +203,30 @@ export default function MediaLibraryPanel() {
                       Set Slide Background
                     </button>
                     <button
-                      onClick={() => applyToPresentation(item.id)}
-                      disabled={!presentation}
+                      onClick={() => applyToSection(item.id)}
+                      disabled={!selectedSection}
+                      title={selectedSection ? `Apply to the whole ${sectionLabel.toLowerCase()} section` : 'Select a section first'}
                       className="w-full rounded px-2 py-1 text-[11px] font-medium"
                       style={{
-                        background: presentation ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)',
+                        background: selectedSection ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)',
                         color: '#fff',
-                        cursor: presentation ? 'pointer' : 'default',
+                        cursor: selectedSection ? 'pointer' : 'default',
                       }}
                     >
-                      Set Presentation Background
+                      Set {sectionLabel} Background
+                    </button>
+                    <button
+                      onClick={() => insertAsMediaSlide(item)}
+                      disabled={!selectedSection}
+                      title={selectedSection ? 'Insert as a media-only slide in this section' : 'Select a section first'}
+                      className="w-full rounded px-2 py-1 text-[11px] font-medium"
+                      style={{
+                        background: selectedSection ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        cursor: selectedSection ? 'pointer' : 'default',
+                      }}
+                    >
+                      Insert Media Slide
                     </button>
                   </div>
                 </div>
@@ -154,9 +234,27 @@ export default function MediaLibraryPanel() {
                   className="px-2 py-1.5"
                   style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
                 >
-                  <p className="text-[11px] font-medium truncate" style={{ color: '#f3f4f6' }}>
-                    {item.name}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[11px] font-medium truncate flex-1" style={{ color: '#f3f4f6' }}>
+                      {item.name}
+                    </p>
+                    <button
+                      onClick={() => handleRename(item)}
+                      className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded"
+                      style={{ color: '#d1d5db' }}
+                      title="Rename media item"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item)}
+                      className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded"
+                      style={{ color: '#fda4af' }}
+                      title="Delete media item"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
                   <p className="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>
                     {item.type}
                   </p>
@@ -184,7 +282,7 @@ export default function MediaLibraryPanel() {
           onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
         >
           <Upload size={13} />
-          Import Media…
+          Import To Library…
         </button>
       </div>
     </div>

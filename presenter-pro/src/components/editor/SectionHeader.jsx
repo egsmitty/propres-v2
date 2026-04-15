@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { ChevronRight, ChevronDown, Plus } from 'lucide-react'
+import { ChevronRight, ChevronDown, Plus, Image } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import ContextMenu from '@/components/shared/ContextMenu'
+import { getSectionTypeLabel, normalizeSectionType } from '@/utils/sectionTypes'
 
 export default function SectionHeader({ section, collapsed, onToggle, onAddSlide, onRemove }) {
   const [menu, setMenu] = useState(null)
@@ -24,8 +25,19 @@ export default function SectionHeader({ section, collapsed, onToggle, onAddSlide
     updateSectionMeta(section.id, { color })
   }
 
+  function handleChangeType() {
+    const nextType = window.prompt(
+      'Section type: song, announcement, or sermon',
+      normalizeSectionType(section.type)
+    )?.trim()
+    if (!nextType) return
+    const normalizedType = normalizeSectionType(nextType.toLowerCase())
+    updateSectionMeta(section.id, { type: normalizedType })
+  }
+
   const menuItems = [
     { label: 'Edit Section', onClick: handleEditSection },
+    { label: 'Change Section Type', onClick: handleChangeType },
     { label: 'Change Color', onClick: handleChangeColor },
     { divider: true },
     { label: 'Add Slide', onClick: onAddSlide },
@@ -37,7 +49,7 @@ export default function SectionHeader({ section, collapsed, onToggle, onAddSlide
     <>
       <div
         onContextMenu={handleContextMenu}
-        className="flex items-center h-7 px-2 relative group"
+        className="flex items-center min-h-10 px-2 py-1 relative group"
         style={{
           background: 'var(--bg-surface)',
           borderBottom: '1px solid var(--border-subtle)',
@@ -52,12 +64,32 @@ export default function SectionHeader({ section, collapsed, onToggle, onAddSlide
           {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
         </button>
 
-        <span
-          className="flex-1 text-xs font-medium truncate"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {section.title}
-        </span>
+        <div className="flex-1 min-w-0">
+          <div
+            className="text-[10px] uppercase tracking-wide mb-0.5"
+            style={{ color: 'var(--accent)' }}
+            title={getSectionTypeLabel(section.type)}
+          >
+            {getSectionTypeLabel(section.type)}
+          </div>
+          <div
+            className="text-xs font-medium truncate"
+            style={{ color: 'var(--text-primary)' }}
+            title={section.title}
+          >
+            {section.title}
+          </div>
+        </div>
+
+        {section.backgroundId && (
+          <span
+            className="flex items-center justify-center w-5 h-5 rounded-full mr-1"
+            style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+            title="Section background set"
+          >
+            <Image size={10} />
+          </span>
+        )}
 
         <span className="text-xs mr-1" style={{ color: 'var(--text-tertiary)' }}>
           {section.slides.length}

@@ -2,9 +2,9 @@ import React, { useState, useRef } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { sendSlideLive } from '@/utils/presenterFlow'
-import { uuid } from '@/utils/uuid'
 import SectionHeader from './SectionHeader'
 import FilmstripSlide from './FilmstripSlide'
+import { createTextSlide } from '@/utils/sectionTypes'
 
 export default function Filmstrip() {
   const presentation = useEditorStore((s) => s.presentation)
@@ -42,10 +42,7 @@ export default function Filmstrip() {
   }
 
   function addSlideToSection(section) {
-    const newSlide = {
-      id: uuid(), type: 'blank', label: 'Slide', body: '', notes: '', backgroundId: null,
-      textStyle: { size: 52, align: 'center', valign: 'center', color: '#ffffff', bold: false },
-    }
+    const newSlide = createTextSlide(section.type)
     mutate((sections) =>
       sections.map((sec) =>
         sec.id === section.id ? { ...sec, slides: [...sec.slides, newSlide] } : sec

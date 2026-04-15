@@ -4,6 +4,7 @@ import { usePresenterStore } from '@/store/presenterStore'
 import { useAppStore } from '@/store/appStore'
 import { getMedia, sendSlide } from '@/utils/ipc'
 import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/backgrounds'
+import { getSectionContentLabel, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import SlideTextEditor from './SlideTextEditor'
 import FormattingToolbar from './FormattingToolbar'
 
@@ -28,11 +29,17 @@ export default function Canvas() {
   const [media, setMedia] = useState([])
 
   const slide = getSelectedSlide(presentation, selectedSectionId, selectedSlideId)
+  const section = presentation?.sections?.find((item) => item.id === selectedSectionId) || null
   const isEditing = editingSlideId === selectedSlideId && !!selectedSlideId
+  const mediaOnlySlide = isMediaSlide(slide)
   const effectiveBackgroundId = getEffectiveBackgroundId(presentation, selectedSectionId, slide)
   const backgroundMedia = useMemo(
     () => media.find((item) => item.id === effectiveBackgroundId) || null,
     [media, effectiveBackgroundId]
+  )
+  const slideMedia = useMemo(
+    () => media.find((item) => item.id === slide?.mediaId) || null,
+    [media, slide?.mediaId]
   )
 
   useEffect(() => {
@@ -57,7 +64,7 @@ export default function Canvas() {
   }
 
   function handleDoubleClick() {
-    if (slide) setEditingSlide(slide.id)
+    if (slide && !mediaOnlySlide) setEditingSlide(slide.id)
   }
 
   function handleSave(body) {
@@ -107,7 +114,7 @@ export default function Canvas() {
       className="flex-1 flex flex-col overflow-hidden"
       style={{ background: 'var(--bg-app)' }}
     >
-      {isEditing && (
+      {isEditing && !mediaOnlySlide && (
         <FormattingToolbar
           sectionId={selectedSectionId}
           slideId={slide.id}
@@ -129,62 +136,74 @@ export default function Canvas() {
           }}
           onDoubleClick={handleDoubleClick}
         >
-          {backgroundMedia && (
+          {!mediaOnlySlide && backgroundMedia && (
             <CanvasBackground media={backgroundMedia} />
           )}
 
-          <div
-            className="absolute inset-0"
-            style={{
-              background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent',
-            }}
-          />
+          {!mediaOnlySlide && (
+            <div
+              className="absolute inset-0"
+              style={{
+                background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent',
+              }}
+            />
+          )}
 
-          {/* Text layer */}
-          <div
-            className={`absolute inset-0 flex flex-col ${valignClass} px-10`}
-            style={{ textAlign }}
-          >
-            {isEditing ? (
-              <SlideTextEditor
-                slide={slide}
-                onSave={handleSave}
-                onCancel={() => setEditingSlide(null)}
-              />
+          {mediaOnlySlide ? (
+            slideMedia ? (
+              <CanvasBackground media={slideMedia} />
             ) : (
+              <div className="absolute inset-0 flex items-center justify-center" style={{ color: '#777' }}>
+                Media slide
+              </div>
+            )
+          ) : (
+            <>
               <div
-                className="w-full select-none group"
-                style={{
-                  color: slide.textStyle?.color || '#ffffff',
-                  fontSize: Math.max(16, (slide.textStyle?.size || 52) * 0.5),
-                  fontWeight: slide.textStyle?.bold ? 700 : 400,
-                  lineHeight: 1.3,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  textShadow: '0 2px 16px rgba(0,0,0,0.5)',
-                }}
+                className={`absolute inset-0 flex flex-col ${valignClass} px-10`}
+                style={{ textAlign }}
               >
-                {slide.body || (
-                  <span
-                    style={{ color: '#555', fontSize: 14 }}
-                    className="opacity-0 group-hover:opacity-100"
+                {isEditing ? (
+                  <SlideTextEditor
+                    slide={slide}
+                    onSave={handleSave}
+                    onCancel={() => setEditingSlide(null)}
+                  />
+                ) : (
+                  <div
+                    className="w-full select-none group"
+                    style={{
+                      color: slide.textStyle?.color || '#ffffff',
+                      fontSize: Math.max(16, (slide.textStyle?.size || 52) * 0.5),
+                      fontWeight: slide.textStyle?.bold ? 700 : 400,
+                      lineHeight: 1.3,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      textShadow: '0 2px 16px rgba(0,0,0,0.5)',
+                    }}
                   >
-                    Double-click to edit
-                  </span>
+                    {slide.body || (
+                      <span
+                        style={{ color: '#555', fontSize: 14 }}
+                        className="opacity-0 group-hover:opacity-100"
+                      >
+                        Double-click to edit {section ? getSectionContentLabel(section.type).toLowerCase() : 'text'}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* Hover hint */}
-          {!isEditing && slide.body && (
-            <div
-              className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none"
-              style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}
-            >
-              Double-click to edit
-            </div>
+              {!isEditing && slide.body && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none"
+                  style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}
+                >
+                  Double-click to edit {section ? getSectionContentLabel(section.type).toLowerCase() : 'text'}
+                </div>
+              )}
+            </>
           )}
+
         </div>
       </div>
 
@@ -197,10 +216,14 @@ export default function Canvas() {
         }}
       >
         <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Background:
+          {section ? `${getSectionTypeLabel(section.type)} Background:` : 'Section Background:'}
         </span>
         <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          {backgroundMedia ? backgroundMedia.name : 'No background'}
+          {mediaOnlySlide
+            ? slideMedia?.name || 'Media slide'
+            : backgroundMedia
+            ? backgroundMedia.name
+            : 'No background'}
         </span>
         <button
           className="ml-auto text-xs px-2.5 py-1 rounded"
@@ -213,7 +236,7 @@ export default function Canvas() {
           onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
           onClick={() => setMediaLibraryOpen(true)}
         >
-          Set Background
+          {mediaOnlySlide ? 'Change Media' : 'Set Background'}
         </button>
 
         {/* Zoom controls */}

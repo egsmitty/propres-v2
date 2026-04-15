@@ -7,10 +7,13 @@ import { resolveUnsavedChanges } from '@/utils/unsavedChanges'
 export default function TitleBar() {
   const presentation = useEditorStore((s) => s.presentation)
   const isDirty = useEditorStore((s) => s.isDirty)
+  const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave)
   const setDirty = useEditorStore((s) => s.setDirty)
+  const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave)
   const setPresentation = useEditorStore((s) => s.setPresentation)
   const currentView = useAppStore((s) => s.currentView)
   const setCurrentView = useAppStore((s) => s.setCurrentView)
+  const setHomeTab = useAppStore((s) => s.setHomeTab)
   const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
@@ -24,7 +27,14 @@ export default function TitleBar() {
   }, [renaming])
 
   async function handleClose() {
-    const canClose = await resolveUnsavedChanges(presentation, isDirty, setDirty, 'close the window')
+    const canClose = await resolveUnsavedChanges({
+      presentation,
+      isDirty,
+      requiresInitialSave,
+      setDirty,
+      setRequiresInitialSave,
+      actionLabel: 'close the window',
+    })
     if (!canClose) return
 
     setAllowWindowClose(true)
@@ -34,9 +44,17 @@ export default function TitleBar() {
   function handleMaximize() { window.electronAPI?.windowMaximize() }
 
   async function handleBack() {
-    const canLeave = await resolveUnsavedChanges(presentation, isDirty, setDirty, 'go back home')
+    const canLeave = await resolveUnsavedChanges({
+      presentation,
+      isDirty,
+      requiresInitialSave,
+      setDirty,
+      setRequiresInitialSave,
+      actionLabel: 'go back home',
+    })
     if (!canLeave) return
 
+    setHomeTab('home')
     setCurrentView('home')
   }
 
@@ -116,14 +134,14 @@ export default function TitleBar() {
           ) : (
             <span
               className="text-xs cursor-default"
-              style={{ color: isDirty ? 'var(--text-primary)' : 'var(--text-secondary)', WebkitAppRegion: 'no-drag' }}
+              style={{ color: isDirty || requiresInitialSave ? 'var(--text-primary)' : 'var(--text-secondary)', WebkitAppRegion: 'no-drag' }}
               onDoubleClick={startRename}
               title="Double-click to rename"
             >
               {presentation.title}
             </span>
           )}
-          {isDirty && !renaming && (
+          {(isDirty || requiresInitialSave) && !renaming && (
             <span
               className="ml-1.5 inline-block w-2 h-2 rounded-full"
               style={{ background: '#f97316' }}

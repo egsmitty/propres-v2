@@ -8,14 +8,21 @@ export const useEditorStore = create((set) => ({
   selectedSlideId: null,
   editingSlideId: null,
   isDirty: false,
+  requiresInitialSave: false,
   zoom: 1.0,
 
-  setPresentation: (presentation) =>
-    set({ presentation: normalizePresentation(presentation), presentationId: presentation?.id ?? null, isDirty: false }),
+  setPresentation: (presentation, options = {}) =>
+    set({
+      presentation: normalizePresentation(presentation),
+      presentationId: presentation?.id ?? null,
+      isDirty: options.isDirty ?? false,
+      requiresInitialSave: options.requiresInitialSave ?? false,
+    }),
   setSelectedSlide: (sectionId, slideId) =>
     set({ selectedSectionId: sectionId, selectedSlideId: slideId, editingSlideId: null }),
   setEditingSlide: (slideId) => set({ editingSlideId: slideId }),
   setDirty: (val) => set({ isDirty: val }),
+  setRequiresInitialSave: (val) => set({ requiresInitialSave: val }),
   setZoom: (zoom) => set({ zoom }),
 
   updateSlideBody: (sectionId, slideId, body) =>
@@ -25,7 +32,7 @@ export const useEditorStore = create((set) => ({
         if (sec.id !== sectionId) return sec
         return { ...sec, slides: sec.slides.map((sl) => sl.id === slideId ? { ...sl, body } : sl) }
       })
-      return { presentation: { ...state.presentation, sections }, isDirty: true }
+      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave }
     }),
 
   updateSlideStyle: (sectionId, slideId, styleProps) =>
@@ -42,7 +49,7 @@ export const useEditorStore = create((set) => ({
           )
         }
       })
-      return { presentation: { ...state.presentation, sections }, isDirty: true }
+      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave }
     }),
 
   setSlideBackground: (sectionId, slideId, mediaId) =>
@@ -59,19 +66,21 @@ export const useEditorStore = create((set) => ({
           )
         }
       })
-      return { presentation: normalizePresentation({ ...state.presentation, sections }), isDirty: true }
+      return { presentation: normalizePresentation({ ...state.presentation, sections }), isDirty: true, requiresInitialSave: state.requiresInitialSave }
     }),
 
-  setPresentationBackground: (mediaId) =>
+  setSectionBackground: (sectionId, mediaId) =>
     set((state) => {
       if (!state.presentation) return {}
+      const sections = state.presentation.sections.map((section) =>
+        section.id === sectionId
+          ? { ...section, backgroundId: mediaId }
+          : section
+      )
       return {
-        presentation: normalizePresentation({
-          ...state.presentation,
-          defaultBackgroundId: mediaId,
-          default_background_id: mediaId,
-        }),
+        presentation: normalizePresentation({ ...state.presentation, sections }),
         isDirty: true,
+        requiresInitialSave: state.requiresInitialSave,
       }
     }),
 
@@ -81,7 +90,7 @@ export const useEditorStore = create((set) => ({
       const sections = state.presentation.sections.map((sec) =>
         sec.id === sectionId ? { ...sec, ...updates } : sec
       )
-      return { presentation: normalizePresentation({ ...state.presentation, sections }), isDirty: true }
+      return { presentation: normalizePresentation({ ...state.presentation, sections }), isDirty: true, requiresInitialSave: state.requiresInitialSave }
     }),
 
   moveSlideToSection: (slideId, targetSectionId) =>
@@ -103,6 +112,7 @@ export const useEditorStore = create((set) => ({
       return {
         presentation: normalizePresentation({ ...state.presentation, sections }),
         isDirty: true,
+        requiresInitialSave: state.requiresInitialSave,
       }
     }),
 
@@ -114,7 +124,23 @@ export const useEditorStore = create((set) => ({
           ...state.presentation,
           sections: [...state.presentation.sections, section]
         }),
-        isDirty: true
+        isDirty: true,
+        requiresInitialSave: state.requiresInitialSave,
+      }
+    }),
+
+  insertSlideIntoSection: (sectionId, slide) =>
+    set((state) => {
+      if (!state.presentation) return {}
+      const sections = state.presentation.sections.map((section) =>
+        section.id === sectionId
+          ? { ...section, slides: [...section.slides, slide] }
+          : section
+      )
+      return {
+        presentation: normalizePresentation({ ...state.presentation, sections }),
+        isDirty: true,
+        requiresInitialSave: state.requiresInitialSave,
       }
     }),
 }))

@@ -1,16 +1,52 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+function formatCountdownInput(input) {
+  const value = input.trim()
+  if (!value) return null
+
+  if (value.includes(':')) {
+    const [minutes, seconds] = value.split(':').map((part) => Number(part))
+    if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null
+    return minutes * 60 + seconds
+  }
+
+  const seconds = Number(value)
+  if (Number.isNaN(seconds)) return null
+  return seconds
+}
+
+function formatRemaining(endAt) {
+  if (!endAt) return '00:00'
+  const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
+  const minutes = Math.floor(remaining / 60)
+  const seconds = remaining % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
 export default function PresenterView() {
   const [slides, setSlides] = useState([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [isBlack, setIsBlack] = useState(false)
   const [isLogo, setIsLogo] = useState(false)
+  const [countdown, setCountdown] = useState({ active: false, endAt: null, durationSeconds: 0 })
+  const [remaining, setRemaining] = useState('00:00')
   const idxRef = useRef(0)
   const slidesRef = useRef([])
 
   useEffect(() => { slidesRef.current = slides }, [slides])
   useEffect(() => { idxRef.current = currentIdx }, [currentIdx])
+  useEffect(() => {
+    if (!countdown.active || !countdown.endAt) {
+      setRemaining('00:00')
+      return
+    }
+
+    const sync = () => setRemaining(formatRemaining(countdown.endAt))
+    sync()
+    const interval = window.setInterval(sync, 250)
+    return () => window.clearInterval(interval)
+  }, [countdown])
 
   useEffect(() => {
     const api = window.electronAPI
@@ -42,6 +78,9 @@ export default function PresenterView() {
       setIsLogo(Boolean(active))
       if (active) setIsBlack(false)
     })
+    const offCountdown = api.onOutputCountdown((state) => {
+      setCountdown(state || { active: false, endAt: null, durationSeconds: 0 })
+    })
     const offStop = api.onPresenterStop(() => window.close())
 
     function handleKey(e) {
@@ -49,6 +88,7 @@ export default function PresenterView() {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev()
       if (e.key === 'b' || e.key === 'B') toggleBlack()
       if (e.key === 'l' || e.key === 'L') toggleLogo()
+      if (e.key === 'c' || e.key === 'C') toggleCountdown()
       if (e.key === 'Escape') api.stopPresenting()
     }
     window.addEventListener('keydown', handleKey)
@@ -58,6 +98,7 @@ export default function PresenterView() {
       offAdvance?.()
       offBlack?.()
       offLogo?.()
+      offCountdown?.()
       offStop?.()
     }
   }, [])
@@ -83,6 +124,24 @@ export default function PresenterView() {
     window.electronAPI?.sendLogo()
   }
 
+  function toggleCountdown() {
+    if (countdown.active) {
+      window.electronAPI?.stopCountdown()
+      return
+    }
+
+    const input = window.prompt('Countdown length (mm:ss or seconds):', '5:00')
+    if (input === null) return
+
+    const durationSeconds = formatCountdownInput(input)
+    if (!durationSeconds || durationSeconds <= 0) {
+      window.alert('Enter a valid countdown like 5:00 or 300.')
+      return
+    }
+
+    window.electronAPI?.startCountdown(durationSeconds)
+  }
+
   const current = slides[currentIdx] || null
   const next = slides[currentIdx + 1] || null
 
@@ -98,6 +157,14 @@ export default function PresenterView() {
         {slides.length > 0 && (
           <span className="text-sm" style={{ color: '#666' }}>
             — Slide {currentIdx + 1} of {slides.length}
+          </span>
+        )}
+        {countdown.active && (
+          <span
+            className="text-sm font-medium ml-auto px-2 py-1 rounded"
+            style={{ color: '#f8fafc', background: 'rgba(74,124,255,0.18)' }}
+          >
+            Countdown {remaining}
           </span>
         )}
       </div>
@@ -175,6 +242,9 @@ export default function PresenterView() {
       <div className="flex items-center justify-center gap-3 px-4 pb-4 shrink-0">
         <ActionBtn active={isBlack} onClick={toggleBlack}>Black (B)</ActionBtn>
         <ActionBtn active={isLogo} onClick={toggleLogo}>Logo (L)</ActionBtn>
+        <ActionBtn active={countdown.active} onClick={toggleCountdown}>
+          {countdown.active ? `Stop Countdown (${remaining})` : 'Add Countdown (C)'}
+        </ActionBtn>
         <ActionBtn danger onClick={() => window.electronAPI?.stopPresenting()}>Stop (Esc)</ActionBtn>
       </div>
 

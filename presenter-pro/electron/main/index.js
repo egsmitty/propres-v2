@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron')
+const os = require('os')
 const path = require('path')
 const { getDb } = require('../db/index')
 const { runMigrations } = require('../db/migrations')
@@ -14,6 +15,8 @@ let outputWindow = null
 let presenterReady = false
 let outputReady = false
 let outputState = { isBlack: false, isLogo: false }
+let countdownState = { active: false, endAt: null, durationSeconds: 0 }
+let countdownInterval = null
 let presenterReadyResolvers = []
 let outputReadyResolvers = []
 
@@ -55,6 +58,58 @@ function broadcast(channel, payload) {
 function syncOutputState() {
   broadcast('output:black', { active: outputState.isBlack })
   broadcast('output:logo', { active: outputState.isLogo })
+}
+
+function clearCountdownInterval() {
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+}
+
+function syncCountdownState() {
+  broadcast('output:countdown', countdownState)
+}
+
+function resetCountdownState() {
+  clearCountdownInterval()
+  countdownState = { active: false, endAt: null, durationSeconds: 0 }
+}
+
+function startCountdown(durationSeconds) {
+  const sanitized = Math.max(1, Number(durationSeconds) || 0)
+  resetCountdownState()
+  countdownState = {
+    active: true,
+    endAt: Date.now() + sanitized * 1000,
+    durationSeconds: sanitized,
+  }
+  countdownInterval = setInterval(() => {
+    if (!countdownState.active) return
+    if (Date.now() >= countdownState.endAt) {
+      resetCountdownState()
+      syncCountdownState()
+    }
+  }, 250)
+}
+
+function getProfileData() {
+  const username = os.userInfo().username || 'local'
+  const parts = username.split(/[._-]+/).filter(Boolean)
+  const displayName = parts.length > 1
+    ? parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+    : username.charAt(0).toUpperCase() + username.slice(1)
+  const initials = (parts.length ? parts : [username])
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+
+  return {
+    username,
+    displayName,
+    initials: initials || username.slice(0, 2).toUpperCase(),
+    subtitle: 'On this device',
+  }
 }
 
 // ─── Seed Data ──────────────────────────────────────────────────────────────
@@ -226,6 +281,7 @@ function createOutputWindow() {
     outputReady = false
     outputReadyResolvers = []
     resetOutputState()
+    resetCountdownState()
   })
 }
 
@@ -288,6 +344,10 @@ function registerIpcHandlers() {
     try { return { success: true, data: mediaQueries.getMedia(db) } }
     catch (e) { return { success: false, error: e.message } }
   })
+  ipcMain.handle('db:media:create', (_, data) => {
+    try { return { success: true, data: mediaQueries.createMedia(db, data) } }
+    catch (e) { return { success: false, error: e.message } }
+  })
   ipcMain.handle('media:import', async () => {
     try {
       const result = await dialog.showOpenDialog(mainWindow, {
@@ -305,6 +365,10 @@ function registerIpcHandlers() {
       })
       return { success: true, data: inserted }
     } catch (e) { return { success: false, error: e.message } }
+  })
+  ipcMain.handle('db:media:update', (_, id, data) => {
+    try { return { success: true, data: mediaQueries.updateMedia(db, id, data) } }
+    catch (e) { return { success: false, error: e.message } }
   })
   ipcMain.handle('db:media:delete', (_, id) => {
     try { mediaQueries.deleteMedia(db, id); return { success: true } }
@@ -332,6 +396,7 @@ function registerIpcHandlers() {
     resetOutputState()
     if (presenterWindow) presenterWindow.webContents.send('presenter:start', { slides })
     syncOutputState()
+    syncCountdownState()
     return { success: true }
   })
 
@@ -341,6 +406,7 @@ function registerIpcHandlers() {
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background: null })
     if (mainWindow) mainWindow.webContents.send('presenter:slideAdvance', { slide })
     syncOutputState()
+    syncCountdownState()
     return { success: true }
   })
 
@@ -349,6 +415,7 @@ function registerIpcHandlers() {
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background })
     if (presenterWindow) presenterWindow.webContents.send('presenter:slideAdvance', { slide })
     syncOutputState()
+    syncCountdownState()
     return { success: true }
   })
   ipcMain.handle('output:black', () => {
@@ -367,12 +434,24 @@ function registerIpcHandlers() {
     syncOutputState()
     return { success: true, data: outputState }
   })
+  ipcMain.handle('output:countdownStart', (_, { durationSeconds }) => {
+    startCountdown(durationSeconds)
+    syncCountdownState()
+    return { success: true, data: countdownState }
+  })
+  ipcMain.handle('output:countdownStop', () => {
+    resetCountdownState()
+    syncCountdownState()
+    return { success: true, data: countdownState }
+  })
   ipcMain.handle('output:stop', () => {
     resetOutputState()
+    resetCountdownState()
     if (outputWindow) { outputWindow.close(); outputWindow = null }
     if (presenterWindow) presenterWindow.webContents.send('presenter:stop')
     if (mainWindow) mainWindow.webContents.send('presenter:stop')
     syncOutputState()
+    syncCountdownState()
     return { success: true }
   })
 
@@ -389,6 +468,11 @@ function registerIpcHandlers() {
     try {
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value)
       return { success: true }
+    } catch (e) { return { success: false, error: e.message } }
+  })
+  ipcMain.handle('system:getProfile', () => {
+    try {
+      return { success: true, data: getProfileData() }
     } catch (e) { return { success: false, error: e.message } }
   })
 }

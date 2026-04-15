@@ -38,8 +38,14 @@ export async function deleteSong(id) {
 export async function getMedia() {
   return api().getMedia()
 }
+export async function createMedia(data) {
+  return api().createMedia(data)
+}
 export async function importMedia() {
   return api().importMedia()
+}
+export async function updateMedia(id, data) {
+  return api().updateMedia(id, data)
 }
 export async function deleteMedia(id) {
   return api().deleteMedia(id)
@@ -67,6 +73,12 @@ export async function sendBlack() {
 export async function sendLogo() {
   return api().sendLogo()
 }
+export async function startCountdown(durationSeconds) {
+  return api().startCountdown(durationSeconds)
+}
+export async function stopCountdown() {
+  return api().stopCountdown()
+}
 export async function stopPresenting() {
   return api().stopPresenting()
 }
@@ -77,4 +89,7 @@ export async function getSettings() {
 }
 export async function setSetting(key, value) {
   return api().setSetting(key, value)
+}
+export async function getProfile() {
+  return api().getProfile()
 }

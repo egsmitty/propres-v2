@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 export const useAppStore = create((set) => ({
   currentView: 'home',
+  homeTab: 'home',
   recentPresentations: [],
   outputConnected: false,
   songLibraryOpen: false,
@@ -13,6 +14,7 @@ export const useAppStore = create((set) => ({
   tutorialStepIndex: 0,
 
   setCurrentView: (view) => set({ currentView: view }),
+  setHomeTab: (tab) => set({ homeTab: tab }),
   setRecentPresentations: (list) => set({ recentPresentations: list }),
   setOutputConnected: (val) => set({ outputConnected: val }),
   setSongLibraryOpen: (val) => set({ songLibraryOpen: val }),

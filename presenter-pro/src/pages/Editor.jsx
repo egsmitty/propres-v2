@@ -25,8 +25,11 @@ export default function Editor() {
   const setLogo = usePresenterStore((s) => s.setLogo)
   const presentation = useEditorStore((s) => s.presentation)
   const isDirty = useEditorStore((s) => s.isDirty)
+  const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave)
   const setDirty = useEditorStore((s) => s.setDirty)
+  const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave)
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
+  const panelOpen = songLibraryOpen || mediaLibraryOpen
 
   // Listen for stop signal from output window (when presenter closes)
   useEffect(() => {
@@ -58,7 +61,7 @@ export default function Editor() {
 
   useEffect(() => {
     function handleBeforeUnload(e) {
-      if (!presentation || !isDirty) return
+      if (!presentation || (!isDirty && !requiresInitialSave)) return
 
       if (useAppStore.getState().allowWindowClose) {
         setAllowWindowClose(false)
@@ -75,10 +78,11 @@ export default function Editor() {
 
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [presentation, isDirty, allowWindowClose, setAllowWindowClose])
+  }, [presentation, isDirty, requiresInitialSave, allowWindowClose, setAllowWindowClose])
 
   useEffect(() => {
     function handleKeyDown(e) {
+      if (panelOpen) return
       if (editingSlideId) return
       const tag = document.activeElement?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return
@@ -101,13 +105,14 @@ export default function Editor() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [editingSlideId, isPresenting, presentation, isDirty])
+  }, [editingSlideId, isPresenting, presentation, isDirty, requiresInitialSave, panelOpen])
 
   async function handleSave() {
-    if (!presentation || !isDirty) return
+    if (!presentation || (!isDirty && !requiresInitialSave)) return
     const result = await updatePresentation(presentation.id, presentation)
     if (result?.success) {
       setDirty(false)
+      setRequiresInitialSave(false)
       return
     }
 
@@ -116,12 +121,19 @@ export default function Editor() {
 
   async function handlePresent() {
     if (!presentation) return
+    if (panelOpen) {
+      window.alert('Close the Song Library or Media Library before presenting.')
+      return
+    }
     if (isPresenting) {
       handleStopPresenting()
       return
     }
 
-    await startPresentationSession(presentation)
+    const started = await startPresentationSession(presentation)
+    if (!started) {
+      window.alert('Add at least one slide before presenting.')
+    }
   }
 
   function handleStopPresenting() {
@@ -136,8 +148,13 @@ export default function Editor() {
       <div className="flex flex-1 overflow-hidden relative">
         {songLibraryOpen && <SongLibraryPanel />}
         {mediaLibraryOpen && <MediaLibraryPanel />}
-        {filmstripVisible && <ErrorBoundary label="Filmstrip error"><Filmstrip /></ErrorBoundary>}
-        <ErrorBoundary label="Canvas error"><Canvas onSave={handleSave} /></ErrorBoundary>
+        <div
+          className="flex flex-1 overflow-hidden"
+          style={{ pointerEvents: panelOpen ? 'none' : 'auto' }}
+        >
+          {filmstripVisible && <ErrorBoundary label="Filmstrip error"><Filmstrip /></ErrorBoundary>}
+          <ErrorBoundary label="Canvas error"><Canvas onSave={handleSave} /></ErrorBoundary>
+        </div>
       </div>
       <StatusBar />
     </div>

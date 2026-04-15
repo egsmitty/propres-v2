@@ -1,15 +1,8 @@
 import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { deleteSong } from '@/utils/ipc'
+import { createSection } from '@/utils/sectionTypes'
 import { uuid } from '@/utils/uuid'
-
-const SECTION_COLORS = [
-  'var(--section-1)',
-  'var(--section-2)',
-  'var(--section-3)',
-  'var(--section-4)',
-  'var(--section-5)',
-]
 
 export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
   const addSection = useEditorStore((s) => s.addSection)
@@ -26,16 +19,10 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
     if (!presentation || isInserting) return
     setIsInserting(true)
     try {
-      const colorIdx = presentation.sections.length % SECTION_COLORS.length
-      const newSection = {
-        id: uuid(),
+      const newSection = createSection('song', presentation.sections.length, {
         title: song.title,
-        type: 'song',
-        color: SECTION_COLORS[colorIdx],
-        collapsed: false,
         slides: slides.map((sl) => ({ ...sl, id: uuid() })),
-        backgroundId: null,
-      }
+      })
       addSection(newSection)
       setSelectedSlide(newSection.id, newSection.slides[0]?.id ?? null)
       await Promise.resolve(onInsert?.(newSection))

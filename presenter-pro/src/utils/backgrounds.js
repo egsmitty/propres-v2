@@ -6,25 +6,36 @@ export const SECTION_COLORS = [
   'var(--section-5)',
 ]
 
+import { isMediaSlide, normalizeSectionType } from '@/utils/sectionTypes'
+
 export function normalizePresentation(presentation) {
   if (!presentation) return presentation
-
-  const defaultBackgroundId =
-    presentation.defaultBackgroundId ?? presentation.default_background_id ?? null
+  const sections = (presentation.sections || []).map((section) => ({
+    ...section,
+    type: normalizeSectionType(section.type),
+    backgroundId: section.backgroundId ?? null,
+    slides: (section.slides || []).map((slide) => ({
+      ...slide,
+      backgroundId: slide.backgroundId ?? null,
+      mediaId: slide.mediaId ?? null,
+    })),
+  }))
 
   return {
     ...presentation,
-    defaultBackgroundId,
-    default_background_id: defaultBackgroundId,
+    sections,
+    defaultBackgroundId: null,
+    default_background_id: null,
   }
 }
 
 export function getPresentationBackgroundId(presentation) {
-  return presentation?.defaultBackgroundId ?? presentation?.default_background_id ?? null
+  return null
 }
 
 export function getEffectiveBackgroundId(presentation, sectionId, slide) {
   if (!slide) return null
+  if (isMediaSlide(slide)) return null
 
   const section = presentation?.sections?.find((item) => item.id === sectionId)
 
@@ -32,7 +43,6 @@ export function getEffectiveBackgroundId(presentation, sectionId, slide) {
     slide.effectiveBackgroundId ??
     slide.backgroundId ??
     section?.backgroundId ??
-    getPresentationBackgroundId(presentation) ??
     null
   )
 }

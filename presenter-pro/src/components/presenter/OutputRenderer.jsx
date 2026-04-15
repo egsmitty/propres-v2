@@ -1,13 +1,48 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { getMedia } from '@/utils/ipc'
 import { fileUrlForPath, isVideoMedia } from '@/utils/backgrounds'
+import { isMediaSlide } from '@/utils/sectionTypes'
+
+function formatRemaining(endAt) {
+  if (!endAt) return '00:00'
+  const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
+  const minutes = Math.floor(remaining / 60)
+  const seconds = remaining % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
 
 export default function OutputRenderer() {
   const [slide, setSlide] = useState(null)
   const [background, setBackground] = useState(null)
+  const [mediaSlideItem, setMediaSlideItem] = useState(null)
   const [media, setMedia] = useState([])
   const [isBlack, setIsBlack] = useState(false)
   const [isLogo, setIsLogo] = useState(false)
+  const [countdown, setCountdown] = useState({ active: false, endAt: null, durationSeconds: 0 })
+  const [remaining, setRemaining] = useState('00:00')
+  const mediaRef = useRef([])
+  const backgroundRef = useRef(null)
+  const backgroundIdRef = useRef(null)
+
+  useEffect(() => {
+    mediaRef.current = media
+  }, [media])
+
+  useEffect(() => {
+    backgroundRef.current = background
+  }, [background])
+
+  useEffect(() => {
+    if (!countdown.active || !countdown.endAt) {
+      setRemaining('00:00')
+      return
+    }
+
+    const sync = () => setRemaining(formatRemaining(countdown.endAt))
+    sync()
+    const interval = window.setInterval(sync, 250)
+    return () => window.clearInterval(interval)
+  }, [countdown])
 
   useEffect(() => {
     loadMedia()
@@ -19,14 +54,35 @@ export default function OutputRenderer() {
 
     const offUpdate = api.onOutputUpdate(async ({ slide: s, background: bg }) => {
       setSlide(s)
-      setBackground(bg || null)
       setIsBlack(false)
       setIsLogo(false)
 
-      if (!bg && s?.effectiveBackgroundId) {
-        const library = media.length ? media : await fetchMedia()
-        setBackground(library.find((item) => item.id === s.effectiveBackgroundId) || null)
+      if (isMediaSlide(s)) {
+        const library = mediaRef.current.length ? mediaRef.current : await fetchMedia()
+        const mediaItem = library.find((item) => item.id === s.mediaId) || null
+        setMediaSlideItem(mediaItem)
+        setBackground(null)
+        backgroundIdRef.current = null
+        return
       }
+
+      setMediaSlideItem(null)
+
+      const nextBackgroundId = bg?.id || s?.effectiveBackgroundId || null
+      if (!nextBackgroundId) {
+        setBackground(null)
+        backgroundIdRef.current = null
+        return
+      }
+
+      if (backgroundIdRef.current === nextBackgroundId && backgroundRef.current) {
+        return
+      }
+
+      const library = mediaRef.current.length ? mediaRef.current : await fetchMedia()
+      const nextBackground = bg || library.find((item) => item.id === nextBackgroundId) || null
+      setBackground(nextBackground)
+      backgroundIdRef.current = nextBackgroundId
     })
 
     const offBlack = api.onOutputBlack(({ active }) => {
@@ -38,17 +94,22 @@ export default function OutputRenderer() {
       setIsLogo(Boolean(active))
       if (active) setIsBlack(false)
     })
+    const offCountdown = api.onOutputCountdown((state) => {
+      setCountdown(state || { active: false, endAt: null, durationSeconds: 0 })
+    })
 
     return () => {
       offUpdate?.()
       offBlack?.()
       offLogo?.()
+      offCountdown?.()
     }
   }, [])
 
   async function loadMedia() {
     const library = await fetchMedia()
     setMedia(library)
+    mediaRef.current = library
   }
 
   async function fetchMedia() {
@@ -84,10 +145,12 @@ export default function OutputRenderer() {
         position: 'relative',
       }}
     >
-      {background?.file_path && (
+      {mediaSlideItem?.file_path ? (
+        <OutputBackground media={mediaSlideItem} />
+      ) : background?.file_path ? (
         <OutputBackground media={background} />
-      )}
-      {background?.file_path && (
+      ) : null}
+      {!mediaSlideItem?.file_path && background?.file_path && (
         <div
           style={{
             position: 'absolute',
@@ -96,7 +159,7 @@ export default function OutputRenderer() {
           }}
         />
       )}
-      {slide?.body && (
+      {!mediaSlideItem?.file_path && slide?.body && (
         <div
           style={{
             position: 'relative',
@@ -114,6 +177,31 @@ export default function OutputRenderer() {
           }}
         >
           {slide.body}
+        </div>
+      )}
+      {countdown.active && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 36,
+            right: 36,
+            padding: '14px 18px',
+            borderRadius: 18,
+            background: 'rgba(9, 14, 26, 0.66)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            color: '#ffffff',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            textAlign: 'right',
+            minWidth: 144,
+            boxShadow: '0 12px 28px rgba(0,0,0,0.28)',
+          }}
+        >
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.72 }}>
+            Countdown
+          </div>
+          <div style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1, marginTop: 6 }}>
+            {remaining}
+          </div>
         </div>
       )}
     </div>

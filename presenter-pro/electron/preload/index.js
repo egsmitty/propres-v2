@@ -22,7 +22,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Media
   getMedia: () => ipcRenderer.invoke('db:media:getAll'),
+  createMedia: (data) => ipcRenderer.invoke('db:media:create', data),
   importMedia: () => ipcRenderer.invoke('media:import'),
+  updateMedia: (id, data) => ipcRenderer.invoke('db:media:update', id, data),
   deleteMedia: (id) => ipcRenderer.invoke('db:media:delete', id),
 
   // Output / Presenter
@@ -33,6 +35,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendSlide: (slide, background) => ipcRenderer.invoke('output:sendSlide', { slide, background }),
   sendBlack: () => ipcRenderer.invoke('output:black'),
   sendLogo: () => ipcRenderer.invoke('output:logo'),
+  startCountdown: (durationSeconds) => ipcRenderer.invoke('output:countdownStart', { durationSeconds }),
+  stopCountdown: () => ipcRenderer.invoke('output:countdownStop'),
   stopPresenting: () => ipcRenderer.invoke('output:stop'),
 
   // Send full slide list to presenter window on start
@@ -53,6 +57,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // System
   getSettings: () => ipcRenderer.invoke('settings:getAll'),
   setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value),
+  getProfile: () => ipcRenderer.invoke('system:getProfile'),
 
   // Events (main -> renderer)
   onSlideAdvance: (cb) => subscribe('presenter:slideAdvance', cb),
@@ -60,6 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onOutputUpdate: (cb) => subscribe('output:update', cb),
   onOutputBlack: (cb) => subscribe('output:black', cb),
   onOutputLogo: (cb) => subscribe('output:logo', cb),
+  onOutputCountdown: (cb) => subscribe('output:countdown', cb),
   onPresenterStart: (cb) => subscribe('presenter:start', cb),
   onAppCommand: (cb) => subscribe('app:command', cb),
 })

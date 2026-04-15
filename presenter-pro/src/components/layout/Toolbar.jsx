@@ -1,9 +1,13 @@
 import React from 'react'
-import { Plus, Copy, Trash2, Music, Image, Square, Play } from 'lucide-react'
+import { Plus, Copy, Trash2, Music, Image, FileText, BookOpen, Play } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { uuid } from '@/utils/uuid'
+import {
+  insertNewSectionIntoCurrentPresentation,
+  insertNewSlideIntoCurrentPresentation,
+} from '@/utils/presentationCommands'
 
 function ToolbarBtn({ icon: Icon, label, shortcut, onClick, disabled }) {
   return (
@@ -36,35 +40,18 @@ function Separator() {
 export default function Toolbar({ onPresent }) {
   const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
+  const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
+  const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const presentation = useEditorStore((s) => s.presentation)
-  const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
 
   const hasPresentation = !!presentation
   const hasSlide = !!selectedSlideId
+  const panelOpen = songLibraryOpen || mediaLibraryOpen
 
   function handleNewSlide() {
-    if (!presentation) return
-    const targetSection =
-      presentation.sections.find((s) => s.id === selectedSectionId) ||
-      presentation.sections[0]
-    if (!targetSection) return
-    const newSlide = {
-      id: uuid(),
-      type: 'blank',
-      label: 'Slide',
-      body: '',
-      notes: '',
-      backgroundId: null,
-      textStyle: { size: 52, align: 'center', valign: 'center', color: '#ffffff', bold: false },
-    }
-    const sections = presentation.sections.map((sec) =>
-      sec.id === targetSection.id ? { ...sec, slides: [...sec.slides, newSlide] } : sec
-    )
-    useEditorStore.getState().setPresentation({ ...presentation, sections })
-    useEditorStore.getState().setDirty(true)
-    useEditorStore.getState().setSelectedSlide(targetSection.id, newSlide.id)
+    insertNewSlideIntoCurrentPresentation()
   }
 
   function handleDuplicate() {
@@ -103,15 +90,30 @@ export default function Toolbar({ onPresent }) {
         borderBottom: '1px solid var(--border-subtle)',
       }}
     >
-      <ToolbarBtn icon={Plus} label="New Slide" shortcut="⌘M" onClick={handleNewSlide} disabled={!hasPresentation} />
-      <ToolbarBtn icon={Copy} label="Duplicate Slide" onClick={handleDuplicate} disabled={!hasSlide} />
-      <ToolbarBtn icon={Trash2} label="Delete Slide" onClick={handleDelete} disabled={!hasSlide} />
+      <ToolbarBtn icon={Plus} label="New Slide" shortcut="⌘M" onClick={handleNewSlide} disabled={!hasPresentation || panelOpen} />
+      <ToolbarBtn icon={Copy} label="Duplicate Slide" onClick={handleDuplicate} disabled={!hasSlide || panelOpen} />
+      <ToolbarBtn icon={Trash2} label="Delete Slide" onClick={handleDelete} disabled={!hasSlide || panelOpen} />
 
       <Separator />
 
-      <ToolbarBtn icon={Music} label="Song Library" onClick={() => setSongLibraryOpen(true)} />
-      <ToolbarBtn icon={Image} label="Media Library" onClick={() => setMediaLibraryOpen(true)} />
-      <ToolbarBtn icon={Square} label="Insert Blank Slide" onClick={handleNewSlide} disabled={!hasPresentation} />
+      <ToolbarBtn
+        icon={Music}
+        label="Song Library"
+        onClick={() => {
+          setMediaLibraryOpen(false)
+          setSongLibraryOpen(!songLibraryOpen)
+        }}
+      />
+      <ToolbarBtn icon={FileText} label="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation || panelOpen} />
+      <ToolbarBtn icon={BookOpen} label="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation || panelOpen} />
+      <ToolbarBtn
+        icon={Image}
+        label="Media Library"
+        onClick={() => {
+          setSongLibraryOpen(false)
+          setMediaLibraryOpen(!mediaLibraryOpen)
+        }}
+      />
 
       <Separator />
 
@@ -119,16 +121,20 @@ export default function Toolbar({ onPresent }) {
         data-tour="present-button"
         onClick={onPresent}
         title="Present (F5)"
+        disabled={panelOpen}
         className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium ml-1"
         style={{
-          background: isPresenting ? 'var(--live)' : 'var(--accent)',
+          background: panelOpen ? 'var(--border-default)' : isPresenting ? 'var(--live)' : 'var(--accent)',
           color: '#ffffff',
+          cursor: panelOpen ? 'default' : 'pointer',
+          opacity: panelOpen ? 0.7 : 1,
         }}
         onMouseEnter={(e) => {
+          if (panelOpen) return
           e.currentTarget.style.background = isPresenting ? '#15803d' : 'var(--accent-hover)'
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = isPresenting ? 'var(--live)' : 'var(--accent)'
+          e.currentTarget.style.background = panelOpen ? 'var(--border-default)' : isPresenting ? 'var(--live)' : 'var(--accent)'
         }}
       >
         <Play size={13} />
