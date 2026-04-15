@@ -76,6 +76,10 @@ export async function runAppCommand(command) {
     case 'help:shortcuts':
       appState.setShortcutsOpen(true)
       return true
+    case 'help:tutorial':
+      appState.setTutorialStepIndex(appState.currentView === 'editor' ? 1 : 0)
+      appState.setTutorialOpen(true)
+      return true
     case 'help:about':
       window.alert('PresenterPro\nPowerPoint for Worship Media')
       return true

@@ -53,6 +53,7 @@ const MENUS = [
   {
     label: 'Help',
     items: [
+      { label: 'Show Tutorial', action: 'help:tutorial' },
       { label: 'Keyboard Shortcuts', shortcut: '?', action: 'help:shortcuts' },
       { label: 'About PresenterPro', action: 'help:about' },
     ]

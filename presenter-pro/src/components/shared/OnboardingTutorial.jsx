@@ -48,11 +48,17 @@ const STEPS = [
 export default function OnboardingTutorial({ onComplete }) {
   const currentView = useAppStore((s) => s.currentView)
   const setCurrentView = useAppStore((s) => s.setCurrentView)
-  const [stepIndex, setStepIndex] = useState(0)
+  const tutorialStepIndex = useAppStore((s) => s.tutorialStepIndex)
+  const setTutorialStepIndex = useAppStore((s) => s.setTutorialStepIndex)
+  const [stepIndex, setStepIndex] = useState(tutorialStepIndex)
   const [targetRect, setTargetRect] = useState(null)
   const [isWorking, setIsWorking] = useState(false)
 
   const step = STEPS[stepIndex]
+
+  useEffect(() => {
+    setStepIndex(tutorialStepIndex)
+  }, [tutorialStepIndex])
 
   useEffect(() => {
     function measureTarget() {
@@ -125,6 +131,7 @@ export default function OnboardingTutorial({ onComplete }) {
       } else {
         await createNewPresentation()
       }
+      setTutorialStepIndex(1)
       setStepIndex(1)
     } finally {
       setIsWorking(false)
@@ -137,6 +144,7 @@ export default function OnboardingTutorial({ onComplete }) {
       if (nextIndex === 0 && currentView === 'editor') {
         setCurrentView('home')
       }
+      setTutorialStepIndex(nextIndex)
       return nextIndex
     })
   }
@@ -146,7 +154,11 @@ export default function OnboardingTutorial({ onComplete }) {
       onComplete()
       return
     }
-    setStepIndex((index) => index + 1)
+    setStepIndex((index) => {
+      const nextIndex = index + 1
+      setTutorialStepIndex(nextIndex)
+      return nextIndex
+    })
   }
 
   return (

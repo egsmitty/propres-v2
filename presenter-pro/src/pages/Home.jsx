@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { FileText, Plus, FolderOpen, Clock } from 'lucide-react'
+import { FileText, Plus, FolderOpen, Clock, BookOpen } from 'lucide-react'
 import { getPresentations } from '@/utils/ipc'
 import ContextMenu from '@/components/shared/ContextMenu'
+import { useAppStore } from '@/store/appStore'
 import {
   createNewPresentation,
   deletePresentationById,
@@ -20,6 +21,8 @@ function firstSlideOf(presentation) {
 }
 
 export default function Home() {
+  const setTutorialOpen = useAppStore((s) => s.setTutorialOpen)
+  const setTutorialStepIndex = useAppStore((s) => s.setTutorialStepIndex)
   const [presentations, setPresentations] = useState([])
   const [navItem, setNavItem] = useState('recent')
   const [menu, setMenu] = useState(null)
@@ -49,6 +52,11 @@ export default function Home() {
   async function handleDelete(pres) {
     const result = await deletePresentationById(pres.id, pres.title)
     if (result?.success) await loadPresentations()
+  }
+
+  function handleShowTutorial() {
+    setTutorialStepIndex(0)
+    setTutorialOpen(true)
   }
 
   const NAV = [
@@ -106,17 +114,34 @@ export default function Home() {
       {/* Main area */}
       <div className="flex-1 flex flex-col p-6 overflow-auto">
         {/* New presentation button */}
-        <button
-          data-tour="home-entry"
-          onClick={handleNew}
-          className="flex items-center gap-2 px-4 py-2 rounded text-sm font-medium mb-6 self-start"
-          style={{ background: 'var(--accent)', color: '#fff' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
-        >
-          <Plus size={15} />
-          New Presentation
-        </button>
+        <div className="flex items-center gap-2 mb-6 self-start">
+          <button
+            data-tour="home-entry"
+            onClick={handleNew}
+            className="flex items-center gap-2 px-4 py-2 rounded text-sm font-medium"
+            style={{ background: 'var(--accent)', color: '#fff' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+          >
+            <Plus size={15} />
+            New Presentation
+          </button>
+
+          <button
+            onClick={handleShowTutorial}
+            className="flex items-center gap-2 px-4 py-2 rounded text-sm font-medium"
+            style={{
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-default)',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
+          >
+            <BookOpen size={15} />
+            Show Tutorial
+          </button>
+        </div>
 
         <h2
           className="text-sm font-semibold mb-3"

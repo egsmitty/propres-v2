@@ -20,7 +20,9 @@ export default function App() {
   const currentView = useAppStore((s) => s.currentView)
   const shortcutsOpen = useAppStore((s) => s.shortcutsOpen)
   const setShortcutsOpen = useAppStore((s) => s.setShortcutsOpen)
-  const [showTutorial, setShowTutorial] = React.useState(false)
+  const tutorialOpen = useAppStore((s) => s.tutorialOpen)
+  const setTutorialOpen = useAppStore((s) => s.setTutorialOpen)
+  const setTutorialStepIndex = useAppStore((s) => s.setTutorialStepIndex)
 
   React.useEffect(() => {
     const api = window.electronAPI
@@ -43,7 +45,8 @@ export default function App() {
         ? result.data?.tutorial_completed !== 'true'
         : true
 
-      setShowTutorial(shouldShow)
+      setTutorialStepIndex(0)
+      setTutorialOpen(shouldShow)
     }
 
     loadTutorialState()
@@ -53,7 +56,8 @@ export default function App() {
   }, [])
 
   async function handleDismissTutorial() {
-    setShowTutorial(false)
+    setTutorialOpen(false)
+    setTutorialStepIndex(0)
     await setSetting('tutorial_completed', 'true')
   }
 
@@ -70,7 +74,7 @@ export default function App() {
         </ErrorBoundary>
       </div>
       {shortcutsOpen && <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} />}
-      {showTutorial && <OnboardingTutorial onComplete={handleDismissTutorial} />}
+      {tutorialOpen && <OnboardingTutorial onComplete={handleDismissTutorial} />}
     </div>
   )
 }
