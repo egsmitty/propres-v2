@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  /* Editor — light theme */
+  --bg-app: #f0f0f0;
+  --bg-surface: #ffffff;
+  --bg-toolbar: #f8f8f8;
+  --bg-filmstrip: #f3f3f3;
+  --bg-hover: #e8e8e8;
+  --bg-selected: #dde8ff;
+  --bg-canvas: #1a1a1a;
+
+  /* Borders */
+  --border-subtle: #e2e2e2;
+  --border-default: #d0d0d0;
+  --border-strong: #b0b0b0;
+  --border-focus: #4a7cff;
+
+  /* Text */
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b6b6b;
+  --text-tertiary: #a0a0a0;
+  --text-on-dark: #f0f0f5;
+
+  /* Accent */
+  --accent: #4a7cff;
+  --accent-hover: #3a6cef;
+  --accent-dim: rgba(74, 124, 255, 0.12);
+  --accent-light: #e8eeff;
+
+  /* Live / Present state */
+  --live: #16a34a;
+  --live-bg: #f0fdf4;
+  --live-border: #86efac;
+  --live-dim: rgba(22, 163, 74, 0.12);
+
+  /* Danger */
+  --danger: #dc2626;
+  --danger-dim: rgba(220, 38, 38, 0.1);
+
+  /* Section colors */
+  --section-1: #4a7cff;
+  --section-2: #7c3aed;
+  --section-3: #db2777;
+  --section-4: #ea580c;
+  --section-5: #16a34a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Allow text selection in inputs/textareas */
+input,
+textarea,
+[contenteditable] {
+  user-select: text;
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+@keyframes slide-out-left {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(-100%); opacity: 0; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

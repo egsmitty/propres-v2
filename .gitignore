@@ -1,0 +1,12 @@
+.DS_Store
+.claude/
+
+presenter-pro/node_modules/
+presenter-pro/out/
+presenter-pro/dist/
+presenter-pro/release/
+presenter-pro/.electron-builder/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
