@@ -1,5 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
+function subscribe(channel, cb) {
+  const handler = (_, data) => cb(data)
+  ipcRenderer.on(channel, handler)
+  return () => ipcRenderer.removeListener(channel, handler)
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // Presentations
   getPresentations: () => ipcRenderer.invoke('db:presentations:getAll'),
@@ -31,6 +37,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Send full slide list to presenter window on start
   startPresentation: (slides) => ipcRenderer.invoke('presenter:start', { slides }),
+  waitForPresenterReady: () => ipcRenderer.invoke('presenter:waitReady'),
+  notifyPresenterReady: () => ipcRenderer.invoke('presenter:ready'),
+  waitForOutputReady: () => ipcRenderer.invoke('output:waitReady'),
+  notifyOutputReady: () => ipcRenderer.invoke('output:ready'),
 
   // Presenter window navigating to a slide
   presenterGoToSlide: (slide) => ipcRenderer.invoke('presenter:goToSlide', { slide }),
@@ -45,11 +55,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value),
 
   // Events (main -> renderer)
-  onSlideAdvance: (cb) => ipcRenderer.on('presenter:slideAdvance', (_, data) => cb(data)),
-  onPresenterStop: (cb) => ipcRenderer.on('presenter:stop', () => cb()),
-  onOutputUpdate: (cb) => ipcRenderer.on('output:update', (_, data) => cb(data)),
-  onOutputBlack: (cb) => ipcRenderer.on('output:black', () => cb()),
-  onOutputLogo: (cb) => ipcRenderer.on('output:logo', () => cb()),
-  onPresenterStart: (cb) => ipcRenderer.on('presenter:start', (_, data) => cb(data)),
-  onAppCommand: (cb) => ipcRenderer.on('app:command', (_, command) => cb(command)),
+  onSlideAdvance: (cb) => subscribe('presenter:slideAdvance', cb),
+  onPresenterStop: (cb) => subscribe('presenter:stop', cb),
+  onOutputUpdate: (cb) => subscribe('output:update', cb),
+  onOutputBlack: (cb) => subscribe('output:black', cb),
+  onOutputLogo: (cb) => subscribe('output:logo', cb),
+  onPresenterStart: (cb) => subscribe('presenter:start', cb),
+  onAppCommand: (cb) => subscribe('app:command', cb),
 })

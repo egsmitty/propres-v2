@@ -16,7 +16,9 @@ export default function PresenterView() {
     const api = window.electronAPI
     if (!api) return
 
-    api.onPresenterStart(({ slides: list }) => {
+    api.notifyPresenterReady?.()
+
+    const offStart = api.onPresenterStart(({ slides: list }) => {
       setSlides(list)
       slidesRef.current = list
       setCurrentIdx(0)
@@ -25,32 +27,39 @@ export default function PresenterView() {
       setIsLogo(false)
     })
 
-    api.onSlideAdvance(({ slide }) => {
+    const offAdvance = api.onSlideAdvance(({ slide }) => {
       const idx = slidesRef.current.findIndex((s) => s.id === slide.id)
       if (idx !== -1) { setCurrentIdx(idx); idxRef.current = idx }
       setIsBlack(false)
       setIsLogo(false)
     })
 
-    api.onOutputBlack(() => {
-      setIsBlack((v) => !v)
-      setIsLogo(false)
+    const offBlack = api.onOutputBlack(({ active }) => {
+      setIsBlack(Boolean(active))
+      if (active) setIsLogo(false)
     })
-    api.onOutputLogo(() => {
-      setIsLogo((v) => !v)
-      setIsBlack(false)
+    const offLogo = api.onOutputLogo(({ active }) => {
+      setIsLogo(Boolean(active))
+      if (active) setIsBlack(false)
     })
-    api.onPresenterStop(() => window.close())
+    const offStop = api.onPresenterStop(() => window.close())
 
     function handleKey(e) {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext()
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev()
       if (e.key === 'b' || e.key === 'B') toggleBlack()
-      if (e.key === 'l' || e.key === 'L') api.sendLogo()
+      if (e.key === 'l' || e.key === 'L') toggleLogo()
       if (e.key === 'Escape') api.stopPresenting()
     }
     window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
+    return () => {
+      window.removeEventListener('keydown', handleKey)
+      offStart?.()
+      offAdvance?.()
+      offBlack?.()
+      offLogo?.()
+      offStop?.()
+    }
   }, [])
 
   function goTo(idx) {
@@ -67,14 +76,10 @@ export default function PresenterView() {
   function goPrev() { goTo(idxRef.current - 1) }
 
   function toggleBlack() {
-    setIsBlack((v) => !v)
-    setIsLogo(false)
     window.electronAPI?.sendBlack()
   }
 
   function toggleLogo() {
-    setIsLogo((v) => !v)
-    setIsBlack(false)
     window.electronAPI?.sendLogo()
   }
 

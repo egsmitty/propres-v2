@@ -171,6 +171,7 @@ export default function Filmstrip() {
 
   return (
     <div
+      data-tour="filmstrip"
       className="w-56 h-full overflow-y-auto shrink-0 flex flex-col"
       style={{ background: 'var(--bg-filmstrip)', borderRight: '1px solid var(--border-default)' }}
     >

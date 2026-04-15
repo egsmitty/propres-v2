@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { deleteSong } from '@/utils/ipc'
 import { uuid } from '@/utils/uuid'
@@ -11,28 +11,37 @@ const SECTION_COLORS = [
   'var(--section-5)',
 ]
 
-export default function SongCard({ song, onEdit, onRefresh }) {
+export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
   const addSection = useEditorStore((s) => s.addSection)
+  const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
   const presentation = useEditorStore((s) => s.presentation)
+  const [isInserting, setIsInserting] = useState(false)
 
   let slides = []
   try {
     slides = typeof song.slides === 'string' ? JSON.parse(song.slides) : song.slides
   } catch {}
 
-  function handleInsert() {
-    if (!presentation) return
-    const colorIdx = presentation.sections.length % SECTION_COLORS.length
-    const newSection = {
-      id: uuid(),
-      title: song.title,
-      type: 'song',
-      color: SECTION_COLORS[colorIdx],
-      collapsed: false,
-      slides: slides.map((sl) => ({ ...sl, id: uuid() })),
-      backgroundId: null,
+  async function handleInsert() {
+    if (!presentation || isInserting) return
+    setIsInserting(true)
+    try {
+      const colorIdx = presentation.sections.length % SECTION_COLORS.length
+      const newSection = {
+        id: uuid(),
+        title: song.title,
+        type: 'song',
+        color: SECTION_COLORS[colorIdx],
+        collapsed: false,
+        slides: slides.map((sl) => ({ ...sl, id: uuid() })),
+        backgroundId: null,
+      }
+      addSection(newSection)
+      setSelectedSlide(newSection.id, newSection.slides[0]?.id ?? null)
+      await Promise.resolve(onInsert?.(newSection))
+    } finally {
+      setIsInserting(false)
     }
-    addSection(newSection)
   }
 
   async function handleDelete() {
@@ -67,12 +76,23 @@ export default function SongCard({ song, onEdit, onRefresh }) {
       {/* Insert button — visible on hover */}
       <button
         onClick={handleInsert}
+        disabled={isInserting || !presentation}
         className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded text-xs font-medium shrink-0"
-        style={{ background: 'var(--accent)', color: '#fff' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+        style={{
+          background: isInserting || !presentation ? 'var(--border-default)' : 'var(--accent)',
+          color: '#fff',
+          cursor: isInserting || !presentation ? 'default' : 'pointer',
+        }}
+        onMouseEnter={(e) => {
+          if (!isInserting && presentation) e.currentTarget.style.background = 'var(--accent-hover)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = isInserting || !presentation
+            ? 'var(--border-default)'
+            : 'var(--accent)'
+        }}
       >
-        Insert
+        {isInserting ? 'Inserted' : 'Insert'}
       </button>
     </div>
   )

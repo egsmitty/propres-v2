@@ -8,7 +8,9 @@ import PresenterView from '@/components/presenter/PresenterView'
 import OutputRenderer from '@/components/presenter/OutputRenderer'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
 import ShortcutsOverlay from '@/components/shared/ShortcutsOverlay'
+import OnboardingTutorial from '@/components/shared/OnboardingTutorial'
 import { runAppCommand } from '@/utils/appCommands'
+import { getSettings, setSetting } from '@/utils/ipc'
 
 const hash = window.location.hash
 const isPresenterWindow = hash.startsWith('#/presenter')
@@ -18,14 +20,42 @@ export default function App() {
   const currentView = useAppStore((s) => s.currentView)
   const shortcutsOpen = useAppStore((s) => s.shortcutsOpen)
   const setShortcutsOpen = useAppStore((s) => s.setShortcutsOpen)
+  const [showTutorial, setShowTutorial] = React.useState(false)
 
   React.useEffect(() => {
     const api = window.electronAPI
     if (!api?.onAppCommand) return
-    api.onAppCommand((command) => {
+    return api.onAppCommand((command) => {
       runAppCommand(command)
     })
   }, [])
+
+  React.useEffect(() => {
+    if (isPresenterWindow || isOutputWindow) return
+
+    let cancelled = false
+
+    async function loadTutorialState() {
+      const result = await getSettings()
+      if (cancelled) return
+
+      const shouldShow = result?.success
+        ? result.data?.tutorial_completed !== 'true'
+        : true
+
+      setShowTutorial(shouldShow)
+    }
+
+    loadTutorialState()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function handleDismissTutorial() {
+    setShowTutorial(false)
+    await setSetting('tutorial_completed', 'true')
+  }
 
   if (isOutputWindow) return <OutputRenderer />
   if (isPresenterWindow) return <PresenterView />
@@ -40,6 +70,7 @@ export default function App() {
         </ErrorBoundary>
       </div>
       {shortcutsOpen && <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} />}
+      {showTutorial && <OnboardingTutorial onComplete={handleDismissTutorial} />}
     </div>
   )
 }

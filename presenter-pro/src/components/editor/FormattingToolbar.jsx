@@ -9,13 +9,21 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
     updateSlideStyle(sectionId, slideId, props)
   }
 
+  function handleSizeChange(value) {
+    const nextSize = Number(value)
+    if (!Number.isFinite(nextSize)) return
+    set({ size: Math.min(200, Math.max(12, nextSize)) })
+  }
+
   const size = textStyle?.size || 52
   const bold = textStyle?.bold || false
   const align = textStyle?.align || 'center'
   const color = textStyle?.color || '#ffffff'
+  const keepEditorFocus = (e) => e.preventDefault()
 
   return (
     <div
+      data-editor-toolbar="true"
       className="flex items-center gap-2 px-3 shrink-0 h-9"
       style={{
         background: 'var(--bg-toolbar)',
@@ -25,6 +33,8 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
       {/* Font size */}
       <div className="flex items-center gap-1">
         <button
+          data-editor-toolbar="true"
+          onMouseDown={keepEditorFocus}
           onClick={() => set({ size: Math.max(12, size - 4) })}
           className="w-5 h-5 flex items-center justify-center rounded text-xs"
           style={{ color: 'var(--text-secondary)' }}
@@ -32,11 +42,12 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >−</button>
         <input
+          data-editor-toolbar="true"
           type="number"
           value={size}
           min={12}
           max={200}
-          onChange={(e) => set({ size: Number(e.target.value) })}
+          onChange={(e) => handleSizeChange(e.target.value)}
           className="w-10 text-center text-xs rounded outline-none"
           style={{
             background: 'var(--bg-app)',
@@ -46,6 +57,8 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
           }}
         />
         <button
+          data-editor-toolbar="true"
+          onMouseDown={keepEditorFocus}
           onClick={() => set({ size: Math.min(200, size + 4) })}
           className="w-5 h-5 flex items-center justify-center rounded text-xs"
           style={{ color: 'var(--text-secondary)' }}
@@ -58,6 +71,8 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
 
       {/* Bold */}
       <button
+        data-editor-toolbar="true"
+        onMouseDown={keepEditorFocus}
         onClick={() => set({ bold: !bold })}
         title="Bold"
         className="w-6 h-6 flex items-center justify-center rounded"
@@ -81,6 +96,8 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
       ].map(({ val, Icon }) => (
         <button
           key={val}
+          data-editor-toolbar="true"
+          onMouseDown={keepEditorFocus}
           onClick={() => set({ align: val })}
           title={`Align ${val}`}
           className="w-6 h-6 flex items-center justify-center rounded"
@@ -101,6 +118,7 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
       <div className="flex items-center gap-1.5">
         <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Color</span>
         <input
+          data-editor-toolbar="true"
           type="color"
           value={color}
           onChange={(e) => set({ color: e.target.value })}

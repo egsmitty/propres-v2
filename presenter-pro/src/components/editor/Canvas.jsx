@@ -103,6 +103,7 @@ export default function Canvas() {
 
   return (
     <div
+      data-tour="canvas"
       className="flex-1 flex flex-col overflow-hidden"
       style={{ background: 'var(--bg-app)' }}
     >

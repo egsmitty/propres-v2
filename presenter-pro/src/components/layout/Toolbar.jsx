@@ -96,6 +96,7 @@ export default function Toolbar({ onPresent }) {
 
   return (
     <div
+      data-tour="editor-toolbar"
       className="flex items-center px-2 h-9 shrink-0 gap-0.5"
       style={{
         background: 'var(--bg-toolbar)',
@@ -115,6 +116,7 @@ export default function Toolbar({ onPresent }) {
       <Separator />
 
       <button
+        data-tour="present-button"
         onClick={onPresent}
         title="Present (F5)"
         className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium ml-1"

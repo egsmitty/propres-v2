@@ -22,6 +22,10 @@ export default function SongLibraryPanel() {
     if (result?.success) setSongs(result.data)
   }
 
+  function handleInsert() {
+    setSongLibraryOpen(false)
+  }
+
   const filtered = songs.filter(
     (s) =>
       s.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -92,7 +96,7 @@ export default function SongLibraryPanel() {
               <SongCard
                 key={song.id}
                 song={song}
-                onInsert={() => {}}
+                onInsert={handleInsert}
                 onEdit={() => {
                   setEditSong(song)
                   setShowEditor(true)

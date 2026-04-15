@@ -23,13 +23,19 @@ export default function SlideTextEditor({ slide, onSave, onCancel }) {
     }
   }
 
+  function handleBlur(e) {
+    const nextTarget = e.relatedTarget
+    if (nextTarget?.closest?.('[data-editor-toolbar="true"]')) return
+    onSave(ref.current.innerText)
+  }
+
   return (
     <div
       ref={ref}
       contentEditable
       suppressContentEditableWarning
       onKeyDown={handleKeyDown}
-      onBlur={() => onSave(ref.current.innerText)}
+      onBlur={handleBlur}
       className="w-full h-full outline-none"
       style={{
         color: slide.textStyle?.color || '#ffffff',

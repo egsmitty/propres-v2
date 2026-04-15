@@ -32,25 +32,29 @@ export default function Editor() {
   useEffect(() => {
     const api = window.electronAPI
     if (!api?.onPresenterStop) return
-    api.onPresenterStop(() => stopPresenting())
-  }, [])
+    return api.onPresenterStop(() => stopPresenting())
+  }, [stopPresenting])
 
   // Listen for slide advance from presenter window → sync live slide in editor
   useEffect(() => {
     const api = window.electronAPI
     if (!api?.onSlideAdvance) return
-    api.onSlideAdvance(({ slide }) => {
+    return api.onSlideAdvance(({ slide }) => {
       if (slide?.sectionId) setLiveSlide(slide.sectionId, slide.id)
     })
-  }, [])
+  }, [setLiveSlide])
 
   useEffect(() => {
     const api = window.electronAPI
     if (!api?.onOutputBlack || !api?.onOutputLogo) return
 
-    api.onOutputBlack(() => setBlack(!usePresenterStore.getState().isBlack))
-    api.onOutputLogo(() => setLogo(!usePresenterStore.getState().isLogo))
-  }, [])
+    const offBlack = api.onOutputBlack(({ active }) => setBlack(Boolean(active)))
+    const offLogo = api.onOutputLogo(({ active }) => setLogo(Boolean(active)))
+    return () => {
+      offBlack?.()
+      offLogo?.()
+    }
+  }, [setBlack, setLogo])
 
   useEffect(() => {
     function handleBeforeUnload(e) {
@@ -101,8 +105,13 @@ export default function Editor() {
 
   async function handleSave() {
     if (!presentation || !isDirty) return
-    await updatePresentation(presentation.id, presentation)
-    setDirty(false)
+    const result = await updatePresentation(presentation.id, presentation)
+    if (result?.success) {
+      setDirty(false)
+      return
+    }
+
+    window.alert(result?.error || 'Failed to save your presentation.')
   }
 
   async function handlePresent() {

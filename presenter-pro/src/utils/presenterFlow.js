@@ -22,9 +22,8 @@ export async function startPresentationSession(presentation) {
 
   await openPresenterView()
   await openOutputWindow()
-
-  // Give the secondary windows a moment to mount their listeners before first dispatch.
-  await new Promise((resolve) => window.setTimeout(resolve, 300))
+  await window.electronAPI?.waitForPresenterReady?.()
+  await window.electronAPI?.waitForOutputReady?.()
 
   await window.electronAPI?.startPresentation(slides)
   await sendSlide(slides[0], null)

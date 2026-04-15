@@ -107,6 +107,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col p-6 overflow-auto">
         {/* New presentation button */}
         <button
+          data-tour="home-entry"
           onClick={handleNew}
           className="flex items-center gap-2 px-4 py-2 rounded text-sm font-medium mb-6 self-start"
           style={{ background: 'var(--accent)', color: '#fff' }}

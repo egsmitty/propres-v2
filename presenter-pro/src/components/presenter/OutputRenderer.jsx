@@ -15,7 +15,9 @@ export default function OutputRenderer() {
     const api = window.electronAPI
     if (!api) return
 
-    api.onOutputUpdate(async ({ slide: s, background: bg }) => {
+    api.notifyOutputReady?.()
+
+    const offUpdate = api.onOutputUpdate(async ({ slide: s, background: bg }) => {
       setSlide(s)
       setBackground(bg || null)
       setIsBlack(false)
@@ -27,15 +29,21 @@ export default function OutputRenderer() {
       }
     })
 
-    api.onOutputBlack(() => {
-      setIsBlack((v) => !v)
-      setIsLogo(false)
+    const offBlack = api.onOutputBlack(({ active }) => {
+      setIsBlack(Boolean(active))
+      if (active) setIsLogo(false)
     })
 
-    api.onOutputLogo(() => {
-      setIsLogo((v) => !v)
-      setIsBlack(false)
+    const offLogo = api.onOutputLogo(({ active }) => {
+      setIsLogo(Boolean(active))
+      if (active) setIsBlack(false)
     })
+
+    return () => {
+      offUpdate?.()
+      offBlack?.()
+      offLogo?.()
+    }
   }, [])
 
   async function loadMedia() {

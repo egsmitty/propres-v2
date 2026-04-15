@@ -11,6 +11,51 @@ const isDev = !app.isPackaged
 let mainWindow = null
 let presenterWindow = null
 let outputWindow = null
+let presenterReady = false
+let outputReady = false
+let outputState = { isBlack: false, isLogo: false }
+let presenterReadyResolvers = []
+let outputReadyResolvers = []
+
+function resolveReadyQueue(queue) {
+  queue.forEach((resolve) => resolve({ success: true }))
+  queue.length = 0
+}
+
+function markPresenterReady() {
+  presenterReady = true
+  resolveReadyQueue(presenterReadyResolvers)
+}
+
+function markOutputReady() {
+  outputReady = true
+  resolveReadyQueue(outputReadyResolvers)
+}
+
+function waitForReady(kind) {
+  if (kind === 'presenter') {
+    if (presenterReady) return Promise.resolve({ success: true })
+    return new Promise((resolve) => presenterReadyResolvers.push(resolve))
+  }
+
+  if (outputReady) return Promise.resolve({ success: true })
+  return new Promise((resolve) => outputReadyResolvers.push(resolve))
+}
+
+function resetOutputState() {
+  outputState = { isBlack: false, isLogo: false }
+}
+
+function broadcast(channel, payload) {
+  if (outputWindow) outputWindow.webContents.send(channel, payload)
+  if (presenterWindow) presenterWindow.webContents.send(channel, payload)
+  if (mainWindow) mainWindow.webContents.send(channel, payload)
+}
+
+function syncOutputState() {
+  broadcast('output:black', { active: outputState.isBlack })
+  broadcast('output:logo', { active: outputState.isLogo })
+}
 
 // ─── Seed Data ──────────────────────────────────────────────────────────────
 
@@ -120,6 +165,8 @@ function createMainWindow() {
 function createPresenterWindow() {
   if (presenterWindow) { presenterWindow.focus(); return }
 
+  presenterReady = false
+
   presenterWindow = new BrowserWindow({
     width: 900,
     height: 600,
@@ -141,11 +188,18 @@ function createPresenterWindow() {
     })
   }
 
-  presenterWindow.on('closed', () => { presenterWindow = null })
+  presenterWindow.on('closed', () => {
+    presenterWindow = null
+    presenterReady = false
+    presenterReadyResolvers = []
+  })
 }
 
 function createOutputWindow() {
   if (outputWindow) { outputWindow.focus(); return }
+
+  outputReady = false
+  resetOutputState()
 
   outputWindow = new BrowserWindow({
     width: 1280,
@@ -167,7 +221,12 @@ function createOutputWindow() {
     })
   }
 
-  outputWindow.on('closed', () => { outputWindow = null })
+  outputWindow.on('closed', () => {
+    outputWindow = null
+    outputReady = false
+    outputReadyResolvers = []
+    resetOutputState()
+  })
 }
 
 // ─── IPC Handlers ────────────────────────────────────────────────────────────
@@ -257,41 +316,63 @@ function registerIpcHandlers() {
   ipcMain.handle('presenter:close', () => { if (presenterWindow) presenterWindow.close(); return { success: true } })
   ipcMain.handle('output:open', () => { createOutputWindow(); return { success: true } })
   ipcMain.handle('output:close', () => { if (outputWindow) outputWindow.close(); return { success: true } })
+  ipcMain.handle('presenter:ready', () => {
+    markPresenterReady()
+    return { success: true }
+  })
+  ipcMain.handle('output:ready', () => {
+    markOutputReady()
+    return { success: true }
+  })
+  ipcMain.handle('presenter:waitReady', () => waitForReady('presenter'))
+  ipcMain.handle('output:waitReady', () => waitForReady('output'))
 
   // Send full slide list to presenter window
   ipcMain.handle('presenter:start', (_, { slides }) => {
+    resetOutputState()
     if (presenterWindow) presenterWindow.webContents.send('presenter:start', { slides })
+    syncOutputState()
     return { success: true }
   })
 
   // Presenter window chose a slide → send to output
   ipcMain.handle('presenter:goToSlide', (_, { slide }) => {
+    resetOutputState()
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background: null })
     if (mainWindow) mainWindow.webContents.send('presenter:slideAdvance', { slide })
+    syncOutputState()
     return { success: true }
   })
 
   ipcMain.handle('output:sendSlide', (_, { slide, background }) => {
+    resetOutputState()
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background })
     if (presenterWindow) presenterWindow.webContents.send('presenter:slideAdvance', { slide })
+    syncOutputState()
     return { success: true }
   })
   ipcMain.handle('output:black', () => {
-    if (outputWindow) outputWindow.webContents.send('output:black')
-    if (presenterWindow) presenterWindow.webContents.send('output:black')
-    if (mainWindow) mainWindow.webContents.send('output:black')
-    return { success: true }
+    outputState = {
+      isBlack: !outputState.isBlack,
+      isLogo: false,
+    }
+    syncOutputState()
+    return { success: true, data: outputState }
   })
   ipcMain.handle('output:logo', () => {
-    if (outputWindow) outputWindow.webContents.send('output:logo')
-    if (presenterWindow) presenterWindow.webContents.send('output:logo')
-    if (mainWindow) mainWindow.webContents.send('output:logo')
-    return { success: true }
+    outputState = {
+      isBlack: false,
+      isLogo: !outputState.isLogo,
+    }
+    syncOutputState()
+    return { success: true, data: outputState }
   })
   ipcMain.handle('output:stop', () => {
+    resetOutputState()
     if (outputWindow) { outputWindow.close(); outputWindow = null }
     if (presenterWindow) presenterWindow.webContents.send('presenter:stop')
     if (mainWindow) mainWindow.webContents.send('presenter:stop')
+    syncOutputState()
     return { success: true }
   })
 
