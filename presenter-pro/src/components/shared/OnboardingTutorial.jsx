@@ -18,7 +18,7 @@ const STEPS = [
     selector: '[data-tour="home-templates"]',
     title: 'Templates And Example Services',
     body:
-      'Home keeps your templates up top. Blank Presentation starts fresh, and Sunday Morning Example shows a complete service with announcements, worship, sermon content, media, and backgrounds already in place.',
+      'Home keeps your templates up top. Use More templates to open the full New screen, where Blank Presentation starts fresh, and Sunday Morning Example shows a complete service with announcements, worship, sermon content, media, and backgrounds already in place.',
   },
   {
     id: 'toolbar',
@@ -98,15 +98,19 @@ export default function OnboardingTutorial({ onComplete }) {
   }, [step, currentView])
 
   const tooltipStyle = useMemo(() => {
+    const width = 340
+    const maxHeight = Math.min(320, window.innerHeight - 40)
+
     if (!targetRect) {
       return {
+        width,
+        maxHeight,
         left: '50%',
         top: '50%',
         transform: 'translate(-50%, -50%)',
       }
     }
 
-    const width = 340
     const margin = 20
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
@@ -117,11 +121,11 @@ export default function OnboardingTutorial({ onComplete }) {
     }
 
     let top = targetRect.top + targetRect.height + 16
-    if (top + 220 > viewportHeight - margin) {
-      top = Math.max(margin, targetRect.top - 220 - 16)
+    if (top + maxHeight > viewportHeight - margin) {
+      top = Math.max(margin, viewportHeight - maxHeight - margin)
     }
 
-    return { left, top }
+    return { left, top, width, maxHeight }
   }, [targetRect])
 
   const canAdvance = step?.id !== 'templates' || currentView === 'editor'
@@ -190,10 +194,11 @@ export default function OnboardingTutorial({ onComplete }) {
         className="absolute rounded-2xl shadow-2xl overflow-hidden"
         style={{
           ...tooltipStyle,
-          width: 340,
           background: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
           pointerEvents: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <div
@@ -219,7 +224,7 @@ export default function OnboardingTutorial({ onComplete }) {
           </button>
         </div>
 
-        <div className="px-4 py-4">
+        <div className="px-4 py-4" style={{ overflowY: 'auto', flex: 1 }}>
           <p className="text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
             {step.body}
           </p>

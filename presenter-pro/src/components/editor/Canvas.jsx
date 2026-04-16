@@ -22,6 +22,7 @@ export default function Canvas() {
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
+  const zoom = useEditorStore((s) => s.zoom)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
   const setLiveSlide = usePresenterStore((s) => s.setLiveSlide)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -133,6 +134,9 @@ export default function Canvas() {
             aspectRatio: '16/9',
             background: '#1a1a1a',
             cursor: isEditing ? 'text' : 'default',
+            transform: `scale(${zoom || 1})`,
+            transformOrigin: 'center center',
+            transition: 'transform 120ms ease',
           }}
           onDoubleClick={handleDoubleClick}
         >

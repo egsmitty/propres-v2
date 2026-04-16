@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { alertDialog, promptDialog } from '@/utils/dialog'
 
 function formatCountdownInput(input) {
   const value = input.trim()
@@ -33,9 +34,12 @@ export default function PresenterView() {
   const [remaining, setRemaining] = useState('00:00')
   const idxRef = useRef(0)
   const slidesRef = useRef([])
+  const toggleCountdownRef = useRef(null)
 
   useEffect(() => { slidesRef.current = slides }, [slides])
   useEffect(() => { idxRef.current = currentIdx }, [currentIdx])
+  // Keep ref current so the static keydown handler always calls the latest version
+  toggleCountdownRef.current = toggleCountdown
   useEffect(() => {
     if (!countdown.active || !countdown.endAt) {
       setRemaining('00:00')
@@ -63,8 +67,23 @@ export default function PresenterView() {
       setIsLogo(false)
     })
 
+    const offSlidesUpdate = api.onPresenterSlidesUpdate(({ slides: list }) => {
+      setSlides((prev) => {
+        const currentSlideId = prev[idxRef.current]?.id
+        const nextIndex = list.findIndex((slide) => slide.id === currentSlideId)
+        const resolvedIndex = nextIndex === -1 ? Math.min(idxRef.current, Math.max(0, list.length - 1)) : nextIndex
+        setCurrentIdx(resolvedIndex)
+        idxRef.current = resolvedIndex
+        slidesRef.current = list
+        return list
+      })
+    })
+
     const offAdvance = api.onSlideAdvance(({ slide }) => {
-      const idx = slidesRef.current.findIndex((s) => s.id === slide.id)
+      const nextSlides = slidesRef.current.map((item) => (item.id === slide.id ? { ...item, ...slide } : item))
+      slidesRef.current = nextSlides
+      setSlides(nextSlides)
+      const idx = nextSlides.findIndex((s) => s.id === slide.id)
       if (idx !== -1) { setCurrentIdx(idx); idxRef.current = idx }
       setIsBlack(false)
       setIsLogo(false)
@@ -84,17 +103,28 @@ export default function PresenterView() {
     const offStop = api.onPresenterStop(() => window.close())
 
     function handleKey(e) {
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable) {
+        return
+      }
+
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault()
+        goNext()
+        return
+      }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext()
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev()
       if (e.key === 'b' || e.key === 'B') toggleBlack()
       if (e.key === 'l' || e.key === 'L') toggleLogo()
-      if (e.key === 'c' || e.key === 'C') toggleCountdown()
+      if (e.key === 'c' || e.key === 'C') toggleCountdownRef.current()
       if (e.key === 'Escape') api.stopPresenting()
     }
     window.addEventListener('keydown', handleKey)
     return () => {
       window.removeEventListener('keydown', handleKey)
       offStart?.()
+      offSlidesUpdate?.()
       offAdvance?.()
       offBlack?.()
       offLogo?.()
@@ -124,18 +154,21 @@ export default function PresenterView() {
     window.electronAPI?.sendLogo()
   }
 
-  function toggleCountdown() {
+  async function toggleCountdown() {
     if (countdown.active) {
       window.electronAPI?.stopCountdown()
       return
     }
 
-    const input = window.prompt('Countdown length (mm:ss or seconds):', '5:00')
+    const input = await promptDialog('Countdown length (mm:ss or seconds):', '5:00', {
+      title: 'Start Countdown',
+      confirmLabel: 'Start',
+    })
     if (input === null) return
 
     const durationSeconds = formatCountdownInput(input)
     if (!durationSeconds || durationSeconds <= 0) {
-      window.alert('Enter a valid countdown like 5:00 or 300.')
+      await alertDialog('Enter a valid countdown like 5:00 or 300.', { title: 'Invalid Countdown' })
       return
     }
 

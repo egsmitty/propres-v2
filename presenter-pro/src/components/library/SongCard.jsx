@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { deleteSong } from '@/utils/ipc'
 import { createSection } from '@/utils/sectionTypes'
+import { confirmDialog } from '@/utils/dialog'
 import { uuid } from '@/utils/uuid'
 
 export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
@@ -32,7 +33,12 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete "${song.title}" from library?`)) return
+    const ok = await confirmDialog(`Delete "${song.title}" from library?`, {
+      title: 'Delete Song',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!ok) return
     await deleteSong(song.id)
     onRefresh()
   }

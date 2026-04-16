@@ -5,8 +5,9 @@ import { useAppStore } from '@/store/appStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import ContextMenu from '@/components/shared/ContextMenu'
 import { isMediaSlide } from '@/utils/sectionTypes'
+import { alertDialog, showDialog } from '@/utils/dialog'
 
-export default function FilmstripSlide({ slide, index, selected, onSelect, onDoubleClick, onDuplicate, onDelete }) {
+export default function FilmstripSlide({ slide, index, selected, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete }) {
   const presentation = useEditorStore((s) => s.presentation)
   const moveSlideToSection = useEditorStore((s) => s.moveSlideToSection)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -25,22 +26,39 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onDou
     setMenu({ x: e.clientX, y: e.clientY })
   }
 
-  function handleMoveToSection() {
-    const sectionTitles = presentation?.sections?.map((section) => section.title).join(', ') || ''
-    const targetTitle = window.prompt(`Move slide to section:\n${sectionTitles}`)?.trim()
-    if (!targetTitle) return
-
-    const targetSection = presentation?.sections?.find((section) => section.title === targetTitle)
-    if (!targetSection) {
-      window.alert('Section not found.')
+  async function handleMoveToSection() {
+    const sections = presentation?.sections || []
+    if (sections.length === 0) return
+    if (sections.length === 1) {
+      await alertDialog('There is only one section.', { title: 'Move Slide' })
       return
     }
 
-    moveSlideToSection(slide.id, targetSection.id)
+    const result = await showDialog({
+      title: 'Move Slide',
+      description: 'Choose a target section:',
+      fields: [
+        {
+          name: 'sectionId',
+          label: 'Section',
+          type: 'select',
+          defaultValue: sections[0].id,
+          options: sections.map((section) => ({ value: section.id, label: section.title })),
+        },
+      ],
+      actions: [
+        { label: 'Cancel', value: null, cancel: true },
+        { label: 'Move', value: 'confirm', primary: true },
+      ],
+    })
+    if (!result || result.action !== 'confirm') return
+
+    moveSlideToSection(slide.id, result.values.sectionId)
   }
 
   const menuItems = [
     { label: 'Edit', onClick: onDoubleClick },
+    { label: 'New Slide', onClick: onNewSlide },
     { label: 'Set Background', onClick: () => setMediaLibraryOpen(true) },
     { label: 'Move to Section…', onClick: handleMoveToSection },
     { divider: true },

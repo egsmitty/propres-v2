@@ -5,6 +5,7 @@ import { sendSlideLive } from '@/utils/presenterFlow'
 import SectionHeader from './SectionHeader'
 import FilmstripSlide from './FilmstripSlide'
 import { createTextSlide } from '@/utils/sectionTypes'
+import { uuid } from '@/utils/uuid'
 
 export default function Filmstrip() {
   const presentation = useEditorStore((s) => s.presentation)
@@ -35,10 +36,14 @@ export default function Filmstrip() {
   }
 
   function mutate(fn) {
-    const state = useEditorStore.getState()
-    const sections = fn(state.presentation.sections)
-    state.setPresentation({ ...state.presentation, sections })
-    state.setDirty(true)
+    useEditorStore.getState().mutateSections(fn)
+  }
+
+  function selectFirstAvailableSlide() {
+    const nextPresentation = useEditorStore.getState().presentation
+    const nextSection = nextPresentation?.sections?.find((section) => section.slides?.length)
+    const nextSlide = nextSection?.slides?.[0]
+    useEditorStore.getState().setSelectedSlide(nextSection?.id ?? null, nextSlide?.id ?? null)
   }
 
   function addSlideToSection(section) {
@@ -63,17 +68,33 @@ export default function Filmstrip() {
     )
   }
 
+  function insertSlideAfter(section, slide) {
+    const newSlide = createTextSlide(section.type)
+    mutate((sections) =>
+      sections.map((sec) => {
+        if (sec.id !== section.id) return sec
+        const idx = sec.slides.findIndex((sl) => sl.id === slide.id)
+        const slides = [...sec.slides]
+        slides.splice(idx + 1, 0, newSlide)
+        return { ...sec, slides }
+      })
+    )
+    setSelectedSlide(section.id, newSlide.id)
+  }
+
   function deleteSlide(section, slide) {
     mutate((sections) =>
       sections.map((sec) =>
         sec.id !== section.id ? sec : { ...sec, slides: sec.slides.filter((sl) => sl.id !== slide.id) }
       )
     )
-    if (selectedSlideId === slide.id) useEditorStore.getState().setSelectedSlide(null, null)
+    if (selectedSlideId === slide.id) selectFirstAvailableSlide()
   }
 
   function removeSection(sectionId) {
     mutate((sections) => sections.filter((sec) => sec.id !== sectionId))
+    const selectedSectionId = useEditorStore.getState().selectedSectionId
+    if (selectedSectionId === sectionId) selectFirstAvailableSlide()
   }
 
   // ── Slide drag handlers ──
@@ -221,6 +242,7 @@ export default function Filmstrip() {
                       index={idx}
                       selected={selectedSlideId === slide.id}
                       onSelect={() => handleSelectSlide(section.id, slide)}
+                      onNewSlide={() => insertSlideAfter(section, slide)}
                       onDoubleClick={async () => {
                         await handleSelectSlide(section.id, slide)
                         setEditingSlide(slide.id)

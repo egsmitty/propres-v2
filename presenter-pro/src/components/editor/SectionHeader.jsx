@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { ChevronRight, ChevronDown, Plus, Image } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import ContextMenu from '@/components/shared/ContextMenu'
-import { getSectionTypeLabel, normalizeSectionType } from '@/utils/sectionTypes'
+import { getSectionTypeLabel, normalizeSectionType, SECTION_TYPE_META } from '@/utils/sectionTypes'
+import { promptDialog, showDialog } from '@/utils/dialog'
 
 export default function SectionHeader({ section, collapsed, onToggle, onAddSlide, onRemove }) {
   const [menu, setMenu] = useState(null)
@@ -13,26 +14,40 @@ export default function SectionHeader({ section, collapsed, onToggle, onAddSlide
     setMenu({ x: e.clientX, y: e.clientY })
   }
 
-  function handleEditSection() {
-    const title = window.prompt('Section title:', section.title)?.trim()
+  async function handleEditSection() {
+    const title = await promptDialog('Section title:', section.title, { title: 'Rename Section', confirmLabel: 'Rename' })
     if (!title) return
     updateSectionMeta(section.id, { title })
   }
 
-  function handleChangeColor() {
-    const color = window.prompt('Section color (hex):', section.color || '#4a7cff')?.trim()
+  async function handleChangeColor() {
+    const color = await promptDialog('Section color (hex):', section.color || '#4a7cff', { title: 'Section Color', confirmLabel: 'Apply' })
     if (!color) return
     updateSectionMeta(section.id, { color })
   }
 
-  function handleChangeType() {
-    const nextType = window.prompt(
-      'Section type: song, announcement, or sermon',
-      normalizeSectionType(section.type)
-    )?.trim()
-    if (!nextType) return
-    const normalizedType = normalizeSectionType(nextType.toLowerCase())
-    updateSectionMeta(section.id, { type: normalizedType })
+  async function handleChangeType() {
+    const result = await showDialog({
+      title: 'Change Section Type',
+      fields: [
+        {
+          name: 'type',
+          label: 'Section Type',
+          type: 'select',
+          defaultValue: normalizeSectionType(section.type),
+          options: Object.keys(SECTION_TYPE_META).map((key) => ({
+            value: key,
+            label: SECTION_TYPE_META[key].label,
+          })),
+        },
+      ],
+      actions: [
+        { label: 'Cancel', value: null, cancel: true },
+        { label: 'Apply', value: 'confirm', primary: true },
+      ],
+    })
+    if (!result || result.action !== 'confirm') return
+    updateSectionMeta(section.id, { type: normalizeSectionType(result.values.type) })
   }
 
   const menuItems = [

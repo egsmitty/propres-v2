@@ -10,7 +10,8 @@ import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { updatePresentation } from '@/utils/ipc'
-import { startPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
+import { startPresentationSession, stopPresentationSession, syncPresentationSession } from '@/utils/presenterFlow'
+import { alertDialog } from '@/utils/dialog'
 
 export default function Editor() {
   const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
@@ -23,6 +24,7 @@ export default function Editor() {
   const setLiveSlide = usePresenterStore((s) => s.setLiveSlide)
   const setBlack = usePresenterStore((s) => s.setBlack)
   const setLogo = usePresenterStore((s) => s.setLogo)
+  const liveSlideId = usePresenterStore((s) => s.liveSlideId)
   const presentation = useEditorStore((s) => s.presentation)
   const isDirty = useEditorStore((s) => s.isDirty)
   const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave)
@@ -58,6 +60,12 @@ export default function Editor() {
       offLogo?.()
     }
   }, [setBlack, setLogo])
+
+  useEffect(() => {
+    if (!isPresenting || !presentation || !liveSlideId) return
+
+    syncPresentationSession(presentation).catch(() => {})
+  }, [presentation, isPresenting, liveSlideId])
 
   useEffect(() => {
     function handleBeforeUnload(e) {
@@ -116,13 +124,13 @@ export default function Editor() {
       return
     }
 
-    window.alert(result?.error || 'Failed to save your presentation.')
+    await alertDialog(result?.error || 'Failed to save your presentation.', { title: 'Save Failed' })
   }
 
   async function handlePresent() {
     if (!presentation) return
     if (panelOpen) {
-      window.alert('Close the Song Library or Media Library before presenting.')
+      await alertDialog('Close the Song Library or Media Library before presenting.', { title: 'Cannot Present' })
       return
     }
     if (isPresenting) {
@@ -132,7 +140,7 @@ export default function Editor() {
 
     const started = await startPresentationSession(presentation)
     if (!started) {
-      window.alert('Add at least one slide before presenting.')
+      await alertDialog('Add at least one slide before presenting.', { title: 'Nothing to Present' })
     }
   }
 
@@ -143,7 +151,7 @@ export default function Editor() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {isPresenting && <LiveBanner onStop={handleStopPresenting} />}
+      {isPresenting && <LiveBanner />}
       <Toolbar onPresent={handlePresent} />
       <div className="flex flex-1 overflow-hidden relative">
         {songLibraryOpen && <SongLibraryPanel />}
@@ -161,7 +169,7 @@ export default function Editor() {
   )
 }
 
-function LiveBanner({ onStop }) {
+function LiveBanner() {
   const presentation = useEditorStore((s) => s.presentation)
   const liveSlideId = usePresenterStore((s) => s.liveSlideId)
 
@@ -180,7 +188,7 @@ function LiveBanner({ onStop }) {
 
   return (
     <div
-      className="flex items-center justify-between px-4 shrink-0"
+      className="flex items-center px-4 shrink-0"
       style={{
         background: 'var(--live-bg)',
         borderBottom: '1px solid var(--live-border)',
@@ -191,19 +199,6 @@ function LiveBanner({ onStop }) {
       <span className="text-xs font-medium">
         Presenting{slideNum > 0 && ` — Slide ${slideNum} of ${totalSlides}`}
       </span>
-      <button
-        onClick={onStop}
-        className="text-xs px-2 py-0.5 rounded font-medium"
-        style={{
-          background: 'var(--live-dim)',
-          color: 'var(--live)',
-          border: '1px solid var(--live-border)',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--live-border)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--live-dim)')}
-      >
-        Stop Presenting
-      </button>
     </div>
   )
 }

@@ -1,6 +1,13 @@
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
+
+function isTextFieldFocused() {
+  const el = document.activeElement
+  if (!el) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true
+}
 import { openOutputWindow, openPresenterView } from '@/utils/ipc'
 import { startPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
 import {
@@ -10,6 +17,7 @@ import {
   saveCurrentPresentationAs,
 } from '@/utils/presentationCommands'
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges'
+import { alertDialog } from '@/utils/dialog'
 
 export async function runAppCommand(command) {
   const appState = useAppStore.getState()
@@ -44,6 +52,20 @@ export async function runAppCommand(command) {
       }
       return canClose
     }
+    case 'edit:undo':
+      if (isTextFieldFocused()) {
+        document.execCommand('undo')
+      } else {
+        useEditorStore.getState().undo()
+      }
+      return true
+    case 'edit:redo':
+      if (isTextFieldFocused()) {
+        document.execCommand('redo')
+      } else {
+        useEditorStore.getState().redo()
+      }
+      return true
     case 'insert:newSlide':
     case 'insert:blank':
       return insertNewSlideIntoCurrentPresentation()
@@ -71,7 +93,7 @@ export async function runAppCommand(command) {
       if (editorState.presentation && !presenterState.isPresenting) {
         const started = await startPresentationSession(editorState.presentation)
         if (!started) {
-          window.alert('Add at least one slide before presenting.')
+          await alertDialog('Add at least one slide before presenting.', { title: 'Nothing to Present' })
         }
         return started
       }
@@ -96,7 +118,7 @@ export async function runAppCommand(command) {
       appState.setTutorialOpen(true)
       return true
     case 'help:about':
-      window.alert('PresenterPro\nPowerPoint for Worship Media')
+      await alertDialog('PowerPoint for Worship Media', { title: 'PresenterPro' })
       return true
     default:
       return false

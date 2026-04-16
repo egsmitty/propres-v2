@@ -9,6 +9,7 @@ import OutputRenderer from '@/components/presenter/OutputRenderer'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
 import ShortcutsOverlay from '@/components/shared/ShortcutsOverlay'
 import OnboardingTutorial from '@/components/shared/OnboardingTutorial'
+import DialogHost from '@/components/shared/Dialog'
 import { runAppCommand } from '@/utils/appCommands'
 import { getSettings, setSetting } from '@/utils/ipc'
 
@@ -61,8 +62,8 @@ export default function App() {
     await setSetting('tutorial_completed', 'true')
   }
 
-  if (isOutputWindow) return <OutputRenderer />
-  if (isPresenterWindow) return <PresenterView />
+  if (isOutputWindow) return <><OutputRenderer /><DialogHost /></>
+  if (isPresenterWindow) return <><PresenterView /><DialogHost /></>
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -75,6 +76,7 @@ export default function App() {
       </div>
       {shortcutsOpen && <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} />}
       {tutorialOpen && <OnboardingTutorial onComplete={handleDismissTutorial} />}
+      <DialogHost />
     </div>
   )
 }

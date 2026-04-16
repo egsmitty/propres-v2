@@ -1,5 +1,6 @@
 import { SECTION_COLORS } from '@/utils/backgrounds'
 import { uuid } from '@/utils/uuid'
+import { showDialog } from '@/utils/dialog'
 
 export const SECTION_TYPE_META = {
   song: {
@@ -102,34 +103,46 @@ export function isMediaSlide(slide) {
   return slide?.type === 'media' && Boolean(slide?.mediaId)
 }
 
-export function promptForSectionSetup(preferredType = null) {
-  let resolvedType = preferredType ? normalizeSectionType(preferredType) : null
-  if (!preferredType) {
-    const typeInput = window.prompt(
-      'What kind of section do you want to add? (song, announcement, sermon)',
-      'announcement'
-    )
-    if (typeInput === null) return null
-    const requestedType = typeInput.trim().toLowerCase()
-    if (!isKnownSectionType(requestedType)) {
-      window.alert('Please enter song, announcement, or sermon.')
-      return null
-    }
-    resolvedType = requestedType
-  }
-
-  if (!resolvedType) return null
-
+export async function promptForSectionSetup(preferredType = null) {
+  const resolvedType = preferredType ? normalizeSectionType(preferredType) : 'announcement'
   const meta = getSectionTypeMeta(resolvedType)
-  const suggestedTitle = meta.defaultSectionTitle
-  const titleInput = window.prompt(
-    `Name this ${meta.label.toLowerCase()} section:`,
-    suggestedTitle
-  )
-  if (titleInput === null) return null
+  const typeLocked = Boolean(preferredType)
 
-  return {
-    type: resolvedType,
-    title: titleInput.trim() || suggestedTitle,
+  const fields = []
+  if (!typeLocked) {
+    fields.push({
+      name: 'type',
+      label: 'Section Type',
+      type: 'select',
+      defaultValue: resolvedType,
+      options: Object.keys(SECTION_TYPE_META).map((key) => ({
+        value: key,
+        label: SECTION_TYPE_META[key].label,
+      })),
+    })
   }
+  fields.push({
+    name: 'title',
+    label: 'Section Title',
+    type: 'text',
+    defaultValue: meta.defaultSectionTitle,
+    autoFocus: typeLocked,
+  })
+
+  const result = await showDialog({
+    title: typeLocked ? `New ${meta.label} Section` : 'New Section',
+    fields,
+    actions: [
+      { label: 'Cancel', value: null, cancel: true },
+      { label: 'Create', value: 'confirm', primary: true },
+    ],
+  })
+
+  if (!result || result.action !== 'confirm') return null
+
+  const chosenType = typeLocked ? resolvedType : normalizeSectionType(result.values.type)
+  const chosenMeta = getSectionTypeMeta(chosenType)
+  const title = (result.values.title || '').trim() || chosenMeta.defaultSectionTitle
+
+  return { type: chosenType, title }
 }

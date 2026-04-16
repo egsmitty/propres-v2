@@ -1,6 +1,19 @@
 import { create } from 'zustand'
 import { normalizePresentation } from '@/utils/backgrounds'
 
+const HISTORY_LIMIT = 50
+
+const snapshot = (state) => ({
+  presentation: state.presentation,
+  selectedSectionId: state.selectedSectionId,
+  selectedSlideId: state.selectedSlideId,
+})
+
+const historyOf = (state) => ({
+  past: [...state.past, snapshot(state)].slice(-HISTORY_LIMIT),
+  future: [],
+})
+
 export const useEditorStore = create((set) => ({
   presentationId: null,
   presentation: null,
@@ -10,6 +23,8 @@ export const useEditorStore = create((set) => ({
   isDirty: false,
   requiresInitialSave: false,
   zoom: 1.0,
+  past: [],
+  future: [],
 
   setPresentation: (presentation, options = {}) =>
     set({
@@ -17,6 +32,8 @@ export const useEditorStore = create((set) => ({
       presentationId: presentation?.id ?? null,
       isDirty: options.isDirty ?? false,
       requiresInitialSave: options.requiresInitialSave ?? false,
+      past: [],
+      future: [],
     }),
   setSelectedSlide: (sectionId, slideId) =>
     set({ selectedSectionId: sectionId, selectedSlideId: slideId, editingSlideId: null }),
@@ -25,6 +42,35 @@ export const useEditorStore = create((set) => ({
   setRequiresInitialSave: (val) => set({ requiresInitialSave: val }),
   setZoom: (zoom) => set({ zoom }),
 
+  undo: () =>
+    set((state) => {
+      if (!state.past.length) return {}
+      const prev = state.past[state.past.length - 1]
+      return {
+        past: state.past.slice(0, -1),
+        future: [...state.future, snapshot(state)].slice(-HISTORY_LIMIT),
+        presentation: prev.presentation,
+        selectedSectionId: prev.selectedSectionId,
+        selectedSlideId: prev.selectedSlideId,
+        editingSlideId: null,
+        isDirty: true,
+      }
+    }),
+  redo: () =>
+    set((state) => {
+      if (!state.future.length) return {}
+      const next = state.future[state.future.length - 1]
+      return {
+        future: state.future.slice(0, -1),
+        past: [...state.past, snapshot(state)].slice(-HISTORY_LIMIT),
+        presentation: next.presentation,
+        selectedSectionId: next.selectedSectionId,
+        selectedSlideId: next.selectedSlideId,
+        editingSlideId: null,
+        isDirty: true,
+      }
+    }),
+
   updateSlideBody: (sectionId, slideId, body) =>
     set((state) => {
       if (!state.presentation) return {}
@@ -32,7 +78,7 @@ export const useEditorStore = create((set) => ({
         if (sec.id !== sectionId) return sec
         return { ...sec, slides: sec.slides.map((sl) => sl.id === slideId ? { ...sl, body } : sl) }
       })
-      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave }
+      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
     }),
 
   updateSlideStyle: (sectionId, slideId, styleProps) =>
@@ -49,7 +95,7 @@ export const useEditorStore = create((set) => ({
           )
         }
       })
-      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave }
+      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
     }),
 
   setSlideBackground: (sectionId, slideId, mediaId) =>
@@ -66,7 +112,7 @@ export const useEditorStore = create((set) => ({
           )
         }
       })
-      return { presentation: normalizePresentation({ ...state.presentation, sections }), isDirty: true, requiresInitialSave: state.requiresInitialSave }
+      return { presentation: normalizePresentation({ ...state.presentation, sections }), isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
     }),
 
   setSectionBackground: (sectionId, mediaId) =>
@@ -81,6 +127,7 @@ export const useEditorStore = create((set) => ({
         presentation: normalizePresentation({ ...state.presentation, sections }),
         isDirty: true,
         requiresInitialSave: state.requiresInitialSave,
+        ...historyOf(state),
       }
     }),
 
@@ -90,7 +137,7 @@ export const useEditorStore = create((set) => ({
       const sections = state.presentation.sections.map((sec) =>
         sec.id === sectionId ? { ...sec, ...updates } : sec
       )
-      return { presentation: normalizePresentation({ ...state.presentation, sections }), isDirty: true, requiresInitialSave: state.requiresInitialSave }
+      return { presentation: normalizePresentation({ ...state.presentation, sections }), isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
     }),
 
   moveSlideToSection: (slideId, targetSectionId) =>
@@ -113,6 +160,7 @@ export const useEditorStore = create((set) => ({
         presentation: normalizePresentation({ ...state.presentation, sections }),
         isDirty: true,
         requiresInitialSave: state.requiresInitialSave,
+        ...historyOf(state),
       }
     }),
 
@@ -126,6 +174,7 @@ export const useEditorStore = create((set) => ({
         }),
         isDirty: true,
         requiresInitialSave: state.requiresInitialSave,
+        ...historyOf(state),
       }
     }),
 
@@ -141,6 +190,19 @@ export const useEditorStore = create((set) => ({
         presentation: normalizePresentation({ ...state.presentation, sections }),
         isDirty: true,
         requiresInitialSave: state.requiresInitialSave,
+        ...historyOf(state),
+      }
+    }),
+
+  mutateSections: (fn) =>
+    set((state) => {
+      if (!state.presentation) return {}
+      const sections = fn(state.presentation.sections)
+      return {
+        presentation: normalizePresentation({ ...state.presentation, sections }),
+        isDirty: true,
+        requiresInitialSave: state.requiresInitialSave,
+        ...historyOf(state),
       }
     }),
 }))

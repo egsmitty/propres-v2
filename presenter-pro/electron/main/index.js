@@ -19,6 +19,8 @@ let countdownState = { active: false, endAt: null, durationSeconds: 0 }
 let countdownInterval = null
 let presenterReadyResolvers = []
 let outputReadyResolvers = []
+let presentationSessionActive = false
+let allowPresenterWindowClose = false
 
 function resolveReadyQueue(queue) {
   queue.forEach((resolve) => resolve({ success: true }))
@@ -47,6 +49,13 @@ function waitForReady(kind) {
 
 function resetOutputState() {
   outputState = { isBlack: false, isLogo: false }
+}
+
+function setPresentationSessionActive(active) {
+  presentationSessionActive = active
+  if (presenterWindow && !presenterWindow.isDestroyed()) {
+    presenterWindow.setClosable(!active)
+  }
 }
 
 function broadcast(channel, payload) {
@@ -197,7 +206,7 @@ function createMainWindow() {
     minHeight: 700,
     frame: false,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -218,7 +227,11 @@ function createMainWindow() {
 }
 
 function createPresenterWindow() {
-  if (presenterWindow) { presenterWindow.focus(); return }
+  if (presenterWindow) {
+    presenterWindow.show()
+    presenterWindow.focus()
+    return
+  }
 
   presenterReady = false
 
@@ -228,11 +241,25 @@ function createPresenterWindow() {
     minWidth: 700,
     minHeight: 500,
     title: 'Presenter View',
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
+  })
+
+  presenterWindow.once('ready-to-show', () => {
+    if (!presenterWindow) return
+    presenterWindow.show()
+    presenterWindow.focus()
+  })
+
+  presenterWindow.on('close', (event) => {
+    if (presentationSessionActive && !allowPresenterWindowClose) {
+      event.preventDefault()
+      presenterWindow.focus()
+    }
   })
 
   if (isDev) {
@@ -251,7 +278,11 @@ function createPresenterWindow() {
 }
 
 function createOutputWindow() {
-  if (outputWindow) { outputWindow.focus(); return }
+  if (outputWindow) {
+    if (!outputWindow.isVisible()) outputWindow.showInactive()
+    if (presenterWindow && !presenterWindow.isDestroyed()) presenterWindow.focus()
+    return
+  }
 
   outputReady = false
   resetOutputState()
@@ -261,11 +292,22 @@ function createOutputWindow() {
     height: 720,
     title: 'Output',
     frame: false,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
+  })
+
+  outputWindow.once('ready-to-show', () => {
+    if (!outputWindow) return
+    if (presenterWindow && !presenterWindow.isDestroyed()) {
+      outputWindow.showInactive()
+      presenterWindow.focus()
+    } else {
+      outputWindow.show()
+    }
   })
 
   if (isDev) {
@@ -393,10 +435,18 @@ function registerIpcHandlers() {
 
   // Send full slide list to presenter window
   ipcMain.handle('presenter:start', (_, { slides }) => {
+    setPresentationSessionActive(true)
+    allowPresenterWindowClose = false
     resetOutputState()
     if (presenterWindow) presenterWindow.webContents.send('presenter:start', { slides })
+    if (presenterWindow && !presenterWindow.isDestroyed()) presenterWindow.focus()
     syncOutputState()
     syncCountdownState()
+    return { success: true }
+  })
+
+  ipcMain.handle('presenter:updateSlides', (_, { slides }) => {
+    if (presenterWindow) presenterWindow.webContents.send('presenter:updateSlides', { slides })
     return { success: true }
   })
 
@@ -416,6 +466,11 @@ function registerIpcHandlers() {
     if (presenterWindow) presenterWindow.webContents.send('presenter:slideAdvance', { slide })
     syncOutputState()
     syncCountdownState()
+    return { success: true }
+  })
+  ipcMain.handle('output:refreshSlide', (_, { slide, background }) => {
+    if (outputWindow) outputWindow.webContents.send('output:update', { slide, background })
+    if (presenterWindow) presenterWindow.webContents.send('presenter:slideAdvance', { slide })
     return { success: true }
   })
   ipcMain.handle('output:black', () => {
@@ -445,6 +500,8 @@ function registerIpcHandlers() {
     return { success: true, data: countdownState }
   })
   ipcMain.handle('output:stop', () => {
+    setPresentationSessionActive(false)
+    allowPresenterWindowClose = true
     resetOutputState()
     resetCountdownState()
     if (outputWindow) { outputWindow.close(); outputWindow = null }
@@ -504,7 +561,7 @@ function buildNativeMenu() {
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => sendCommand('file:save') },
         { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => sendCommand('file:saveAs') },
         { type: 'separator' },
-        { role: 'close' },
+        { label: 'Close', accelerator: 'CmdOrCtrl+W', click: () => sendCommand('file:close') },
       ],
     },
     {
@@ -526,8 +583,8 @@ function buildNativeMenu() {
     {
       label: 'Edit',
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => sendCommand('edit:undo') },
+        { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => sendCommand('edit:redo') },
         { type: 'separator' },
         { role: 'cut' },
         { role: 'copy' },

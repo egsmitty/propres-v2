@@ -56,29 +56,31 @@ export default function Toolbar({ onPresent }) {
 
   function handleDuplicate() {
     if (!presentation || !selectedSlideId) return
-    const state = useEditorStore.getState()
-    const sections = presentation.sections.map((sec) => {
-      const idx = sec.slides.findIndex((sl) => sl.id === selectedSlideId)
-      if (idx === -1) return sec
-      const copy = { ...sec.slides[idx], id: uuid() }
-      const slides = [...sec.slides]
-      slides.splice(idx + 1, 0, copy)
-      return { ...sec, slides }
-    })
-    state.setPresentation({ ...presentation, sections })
-    state.setDirty(true)
+    useEditorStore.getState().mutateSections((sections) =>
+      sections.map((sec) => {
+        const idx = sec.slides.findIndex((sl) => sl.id === selectedSlideId)
+        if (idx === -1) return sec
+        const copy = { ...sec.slides[idx], id: uuid() }
+        const slides = [...sec.slides]
+        slides.splice(idx + 1, 0, copy)
+        return { ...sec, slides }
+      })
+    )
   }
 
   function handleDelete() {
     if (!presentation || !selectedSlideId) return
     const state = useEditorStore.getState()
-    const sections = presentation.sections.map((sec) => ({
-      ...sec,
-      slides: sec.slides.filter((sl) => sl.id !== selectedSlideId),
-    }))
-    state.setPresentation({ ...presentation, sections })
-    state.setDirty(true)
-    state.setSelectedSlide(null, null)
+    state.mutateSections((sections) =>
+      sections.map((sec) => ({
+        ...sec,
+        slides: sec.slides.filter((sl) => sl.id !== selectedSlideId),
+      }))
+    )
+    const nextPresentation = useEditorStore.getState().presentation
+    const nextSection = nextPresentation?.sections?.find((section) => section.slides?.length)
+    const nextSlide = nextSection?.slides?.[0]
+    state.setSelectedSlide(nextSection?.id ?? null, nextSlide?.id ?? null)
   }
 
   return (

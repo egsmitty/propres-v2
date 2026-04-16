@@ -26,7 +26,7 @@ export function parseSlides(text) {
 
     if (match) {
       type = match[1].toLowerCase().replace('-', '')
-      if (type === 'precchorus') type = 'chorus'
+      if (type === 'prechorus') type = 'chorus'
       label = firstLine
       body = lines.slice(1).join('\n')
     } else {

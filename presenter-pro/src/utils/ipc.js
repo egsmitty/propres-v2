@@ -67,6 +67,12 @@ export async function closeOutputWindow() {
 export async function sendSlide(slide, background) {
   return api().sendSlide(slide, background)
 }
+export async function refreshLiveSlide(slide, background) {
+  return api().refreshLiveSlide(slide, background)
+}
+export async function updatePresentationSlides(slides) {
+  return api().updatePresentationSlides(slides)
+}
 export async function sendBlack() {
   return api().sendBlack()
 }

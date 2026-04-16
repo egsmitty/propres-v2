@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Send full slide list to presenter window on start
   startPresentation: (slides) => ipcRenderer.invoke('presenter:start', { slides }),
+  updatePresentationSlides: (slides) => ipcRenderer.invoke('presenter:updateSlides', { slides }),
   waitForPresenterReady: () => ipcRenderer.invoke('presenter:waitReady'),
   notifyPresenterReady: () => ipcRenderer.invoke('presenter:ready'),
   waitForOutputReady: () => ipcRenderer.invoke('output:waitReady'),
@@ -48,6 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Presenter window navigating to a slide
   presenterGoToSlide: (slide) => ipcRenderer.invoke('presenter:goToSlide', { slide }),
+  refreshLiveSlide: (slide, background) => ipcRenderer.invoke('output:refreshSlide', { slide, background }),
 
   // Window controls
   windowClose: () => ipcRenderer.invoke('window:close'),
@@ -67,5 +69,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onOutputLogo: (cb) => subscribe('output:logo', cb),
   onOutputCountdown: (cb) => subscribe('output:countdown', cb),
   onPresenterStart: (cb) => subscribe('presenter:start', cb),
+  onPresenterSlidesUpdate: (cb) => subscribe('presenter:updateSlides', cb),
   onAppCommand: (cb) => subscribe('app:command', cb),
 })

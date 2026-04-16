@@ -297,12 +297,15 @@ export default function Home() {
           <div className="flex items-start justify-between gap-6 mb-8">
             <div>
               <p
-                className="text-xs font-semibold uppercase tracking-[0.18em] mb-3"
+                className={homeTab === 'new' ? 'text-sm font-semibold uppercase tracking-[0.22em] mb-4' : 'text-xs font-semibold uppercase tracking-[0.18em] mb-3'}
                 style={{ color: 'var(--accent)' }}
               >
                 PresenterPro
               </p>
-              <h1 className="text-[2rem] font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <h1
+                className={homeTab === 'new' ? 'text-[2.65rem] font-semibold leading-none' : 'text-[2rem] font-semibold'}
+                style={{ color: 'var(--text-primary)' }}
+              >
                 {homeTab === 'home'
                   ? 'Home'
                   : homeTab === 'new'
@@ -311,7 +314,10 @@ export default function Home() {
                       ? 'Recent Presentations'
                       : 'Open Presentation'}
               </h1>
-              <p className="text-sm mt-2 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
+              <p
+                className={homeTab === 'new' ? 'text-base mt-3 max-w-3xl leading-7' : 'text-sm mt-2 max-w-2xl'}
+                style={{ color: 'var(--text-secondary)' }}
+              >
                 {homeTab === 'home'
                   ? 'Start from a polished template, then jump back into the presentations you worked on most recently.'
                   : homeTab === 'new'
@@ -413,6 +419,8 @@ function HomeLibrary({
   onOpen,
   onContextMenu,
 }) {
+  const homeTemplates = templates.slice(0, 4)
+
   return (
     <>
       <section className="mb-10" data-tour="home-templates">
@@ -430,7 +438,7 @@ function HomeLibrary({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-          {templates.map((template) => (
+          {homeTemplates.map((template) => (
             <TemplateCard
               key={template.id}
               template={template}
@@ -466,7 +474,7 @@ function HomeLibrary({
 function NewLibrary({ templates, onNew, onTemplate }) {
   return (
     <section>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-7">
         <TemplateCard blank variant="hero" onSelect={onNew} />
         {templates.map((template) => (
           <TemplateCard
@@ -543,7 +551,7 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false }
   return (
     <button
       onClick={onSelect}
-      className="text-left rounded-[28px] p-4"
+      className={variant === 'hero' ? 'text-left rounded-[32px] p-5' : 'text-left rounded-[28px] p-4'}
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
@@ -559,7 +567,7 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false }
       }}
     >
       <TemplatePreview visual={visual} blank={blank} variant={variant} />
-      <div className={variant === 'hero' ? 'pt-4' : 'pt-3'}>
+      <div className={variant === 'hero' ? 'pt-5' : 'pt-3'}>
         {template?.featured && (
           <div
             className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-[0.16em] mb-2"
@@ -569,12 +577,12 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false }
           </div>
         )}
         <p
-          className={variant === 'hero' ? 'text-base font-semibold' : 'text-sm font-semibold'}
+          className={variant === 'hero' ? 'text-[1.2rem] font-semibold' : 'text-sm font-semibold'}
           style={{ color: 'var(--text-primary)' }}
         >
           {title}
         </p>
-        <p className="text-xs leading-5 mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <p className={variant === 'hero' ? 'text-sm leading-6 mt-2' : 'text-xs leading-5 mt-1'} style={{ color: 'var(--text-secondary)' }}>
           {description}
         </p>
       </div>
@@ -585,14 +593,14 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false }
 function TemplatePreview({ visual, blank, variant }) {
   return (
     <div
-      className="rounded-[24px] p-4 overflow-hidden"
+      className={variant === 'hero' ? 'rounded-[28px] p-5 overflow-hidden' : 'rounded-[24px] p-4 overflow-hidden'}
       style={{
         background: visual.gradient,
-        minHeight: variant === 'hero' ? 220 : 180,
+        minHeight: variant === 'hero' ? 280 : 180,
       }}
     >
       <div
-        className="rounded-[22px] h-full p-4 flex flex-col justify-between"
+        className={variant === 'hero' ? 'rounded-[24px] h-full p-5 flex flex-col justify-between' : 'rounded-[22px] h-full p-4 flex flex-col justify-between'}
         style={{
           background: visual.card,
           boxShadow: '0 12px 28px rgba(17, 25, 40, 0.14)',
@@ -600,29 +608,29 @@ function TemplatePreview({ visual, blank, variant }) {
       >
         <div>
           <p
-            className="text-[11px] font-semibold uppercase tracking-[0.18em]"
+            className={variant === 'hero' ? 'text-[12px] font-semibold uppercase tracking-[0.2em]' : 'text-[11px] font-semibold uppercase tracking-[0.18em]'}
             style={{ color: visual.accent }}
           >
             {visual.eyebrow}
           </p>
-          <p className="text-xl font-semibold mt-3" style={{ color: '#12161d' }}>
+          <p className={variant === 'hero' ? 'text-[1.7rem] font-semibold mt-4' : 'text-xl font-semibold mt-3'} style={{ color: '#12161d' }}>
             {visual.title}
           </p>
         </div>
 
         {blank ? (
           <div
-            className="rounded-2xl border-2 border-dashed h-24 flex items-center justify-center"
+            className={variant === 'hero' ? 'rounded-[24px] border-2 border-dashed h-36 flex items-center justify-center' : 'rounded-2xl border-2 border-dashed h-24 flex items-center justify-center'}
             style={{ borderColor: 'rgba(47,115,255,0.22)', color: visual.accent }}
           >
-            <Plus size={28} />
+            <Plus size={variant === 'hero' ? 44 : 28} />
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className={variant === 'hero' ? 'space-y-3' : 'space-y-2'}>
             {visual.lines.map((line) => (
               <div
                 key={line}
-                className="rounded-full px-3 py-2 text-xs font-medium"
+                className={variant === 'hero' ? 'rounded-full px-4 py-2.5 text-sm font-medium' : 'rounded-full px-3 py-2 text-xs font-medium'}
                 style={{
                   background: 'rgba(18,22,29,0.06)',
                   color: '#1c2430',

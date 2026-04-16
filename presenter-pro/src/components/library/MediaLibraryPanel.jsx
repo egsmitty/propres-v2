@@ -6,6 +6,7 @@ import { deleteMedia, getMedia, importMedia, updateMedia } from '@/utils/ipc'
 import { fileUrlForPath, isVideoMedia } from '@/utils/backgrounds'
 import { getSectionTypeLabel } from '@/utils/sectionTypes'
 import { insertMediaSlideIntoCurrentPresentation } from '@/utils/presentationCommands'
+import { confirmDialog, promptDialog } from '@/utils/dialog'
 
 export default function MediaLibraryPanel() {
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -33,14 +34,19 @@ export default function MediaLibraryPanel() {
   }
 
   async function handleRename(item) {
-    const nextName = window.prompt('Rename media item:', item.name)?.trim()
+    const nextName = await promptDialog('Rename media item:', item.name, { title: 'Rename Media', confirmLabel: 'Rename' })
     if (!nextName || nextName === item.name) return
     const result = await updateMedia(item.id, { name: nextName })
     if (result?.success) loadMedia()
   }
 
   async function handleDelete(item) {
-    if (!window.confirm(`Delete "${item.name}" from the media library?`)) return
+    const ok = await confirmDialog(`Delete "${item.name}" from the media library?`, {
+      title: 'Delete Media',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!ok) return
     const result = await deleteMedia(item.id)
     if (result?.success) loadMedia()
   }
@@ -57,8 +63,8 @@ export default function MediaLibraryPanel() {
     setMediaLibraryOpen(false)
   }
 
-  function insertAsMediaSlide(item) {
-    const result = insertMediaSlideIntoCurrentPresentation(item)
+  async function insertAsMediaSlide(item) {
+    const result = await insertMediaSlideIntoCurrentPresentation(item)
     if (result) setMediaLibraryOpen(false)
   }
 

@@ -16,6 +16,7 @@ import {
   createTextSlide,
   promptForSectionSetup,
 } from '@/utils/sectionTypes'
+import { alertDialog, confirmDialog, promptDialog } from '@/utils/dialog'
 
 function selectFirstSlide(presentation) {
   const firstSection = presentation?.sections?.[0]
@@ -91,14 +92,11 @@ export async function saveCurrentPresentation() {
   if (!presentation) return null
 
   const result = await updatePresentation(presentation.id, presentation)
-  if (result?.success) {
+  if (result?.success && result.data) {
+    loadPresentationIntoEditor(result.data)
+  } else if (result?.success) {
     state.setDirty(false)
     state.setRequiresInitialSave(false)
-    if (result.data) {
-      loadPresentationIntoEditor(result.data)
-      useEditorStore.getState().setDirty(false)
-      useEditorStore.getState().setRequiresInitialSave(false)
-    }
   }
   return result
 }
@@ -111,7 +109,7 @@ export async function saveCurrentPresentationAs() {
   const suggestedTitle = presentation.title?.trim()
     ? `${presentation.title} Copy`
     : 'Untitled Presentation Copy'
-  const title = window.prompt('Save presentation as:', suggestedTitle)?.trim()
+  const title = await promptDialog('Save presentation as:', suggestedTitle, { title: 'Save As', confirmLabel: 'Save' })
   if (!title) return null
 
   const result = await createPresentation({
@@ -121,11 +119,11 @@ export async function saveCurrentPresentationAs() {
   if (!result?.success || !result.data) return result
 
   const loaded = await openPresentationInEditor(result.data.id)
-  useEditorStore.getState().setDirty(false)
+  if (loaded) useEditorStore.getState().setDirty(false)
   return { success: true, data: loaded }
 }
 
-export function insertNewSlideIntoCurrentPresentation() {
+export async function insertNewSlideIntoCurrentPresentation() {
   const state = useEditorStore.getState()
   const presentation = state.presentation
   if (!presentation) return null
@@ -140,7 +138,7 @@ export function insertNewSlideIntoCurrentPresentation() {
   let sections = presentation.sections ? [...presentation.sections] : []
 
   if (!sections.length) {
-    const setup = promptForSectionSetup()
+    const setup = await promptForSectionSetup()
     if (!setup) return null
     sectionType = setup.type
     newSlide = createTextSlide(sectionType)
@@ -173,12 +171,12 @@ export function insertNewSlideIntoCurrentPresentation() {
   return newSlide
 }
 
-export function insertNewSectionIntoCurrentPresentation(sectionType = 'announcement') {
+export async function insertNewSectionIntoCurrentPresentation(sectionType = 'announcement') {
   const state = useEditorStore.getState()
   const presentation = state.presentation
   if (!presentation) return null
 
-  const setup = promptForSectionSetup(sectionType)
+  const setup = await promptForSectionSetup(sectionType)
   if (!setup) return null
 
   const section = createSection(setup.type, presentation.sections.length, {
@@ -191,7 +189,7 @@ export function insertNewSectionIntoCurrentPresentation(sectionType = 'announcem
   return section
 }
 
-export function ensureSectionForInsertion(preferredType = null) {
+export async function ensureSectionForInsertion(preferredType = null) {
   const state = useEditorStore.getState()
   const presentation = state.presentation
   if (!presentation) return null
@@ -202,7 +200,7 @@ export function ensureSectionForInsertion(preferredType = null) {
     null
   if (existing) return existing
 
-  const setup = promptForSectionSetup(preferredType)
+  const setup = await promptForSectionSetup(preferredType)
   if (!setup) return null
 
   const section = createSection(setup.type, presentation.sections.length, {
@@ -214,12 +212,12 @@ export function ensureSectionForInsertion(preferredType = null) {
   return section
 }
 
-export function insertMediaSlideIntoCurrentPresentation(media) {
+export async function insertMediaSlideIntoCurrentPresentation(media) {
   const state = useEditorStore.getState()
   const presentation = state.presentation
   if (!presentation || !media) return null
 
-  const targetSection = ensureSectionForInsertion()
+  const targetSection = await ensureSectionForInsertion()
   if (!targetSection) return null
 
   const slide = createMediaSlide(media)
@@ -229,7 +227,7 @@ export function insertMediaSlideIntoCurrentPresentation(media) {
 }
 
 export async function renamePresentationById(id, currentTitle) {
-  const title = window.prompt('Rename presentation:', currentTitle || 'Untitled Presentation')?.trim()
+  const title = await promptDialog('Rename presentation:', currentTitle || 'Untitled Presentation', { title: 'Rename', confirmLabel: 'Rename' })
   if (!title) return null
 
   const loaded = await getPresentation(id)
@@ -242,6 +240,7 @@ export async function renamePresentationById(id, currentTitle) {
 }
 
 export async function deletePresentationById(id, title) {
-  if (!window.confirm(`Delete "${title}"?`)) return null
+  const ok = await confirmDialog(`Delete "${title}"?`, { title: 'Delete Presentation', confirmLabel: 'Delete', danger: true })
+  if (!ok) return null
   return deletePresentation(id)
 }
