@@ -81,6 +81,16 @@ export const useEditorStore = create((set) => ({
       return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
     }),
 
+  updateSlideNotes: (sectionId, slideId, notes) =>
+    set((state) => {
+      if (!state.presentation) return {}
+      const sections = state.presentation.sections.map((sec) => {
+        if (sec.id !== sectionId) return sec
+        return { ...sec, slides: sec.slides.map((sl) => sl.id === slideId ? { ...sl, notes } : sl) }
+      })
+      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave }
+    }),
+
   updateSlideStyle: (sectionId, slideId, styleProps) =>
     set((state) => {
       if (!state.presentation) return {}
