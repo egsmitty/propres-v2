@@ -40,7 +40,7 @@ export const useEditorStore = create((set) => ({
   setEditingSlide: (slideId) => set({ editingSlideId: slideId }),
   setDirty: (val) => set({ isDirty: val }),
   setRequiresInitialSave: (val) => set({ requiresInitialSave: val }),
-  setZoom: (zoom) => set({ zoom }),
+  setZoom: (zoom) => set({ zoom: Math.min(1, Math.max(0.5, zoom)) }),
 
   undo: () =>
     set((state) => {

@@ -124,14 +124,15 @@ export default function Canvas() {
         />
       )}
       <div
-        className="flex-1 flex items-center justify-center p-6"
+        className="flex-1 flex items-center justify-center p-6 min-h-0 overflow-hidden"
         onClick={handleClick}
       >
         {/* 16:9 canvas */}
         <div
-          className="relative w-full rounded shadow-2xl overflow-hidden"
+          className="relative rounded shadow-2xl overflow-hidden"
           style={{
-            maxWidth: '100%',
+            width: '100%',
+            maxHeight: '100%',
             aspectRatio: '16/9',
             background: '#1a1a1a',
             cursor: isEditing ? 'text' : 'default',
@@ -302,7 +303,7 @@ function ZoomControls() {
         {Math.round(zoom * 100)}%
       </span>
       <button
-        onClick={() => setZoom(Math.min(2, zoom + 0.1))}
+        onClick={() => setZoom(Math.min(1, zoom + 0.1))}
         className="w-5 h-5 flex items-center justify-center rounded"
         style={{ color: 'var(--text-secondary)' }}
         onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
