@@ -1,23 +1,14 @@
-# PresenterPro — Phase 2
+# Session 1 — Notes Pane
 
-## Phase 2A — Fix Core Presenter Flow
-- [x] Pass full slide list to Presenter View via IPC on present start
-- [x] Prev/Next buttons actually navigate through slides
-- [x] Output window receives its own `output:update` IPC channel (not presenter's channel)
-- [x] Clicking a slide in editor while presenting sends it to output
+## Plan
+- [x] Create `src/components/editor/NotesPane.jsx` — collapsed bar (28px) with FileText icon + "Notes" label + chevron; expands to 120px with textarea; local `useState` for open/closed
+- [x] Add `updateSlideNotes` action to `editorStore.js` — finds slide by sectionId+slideId and sets `notes`, marks dirty
+- [x] Render `<NotesPane />` inside `Canvas.jsx` — place it after the background bar, wire it to the selected slide's notes via editorStore
+- [x] Verify: the existing `handleSave` (Cmd+S) in Editor.jsx already saves the full `presentation` object, so notes will persist automatically — no extra wiring needed
+- [x] Update CLAUDE.md to mark Notes Pane as complete
 
-## Phase 2B — Text Formatting Toolbar
-- [x] Show formatting bar above canvas in edit mode
-- [x] Font size input, Bold toggle, Align left/center/right, Color picker
-- [x] Changes save into slide.textStyle and re-render thumbnail
-
-## Phase 2C — Unsaved Changes Warning
-- [x] Warn when clicking Back to Home with unsaved changes
-- [x] Warn on window close with unsaved changes (beforeunload)
-
-## Phase 2D — Drag to Reorder
-- [x] Drag slides within a section to reorder
-- [x] Drag sections to reorder
-
-## Phase 2E — Presentation Rename
-- [x] Double-click presentation title in TitleBar to rename inline
+## Review
+- **NotesPane.jsx** — new component: 28px collapsed bar with FileText + "Notes" + rotating chevron; expands to 120px with a plain textarea. Uses local React state for open/closed and for the textarea value. Syncs from the store when the selected slide changes; pushes back to the store on blur only.
+- **editorStore.js** — added `updateSlideNotes(sectionId, slideId, notes)` action. Same pattern as `updateSlideBody` but deliberately omits undo history (notes are metadata, not slide content).
+- **Canvas.jsx** — imported and rendered `<NotesPane />` after the background bar, inside the existing flex-col layout. The canvas area (flex-1) shrinks automatically when the pane opens.
+- No other files touched. Save (Cmd+S) already serializes the full presentation object, so notes persist through the existing flow.

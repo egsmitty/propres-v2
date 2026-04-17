@@ -7,6 +7,7 @@ import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/
 import { getSectionContentLabel, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import SlideTextEditor from './SlideTextEditor'
 import FormattingToolbar from './FormattingToolbar'
+import NotesPane from './NotesPane'
 
 function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
   if (!presentation) return null
@@ -251,6 +252,8 @@ export default function Canvas() {
           <ZoomControls />
         </div>
       </div>
+
+      <NotesPane />
     </div>
   )
 }
