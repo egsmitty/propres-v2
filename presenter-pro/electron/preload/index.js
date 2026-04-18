@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMedia: () => ipcRenderer.invoke('db:media:getAll'),
   createMedia: (data) => ipcRenderer.invoke('db:media:create', data),
   importMedia: () => ipcRenderer.invoke('media:import'),
+  pickMedia: (kind) => ipcRenderer.invoke('media:pick', { kind }),
   updateMedia: (id, data) => ipcRenderer.invoke('db:media:update', id, data),
   deleteMedia: (id) => ipcRenderer.invoke('db:media:delete', id),
 

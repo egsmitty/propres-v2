@@ -411,6 +411,29 @@ function registerIpcHandlers() {
       return { success: true, data: inserted }
     } catch (e) { return { success: false, error: e.message } }
   })
+  ipcMain.handle('media:pick', async (_, { kind }) => {
+    try {
+      const filters = kind === 'video'
+        ? [{ name: 'Videos', extensions: ['mp4', 'mov', 'webm'] }]
+        : [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
+
+      const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile'],
+        filters,
+      })
+      if (result.canceled || !result.filePaths?.length) return { success: true, data: null }
+
+      const filePath = result.filePaths[0]
+      const existing = mediaQueries.getMedia(db).find((item) => item.file_path === filePath)
+      if (existing) return { success: true, data: existing }
+
+      const name = path.basename(filePath)
+      const ext = path.extname(filePath).toLowerCase().slice(1)
+      const type = ['mp4', 'mov', 'webm'].includes(ext) ? 'video' : 'image'
+      const inserted = mediaQueries.createMedia(db, { name, type, file_path: filePath })
+      return { success: true, data: inserted }
+    } catch (e) { return { success: false, error: e.message } }
+  })
   ipcMain.handle('db:media:update', (_, id, data) => {
     try { return { success: true, data: mediaQueries.updateMedia(db, id, data) } }
     catch (e) { return { success: false, error: e.message } }
@@ -567,6 +590,9 @@ function buildNativeMenu() {
       label: 'Insert',
       submenu: [
         { label: 'New Slide', accelerator: 'CmdOrCtrl+M', click: () => sendCommand('insert:newSlide') },
+        { type: 'separator' },
+        { label: 'Insert Image…', click: () => sendCommand('insert:image') },
+        { label: 'Insert Video…', click: () => sendCommand('insert:video') },
       ],
     },
     {

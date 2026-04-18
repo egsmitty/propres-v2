@@ -7,6 +7,13 @@ import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/
 import { getSectionContentLabel, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
+import ContextMenu from '@/components/shared/ContextMenu'
+import {
+  clearSelectedSlide,
+  copySelectedSlideToClipboard,
+  deleteSelectedSlideFromCurrentPresentation,
+  pasteSlideAfterSelected,
+} from '@/utils/presentationCommands'
 import SlideTextEditor from './SlideTextEditor'
 import FormattingToolbar from './FormattingToolbar'
 
@@ -29,8 +36,10 @@ export default function Canvas() {
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const [media, setMedia] = useState([])
+  const slideClipboard = useAppStore((s) => s.slideClipboard)
   const canvasRef = useRef(null)
   const [canvasWidth, setCanvasWidth] = useState(0)
+  const [menu, setMenu] = useState(null)
 
   const slide = getSelectedSlide(presentation, selectedSectionId, selectedSlideId)
   const section = presentation?.sections?.find((item) => item.id === selectedSectionId) || null
@@ -93,6 +102,12 @@ export default function Canvas() {
     setEditingSlide(null)
   }
 
+  function handleContextMenu(e) {
+    e.preventDefault()
+    if (!slide) return
+    setMenu({ x: e.clientX, y: e.clientY })
+  }
+
   if (!presentation) {
     return (
       <div
@@ -148,6 +163,7 @@ export default function Canvas() {
       <div
         className="flex-1 flex items-center justify-center p-6"
         onClick={handleClick}
+        onContextMenu={handleContextMenu}
       >
         {/* Outer: maintains aspect ratio, clips scaled inner */}
         <div
@@ -263,6 +279,22 @@ export default function Canvas() {
           </div>
         </div>
       </div>
+
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={[
+            { label: 'Set Background', onClick: () => setMediaLibraryOpen(true) },
+            { divider: true },
+            { label: 'Copy Slide', onClick: () => copySelectedSlideToClipboard() },
+            { label: 'Paste Slide', onClick: () => pasteSlideAfterSelected(), disabled: !slideClipboard },
+            { label: 'Clear Slide', onClick: () => clearSelectedSlide() },
+            { label: 'Delete Slide', onClick: () => deleteSelectedSlideFromCurrentPresentation(), danger: true },
+          ]}
+          onClose={() => setMenu(null)}
+        />
+      )}
 
       {/* Background bar */}
       <div

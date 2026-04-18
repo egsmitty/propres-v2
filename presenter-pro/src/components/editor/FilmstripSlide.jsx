@@ -7,6 +7,7 @@ import ContextMenu from '@/components/shared/ContextMenu'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
 import { isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
+import { importMediaToSelectedSlide } from '@/utils/presentationCommands'
 import { alertDialog, showDialog } from '@/utils/dialog'
 
 export default function FilmstripSlide({ slide, index, selected, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete }) {
@@ -58,6 +59,8 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
   const menuItems = [
     { label: 'Edit', onClick: onDoubleClick },
     { label: 'New Slide', onClick: onNewSlide },
+    { label: 'Insert Image…', onClick: () => importMediaToSelectedSlide('image') },
+    { label: 'Insert Video…', onClick: () => importMediaToSelectedSlide('video') },
     { label: 'Set Background', onClick: () => setMediaLibraryOpen(true) },
     { label: 'Move to Section…', onClick: handleMoveToSection },
     { divider: true },

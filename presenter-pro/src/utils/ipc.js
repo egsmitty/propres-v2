@@ -44,6 +44,9 @@ export async function createMedia(data) {
 export async function importMedia() {
   return api().importMedia()
 }
+export async function pickMedia(kind) {
+  return api().pickMedia(kind)
+}
 export async function updateMedia(id, data) {
   return api().updateMedia(id, data)
 }
