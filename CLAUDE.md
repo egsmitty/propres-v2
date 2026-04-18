@@ -42,15 +42,23 @@ Follow these rules for every task in this project:
   - Spacebar advancement in presentation mode was hardened for the in-editor presenter sidebar
   - filmstrip drag targets now animate open to show the drop location more clearly
   - filmstrip and presenter sidebar widths now persist in localStorage
+  - sidebar resize caps were tightened further so the filmstrip and presenter preview cannot over-expand
   - Insert Image / Insert Video now use native Electron file pickers and apply imported media to the selected slide
   - center-canvas slide context menu now supports set background, copy, paste, clear, and delete actions
+  - slide text now lives in a real draggable/resizable text box on the canvas, with center snapping guides and persisted box geometry
+  - text box fill color, font family, font size, bold, italic, underline, text color, alignment, and line-height controls are now available in the editor toolbar
+  - scaled slide text rendering now respects text-box position/style in the editor, presenter previews, and output window
+  - song editor now includes a draggable Song Order panel, and saved song order is respected when inserting songs into presentations
+  - Output Settings now detects desktop displays, assigns Main Output vs Stage Display screens, and saves a basic Stage Display theme
+  - a separate Stage Display window now shows large lyric text with a next-slide preview
+  - Output Settings now includes a UI stub for SMPTE / Blackmagic video-output architecture distinct from desktop graphics outputs
 
 ## What's Pending
 - Audit remaining inline styles against the PDF's design-system guidance.
 - Improve background rendering fidelity further in filmstrip/home previews if desired.
 - Decide whether "Open…" should stay as a Home/recent-navigation action or grow into a fuller presentation picker/export-import flow.
 - Resolve the runtime font warning for `/fonts/Inter-Variable.woff2`.
-- Remaining requested feature work still includes moveable/resizable text boxes, text box fill colors, expanded formatting controls, song-order authoring, stage display, and the SMPTE/video-output architecture stub.
+- Full manual runtime verification is still needed on both macOS and Windows hardware, especially for multi-display output assignment and native presentation behavior.
 
 ## Known Issues
 - The build succeeds, but Vite still warns that `/fonts/Inter-Variable.woff2` is unresolved at build time.
