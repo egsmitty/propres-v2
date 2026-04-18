@@ -75,6 +75,8 @@ export default function TitleBar() {
     if (e.key === 'Escape') setRenaming(false)
   }
 
+  const isMac = window.electronAPI?.platform === 'darwin'
+
   return (
     <div
       className="flex items-center h-9 px-3 shrink-0"
@@ -84,12 +86,14 @@ export default function TitleBar() {
         WebkitAppRegion: 'drag',
       }}
     >
-      {/* Window controls */}
-      <div className="flex items-center gap-1.5 mr-3" style={{ WebkitAppRegion: 'no-drag' }}>
-        <button onClick={handleClose} className="w-3 h-3 rounded-full" style={{ background: '#ff5f57' }} title="Close" />
-        <button onClick={handleMinimize} className="w-3 h-3 rounded-full" style={{ background: '#febc2e' }} title="Minimize" />
-        <button onClick={handleMaximize} className="w-3 h-3 rounded-full" style={{ background: '#28c840' }} title="Maximize" />
-      </div>
+      {/* macOS traffic lights — left side */}
+      {isMac && (
+        <div className="flex items-center gap-1.5 mr-3" style={{ WebkitAppRegion: 'no-drag' }}>
+          <button onClick={handleClose} className="w-3 h-3 rounded-full" style={{ background: '#ff5f57' }} title="Close" />
+          <button onClick={handleMinimize} className="w-3 h-3 rounded-full" style={{ background: '#febc2e' }} title="Minimize" />
+          <button onClick={handleMaximize} className="w-3 h-3 rounded-full" style={{ background: '#28c840' }} title="Maximize" />
+        </div>
+      )}
 
       {/* Back button */}
       {currentView === 'editor' && (
@@ -150,6 +154,36 @@ export default function TitleBar() {
           )}
         </>
       )}
+
+      {/* Windows controls — right side */}
+      {!isMac && (
+        <div className="flex items-center ml-auto" style={{ WebkitAppRegion: 'no-drag' }}>
+          <WinButton onClick={handleMinimize} title="Minimize">&#x2212;</WinButton>
+          <WinButton onClick={handleMaximize} title="Maximize">&#x25A1;</WinButton>
+          <WinButton onClick={handleClose} title="Close" danger>&#x2715;</WinButton>
+        </div>
+      )}
     </div>
+  )
+}
+
+function WinButton({ onClick, title, danger, children }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="flex items-center justify-center text-xs"
+      style={{ width: 46, height: 36, color: 'var(--text-secondary)', background: 'transparent', border: 'none' }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = danger ? '#c42b1c' : 'var(--bg-hover)'
+        e.currentTarget.style.color = danger ? '#fff' : 'var(--text-primary)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent'
+        e.currentTarget.style.color = 'var(--text-secondary)'
+      }}
+    >
+      {children}
+    </button>
   )
 }
