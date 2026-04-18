@@ -50,10 +50,16 @@ export default function ContextMenu({ x, y, items, onClose }) {
             key={i}
             className="w-full text-left px-3 py-1 text-xs"
             style={{
-              color: item.danger ? 'var(--danger)' : 'var(--text-primary)',
+              color: item.disabled
+                ? 'var(--text-tertiary)'
+                : item.danger
+                ? 'var(--danger)'
+                : 'var(--text-primary)',
               display: 'block',
+              cursor: item.disabled ? 'default' : 'pointer',
             }}
             onMouseEnter={(e) => {
+              if (item.disabled) return
               e.currentTarget.style.background = item.danger
                 ? 'var(--danger-dim)'
                 : 'var(--bg-hover)'
@@ -62,9 +68,11 @@ export default function ContextMenu({ x, y, items, onClose }) {
               e.currentTarget.style.background = 'transparent'
             }}
             onClick={() => {
+              if (item.disabled) return
               item.onClick()
               onClose()
             }}
+            disabled={item.disabled}
           >
             {item.label}
           </button>

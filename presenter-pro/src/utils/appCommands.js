@@ -11,8 +11,12 @@ function isTextFieldFocused() {
 import { openOutputWindow } from '@/utils/ipc'
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
 import {
+  copySelectedSlideToClipboard,
   createNewPresentation,
+  clearSelectedSlide,
+  importMediaToSelectedSlide,
   insertNewSlideIntoCurrentPresentation,
+  pasteSlideAfterSelected,
   saveCurrentPresentation,
   saveCurrentPresentationAs,
 } from '@/utils/presentationCommands'
@@ -79,9 +83,15 @@ export async function runAppCommand(command) {
       appState.setSongLibraryOpen(true)
       return true
     case 'insert:image':
+      return importMediaToSelectedSlide('image')
     case 'insert:video':
-      appState.setMediaLibraryOpen(true)
-      return true
+      return importMediaToSelectedSlide('video')
+    case 'edit:copySlide':
+      return copySelectedSlideToClipboard()
+    case 'edit:pasteSlide':
+      return pasteSlideAfterSelected()
+    case 'edit:clearSlide':
+      return clearSelectedSlide()
     case 'view:filmstrip':
       appState.setFilmstripVisible(!appState.filmstripVisible)
       return true

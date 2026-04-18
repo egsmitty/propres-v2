@@ -5,11 +5,13 @@ import {
   createMedia,
   deletePresentation,
   getMedia,
+  pickMedia,
   getPresentation,
   updatePresentation,
 } from '@/utils/ipc'
 import { normalizePresentation } from '@/utils/backgrounds'
 import { PRESENTATION_TEMPLATES, SAMPLE_MEDIA_LIBRARY } from '@/utils/presentationTemplates'
+import { uuid } from '@/utils/uuid'
 import {
   createMediaSlide,
   createSection,
@@ -236,6 +238,102 @@ export async function insertMediaSlideIntoCurrentPresentation(media) {
   state.insertSlideIntoSection(targetSection.id, slide)
   state.setSelectedSlide(targetSection.id, slide.id)
   return slide
+}
+
+function cloneSlideForClipboard(slide) {
+  return JSON.parse(JSON.stringify(slide))
+}
+
+export async function importMediaToSelectedSlide(kind) {
+  const state = useEditorStore.getState()
+  const presentation = state.presentation
+  if (!presentation) return null
+
+  const picked = await pickMedia(kind)
+  if (!picked?.success || !picked.data) return picked
+
+  let sectionId = state.selectedSectionId
+  let slideId = state.selectedSlideId
+
+  if (!sectionId || !slideId) {
+    const section = await ensureSectionForInsertion()
+    if (!section) return null
+    const slide = createTextSlide(section.type)
+    state.insertSlideIntoSection(section.id, slide)
+    state.setSelectedSlide(section.id, slide.id)
+    sectionId = section.id
+    slideId = slide.id
+  }
+
+  state.setSlideBackground(sectionId, slideId, picked.data.id)
+  return picked
+}
+
+export function copySelectedSlideToClipboard() {
+  const state = useEditorStore.getState()
+  const slide = state.presentation?.sections
+    ?.find((section) => section.id === state.selectedSectionId)
+    ?.slides?.find((item) => item.id === state.selectedSlideId)
+
+  if (!slide) return false
+  useAppStore.getState().setSlideClipboard(cloneSlideForClipboard(slide))
+  return true
+}
+
+export function pasteSlideAfterSelected() {
+  const state = useEditorStore.getState()
+  const clipboard = useAppStore.getState().slideClipboard
+  if (!state.presentation || !clipboard) return false
+
+  const targetSectionId = state.selectedSectionId || state.presentation.sections[0]?.id
+  if (!targetSectionId) return false
+
+  const nextSlide = {
+    ...cloneSlideForClipboard(clipboard),
+    id: uuid(),
+  }
+
+  state.mutateSections((sections) =>
+    sections.map((section) => {
+      if (section.id !== targetSectionId) return section
+      const slides = [...section.slides]
+      const selectedIndex = slides.findIndex((slide) => slide.id === state.selectedSlideId)
+      const insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : slides.length
+      slides.splice(insertIndex, 0, nextSlide)
+      return { ...section, slides }
+    })
+  )
+
+  state.setSelectedSlide(targetSectionId, nextSlide.id)
+  return true
+}
+
+export function clearSelectedSlide() {
+  const state = useEditorStore.getState()
+  if (!state.presentation || !state.selectedSectionId || !state.selectedSlideId) return false
+
+  state.mutateSections((sections) =>
+    sections.map((section) => {
+      if (section.id !== state.selectedSectionId) return section
+      return {
+        ...section,
+        slides: section.slides.map((slide) =>
+          slide.id === state.selectedSlideId
+            ? {
+                ...slide,
+                type: 'text',
+                body: '',
+                mediaId: null,
+                backgroundId: null,
+                placeholderText: slide.placeholderText ?? 'Click to edit',
+              }
+            : slide
+        ),
+      }
+    })
+  )
+
+  return true
 }
 
 export async function deleteSelectedSlideFromCurrentPresentation() {
