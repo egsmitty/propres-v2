@@ -3,11 +3,9 @@ import { usePresenterStore } from '@/store/presenterStore'
 import { withEffectiveBackground } from '@/utils/backgrounds'
 import {
   openOutputWindow,
-  openPresenterView,
   refreshLiveSlide,
   sendSlide,
   stopPresenting as stopPresentingIpc,
-  updatePresentationSlides,
 } from '@/utils/ipc'
 import { alertDialog } from '@/utils/dialog'
 
@@ -30,23 +28,35 @@ function waitWithTimeout(promise, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }
 
-export async function startPresentationSession(presentation) {
+// DISABLED (session 6): old session uses separate presenterWindow — kept for rollback
+// export async function startPresentationSession(presentation) { ... }
+
+/**
+ * Sidebar-mode start: opens only the output window (no separate presenter window).
+ * Sends the currently selected slide first, or falls back to the first slide.
+ */
+export async function startSidebarPresentationSession(presentation) {
   const slides = flattenPresentationSlides(presentation)
   if (!slides.length) return false
 
-  await openPresenterView()
   await openOutputWindow()
   try {
-    await waitWithTimeout(window.electronAPI?.waitForPresenterReady?.(), 'Presenter')
     await waitWithTimeout(window.electronAPI?.waitForOutputReady?.(), 'Output')
   } catch (err) {
-    await alertDialog(err?.message || 'Could not open presenter windows. Try again.', { title: 'Presentation Failed' })
+    await alertDialog(err?.message || 'Could not open output window. Try again.', { title: 'Presentation Failed' })
     return false
   }
 
-  await window.electronAPI?.startPresentation(slides)
-  await sendSlide(slides[0], null)
-  usePresenterStore.getState().startPresenting(slides[0].sectionId, slides[0].id)
+  const { selectedSectionId, selectedSlideId } = useEditorStore.getState()
+  const startSlide =
+    slides.find((sl) => sl.sectionId === selectedSectionId && sl.id === selectedSlideId) ||
+    slides[0]
+
+  await sendSlide(startSlide, null)
+
+  const store = usePresenterStore.getState()
+  store.startPresenting(startSlide.sectionId, startSlide.id)
+  store.setAllSlides(slides)
 
   return true
 }
@@ -73,7 +83,12 @@ export async function sendSlideLive(sectionId, slide) {
 
 export async function syncPresentationSession(presentation) {
   const slides = flattenPresentationSlides(presentation)
-  await updatePresentationSlides(slides)
+
+  // Keep sidebar panel's allSlides in sync when the presentation is edited mid-session
+  usePresenterStore.getState().setAllSlides(slides)
+
+  // DISABLED (session 6): presenter:updateSlides IPC handler removed
+  // await updatePresentationSlides(slides)
 
   const { isPresenting, liveSectionId, liveSlideId } = usePresenterStore.getState()
   if (!isPresenting || !liveSectionId || !liveSlideId) return true

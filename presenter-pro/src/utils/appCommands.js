@@ -8,8 +8,8 @@ function isTextFieldFocused() {
   const tag = el.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true
 }
-import { openOutputWindow, openPresenterView } from '@/utils/ipc'
-import { startPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
+import { openOutputWindow } from '@/utils/ipc'
+import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
 import {
   createNewPresentation,
   insertNewSlideIntoCurrentPresentation,
@@ -79,13 +79,17 @@ export async function runAppCommand(command) {
     case 'view:filmstrip':
       appState.setFilmstripVisible(!appState.filmstripVisible)
       return true
-    case 'view:presenterView':
-      return openPresenterView()
+    case 'view:presenterView': {
+      // Presenter view is now the sidebar panel — toggle it
+      const open = usePresenterStore.getState().presenterPanelOpen
+      usePresenterStore.getState().setPresenterPanelOpen(!open)
+      return true
+    }
     case 'view:outputWindow':
       return openOutputWindow()
     case 'present:start':
       if (editorState.presentation && !presenterState.isPresenting) {
-        const started = await startPresentationSession(editorState.presentation)
+        const started = await startSidebarPresentationSession(editorState.presentation)
         if (!started) {
           await alertDialog('Add at least one slide before presenting.', { title: 'Nothing to Present' })
         }

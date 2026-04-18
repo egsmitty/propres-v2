@@ -37,7 +37,7 @@ function Separator() {
   return <div className="mx-1 h-5 w-px" style={{ background: 'var(--border-default)' }} />
 }
 
-export default function Toolbar({ onPresent }) {
+export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }) {
   const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
   const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
@@ -142,6 +142,26 @@ export default function Toolbar({ onPresent }) {
         <Play size={13} />
         {isPresenting ? 'Stop' : 'Present'}
       </button>
+
+      {onTogglePanel && (
+        <button
+          onClick={onTogglePanel}
+          title="Toggle Presenter Panel"
+          className="flex items-center gap-1 px-2 py-1 rounded text-xs ml-1"
+          style={{
+            background: presenterPanelOpen ? 'var(--bg-hover)' : 'transparent',
+            color: presenterPanelOpen ? 'var(--text-primary)' : 'var(--text-secondary)',
+            border: '1px solid var(--border-default)',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = presenterPanelOpen ? 'var(--bg-hover)' : 'transparent'
+            e.currentTarget.style.color = presenterPanelOpen ? 'var(--text-primary)' : 'var(--text-secondary)'
+          }}
+        >
+          ⊞ Presenter
+        </button>
+      )}
     </div>
   )
 }

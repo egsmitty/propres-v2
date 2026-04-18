@@ -5,12 +5,13 @@ import Filmstrip from '@/components/editor/Filmstrip'
 import Canvas from '@/components/editor/Canvas'
 import SongLibraryPanel from '@/components/library/SongLibraryPanel'
 import MediaLibraryPanel from '@/components/library/MediaLibraryPanel'
+import PresenterPanel from '@/components/presenter/PresenterPanel'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { updatePresentation } from '@/utils/ipc'
-import { startPresentationSession, stopPresentationSession, syncPresentationSession } from '@/utils/presenterFlow'
+import { startSidebarPresentationSession, stopPresentationSession, syncPresentationSession } from '@/utils/presenterFlow'
 import { alertDialog } from '@/utils/dialog'
 
 export default function Editor() {
@@ -25,6 +26,8 @@ export default function Editor() {
   const setBlack = usePresenterStore((s) => s.setBlack)
   const setLogo = usePresenterStore((s) => s.setLogo)
   const liveSlideId = usePresenterStore((s) => s.liveSlideId)
+  const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
+  const setPresenterPanelOpen = usePresenterStore((s) => s.setPresenterPanelOpen)
   const presentation = useEditorStore((s) => s.presentation)
   const isDirty = useEditorStore((s) => s.isDirty)
   const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave)
@@ -138,7 +141,7 @@ export default function Editor() {
       return
     }
 
-    const started = await startPresentationSession(presentation)
+    const started = await startSidebarPresentationSession(presentation)
     if (!started) {
       await alertDialog('Add at least one slide before presenting.', { title: 'Nothing to Present' })
     }
@@ -152,7 +155,11 @@ export default function Editor() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {isPresenting && <LiveBanner />}
-      <Toolbar onPresent={handlePresent} />
+      <Toolbar
+        onPresent={handlePresent}
+        onTogglePanel={() => setPresenterPanelOpen(!presenterPanelOpen)}
+        presenterPanelOpen={presenterPanelOpen}
+      />
       <div className="flex flex-1 overflow-hidden relative">
         {songLibraryOpen && <SongLibraryPanel />}
         {mediaLibraryOpen && <MediaLibraryPanel />}
@@ -162,6 +169,7 @@ export default function Editor() {
         >
           {filmstripVisible && <ErrorBoundary label="Filmstrip error"><Filmstrip /></ErrorBoundary>}
           <ErrorBoundary label="Canvas error"><Canvas onSave={handleSave} /></ErrorBoundary>
+          <PresenterPanel />
         </div>
       </div>
       <StatusBar />
