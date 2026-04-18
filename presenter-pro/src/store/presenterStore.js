@@ -1,11 +1,15 @@
 import { create } from 'zustand'
 
 const PRESENTER_PANEL_WIDTH_KEY = 'presenterpro.presenterPanelWidth'
+const PRESENTER_PANEL_MIN_WIDTH = 240
+const PRESENTER_PANEL_MAX_WIDTH = 420
 
 function getInitialPresenterPanelWidth() {
   if (typeof window === 'undefined') return 320
   const saved = Number(window.localStorage.getItem(PRESENTER_PANEL_WIDTH_KEY))
-  if (Number.isFinite(saved) && saved >= 240 && saved <= 600) return saved
+  if (Number.isFinite(saved) && saved >= PRESENTER_PANEL_MIN_WIDTH && saved <= PRESENTER_PANEL_MAX_WIDTH) {
+    return saved
+  }
   return 320
 }
 
