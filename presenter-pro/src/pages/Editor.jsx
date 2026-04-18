@@ -7,6 +7,7 @@ import SongLibraryPanel from '@/components/library/SongLibraryPanel'
 import MediaLibraryPanel from '@/components/library/MediaLibraryPanel'
 import PresenterPanel from '@/components/presenter/PresenterPanel'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
+import PresentationSettingsModal from '@/components/editor/PresentationSettingsModal'
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
@@ -17,6 +18,7 @@ import { alertDialog } from '@/utils/dialog'
 export default function Editor() {
   const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
+  const presentationSettingsOpen = useAppStore((s) => s.presentationSettingsOpen)
   const filmstripVisible = useAppStore((s) => s.filmstripVisible)
   const allowWindowClose = useAppStore((s) => s.allowWindowClose)
   const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose)
@@ -179,6 +181,7 @@ export default function Editor() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {presentationSettingsOpen && <PresentationSettingsModal />}
       {isPresenting && <LiveBanner />}
       <Toolbar
         onPresent={handlePresent}

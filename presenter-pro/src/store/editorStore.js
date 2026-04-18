@@ -203,4 +203,19 @@ export const useEditorStore = create((set) => ({
         ...historyOf(state),
       }
     }),
+
+  updatePresentationAspectRatio: (aspectRatio, customAspectWidth, customAspectHeight) =>
+    set((state) => {
+      if (!state.presentation) return {}
+      return {
+        presentation: {
+          ...state.presentation,
+          aspectRatio,
+          customAspectWidth: customAspectWidth ?? state.presentation.customAspectWidth,
+          customAspectHeight: customAspectHeight ?? state.presentation.customAspectHeight,
+        },
+        isDirty: true,
+        requiresInitialSave: state.requiresInitialSave,
+      }
+    }),
 }))

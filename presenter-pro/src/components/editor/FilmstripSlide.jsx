@@ -16,7 +16,8 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
   const [menu, setMenu] = useState(null)
   const mediaOnly = isMediaSlide(slide)
 
-  const lines = mediaOnly ? [slide.label || 'Media'] : (slide.body || '').split('\n').filter(Boolean)
+  const plainBody = (slide.body || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
+  const lines = mediaOnly ? [slide.label || 'Media'] : plainBody.split('\n').filter(Boolean)
   const previewFontSize = Math.max(6, Math.min(12, Math.round((slide.textStyle?.size || 52) / 8)))
 
   function handleContextMenu(e) {

@@ -4,29 +4,29 @@ export default function SlideTextEditor({ slide, onSave, onCancel }) {
   const ref = useRef(null)
 
   useEffect(() => {
-    if (ref.current) {
-      ref.current.focus()
-      // Place cursor at end
-      const range = document.createRange()
-      const sel = window.getSelection()
-      range.selectNodeContents(ref.current)
-      range.collapse(false)
-      sel.removeAllRanges()
-      sel.addRange(range)
-    }
+    if (!ref.current) return
+    ref.current.innerHTML = slide.body || ''
+    // Place cursor at end
+    const range = document.createRange()
+    const sel = window.getSelection()
+    range.selectNodeContents(ref.current)
+    range.collapse(false)
+    sel.removeAllRanges()
+    sel.addRange(range)
+    ref.current.focus()
   }, [])
 
   function handleKeyDown(e) {
     if (e.key === 'Escape') {
       e.preventDefault()
-      onSave(ref.current.innerText)
+      onSave(ref.current.innerHTML)
     }
   }
 
   function handleBlur(e) {
     const nextTarget = e.relatedTarget
     if (nextTarget?.closest?.('[data-editor-toolbar="true"]')) return
-    onSave(ref.current.innerText)
+    onSave(ref.current.innerHTML)
   }
 
   return (
@@ -36,21 +36,19 @@ export default function SlideTextEditor({ slide, onSave, onCancel }) {
       suppressContentEditableWarning
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
-      className="w-full h-full outline-none"
+      className="w-full outline-none"
       style={{
         color: slide.textStyle?.color || '#ffffff',
         fontSize: slide.textStyle?.size || 52,
         fontWeight: slide.textStyle?.bold ? 700 : 400,
         textAlign: slide.textStyle?.align || 'center',
-        whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
         lineHeight: 1.3,
         caretColor: '#fff',
         userSelect: 'text',
         cursor: 'text',
+        minHeight: '1em',
       }}
-    >
-      {slide.body}
-    </div>
+    />
   )
 }

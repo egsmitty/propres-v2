@@ -161,23 +161,21 @@ export default function OutputRenderer() {
       )}
       {!mediaSlideItem?.file_path && slide?.body && (
         <div
+          dangerouslySetInnerHTML={{ __html: slide.body }}
           style={{
             position: 'relative',
             color: slide.textStyle?.color || '#ffffff',
-            fontSize: slide.textStyle?.size || 64,
+            fontSize: slide.textStyle?.size || 52,
             fontWeight: slide.textStyle?.bold ? 700 : 400,
             textAlign: slide.textStyle?.align || 'center',
             maxWidth: '80%',
             lineHeight: 1.3,
-            whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
             textShadow: '0 2px 16px rgba(0,0,0,0.9)',
             fontFamily: 'Inter, system-ui, sans-serif',
             WebkitFontSmoothing: 'antialiased',
           }}
-        >
-          {slide.body}
-        </div>
+        />
       )}
       {countdown.active && (
         <div
