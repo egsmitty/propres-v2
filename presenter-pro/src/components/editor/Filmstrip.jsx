@@ -232,9 +232,11 @@ export default function Filmstrip({ width = 224 }) {
                     onDragEnd={() => { dragSlide.current = null; setDragOverSlide(null) }}
                     style={{
                       opacity: dragOverSlide === slide.id && dragSlide.current?.slideId !== slide.id ? 0.5 : 1,
+                      marginTop: dragOverSlide === slide.id && dragSlide.current?.slideId !== slide.id ? 10 : 0,
                       borderTop: dragOverSlide === slide.id && dragSlide.current?.slideId !== slide.id
                         ? '2px solid var(--accent)'
                         : '2px solid transparent',
+                      transition: 'margin 160ms ease, opacity 160ms ease, border-color 160ms ease',
                     }}
                   >
                     <FilmstripSlide
@@ -269,11 +271,12 @@ export default function Filmstrip({ width = 224 }) {
                   onDragEnd={() => setDragOverSlide(null)}
                   className="mx-2 mb-1 rounded"
                   style={{
-                    height: 12,
+                    height: dragOverSlide === `end-${section.id}` ? 28 : 12,
                     background: dragOverSlide === `end-${section.id}` ? 'var(--accent-dim)' : 'transparent',
                     border: dragOverSlide === `end-${section.id}`
                       ? '1px dashed var(--accent)'
                       : '1px dashed transparent',
+                    transition: 'height 160ms ease, background 160ms ease, border-color 160ms ease',
                   }}
                 />
               )}
