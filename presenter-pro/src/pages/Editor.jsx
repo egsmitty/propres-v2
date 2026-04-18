@@ -16,6 +16,15 @@ import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentation
 import { startSidebarPresentationSession, stopPresentationSession, syncPresentationSession } from '@/utils/presenterFlow'
 import { alertDialog } from '@/utils/dialog'
 
+const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth'
+
+function getInitialFilmstripWidth() {
+  if (typeof window === 'undefined') return 224
+  const saved = Number(window.localStorage.getItem(FILMSTRIP_WIDTH_KEY))
+  if (Number.isFinite(saved) && saved >= 160 && saved <= 400) return saved
+  return 224
+}
+
 export default function Editor() {
   const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
@@ -34,8 +43,12 @@ export default function Editor() {
   const setPresenterPanelWidth = usePresenterStore((s) => s.setPresenterPanelWidth)
   const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth)
 
-  const [filmstripWidth, setFilmstripWidth] = useState(224)
+  const [filmstripWidth, setFilmstripWidth] = useState(getInitialFilmstripWidth)
   const dragRef = useRef(null) // { side: 'filmstrip'|'panel', startX, startWidth }
+
+  useEffect(() => {
+    window.localStorage.setItem(FILMSTRIP_WIDTH_KEY, String(filmstripWidth))
+  }, [filmstripWidth])
 
   useEffect(() => {
     function onMove(e) {
