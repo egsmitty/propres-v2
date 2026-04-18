@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowMaximize: () => ipcRenderer.invoke('window:maximize'),
 
   // System
+  platform: process.platform,
   getSettings: () => ipcRenderer.invoke('settings:getAll'),
   setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value),
   getProfile: () => ipcRenderer.invoke('system:getProfile'),

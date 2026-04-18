@@ -1,14 +1,9 @@
-# Session 2 — Song Section Labels
+# Platform-Aware Title Bar
 
 ## Plan
-- [x] Add `SECTION_TYPES`, `getSectionType`, `getSectionColor` to `src/utils/sectionTypes.js`
-- [x] Update `slideParser.js` — expand `LABEL_RE` and type-mapping to cover `tag`, `turnaround`/`turn`/`T.A.`, `blank`, and verify `intro`/`outro`
-- [x] Update `SongEditorModal.jsx` — replace `TYPES` with `SECTION_TYPES`, drive dropdown from it, add color badge on each slide card, add custom label input when `type === 'custom'`
-- [x] Update CLAUDE.md to mark Song Section Labels as complete
-- [ ] Commit
+- [x] Expose `platform` (value of `process.platform`) via `contextBridge` in `preload/index.js`
+- [x] Update `TitleBar.jsx` — on macOS render traffic lights on the left (existing); on Windows render native-style buttons (− □ ×) on the right with correct hover colors
 
 ## Review
-- **sectionTypes.js** — added `SECTION_TYPES` array (9 types), `getSectionType(id)`, and `getSectionColor(id)`. Appended after existing exports with no conflicts.
-- **slideParser.js** — expanded `LABEL_RE` to include `turnaround`, `turn`, `t.a.`, and `blank`. Extracted a `resolveType()` helper that normalises aliases (`turn`/`t.a.` → `turnaround`, `pre-chorus` → `chorus`). Verified all 15 test cases correct before touching the file.
-- **SongEditorModal.jsx** — removed the old hardcoded `TYPES` array; dropdown now driven by `SECTION_TYPES`. Added a 4px colored left-edge badge to each slide card using `getSectionColor`. When `slide.type === 'custom'`, the label field becomes an editable input (maxLength 30, placeholder "Label name…"); for all other types it shows the label as read-only text.
-- No database, IPC, or other component touched.
+- **preload/index.js** — added `platform: process.platform` to the `contextBridge` so the renderer can read it safely via `window.electronAPI.platform`.
+- **TitleBar.jsx** — reads `isMac` from `window.electronAPI?.platform`. On macOS the traffic-light block is shown on the left (unchanged). On all other platforms it's hidden and a `WinButton` group is rendered on the right (− □ ×) with standard Windows sizing (46×36px) and a red hover on the close button. No other files touched.
