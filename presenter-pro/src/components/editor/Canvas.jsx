@@ -4,7 +4,7 @@ import { usePresenterStore } from '@/store/presenterStore'
 import { useAppStore } from '@/store/appStore'
 import { getMedia, sendSlide } from '@/utils/ipc'
 import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/backgrounds'
-import { getSectionContentLabel, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
+import { DEFAULT_TEXT_BOX, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
 import ContextMenu from '@/components/shared/ContextMenu'
@@ -24,6 +24,14 @@ function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
   return section.slides.find((sl) => sl.id === selectedSlideId) || null
 }
 
+const SNAP_THRESHOLD = 10
+const MIN_TEXT_BOX_WIDTH = 260
+const MIN_TEXT_BOX_HEIGHT = 140
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
 export default function Canvas() {
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
@@ -31,6 +39,7 @@ export default function Canvas() {
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
+  const updateSlideTextBox = useEditorStore((s) => s.updateSlideTextBox)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
   const setLiveSlide = usePresenterStore((s) => s.setLiveSlide)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -38,8 +47,12 @@ export default function Canvas() {
   const [media, setMedia] = useState([])
   const slideClipboard = useAppStore((s) => s.slideClipboard)
   const canvasRef = useRef(null)
+  const dragRef = useRef(null)
+  const draftTextBoxRef = useRef(null)
   const [canvasWidth, setCanvasWidth] = useState(0)
   const [menu, setMenu] = useState(null)
+  const [draftTextBox, setDraftTextBox] = useState(null)
+  const [snapGuides, setSnapGuides] = useState({ horizontal: null, vertical: null })
 
   const slide = getSelectedSlide(presentation, selectedSectionId, selectedSlideId)
   const section = presentation?.sections?.find((item) => item.id === selectedSectionId) || null
@@ -68,6 +81,81 @@ export default function Canvas() {
   useEffect(() => {
     loadMedia()
   }, [mediaLibraryOpen])
+
+  useEffect(() => {
+    dragRef.current = null
+    draftTextBoxRef.current = null
+    setDraftTextBox(null)
+    setSnapGuides({ horizontal: null, vertical: null })
+  }, [selectedSectionId, selectedSlideId])
+
+  useEffect(() => {
+    function handlePointerMove(e) {
+      if (!dragRef.current || !slide || mediaOnlySlide) return
+
+      const { mode, startX, startY, box, nativeWidth, nativeHeight, currentScale } = dragRef.current
+      const safeScale = currentScale || 1
+      const dx = (e.clientX - startX) / safeScale
+      const dy = (e.clientY - startY) / safeScale
+      const threshold = SNAP_THRESHOLD / safeScale
+
+      if (mode === 'move') {
+        let nextX = clamp(box.x + dx, 0, nativeWidth - box.width)
+        let nextY = clamp(box.y + dy, 0, nativeHeight - box.height)
+
+        const centeredX = (nativeWidth - box.width) / 2
+        const centeredY = (nativeHeight - box.height) / 2
+
+        let verticalGuide = null
+        let horizontalGuide = null
+
+        if (Math.abs(nextX - centeredX) <= threshold) {
+          nextX = centeredX
+          verticalGuide = nativeWidth / 2
+        }
+
+        if (Math.abs(nextY - centeredY) <= threshold) {
+          nextY = centeredY
+          horizontalGuide = nativeHeight / 2
+        }
+
+        const nextDraft = { ...box, x: nextX, y: nextY }
+        draftTextBoxRef.current = nextDraft
+        setDraftTextBox(nextDraft)
+        setSnapGuides({ horizontal: horizontalGuide, vertical: verticalGuide })
+        return
+      }
+
+      const nextWidth = clamp(box.width + dx, MIN_TEXT_BOX_WIDTH, nativeWidth - box.x)
+      const nextHeight = clamp(box.height + dy, MIN_TEXT_BOX_HEIGHT, nativeHeight - box.y)
+      const nextDraft = { ...box, width: nextWidth, height: nextHeight }
+      draftTextBoxRef.current = nextDraft
+      setDraftTextBox(nextDraft)
+      setSnapGuides({ horizontal: null, vertical: null })
+    }
+
+    function handlePointerUp() {
+      if (!dragRef.current) return
+      dragRef.current = null
+
+      if (draftTextBoxRef.current && selectedSectionId && selectedSlideId) {
+        updateSlideTextBox(selectedSectionId, selectedSlideId, draftTextBoxRef.current)
+      }
+
+      draftTextBoxRef.current = null
+      setDraftTextBox(null)
+      setSnapGuides({ horizontal: null, vertical: null })
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    window.addEventListener('mousemove', handlePointerMove)
+    window.addEventListener('mouseup', handlePointerUp)
+    return () => {
+      window.removeEventListener('mousemove', handlePointerMove)
+      window.removeEventListener('mouseup', handlePointerUp)
+    }
+  }, [mediaOnlySlide, selectedSectionId, selectedSlideId, slide, updateSlideTextBox])
 
   async function loadMedia() {
     const result = await getMedia()
@@ -102,6 +190,29 @@ export default function Canvas() {
     setEditingSlide(null)
   }
 
+  function beginTextBoxInteraction(e, mode) {
+    if (!slide || mediaOnlySlide || isEditing) return
+
+    e.preventDefault()
+    e.stopPropagation()
+
+    const { width: nativeWidth, height: nativeHeight } = getPresentationDimensions(presentation)
+    const box = draftTextBox || slide.textBox || DEFAULT_TEXT_BOX
+
+    dragRef.current = {
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      box,
+      nativeWidth,
+      nativeHeight,
+      currentScale: scale || 1,
+    }
+
+    document.body.style.cursor = mode === 'resize' ? 'nwse-resize' : 'move'
+    document.body.style.userSelect = 'none'
+  }
+
   function handleContextMenu(e) {
     e.preventDefault()
     if (!slide) return
@@ -134,18 +245,10 @@ export default function Canvas() {
     )
   }
 
-  const textAlign = slide.textStyle?.align || 'center'
-  const valign = slide.textStyle?.valign || 'center'
-
-  const valignStyle =
-    valign === 'top'
-      ? { justifyContent: 'flex-start', paddingTop: 80 }
-      : valign === 'bottom'
-      ? { justifyContent: 'flex-end', paddingBottom: 80 }
-      : { justifyContent: 'center' }
-
   const { width: nativeW, height: nativeH } = getPresentationDimensions(presentation)
   const scale = canvasWidth > 0 ? canvasWidth / nativeW : 1
+  const textStyle = slide.textStyle || {}
+  const activeTextBox = draftTextBox || slide.textBox || DEFAULT_TEXT_BOX
 
   return (
     <div
@@ -158,6 +261,7 @@ export default function Canvas() {
           sectionId={selectedSectionId}
           slideId={slide.id}
           textStyle={slide.textStyle}
+          textBox={slide.textBox}
         />
       )}
       <div
@@ -213,16 +317,60 @@ export default function Canvas() {
               )
             ) : (
               <>
+                {snapGuides.vertical !== null && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: snapGuides.vertical,
+                      width: 2,
+                      background: 'rgba(74,124,255,0.85)',
+                      boxShadow: '0 0 0 1px rgba(255,255,255,0.24)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
+                {snapGuides.horizontal !== null && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      top: snapGuides.horizontal,
+                      height: 2,
+                      background: 'rgba(74,124,255,0.85)',
+                      boxShadow: '0 0 0 1px rgba(255,255,255,0.24)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
                 <div
+                  onMouseDown={(e) => beginTextBoxInteraction(e, 'move')}
                   style={{
                     position: 'absolute',
-                    inset: 0,
+                    left: activeTextBox.x,
+                    top: activeTextBox.y,
+                    width: activeTextBox.width,
+                    height: activeTextBox.height,
                     display: 'flex',
                     flexDirection: 'column',
-                    paddingLeft: 96,
-                    paddingRight: 96,
-                    textAlign,
-                    ...valignStyle,
+                    justifyContent:
+                      textStyle.valign === 'top'
+                        ? 'flex-start'
+                        : textStyle.valign === 'bottom'
+                        ? 'flex-end'
+                        : 'center',
+                    padding: '22px 28px',
+                    textAlign: textStyle.align || 'center',
+                    background: activeTextBox.backgroundColor || 'transparent',
+                    border: isEditing
+                      ? '2px solid rgba(74,124,255,0.95)'
+                      : '2px dashed rgba(255,255,255,0.28)',
+                    borderRadius: 14,
+                    boxShadow: isEditing ? '0 0 0 4px rgba(74,124,255,0.16)' : 'none',
+                    cursor: isEditing ? 'text' : 'move',
+                    overflow: 'visible',
                   }}
                 >
                   {isEditing ? (
@@ -233,14 +381,18 @@ export default function Canvas() {
                     />
                   ) : (
                     <div
-                      className="w-full select-none group"
+                      className="w-full select-none"
                       style={{
-                        color: slide.textStyle?.color || '#ffffff',
-                        fontSize: slide.textStyle?.size || 52,
-                        fontWeight: slide.textStyle?.bold ? 700 : 400,
-                        lineHeight: 1.3,
+                        color: textStyle.color || '#ffffff',
+                        fontSize: textStyle.size || 52,
+                        fontWeight: textStyle.bold ? 700 : 400,
+                        fontStyle: textStyle.italic ? 'italic' : 'normal',
+                        textDecoration: textStyle.underline ? 'underline' : 'none',
+                        lineHeight: textStyle.lineHeight || 1.3,
+                        fontFamily: textStyle.fontFamily || 'Arial, sans-serif',
                         wordBreak: 'break-word',
                         textShadow: '0 2px 16px rgba(0,0,0,0.5)',
+                        cursor: 'inherit',
                       }}
                     >
                       {slide.body ? (
@@ -255,25 +407,46 @@ export default function Canvas() {
                       )}
                     </div>
                   )}
+
+                  {!isEditing && (
+                    <>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 16,
+                          top: -28,
+                          padding: '3px 8px',
+                          borderRadius: 999,
+                          background: 'rgba(12,17,28,0.82)',
+                          color: 'rgba(255,255,255,0.72)',
+                          fontSize: 12,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        Text Box
+                      </div>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => beginTextBoxInteraction(e, 'resize')}
+                        style={{
+                          position: 'absolute',
+                          right: -10,
+                          bottom: -10,
+                          width: 22,
+                          height: 22,
+                          borderRadius: 999,
+                          border: '2px solid rgba(255,255,255,0.85)',
+                          background: 'rgba(74,124,255,0.95)',
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.32)',
+                          cursor: 'nwse-resize',
+                        }}
+                        aria-label="Resize text box"
+                      />
+                    </>
+                  )}
                 </div>
-                {!isEditing && slide.body && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'rgba(255,255,255,0.3)',
-                      fontSize: 26,
-                      opacity: 0,
-                      pointerEvents: 'none',
-                    }}
-                    className="hover:opacity-100 transition-opacity"
-                  >
-                    Double-click to edit {section ? getSectionContentLabel(section.type).toLowerCase() : 'text'}
-                  </div>
-                )}
               </>
             )}
           </div>

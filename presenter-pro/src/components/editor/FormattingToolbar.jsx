@@ -2,11 +2,24 @@ import React from 'react'
 import { Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 
-export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
+const FONT_OPTIONS = [
+  'Arial, sans-serif',
+  'Georgia, serif',
+  'Times New Roman, serif',
+  'Trebuchet MS, sans-serif',
+  'Courier New, monospace',
+]
+
+export default function FormattingToolbar({ sectionId, slideId, textStyle, textBox }) {
   const updateSlideStyle = useEditorStore((s) => s.updateSlideStyle)
+  const updateSlideTextBox = useEditorStore((s) => s.updateSlideTextBox)
 
   function set(props) {
     updateSlideStyle(sectionId, slideId, props)
+  }
+
+  function setBox(props) {
+    updateSlideTextBox(sectionId, slideId, props)
   }
 
   function handleSizeChange(value) {
@@ -17,13 +30,14 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
 
   const size = textStyle?.size || 52
   const bold = textStyle?.bold || false
+  const italic = textStyle?.italic || false
+  const underline = textStyle?.underline || false
   const align = textStyle?.align || 'center'
   const color = textStyle?.color || '#ffffff'
+  const fontFamily = textStyle?.fontFamily || 'Arial, sans-serif'
+  const lineHeight = textStyle?.lineHeight || 1.3
+  const fillColor = textBox?.backgroundColor || 'transparent'
   const keepEditorFocus = (e) => e.preventDefault()
-
-  function execCmd(cmd, value) {
-    document.execCommand(cmd, false, value ?? null)
-  }
 
   return (
     <div
@@ -34,6 +48,27 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
         borderBottom: '1px solid var(--border-subtle)',
       }}
     >
+      <select
+        data-editor-toolbar="true"
+        value={fontFamily}
+        onMouseDown={keepEditorFocus}
+        onChange={(e) => set({ fontFamily: e.target.value })}
+        className="text-xs rounded outline-none"
+        style={{
+          background: 'var(--bg-app)',
+          border: '1px solid var(--border-default)',
+          color: 'var(--text-primary)',
+          padding: '2px 6px',
+          maxWidth: 150,
+        }}
+      >
+        {FONT_OPTIONS.map((option) => (
+          <option key={option} value={option}>{option.split(',')[0]}</option>
+        ))}
+      </select>
+
+      <div className="w-px h-4" style={{ background: 'var(--border-default)' }} />
+
       {/* Font size */}
       <div className="flex items-center gap-1">
         <button
@@ -94,12 +129,15 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
       <button
         data-editor-toolbar="true"
         onMouseDown={keepEditorFocus}
-        onClick={() => execCmd('italic')}
+        onClick={() => set({ italic: !italic })}
         title="Italic"
         className="w-6 h-6 flex items-center justify-center rounded"
-        style={{ color: 'var(--text-secondary)' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        style={{
+          background: italic ? 'var(--accent-dim)' : 'transparent',
+          color: italic ? 'var(--accent)' : 'var(--text-secondary)',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = italic ? 'var(--accent-dim)' : 'var(--bg-hover)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = italic ? 'var(--accent-dim)' : 'transparent')}
       >
         <Italic size={13} />
       </button>
@@ -108,12 +146,15 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
       <button
         data-editor-toolbar="true"
         onMouseDown={keepEditorFocus}
-        onClick={() => execCmd('underline')}
+        onClick={() => set({ underline: !underline })}
         title="Underline"
         className="w-6 h-6 flex items-center justify-center rounded"
-        style={{ color: 'var(--text-secondary)' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        style={{
+          background: underline ? 'var(--accent-dim)' : 'transparent',
+          color: underline ? 'var(--accent)' : 'var(--text-secondary)',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = underline ? 'var(--accent-dim)' : 'var(--bg-hover)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = underline ? 'var(--accent-dim)' : 'transparent')}
       >
         <Underline size={13} />
       </button>
@@ -162,18 +203,54 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
 
       <div className="w-px h-4" style={{ background: 'var(--border-default)' }} />
 
-      {/* Highlight */}
+      {/* Fill */}
       <div className="flex items-center gap-1.5">
-        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Highlight</span>
+        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Fill</span>
         <input
           data-editor-toolbar="true"
           type="color"
-          defaultValue="#ffff00"
+          value={fillColor === 'transparent' ? '#ffffff' : fillColor}
           onMouseDown={keepEditorFocus}
-          onChange={(e) => execCmd('hiliteColor', e.target.value)}
+          onChange={(e) => setBox({ backgroundColor: e.target.value })}
           className="rounded cursor-pointer"
           style={{ width: 24, height: 20, border: '1px solid var(--border-default)', padding: 1, background: 'none' }}
-          title="Highlight color"
+          title="Text box fill color"
+        />
+        <button
+          data-editor-toolbar="true"
+          onMouseDown={keepEditorFocus}
+          onClick={() => setBox({ backgroundColor: 'transparent' })}
+          className="text-[11px] px-1.5 py-0.5 rounded"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          Clear
+        </button>
+      </div>
+
+      <div className="w-px h-4" style={{ background: 'var(--border-default)' }} />
+
+      <div className="flex items-center gap-1">
+        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Line</span>
+        <input
+          data-editor-toolbar="true"
+          type="number"
+          step="0.1"
+          min="0.8"
+          max="3"
+          value={lineHeight}
+          onMouseDown={keepEditorFocus}
+          onChange={(e) => {
+            const next = Number(e.target.value)
+            if (!Number.isFinite(next)) return
+            set({ lineHeight: Math.min(3, Math.max(0.8, next)) })
+          }}
+          className="w-12 text-center text-xs rounded outline-none"
+          style={{
+            background: 'var(--bg-app)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-primary)',
+            padding: '1px 2px',
+          }}
         />
       </div>
 

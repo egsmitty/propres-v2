@@ -6,7 +6,12 @@ export const SECTION_COLORS = [
   'var(--section-5)',
 ]
 
-import { isMediaSlide, normalizeSectionType } from '@/utils/sectionTypes'
+import {
+  isMediaSlide,
+  mergeTextBox,
+  mergeTextStyle,
+  normalizeSectionType,
+} from '@/utils/sectionTypes'
 
 export function normalizePresentation(presentation) {
   if (!presentation) return presentation
@@ -18,6 +23,8 @@ export function normalizePresentation(presentation) {
       ...slide,
       backgroundId: slide.backgroundId ?? null,
       mediaId: slide.mediaId ?? null,
+      textStyle: mergeTextStyle(slide.textStyle),
+      textBox: mergeTextBox(slide.textBox),
     })),
   }))
 
