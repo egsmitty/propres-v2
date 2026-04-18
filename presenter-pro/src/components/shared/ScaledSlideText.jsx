@@ -34,6 +34,7 @@ export default function ScaledSlideText({
   const scale = getPresentationScale(presentation, size.width, size.height)
   const valign = slide?.textStyle?.valign || 'center'
   const fontSize = (slide?.textStyle?.size || 52) * scale
+  const emptyText = slide?.placeholderText || empty
 
   const verticalStyle =
     valign === 'top'
@@ -65,7 +66,7 @@ export default function ScaledSlideText({
         {slide?.body ? (
           <div dangerouslySetInnerHTML={{ __html: slideBodyToHtml(slide.body) }} />
         ) : (
-          <span style={{ color: '#555', fontSize: Math.max(8, 28 * scale) }}>{empty}</span>
+          <span style={{ color: '#555', fontSize: Math.max(8, 28 * scale) }}>{emptyText}</span>
         )}
       </div>
     </div>

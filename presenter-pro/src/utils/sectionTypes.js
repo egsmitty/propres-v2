@@ -74,6 +74,7 @@ export function createTextSlide(sectionType = 'announcement', overrides = {}) {
     type: overrides.type || 'text',
     label: overrides.label || meta.defaultSlideLabel,
     body: overrides.body || '',
+    placeholderText: overrides.placeholderText ?? 'Click to edit',
     notes: overrides.notes || '',
     backgroundId: overrides.backgroundId ?? null,
     textStyle: overrides.textStyle || {
@@ -93,6 +94,7 @@ export function createMediaSlide(media, overrides = {}) {
     type: 'media',
     label: overrides.label || media?.name || 'Media',
     body: '',
+    placeholderText: null,
     notes: '',
     mediaId: media?.id ?? overrides.mediaId ?? null,
     backgroundId: null,
