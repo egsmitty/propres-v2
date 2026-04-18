@@ -31,6 +31,7 @@ Follow these rules for every task in this project:
   - Home recent cards show real first-slide text previews when available
   - filmstrip section and slide context menus were expanded
   - presenter/editor black and logo state sync is improved
+  - Song section labels expanded to 9 types (verse, chorus, bridge, intro, outro, tag, turnaround, blank, custom) with color badges and custom label input
 
 ## What's Pending
 - Audit remaining inline styles against the PDF's design-system guidance.

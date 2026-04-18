@@ -1,4 +1,26 @@
 import { SECTION_COLORS } from '@/utils/backgrounds'
+
+// ── Song slide section types ──────────────────────────────────────────────────
+
+export const SECTION_TYPES = [
+  { id: 'verse',      label: 'Verse',      abbr: 'V',  color: '#4a7cff' },
+  { id: 'chorus',     label: 'Chorus',     abbr: 'C',  color: '#16a34a' },
+  { id: 'bridge',     label: 'Bridge',     abbr: 'B',  color: '#9333ea' },
+  { id: 'intro',      label: 'Intro',      abbr: 'I',  color: '#ea580c' },
+  { id: 'outro',      label: 'Outro',      abbr: 'O',  color: '#6b7280' },
+  { id: 'tag',        label: 'Tag',        abbr: 'T',  color: '#db2777' },
+  { id: 'turnaround', label: 'Turnaround', abbr: 'Tu', color: '#ca8a04' },
+  { id: 'blank',      label: 'Blank',      abbr: '--', color: '#374151' },
+  { id: 'custom',     label: 'Custom',     abbr: '?',  color: '#0891b2' },
+]
+
+export function getSectionType(id) {
+  return SECTION_TYPES.find((t) => t.id === id) || SECTION_TYPES[0]
+}
+
+export function getSectionColor(id) {
+  return getSectionType(id).color
+}
 import { uuid } from '@/utils/uuid'
 import { showDialog } from '@/utils/dialog'
 

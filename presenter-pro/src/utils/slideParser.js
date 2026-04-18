@@ -1,6 +1,13 @@
 import { uuid } from './uuid'
 
-const LABEL_RE = /^(verse|chorus|bridge|intro|outro|pre-chorus|tag)\s*\d*/i
+const LABEL_RE = /^(verse|chorus|bridge|intro|outro|pre-chorus|tag|turnaround|turn|t\.a\.|blank)\s*\d*/i
+
+function resolveType(raw) {
+  const lower = raw.toLowerCase().replace(/-/g, '')
+  if (lower === 'prechorus') return 'chorus'
+  if (lower === 'turn' || lower === 'ta' || lower === 't.a.') return 'turnaround'
+  return lower
+}
 
 /**
  * Parse raw lyrics text into an array of slide objects.
@@ -25,8 +32,7 @@ export function parseSlides(text) {
     let type, label, body
 
     if (match) {
-      type = match[1].toLowerCase().replace('-', '')
-      if (type === 'prechorus') type = 'chorus'
+      type = resolveType(match[1])
       label = firstLine
       body = lines.slice(1).join('\n')
     } else {
