@@ -39,6 +39,8 @@ function runMigrations(db) {
 
   // Add aspect_ratio column if it doesn't exist (safe to re-run)
   try { db.exec("ALTER TABLE presentations ADD COLUMN aspect_ratio TEXT DEFAULT '16:9'") } catch (_) {}
+  try { db.exec('ALTER TABLE presentations ADD COLUMN custom_aspect_width INTEGER') } catch (_) {}
+  try { db.exec('ALTER TABLE presentations ADD COLUMN custom_aspect_height INTEGER') } catch (_) {}
 }
 
 module.exports = { runMigrations }

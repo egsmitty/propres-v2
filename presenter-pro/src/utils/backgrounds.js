@@ -23,6 +23,9 @@ export function normalizePresentation(presentation) {
 
   return {
     ...presentation,
+    aspectRatio: presentation.aspectRatio || '16:9',
+    customAspectWidth: presentation.customAspectWidth ?? null,
+    customAspectHeight: presentation.customAspectHeight ?? null,
     sections,
     defaultBackgroundId: null,
     default_background_id: null,

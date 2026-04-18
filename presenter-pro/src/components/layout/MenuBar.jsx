@@ -29,6 +29,15 @@ const MENUS = [
     ]
   },
   {
+    label: 'Edit',
+    items: [
+      { label: 'Undo', shortcut: '⌘Z', action: 'edit:undo' },
+      { label: 'Redo', shortcut: '⌘⇧Z', action: 'edit:redo' },
+      { divider: true },
+      { label: 'Presentation Settings…', action: 'edit:presentationSettings' },
+    ]
+  },
+  {
     label: 'View',
     items: [
       { label: 'Zoom In', shortcut: '⌘+', action: 'view:zoomIn' },
@@ -128,6 +137,9 @@ export default function MenuBar() {
       let disabled = false
 
       if (['file:save', 'file:saveAs', 'file:close', 'present:start'].includes(item.action)) {
+        disabled = !presentation
+      }
+      if (['edit:undo', 'edit:redo', 'edit:presentationSettings'].includes(item.action)) {
         disabled = !presentation
       }
       if (item.action === 'present:start') disabled = disabled || isPresenting
