@@ -1,0 +1,33 @@
+const HTML_TAG_RE = /<\/?[a-z][\s\S]*>/i
+
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+export function slideBodyToHtml(body) {
+  const value = String(body || '').replace(/\r\n?/g, '\n')
+  if (!value) return ''
+
+  if (!HTML_TAG_RE.test(value)) {
+    return escapeHtml(value).replace(/\n/g, '<br />')
+  }
+
+  return value.replace(/\n/g, '<br />')
+}
+
+export function slideBodyToPlainText(body) {
+  const value = String(body || '')
+  if (!value) return ''
+
+  return value
+    .replace(/\r\n?/g, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(div|p|li|h[1-6]|blockquote)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { alertDialog, promptDialog } from '@/utils/dialog'
+import { getPresentationAspectRatio } from '@/utils/presentationSizing'
+import ScaledSlideText from '@/components/shared/ScaledSlideText'
 
 function formatCountdownInput(input) {
   const value = input.trim()
@@ -211,20 +213,24 @@ export default function PresenterView() {
             style={{
               background: isBlack ? '#000' : '#1a1a1a',
               border: '2px solid #16a34a',
-              fontSize: 20,
               color: '#fff',
-              textAlign: 'center',
-              padding: 24,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              lineHeight: 1.4,
+              position: 'relative',
+              overflow: 'hidden',
+              aspectRatio: getPresentationAspectRatio(current),
             }}
           >
             {isBlack
               ? <span style={{ color: '#333' }}>BLACK</span>
               : isLogo
               ? <span style={{ color: '#4a7cff' }}>LOGO</span>
-              : current?.body || <span style={{ color: '#555' }}>No slide</span>}
+              : <ScaledSlideText
+                  presentation={current}
+                  slide={current}
+                  empty="No slide"
+                  shadow="none"
+                  minPaddingX={24}
+                  minPaddingY={24}
+                />}
           </div>
           {current && (
             <p className="text-xs text-center" style={{ color: '#666' }}>
@@ -240,16 +246,20 @@ export default function PresenterView() {
             style={{
               background: '#111',
               border: '1px solid #2a2a2a',
-              aspectRatio: '16/9',
-              fontSize: 11,
+              aspectRatio: getPresentationAspectRatio(next),
               color: '#999',
-              textAlign: 'center',
-              padding: 12,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            {next?.body || <span style={{ color: '#333' }}>—</span>}
+            <ScaledSlideText
+              presentation={next}
+              slide={next}
+              empty="—"
+              shadow="none"
+              minPaddingX={12}
+              minPaddingY={12}
+            />
           </div>
           {next && <p className="text-xs" style={{ color: '#666' }}>{next.label}</p>}
         </div>
@@ -294,20 +304,22 @@ export default function PresenterView() {
               className="shrink-0 rounded overflow-hidden"
               style={{
                 width: 72,
-                aspectRatio: '16/9',
+                aspectRatio: getPresentationAspectRatio(sl),
                 background: i === currentIdx ? '#1a3a1a' : '#1a1a1a',
                 border: i === currentIdx ? '2px solid #16a34a' : '1px solid #2a2a2a',
-                fontSize: 6,
                 color: '#999',
-                textAlign: 'center',
-                padding: 4,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                lineHeight: 1.3,
                 cursor: 'pointer',
+                position: 'relative',
               }}
             >
-              {sl.body}
+              <ScaledSlideText
+                presentation={sl}
+                slide={sl}
+                empty="—"
+                shadow="none"
+                minPaddingX={4}
+                minPaddingY={4}
+              />
             </button>
           ))}
         </div>

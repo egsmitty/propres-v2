@@ -5,21 +5,10 @@ import { useAppStore } from '@/store/appStore'
 import { getMedia, sendSlide } from '@/utils/ipc'
 import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/backgrounds'
 import { getSectionContentLabel, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
+import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
+import { slideBodyToHtml } from '@/utils/slideMarkup'
 import SlideTextEditor from './SlideTextEditor'
 import FormattingToolbar from './FormattingToolbar'
-
-function getNativeDims(presentation) {
-  const ratio = presentation?.aspectRatio || '16:9'
-  if (ratio === '4:3') return { w: 1440, h: 1080 }
-  if (ratio === '16:10') return { w: 1920, h: 1200 }
-  if (ratio === '1:1') return { w: 1080, h: 1080 }
-  if (ratio === 'custom') {
-    const w = presentation?.customAspectWidth || 1920
-    const h = presentation?.customAspectHeight || 1080
-    return { w, h }
-  }
-  return { w: 1920, h: 1080 }
-}
 
 function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
   if (!presentation) return null
@@ -81,7 +70,14 @@ export default function Canvas() {
     if (isPresenting) {
       // Send to output on click while presenting
       await sendSlide(
-        { ...slide, sectionId: selectedSectionId, effectiveBackgroundId },
+        {
+          ...slide,
+          sectionId: selectedSectionId,
+          effectiveBackgroundId,
+          aspectRatio: presentation?.aspectRatio || '16:9',
+          customAspectWidth: presentation?.customAspectWidth ?? null,
+          customAspectHeight: presentation?.customAspectHeight ?? null,
+        },
         backgroundMedia
       )
       setLiveSlide(selectedSectionId, selectedSlideId)
@@ -133,7 +129,7 @@ export default function Canvas() {
       ? { justifyContent: 'flex-end', paddingBottom: 80 }
       : { justifyContent: 'center' }
 
-  const { w: nativeW, h: nativeH } = getNativeDims(presentation)
+  const { width: nativeW, height: nativeH } = getPresentationDimensions(presentation)
   const scale = canvasWidth > 0 ? canvasWidth / nativeW : 1
 
   return (
@@ -159,7 +155,7 @@ export default function Canvas() {
           className="relative rounded shadow-2xl overflow-hidden"
           style={{
             width: '100%',
-            aspectRatio: `${nativeW}/${nativeH}`,
+            aspectRatio: getPresentationAspectRatio(presentation),
             background: '#1a1a1a',
             cursor: isEditing ? 'text' : 'default',
           }}
@@ -232,7 +228,7 @@ export default function Canvas() {
                       }}
                     >
                       {slide.body ? (
-                        <span dangerouslySetInnerHTML={{ __html: slide.body }} />
+                        <span dangerouslySetInnerHTML={{ __html: slideBodyToHtml(slide.body) }} />
                       ) : (
                         <span
                           style={{ color: '#555', fontSize: 28 }}
