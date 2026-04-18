@@ -32,8 +32,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openPresenterView: () => ipcRenderer.invoke('presenter:open'),
   closePresenterView: () => ipcRenderer.invoke('presenter:close'),
   openOutputWindow: () => ipcRenderer.invoke('output:open'),
+  openStageDisplayWindow: (options) => ipcRenderer.invoke('stage:open', options),
   closeOutputWindow: () => ipcRenderer.invoke('output:close'),
+  closeStageDisplayWindow: () => ipcRenderer.invoke('stage:close'),
   sendSlide: (slide, background) => ipcRenderer.invoke('output:sendSlide', { slide, background }),
+  setPresentationSessionSlides: (slides) => ipcRenderer.invoke('output:setSessionSlides', { slides }),
   sendBlack: () => ipcRenderer.invoke('output:black'),
   sendLogo: () => ipcRenderer.invoke('output:logo'),
   startCountdown: (durationSeconds) => ipcRenderer.invoke('output:countdownStart', { durationSeconds }),
@@ -47,6 +50,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notifyPresenterReady: () => ipcRenderer.invoke('presenter:ready'),
   waitForOutputReady: () => ipcRenderer.invoke('output:waitReady'),
   notifyOutputReady: () => ipcRenderer.invoke('output:ready'),
+  waitForStageDisplayReady: () => ipcRenderer.invoke('stage:waitReady'),
+  notifyStageDisplayReady: () => ipcRenderer.invoke('stage:ready'),
 
   // Presenter window navigating to a slide
   presenterGoToSlide: (slide) => ipcRenderer.invoke('presenter:goToSlide', { slide }),
@@ -62,6 +67,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('settings:getAll'),
   setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value),
   getProfile: () => ipcRenderer.invoke('system:getProfile'),
+  getSystemDisplays: () => ipcRenderer.invoke('system:getDisplays'),
 
   // Events (main -> renderer)
   onSlideAdvance: (cb) => subscribe('presenter:slideAdvance', cb),
@@ -70,7 +76,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onOutputBlack: (cb) => subscribe('output:black', cb),
   onOutputLogo: (cb) => subscribe('output:logo', cb),
   onOutputCountdown: (cb) => subscribe('output:countdown', cb),
+  onStageUpdate: (cb) => subscribe('stage:update', cb),
   onPresenterStart: (cb) => subscribe('presenter:start', cb),
   onPresenterSlidesUpdate: (cb) => subscribe('presenter:updateSlides', cb),
   onAppCommand: (cb) => subscribe('app:command', cb),
+  onSettingsUpdated: (cb) => subscribe('settings:updated', cb),
 })

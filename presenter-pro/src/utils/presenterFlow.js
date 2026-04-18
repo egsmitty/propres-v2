@@ -3,8 +3,10 @@ import { usePresenterStore } from '@/store/presenterStore'
 import { withEffectiveBackground } from '@/utils/backgrounds'
 import {
   openOutputWindow,
+  openStageDisplayWindow,
   refreshLiveSlide,
   sendSlide,
+  setPresentationSessionSlides,
   stopPresenting as stopPresentingIpc,
 } from '@/utils/ipc'
 import { alertDialog } from '@/utils/dialog'
@@ -63,6 +65,17 @@ export async function startSidebarPresentationSession(presentation) {
     return false
   }
 
+  const stageResult = await openStageDisplayWindow({ onlyIfAssigned: true })
+  if (stageResult?.success && stageResult?.data?.opened) {
+    try {
+      await waitWithTimeout(window.electronAPI?.waitForStageDisplayReady?.(), 'Stage Display')
+    } catch (err) {
+      await alertDialog(err?.message || 'Could not open stage display window. Try again.', { title: 'Stage Display Failed' })
+    }
+  }
+
+  await setPresentationSessionSlides(slides)
+
   const { selectedSectionId, selectedSlideId } = useEditorStore.getState()
   const startSlide =
     slides.find((sl) => sl.sectionId === selectedSectionId && sl.id === selectedSlideId) ||
@@ -106,6 +119,7 @@ export async function syncPresentationSession(presentation) {
 
   // DISABLED (session 6): presenter:updateSlides IPC handler removed
   // await updatePresentationSlides(slides)
+  await setPresentationSessionSlides(slides)
 
   const { isPresenting, liveSectionId, liveSlideId } = usePresenterStore.getState()
   if (!isPresenting || !liveSectionId || !liveSlideId) return true

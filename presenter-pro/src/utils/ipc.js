@@ -64,11 +64,20 @@ export async function closePresenterView() {
 export async function openOutputWindow() {
   return api().openOutputWindow()
 }
+export async function openStageDisplayWindow(options) {
+  return api().openStageDisplayWindow(options)
+}
 export async function closeOutputWindow() {
   return api().closeOutputWindow()
 }
+export async function closeStageDisplayWindow() {
+  return api().closeStageDisplayWindow()
+}
 export async function sendSlide(slide, background) {
   return api().sendSlide(slide, background)
+}
+export async function setPresentationSessionSlides(slides) {
+  return api().setPresentationSessionSlides(slides)
 }
 export async function refreshLiveSlide(slide, background) {
   return api().refreshLiveSlide(slide, background)
@@ -101,4 +110,7 @@ export async function setSetting(key, value) {
 }
 export async function getProfile() {
   return api().getProfile()
+}
+export async function getSystemDisplays() {
+  return api().getSystemDisplays()
 }

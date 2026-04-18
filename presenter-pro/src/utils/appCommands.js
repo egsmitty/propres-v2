@@ -8,7 +8,7 @@ function isTextFieldFocused() {
   const tag = el.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true
 }
-import { openOutputWindow } from '@/utils/ipc'
+import { openOutputWindow, openStageDisplayWindow } from '@/utils/ipc'
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
 import {
   copySelectedSlideToClipboard,
@@ -62,6 +62,12 @@ export async function runAppCommand(command) {
         return true
       }
       return false
+    case 'view:outputSettings':
+      if (appState.currentView === 'editor') {
+        appState.setOutputSettingsOpen(true)
+        return true
+      }
+      return false
     case 'edit:undo':
       if (isTextFieldFocused()) {
         document.execCommand('undo')
@@ -103,6 +109,8 @@ export async function runAppCommand(command) {
     }
     case 'view:outputWindow':
       return openOutputWindow()
+    case 'view:stageDisplayWindow':
+      return openStageDisplayWindow()
     case 'present:start':
       if (editorState.presentation && !presenterState.isPresenting) {
         const started = await startSidebarPresentationSession(editorState.presentation)

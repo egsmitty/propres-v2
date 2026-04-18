@@ -13,6 +13,7 @@ export const useAppStore = create((set) => ({
   tutorialOpen: false,
   tutorialStepIndex: 0,
   presentationSettingsOpen: false,
+  outputSettingsOpen: false,
   slideClipboard: null,
 
   setCurrentView: (view) => set({ currentView: view }),
@@ -25,6 +26,7 @@ export const useAppStore = create((set) => ({
   setShortcutsOpen: (val) => set({ shortcutsOpen: val }),
   setFilmstripVisible: (val) => set({ filmstripVisible: val }),
   setPresentationSettingsOpen: (val) => set({ presentationSettingsOpen: val }),
+  setOutputSettingsOpen: (val) => set({ outputSettingsOpen: val }),
   setSlideClipboard: (slide) => set({ slideClipboard: slide }),
   setTutorialOpen: (val) => set({ tutorialOpen: val }),
   setTutorialStepIndex: (val) => set({ tutorialStepIndex: val }),

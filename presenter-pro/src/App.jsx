@@ -6,6 +6,7 @@ import Home from '@/pages/Home'
 import Editor from '@/pages/Editor'
 import PresenterView from '@/components/presenter/PresenterView'
 import OutputRenderer from '@/components/presenter/OutputRenderer'
+import StageDisplayRenderer from '@/components/presenter/StageDisplayRenderer'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
 import ShortcutsOverlay from '@/components/shared/ShortcutsOverlay'
 import OnboardingTutorial from '@/components/shared/OnboardingTutorial'
@@ -16,6 +17,7 @@ import { getSettings, setSetting } from '@/utils/ipc'
 const hash = window.location.hash
 const isPresenterWindow = hash.startsWith('#/presenter')
 const isOutputWindow = hash.startsWith('#/output')
+const isStageDisplayWindow = hash.startsWith('#/stage-display')
 
 export default function App() {
   const currentView = useAppStore((s) => s.currentView)
@@ -64,6 +66,7 @@ export default function App() {
 
   if (isOutputWindow) return <><OutputRenderer /><DialogHost /></>
   if (isPresenterWindow) return <><PresenterView /><DialogHost /></>
+  if (isStageDisplayWindow) return <><StageDisplayRenderer /><DialogHost /></>
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

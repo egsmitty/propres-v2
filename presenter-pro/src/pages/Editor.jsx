@@ -8,6 +8,7 @@ import MediaLibraryPanel from '@/components/library/MediaLibraryPanel'
 import PresenterPanel from '@/components/presenter/PresenterPanel'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
 import PresentationSettingsModal from '@/components/editor/PresentationSettingsModal'
+import OutputSettingsModal from '@/components/editor/OutputSettingsModal'
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
@@ -17,11 +18,15 @@ import { startSidebarPresentationSession, stopPresentationSession, syncPresentat
 import { alertDialog } from '@/utils/dialog'
 
 const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth'
+const FILMSTRIP_MIN_WIDTH = 160
+const FILMSTRIP_MAX_WIDTH = 280
 
 function getInitialFilmstripWidth() {
   if (typeof window === 'undefined') return 224
   const saved = Number(window.localStorage.getItem(FILMSTRIP_WIDTH_KEY))
-  if (Number.isFinite(saved) && saved >= 160 && saved <= 400) return saved
+  if (Number.isFinite(saved) && saved >= FILMSTRIP_MIN_WIDTH && saved <= FILMSTRIP_MAX_WIDTH) {
+    return saved
+  }
   return 224
 }
 
@@ -29,6 +34,7 @@ export default function Editor() {
   const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const presentationSettingsOpen = useAppStore((s) => s.presentationSettingsOpen)
+  const outputSettingsOpen = useAppStore((s) => s.outputSettingsOpen)
   const filmstripVisible = useAppStore((s) => s.filmstripVisible)
   const allowWindowClose = useAppStore((s) => s.allowWindowClose)
   const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose)
@@ -56,9 +62,11 @@ export default function Editor() {
       const { side, startX, startWidth } = dragRef.current
       const dx = e.clientX - startX
       if (side === 'filmstrip') {
-        setFilmstripWidth(Math.max(160, Math.min(400, startWidth + dx)))
+        setFilmstripWidth(
+          Math.max(FILMSTRIP_MIN_WIDTH, Math.min(FILMSTRIP_MAX_WIDTH, startWidth + dx))
+        )
       } else {
-        setPresenterPanelWidth(Math.max(240, Math.min(600, startWidth - dx)))
+        setPresenterPanelWidth(Math.max(240, Math.min(420, startWidth - dx)))
       }
     }
     function onUp() { dragRef.current = null; document.body.style.cursor = '' }
@@ -201,6 +209,7 @@ export default function Editor() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {presentationSettingsOpen && <PresentationSettingsModal />}
+      {outputSettingsOpen && <OutputSettingsModal />}
       {isPresenting && <LiveBanner />}
       <Toolbar
         onPresent={handlePresent}

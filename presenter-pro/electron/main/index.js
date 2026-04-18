@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell, screen } = require('electron')
 const os = require('os')
 const path = require('path')
 const { getDb } = require('../db/index')
@@ -12,15 +12,21 @@ const isDev = !app.isPackaged
 let mainWindow = null
 let presenterWindow = null
 let outputWindow = null
+let stageDisplayWindow = null
 let presenterReady = false
 let outputReady = false
+let stageDisplayReady = false
 let outputState = { isBlack: false, isLogo: false }
 let countdownState = { active: false, endAt: null, durationSeconds: 0 }
 let countdownInterval = null
 let presenterReadyResolvers = []
 let outputReadyResolvers = []
+let stageDisplayReadyResolvers = []
 let presentationSessionActive = false
 let allowPresenterWindowClose = false
+let presentationSessionSlides = []
+let currentStageSlide = null
+let currentStageBackground = null
 
 function resolveReadyQueue(queue) {
   queue.forEach((resolve) => resolve({ success: true }))
@@ -37,10 +43,20 @@ function markOutputReady() {
   resolveReadyQueue(outputReadyResolvers)
 }
 
+function markStageDisplayReady() {
+  stageDisplayReady = true
+  resolveReadyQueue(stageDisplayReadyResolvers)
+}
+
 function waitForReady(kind) {
   if (kind === 'presenter') {
     if (presenterReady) return Promise.resolve({ success: true })
     return new Promise((resolve) => presenterReadyResolvers.push(resolve))
+  }
+
+  if (kind === 'stage') {
+    if (stageDisplayReady) return Promise.resolve({ success: true })
+    return new Promise((resolve) => stageDisplayReadyResolvers.push(resolve))
   }
 
   if (outputReady) return Promise.resolve({ success: true })
@@ -60,8 +76,48 @@ function setPresentationSessionActive(active) {
 
 function broadcast(channel, payload) {
   if (outputWindow) outputWindow.webContents.send(channel, payload)
+  if (stageDisplayWindow) stageDisplayWindow.webContents.send(channel, payload)
   if (presenterWindow) presenterWindow.webContents.send(channel, payload)
   if (mainWindow) mainWindow.webContents.send(channel, payload)
+}
+
+function getSettingValue(db, key) {
+  return db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value ?? null
+}
+
+function getConfiguredDisplay(settingKey) {
+  const db = getDb()
+  const rawValue = getSettingValue(db, settingKey)
+  if (!rawValue) return null
+
+  const displayId = Number(rawValue)
+  if (!Number.isFinite(displayId)) return null
+
+  return screen.getAllDisplays().find((display) => display.id === displayId) || null
+}
+
+function applyDisplayAssignment(win, settingKey) {
+  const display = getConfiguredDisplay(settingKey)
+  if (!win || win.isDestroyed() || !display) return false
+  win.setBounds(display.bounds)
+  win.setFullScreen(true)
+  return true
+}
+
+function getNextStageSlide(slide) {
+  if (!slide || !presentationSessionSlides.length) return null
+  const index = presentationSessionSlides.findIndex((item) => item.id === slide.id && item.sectionId === slide.sectionId)
+  if (index === -1) return null
+  return presentationSessionSlides[index + 1] || null
+}
+
+function syncStageDisplay() {
+  if (!stageDisplayWindow || stageDisplayWindow.isDestroyed()) return
+  stageDisplayWindow.webContents.send('stage:update', {
+    currentSlide: currentStageSlide,
+    nextSlide: getNextStageSlide(currentStageSlide),
+    background: currentStageBackground,
+  })
 }
 
 function syncOutputState() {
@@ -305,6 +361,7 @@ function createOutputWindow() {
 
   outputWindow.once('ready-to-show', () => {
     if (!outputWindow) return
+    applyDisplayAssignment(outputWindow, 'output.mainDisplayId')
     if (presenterWindow && !presenterWindow.isDestroyed()) {
       outputWindow.showInactive()
       presenterWindow.focus()
@@ -328,6 +385,57 @@ function createOutputWindow() {
     resetOutputState()
     resetCountdownState()
   })
+}
+
+function createStageDisplayWindow(options = {}) {
+  const { onlyIfAssigned = false } = options
+  const assignedDisplay = getConfiguredDisplay('output.stageDisplayId')
+  if (onlyIfAssigned && !assignedDisplay) {
+    return { opened: false, assigned: false }
+  }
+
+  if (stageDisplayWindow) {
+    if (!stageDisplayWindow.isVisible()) stageDisplayWindow.showInactive()
+    return { opened: true, assigned: Boolean(assignedDisplay) }
+  }
+
+  stageDisplayReady = false
+
+  stageDisplayWindow = new BrowserWindow({
+    width: 1280,
+    height: 720,
+    title: 'Stage Display',
+    frame: false,
+    show: false,
+    backgroundColor: '#000000',
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+
+  stageDisplayWindow.once('ready-to-show', () => {
+    if (!stageDisplayWindow) return
+    applyDisplayAssignment(stageDisplayWindow, 'output.stageDisplayId')
+    stageDisplayWindow.showInactive()
+  })
+
+  if (isDev) {
+    stageDisplayWindow.loadURL('http://localhost:5173/#/stage-display')
+  } else {
+    stageDisplayWindow.loadFile(path.join(__dirname, '../../out/renderer/index.html'), {
+      hash: '/stage-display',
+    })
+  }
+
+  stageDisplayWindow.on('closed', () => {
+    stageDisplayWindow = null
+    stageDisplayReady = false
+    stageDisplayReadyResolvers = []
+  })
+
+  return { opened: true, assigned: Boolean(assignedDisplay) }
 }
 
 // ─── IPC Handlers ────────────────────────────────────────────────────────────
@@ -475,23 +583,49 @@ function registerIpcHandlers() {
 
   ipcMain.handle('output:open', () => { createOutputWindow(); return { success: true } })
   ipcMain.handle('output:close', () => { if (outputWindow) outputWindow.close(); return { success: true } })
+  ipcMain.handle('stage:open', (_, options) => {
+    try {
+      const data = createStageDisplayWindow(options)
+      return { success: true, data }
+    } catch (e) {
+      return { success: false, error: e.message }
+    }
+  })
+  ipcMain.handle('stage:close', () => { if (stageDisplayWindow) stageDisplayWindow.close(); return { success: true } })
   ipcMain.handle('output:ready', () => {
     markOutputReady()
     return { success: true }
   })
+  ipcMain.handle('stage:ready', () => {
+    markStageDisplayReady()
+    syncStageDisplay()
+    return { success: true }
+  })
   ipcMain.handle('output:waitReady', () => waitForReady('output'))
+  ipcMain.handle('stage:waitReady', () => waitForReady('stage'))
+  ipcMain.handle('output:setSessionSlides', (_, { slides }) => {
+    presentationSessionSlides = Array.isArray(slides) ? slides : []
+    syncStageDisplay()
+    return { success: true }
+  })
 
   ipcMain.handle('output:sendSlide', (_, { slide, background }) => {
     resetOutputState()
+    currentStageSlide = slide || null
+    currentStageBackground = background || null
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background })
     if (presenterWindow) presenterWindow.webContents.send('presenter:slideAdvance', { slide })
+    syncStageDisplay()
     syncOutputState()
     syncCountdownState()
     return { success: true }
   })
   ipcMain.handle('output:refreshSlide', (_, { slide, background }) => {
+    currentStageSlide = slide || null
+    currentStageBackground = background || null
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background })
     if (presenterWindow) presenterWindow.webContents.send('presenter:slideAdvance', { slide })
+    syncStageDisplay()
     return { success: true }
   })
   ipcMain.handle('output:black', () => {
@@ -525,7 +659,11 @@ function registerIpcHandlers() {
     allowPresenterWindowClose = true
     resetOutputState()
     resetCountdownState()
+    presentationSessionSlides = []
+    currentStageSlide = null
+    currentStageBackground = null
     if (outputWindow) { outputWindow.close(); outputWindow = null }
+    if (stageDisplayWindow) { stageDisplayWindow.close(); stageDisplayWindow = null }
     // DISABLED (session 6): no presenterWindow to notify
     // if (presenterWindow) presenterWindow.webContents.send('presenter:stop')
     if (mainWindow) mainWindow.webContents.send('presenter:stop')
@@ -546,6 +684,7 @@ function registerIpcHandlers() {
   ipcMain.handle('settings:set', (_, key, value) => {
     try {
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value)
+      broadcast('settings:updated', { key, value })
       return { success: true }
     } catch (e) { return { success: false, error: e.message } }
   })
@@ -553,6 +692,21 @@ function registerIpcHandlers() {
     try {
       return { success: true, data: getProfileData() }
     } catch (e) { return { success: false, error: e.message } }
+  })
+  ipcMain.handle('system:getDisplays', () => {
+    try {
+      return {
+        success: true,
+        data: screen.getAllDisplays().map((display, index) => ({
+          id: display.id,
+          label: display.label || `Display ${index + 1}`,
+          bounds: display.bounds,
+          primary: display.id === screen.getPrimaryDisplay().id,
+        })),
+      }
+    } catch (e) {
+      return { success: false, error: e.message }
+    }
   })
 }
 
@@ -624,6 +778,10 @@ function buildNativeMenu() {
       submenu: [
         { role: 'reload' },
         { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { label: 'Output Settings…', click: () => sendCommand('view:outputSettings') },
+        { label: 'Output Window', click: () => sendCommand('view:outputWindow') },
+        { label: 'Stage Display Window', click: () => sendCommand('view:stageDisplayWindow') },
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
