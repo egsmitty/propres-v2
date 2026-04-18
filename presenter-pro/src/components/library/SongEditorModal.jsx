@@ -3,8 +3,7 @@ import { X, ArrowRight, Trash2, GripVertical } from 'lucide-react'
 import { parseSlides } from '@/utils/slideParser'
 import { createSong, updateSong } from '@/utils/ipc'
 import { uuid } from '@/utils/uuid'
-
-const TYPES = ['verse', 'chorus', 'bridge', 'intro', 'outro', 'custom']
+import { SECTION_TYPES, getSectionColor } from '@/utils/sectionTypes'
 
 export default function SongEditorModal({ song, onClose, onSave }) {
   const [title, setTitle] = useState(song?.title || '')
@@ -279,91 +278,107 @@ export default function SongEditorModal({ song, onClose, onSave }) {
 function SlidePreviewCard({ slide, onChange, onRemove }) {
   return (
     <div
-      className="flex gap-2 rounded p-2"
+      className="flex rounded overflow-hidden"
       style={{
         background: 'var(--bg-app)',
         border: '1px solid var(--border-subtle)',
       }}
     >
-      {/* Dark preview */}
+      {/* Color badge — left edge */}
       <div
-        className="shrink-0 flex items-center justify-center rounded overflow-hidden"
-        style={{
-          width: 80,
-          aspectRatio: '16/9',
-          background: '#1a1a1a',
-          fontSize: 6,
-          color: '#fff',
-          padding: 4,
-          textAlign: 'center',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          lineHeight: 1.3,
-        }}
-      >
-        {slide.body}
-      </div>
+        className="shrink-0"
+        style={{ width: 4, background: getSectionColor(slide.type) }}
+      />
 
-      {/* Controls */}
-      <div className="flex-1 flex flex-col gap-1.5">
-        <div className="flex gap-1.5">
-          <select
-            value={slide.type}
-            onChange={(e) => onChange('type', e.target.value)}
-            className="text-xs px-1.5 py-0.5 rounded outline-none"
+      <div className="flex flex-1 gap-2 p-2">
+        {/* Dark preview */}
+        <div
+          className="shrink-0 flex items-center justify-center rounded overflow-hidden"
+          style={{
+            width: 80,
+            aspectRatio: '16/9',
+            background: '#1a1a1a',
+            fontSize: 6,
+            color: '#fff',
+            padding: 4,
+            textAlign: 'center',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            lineHeight: 1.3,
+          }}
+        >
+          {slide.body}
+        </div>
+
+        {/* Controls */}
+        <div className="flex-1 flex flex-col gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
+            <select
+              value={slide.type}
+              onChange={(e) => onChange('type', e.target.value)}
+              className="text-xs px-1.5 py-0.5 rounded outline-none"
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              {SECTION_TYPES.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+            {slide.type === 'custom' ? (
+              <input
+                value={slide.label}
+                onChange={(e) => onChange('label', e.target.value)}
+                maxLength={30}
+                className="flex-1 px-1.5 py-0.5 rounded text-xs outline-none"
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+                placeholder="Label name..."
+              />
+            ) : (
+              <span
+                className="flex items-center text-xs px-1.5"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                {slide.label}
+              </span>
+            )}
+          </div>
+          <textarea
+            value={slide.body}
+            onChange={(e) => onChange('body', e.target.value)}
+            className="flex-1 px-1.5 py-1 rounded text-xs outline-none resize-none"
             style={{
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-default)',
               color: 'var(--text-primary)',
+              fontFamily: 'monospace',
+              minHeight: 48,
             }}
-          >
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </option>
-            ))}
-          </select>
-          <input
-            value={slide.label}
-            onChange={(e) => onChange('label', e.target.value)}
-            className="flex-1 px-1.5 py-0.5 rounded text-xs outline-none"
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
-            placeholder="Label"
           />
         </div>
-        <textarea
-          value={slide.body}
-          onChange={(e) => onChange('body', e.target.value)}
-          className="flex-1 px-1.5 py-1 rounded text-xs outline-none resize-none"
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-primary)',
-            fontFamily: 'monospace',
-            minHeight: 48,
-          }}
-        />
-      </div>
 
-      <button
-        onClick={onRemove}
-        className="shrink-0 self-start mt-0.5 flex items-center justify-center w-5 h-5 rounded"
-        style={{ color: 'var(--text-tertiary)' }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'var(--danger-dim)'
-          e.currentTarget.style.color = 'var(--danger)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent'
-          e.currentTarget.style.color = 'var(--text-tertiary)'
-        }}
-      >
-        <Trash2 size={12} />
-      </button>
+        <button
+          onClick={onRemove}
+          className="shrink-0 self-start mt-0.5 flex items-center justify-center w-5 h-5 rounded"
+          style={{ color: 'var(--text-tertiary)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--danger-dim)'
+            e.currentTarget.style.color = 'var(--danger)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color = 'var(--text-tertiary)'
+          }}
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
     </div>
   )
 }
