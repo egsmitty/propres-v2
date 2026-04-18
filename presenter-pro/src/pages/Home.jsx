@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Home as HomeIcon, PlusCircle, FolderOpen, Clock3, BookOpen, Search, FileText, Plus } from 'lucide-react'
 import { getPresentations, getProfile } from '@/utils/ipc'
 import ContextMenu from '@/components/shared/ContextMenu'
+import ScaledSlideText from '@/components/shared/ScaledSlideText'
 import { useAppStore } from '@/store/appStore'
+import { getPresentationAspectRatio } from '@/utils/presentationSizing'
+import { slideBodyToPlainText } from '@/utils/slideMarkup'
 import {
   createNewPresentation,
   createPresentationFromTemplate,
@@ -708,7 +711,7 @@ function PresentationList({
 function PresentationRow({ presentation, query, onOpen, onContextMenu }) {
   const slide = firstSlideOf(presentation)
   const previewText =
-    slide?.body?.split('\n').map((line) => line.trim()).filter(Boolean)[0] || 'No slide content yet'
+    slideBodyToPlainText(slide?.body).split('\n').map((line) => line.trim()).filter(Boolean)[0] || 'No slide content yet'
 
   return (
     <div
@@ -751,7 +754,7 @@ function PresentationPreview({ presentation }) {
   if (!slide?.body) {
     return (
       <div
-        className="w-[90px] h-[54px] rounded-2xl flex items-center justify-center shrink-0"
+        className="w-[90px] rounded-2xl flex items-center justify-center shrink-0"
         style={{ background: '#171b24' }}
       >
         <FileText size={24} style={{ color: '#555' }} />
@@ -763,25 +766,17 @@ function PresentationPreview({ presentation }) {
 
   return (
     <div
-      className="w-[90px] h-[54px] rounded-2xl flex items-center justify-center px-3 shrink-0"
-      style={{ background: '#171b24' }}
+      className="w-[90px] rounded-2xl shrink-0 overflow-hidden"
+      style={{ background: '#171b24', aspectRatio: getPresentationAspectRatio(presentation) }}
     >
-      <div
-        className="w-full text-center"
-        style={{
-          color: slide.textStyle?.color || '#ffffff',
-          fontSize: Math.max(10, Math.min(18, Math.round((slide.textStyle?.size || 52) / 5))),
-          fontWeight: slide.textStyle?.bold ? 700 : 400,
-          textAlign: slide.textStyle?.align || 'center',
-          lineHeight: 1.25,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}
-      >
-        {lines.map((line, index) => (
-          <div key={index}>{line}</div>
-        ))}
-      </div>
+      <ScaledSlideText
+        presentation={presentation}
+        slide={{ ...slide, body: lines.join('\n') }}
+        empty="No slide"
+        shadow="none"
+        minPaddingX={8}
+        minPaddingY={8}
+      />
     </div>
   )
 }

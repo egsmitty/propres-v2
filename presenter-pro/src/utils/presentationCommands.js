@@ -115,6 +115,9 @@ export async function saveCurrentPresentationAs() {
   const result = await createPresentation({
     title,
     sections: presentation.sections || [],
+    aspectRatio: presentation.aspectRatio || '16:9',
+    customAspectWidth: presentation.customAspectWidth ?? null,
+    customAspectHeight: presentation.customAspectHeight ?? null,
   })
   if (!result?.success || !result.data) return result
 
