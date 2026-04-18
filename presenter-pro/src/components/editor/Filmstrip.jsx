@@ -7,7 +7,7 @@ import FilmstripSlide from './FilmstripSlide'
 import { createTextSlide } from '@/utils/sectionTypes'
 import { uuid } from '@/utils/uuid'
 
-export default function Filmstrip() {
+export default function Filmstrip({ width = 224 }) {
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
@@ -23,8 +23,8 @@ export default function Filmstrip() {
   if (!presentation) {
     return (
       <div
-        className="w-56 h-full flex items-center justify-center"
-        style={{ background: 'var(--bg-filmstrip)', borderRight: '1px solid var(--border-default)' }}
+        className="h-full flex items-center justify-center"
+        style={{ width, flexShrink: 0, background: 'var(--bg-filmstrip)', borderRight: '1px solid var(--border-default)' }}
       >
         <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No presentation open</p>
       </div>
@@ -190,8 +190,8 @@ export default function Filmstrip() {
   return (
     <div
       data-tour="filmstrip"
-      className="w-56 h-full overflow-y-auto shrink-0 flex flex-col"
-      style={{ background: 'var(--bg-filmstrip)', borderRight: '1px solid var(--border-default)' }}
+      className="h-full overflow-y-auto shrink-0 flex flex-col"
+      style={{ width, background: 'var(--bg-filmstrip)', borderRight: '1px solid var(--border-default)' }}
     >
       <div className="py-1">
         {presentation.sections.map((section) => {

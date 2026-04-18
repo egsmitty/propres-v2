@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Toolbar from '@/components/layout/Toolbar'
 import StatusBar from '@/components/layout/StatusBar'
 import Filmstrip from '@/components/editor/Filmstrip'
@@ -28,6 +28,31 @@ export default function Editor() {
   const liveSlideId = usePresenterStore((s) => s.liveSlideId)
   const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
   const setPresenterPanelOpen = usePresenterStore((s) => s.setPresenterPanelOpen)
+  const setPresenterPanelWidth = usePresenterStore((s) => s.setPresenterPanelWidth)
+  const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth)
+
+  const [filmstripWidth, setFilmstripWidth] = useState(224)
+  const dragRef = useRef(null) // { side: 'filmstrip'|'panel', startX, startWidth }
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!dragRef.current) return
+      const { side, startX, startWidth } = dragRef.current
+      const dx = e.clientX - startX
+      if (side === 'filmstrip') {
+        setFilmstripWidth(Math.max(160, Math.min(400, startWidth + dx)))
+      } else {
+        setPresenterPanelWidth(Math.max(240, Math.min(600, startWidth - dx)))
+      }
+    }
+    function onUp() { dragRef.current = null; document.body.style.cursor = '' }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [setPresenterPanelWidth])
   const presentation = useEditorStore((s) => s.presentation)
   const isDirty = useEditorStore((s) => s.isDirty)
   const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave)
@@ -167,13 +192,46 @@ export default function Editor() {
           className="flex flex-1 overflow-hidden"
           style={{ pointerEvents: panelOpen ? 'none' : 'auto' }}
         >
-          {filmstripVisible && <ErrorBoundary label="Filmstrip error"><Filmstrip /></ErrorBoundary>}
+          {filmstripVisible && (
+            <>
+              <ErrorBoundary label="Filmstrip error"><Filmstrip width={filmstripWidth} /></ErrorBoundary>
+              <ResizeHandle onMouseDown={(e) => {
+                e.preventDefault()
+                dragRef.current = { side: 'filmstrip', startX: e.clientX, startWidth: filmstripWidth }
+                document.body.style.cursor = 'col-resize'
+              }} />
+            </>
+          )}
           <ErrorBoundary label="Canvas error"><Canvas onSave={handleSave} /></ErrorBoundary>
+          {presenterPanelOpen && (
+            <ResizeHandle onMouseDown={(e) => {
+              e.preventDefault()
+              dragRef.current = { side: 'panel', startX: e.clientX, startWidth: presenterPanelWidth }
+              document.body.style.cursor = 'col-resize'
+            }} />
+          )}
           <PresenterPanel />
         </div>
       </div>
       <StatusBar />
     </div>
+  )
+}
+
+function ResizeHandle({ onMouseDown }) {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      className="shrink-0"
+      style={{
+        width: 4,
+        cursor: 'col-resize',
+        background: 'transparent',
+        zIndex: 10,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+    />
   )
 }
 

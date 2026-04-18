@@ -8,6 +8,7 @@ export const usePresenterStore = create((set) => ({
   isLogo: false,
   slideHistory: [],
   presenterPanelOpen: typeof window !== 'undefined' ? window.innerWidth >= 1400 : true,
+  presenterPanelWidth: 320,
   allSlides: [],
 
   startPresenting: (sectionId, slideId) =>
@@ -25,5 +26,6 @@ export const usePresenterStore = create((set) => ({
   setBlack: (val) => set({ isBlack: val, isLogo: false }),
   setLogo: (val) => set({ isLogo: val, isBlack: false }),
   setPresenterPanelOpen: (open) => set({ presenterPanelOpen: open }),
+  setPresenterPanelWidth: (width) => set({ presenterPanelWidth: width }),
   setAllSlides: (slides) => set({ allSlides: slides }),
 }))
