@@ -39,9 +39,19 @@ export async function openPresentationInEditor(id) {
 }
 
 export async function createNewPresentation(title = 'Untitled Presentation') {
+  const initialSection = createSection('announcement', 0, {
+    title: 'Slides',
+    slides: [
+      createTextSlide('announcement', {
+        label: 'Slide 1',
+        body: 'Click to edit',
+      }),
+    ],
+  })
+
   const result = await createPresentation({
     title,
-    sections: [],
+    sections: [initialSection],
   })
 
   if (!result?.success || !result.data) return null
