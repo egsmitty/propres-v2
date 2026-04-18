@@ -7,11 +7,13 @@ export const usePresenterStore = create((set) => ({
   isBlack: false,
   isLogo: false,
   slideHistory: [],
+  presenterPanelOpen: typeof window !== 'undefined' ? window.innerWidth >= 1400 : true,
+  allSlides: [],
 
   startPresenting: (sectionId, slideId) =>
     set({ isPresenting: true, liveSectionId: sectionId, liveSlideId: slideId, isBlack: false, isLogo: false }),
   stopPresenting: () =>
-    set({ isPresenting: false, liveSlideId: null, liveSectionId: null, isBlack: false, isLogo: false, slideHistory: [] }),
+    set({ isPresenting: false, liveSlideId: null, liveSectionId: null, isBlack: false, isLogo: false, slideHistory: [], allSlides: [] }),
   setLiveSlide: (sectionId, slideId) =>
     set((state) => ({
       liveSectionId: sectionId,
@@ -22,4 +24,6 @@ export const usePresenterStore = create((set) => ({
     })),
   setBlack: (val) => set({ isBlack: val, isLogo: false }),
   setLogo: (val) => set({ isLogo: val, isBlack: false }),
+  setPresenterPanelOpen: (open) => set({ presenterPanelOpen: open }),
+  setAllSlides: (slides) => set({ allSlides: slides }),
 }))

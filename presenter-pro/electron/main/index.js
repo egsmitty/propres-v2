@@ -220,61 +220,65 @@ function createMainWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null
-    if (presenterWindow) presenterWindow.close()
+    // DISABLED (session 6): presenter moved to sidebar, no presenterWindow to close
+    // if (presenterWindow) presenterWindow.close()
     if (outputWindow) outputWindow.close()
   })
 }
 
-function createPresenterWindow() {
-  if (presenterWindow) {
-    presenterWindow.show()
-    presenterWindow.focus()
-    return
-  }
-
-  presenterReady = false
-
-  presenterWindow = new BrowserWindow({
-    width: 900,
-    height: 600,
-    minWidth: 700,
-    minHeight: 500,
-    title: 'Presenter View',
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  })
-
-  presenterWindow.once('ready-to-show', () => {
-    if (!presenterWindow) return
-    presenterWindow.show()
-    presenterWindow.focus()
-  })
-
-  presenterWindow.on('close', (event) => {
-    if (presentationSessionActive && !allowPresenterWindowClose) {
-      event.preventDefault()
-      presenterWindow.focus()
-    }
-  })
-
-  if (isDev) {
-    presenterWindow.loadURL('http://localhost:5173/#/presenter')
-  } else {
-    presenterWindow.loadFile(path.join(__dirname, '../../out/renderer/index.html'), {
-      hash: '/presenter',
-    })
-  }
-
-  presenterWindow.on('closed', () => {
-    presenterWindow = null
-    presenterReady = false
-    presenterReadyResolvers = []
-  })
-}
+// DISABLED (session 6): Presenter view moved to in-editor sidebar (PresenterPanel.jsx)
+// Keep this code for potential future use or rollback.
+//
+// function createPresenterWindow() {
+//   if (presenterWindow) {
+//     presenterWindow.show()
+//     presenterWindow.focus()
+//     return
+//   }
+//
+//   presenterReady = false
+//
+//   presenterWindow = new BrowserWindow({
+//     width: 900,
+//     height: 600,
+//     minWidth: 700,
+//     minHeight: 500,
+//     title: 'Presenter View',
+//     show: false,
+//     webPreferences: {
+//       preload: path.join(__dirname, '../preload/index.js'),
+//       contextIsolation: true,
+//       nodeIntegration: false,
+//     },
+//   })
+//
+//   presenterWindow.once('ready-to-show', () => {
+//     if (!presenterWindow) return
+//     presenterWindow.show()
+//     presenterWindow.focus()
+//   })
+//
+//   presenterWindow.on('close', (event) => {
+//     if (presentationSessionActive && !allowPresenterWindowClose) {
+//       event.preventDefault()
+//       presenterWindow.focus()
+//     }
+//   })
+//
+//   if (isDev) {
+//     presenterWindow.loadURL('http://localhost:5173/#/presenter')
+//   } else {
+//     presenterWindow.loadFile(path.join(__dirname, '../../out/renderer/index.html'), {
+//       hash: '/presenter',
+//     })
+//   }
+//
+//   presenterWindow.on('closed', () => {
+//     presenterWindow = null
+//     presenterReady = false
+//     presenterReadyResolvers = []
+//   })
+// }
 
 function createOutputWindow() {
   if (outputWindow) {
@@ -416,48 +420,43 @@ function registerIpcHandlers() {
     catch (e) { return { success: false, error: e.message } }
   })
 
-  // Presenter / Output windows
-  ipcMain.handle('presenter:open', () => { createPresenterWindow(); return { success: true } })
-  ipcMain.handle('presenter:close', () => { if (presenterWindow) presenterWindow.close(); return { success: true } })
+  // Output windows
+  // DISABLED (session 6): presenter:open/close/ready/waitReady/start/updateSlides/goToSlide removed
+  // Presenter view is now a sidebar panel — no separate window needed.
+  // Keep commented handlers below for rollback if needed.
+  //
+  // ipcMain.handle('presenter:open', () => { createPresenterWindow(); return { success: true } })
+  // ipcMain.handle('presenter:close', () => { if (presenterWindow) presenterWindow.close(); return { success: true } })
+  // ipcMain.handle('presenter:ready', () => { markPresenterReady(); return { success: true } })
+  // ipcMain.handle('presenter:waitReady', () => waitForReady('presenter'))
+  // ipcMain.handle('presenter:start', (_, { slides }) => {
+  //   setPresentationSessionActive(true)
+  //   allowPresenterWindowClose = false
+  //   resetOutputState()
+  //   if (presenterWindow) presenterWindow.webContents.send('presenter:start', { slides })
+  //   if (presenterWindow && !presenterWindow.isDestroyed()) presenterWindow.focus()
+  //   syncOutputState(); syncCountdownState()
+  //   return { success: true }
+  // })
+  // ipcMain.handle('presenter:updateSlides', (_, { slides }) => {
+  //   if (presenterWindow) presenterWindow.webContents.send('presenter:updateSlides', { slides })
+  //   return { success: true }
+  // })
+  // ipcMain.handle('presenter:goToSlide', (_, { slide }) => {
+  //   resetOutputState()
+  //   if (outputWindow) outputWindow.webContents.send('output:update', { slide, background: null })
+  //   if (mainWindow) mainWindow.webContents.send('presenter:slideAdvance', { slide })
+  //   syncOutputState(); syncCountdownState()
+  //   return { success: true }
+  // })
+
   ipcMain.handle('output:open', () => { createOutputWindow(); return { success: true } })
   ipcMain.handle('output:close', () => { if (outputWindow) outputWindow.close(); return { success: true } })
-  ipcMain.handle('presenter:ready', () => {
-    markPresenterReady()
-    return { success: true }
-  })
   ipcMain.handle('output:ready', () => {
     markOutputReady()
     return { success: true }
   })
-  ipcMain.handle('presenter:waitReady', () => waitForReady('presenter'))
   ipcMain.handle('output:waitReady', () => waitForReady('output'))
-
-  // Send full slide list to presenter window
-  ipcMain.handle('presenter:start', (_, { slides }) => {
-    setPresentationSessionActive(true)
-    allowPresenterWindowClose = false
-    resetOutputState()
-    if (presenterWindow) presenterWindow.webContents.send('presenter:start', { slides })
-    if (presenterWindow && !presenterWindow.isDestroyed()) presenterWindow.focus()
-    syncOutputState()
-    syncCountdownState()
-    return { success: true }
-  })
-
-  ipcMain.handle('presenter:updateSlides', (_, { slides }) => {
-    if (presenterWindow) presenterWindow.webContents.send('presenter:updateSlides', { slides })
-    return { success: true }
-  })
-
-  // Presenter window chose a slide → send to output
-  ipcMain.handle('presenter:goToSlide', (_, { slide }) => {
-    resetOutputState()
-    if (outputWindow) outputWindow.webContents.send('output:update', { slide, background: null })
-    if (mainWindow) mainWindow.webContents.send('presenter:slideAdvance', { slide })
-    syncOutputState()
-    syncCountdownState()
-    return { success: true }
-  })
 
   ipcMain.handle('output:sendSlide', (_, { slide, background }) => {
     resetOutputState()
@@ -504,7 +503,8 @@ function registerIpcHandlers() {
     resetOutputState()
     resetCountdownState()
     if (outputWindow) { outputWindow.close(); outputWindow = null }
-    if (presenterWindow) presenterWindow.webContents.send('presenter:stop')
+    // DISABLED (session 6): no presenterWindow to notify
+    // if (presenterWindow) presenterWindow.webContents.send('presenter:stop')
     if (mainWindow) mainWindow.webContents.send('presenter:stop')
     syncOutputState()
     syncCountdownState()
