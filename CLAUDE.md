@@ -33,12 +33,24 @@ Follow these rules for every task in this project:
   - presenter/editor black and logo state sync is improved
   - Song section labels expanded to 9 types with color badges and custom label input
   - Presenter panel moved to in-editor right sidebar (300px, collapsible); separate presenterWindow code commented out in main.js for rollback
+  - slide rendering now scales from presentation-native dimensions instead of fixed preview font sizes
+  - newline preservation is normalized across canvas, filmstrip, presenter previews, and output rendering
+  - presentation aspect ratio is saved per presentation, including custom width/height values
+  - blank presentations now start with a starter slide instead of an empty editor state
+  - newly created slides now show a `Click to edit` placeholder that clears on first input
+  - Delete/Backspace now remove the selected slide when focus is not in a text field
+  - Spacebar advancement in presentation mode was hardened for the in-editor presenter sidebar
+  - filmstrip drag targets now animate open to show the drop location more clearly
+  - filmstrip and presenter sidebar widths now persist in localStorage
+  - Insert Image / Insert Video now use native Electron file pickers and apply imported media to the selected slide
+  - center-canvas slide context menu now supports set background, copy, paste, clear, and delete actions
 
 ## What's Pending
 - Audit remaining inline styles against the PDF's design-system guidance.
 - Improve background rendering fidelity further in filmstrip/home previews if desired.
 - Decide whether "Open…" should stay as a Home/recent-navigation action or grow into a fuller presentation picker/export-import flow.
 - Resolve the runtime font warning for `/fonts/Inter-Variable.woff2`.
+- Remaining requested feature work still includes moveable/resizable text boxes, text box fill colors, expanded formatting controls, song-order authoring, stage display, and the SMPTE/video-output architecture stub.
 
 ## Known Issues
 - The build succeeds, but Vite still warns that `/fonts/Inter-Variable.woff2` is unresolved at build time.
