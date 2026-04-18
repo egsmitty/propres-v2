@@ -79,19 +79,22 @@ export default function TitleBar() {
 
   return (
     <div
-      className="flex items-center h-9 px-3 shrink-0"
+      className="flex items-center h-9 shrink-0"
       style={{
         background: 'var(--bg-toolbar)',
         borderBottom: '1px solid var(--border-subtle)',
         WebkitAppRegion: 'drag',
+        paddingLeft: 12,
+        paddingRight: isMac ? 12 : 0,
+        position: 'relative',
       }}
     >
       {/* macOS traffic lights — left side */}
       {isMac && (
         <div className="flex items-center gap-1.5 mr-3" style={{ WebkitAppRegion: 'no-drag' }}>
-          <button onClick={handleClose} className="w-3 h-3 rounded-full" style={{ background: '#ff5f57' }} title="Close" />
-          <button onClick={handleMinimize} className="w-3 h-3 rounded-full" style={{ background: '#febc2e' }} title="Minimize" />
-          <button onClick={handleMaximize} className="w-3 h-3 rounded-full" style={{ background: '#28c840' }} title="Maximize" />
+          <MacButton onClick={handleClose} color="#ff5f57" hoverIcon="×" title="Close" />
+          <MacButton onClick={handleMinimize} color="#febc2e" hoverIcon="−" title="Minimize" />
+          <MacButton onClick={handleMaximize} color="#28c840" hoverIcon="+" title="Maximize" />
         </div>
       )}
 
@@ -155,15 +158,47 @@ export default function TitleBar() {
         </>
       )}
 
-      {/* Windows controls — right side */}
+      {/* Windows controls — flush right */}
       {!isMac && (
-        <div className="flex items-center ml-auto" style={{ WebkitAppRegion: 'no-drag' }}>
-          <WinButton onClick={handleMinimize} title="Minimize">&#x2212;</WinButton>
-          <WinButton onClick={handleMaximize} title="Maximize">&#x25A1;</WinButton>
-          <WinButton onClick={handleClose} title="Close" danger>&#x2715;</WinButton>
+        <div
+          className="flex items-center"
+          style={{ WebkitAppRegion: 'no-drag', position: 'absolute', top: 0, right: 0, height: '100%' }}
+        >
+          <WinButton onClick={handleMinimize} title="Minimize">
+            {/* Minimize — horizontal bar */}
+            <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+          </WinButton>
+          <WinButton onClick={handleMaximize} title="Maximize">
+            {/* Maximize — hollow square */}
+            <svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1"/></svg>
+          </WinButton>
+          <WinButton onClick={handleClose} title="Close" danger>
+            {/* Close — × */}
+            <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.2"/><line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.2"/></svg>
+          </WinButton>
         </div>
       )}
     </div>
+  )
+}
+
+function MacButton({ onClick, color, hoverIcon, title }) {
+  const [hovered, setHovered] = React.useState(false)
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="w-3 h-3 rounded-full flex items-center justify-center"
+      style={{ background: color, flexShrink: 0 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {hovered && (
+        <span style={{ fontSize: 8, lineHeight: 1, color: 'rgba(0,0,0,0.6)', fontWeight: 700, userSelect: 'none' }}>
+          {hoverIcon}
+        </span>
+      )}
+    </button>
   )
 }
 
@@ -172,8 +207,8 @@ function WinButton({ onClick, title, danger, children }) {
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center text-xs"
-      style={{ width: 46, height: 36, color: 'var(--text-secondary)', background: 'transparent', border: 'none' }}
+      className="flex items-center justify-center"
+      style={{ width: 46, height: '100%', color: 'var(--text-secondary)', background: 'transparent', border: 'none' }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = danger ? '#c42b1c' : 'var(--bg-hover)'
         e.currentTarget.style.color = danger ? '#fff' : 'var(--text-primary)'
