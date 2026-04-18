@@ -589,6 +589,8 @@ function buildNativeMenu() {
         { role: 'copy' },
         { role: 'paste' },
         { role: 'selectAll' },
+        { type: 'separator' },
+        { label: 'Presentation Settings…', click: () => sendCommand('edit:presentationSettings') },
       ],
     },
     {

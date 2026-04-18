@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bold, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
+import { Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 
 export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
@@ -20,6 +20,10 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
   const align = textStyle?.align || 'center'
   const color = textStyle?.color || '#ffffff'
   const keepEditorFocus = (e) => e.preventDefault()
+
+  function execCmd(cmd, value) {
+    document.execCommand(cmd, false, value ?? null)
+  }
 
   return (
     <div
@@ -86,6 +90,34 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
         <Bold size={13} />
       </button>
 
+      {/* Italic */}
+      <button
+        data-editor-toolbar="true"
+        onMouseDown={keepEditorFocus}
+        onClick={() => execCmd('italic')}
+        title="Italic"
+        className="w-6 h-6 flex items-center justify-center rounded"
+        style={{ color: 'var(--text-secondary)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        <Italic size={13} />
+      </button>
+
+      {/* Underline */}
+      <button
+        data-editor-toolbar="true"
+        onMouseDown={keepEditorFocus}
+        onClick={() => execCmd('underline')}
+        title="Underline"
+        className="w-6 h-6 flex items-center justify-center rounded"
+        style={{ color: 'var(--text-secondary)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        <Underline size={13} />
+      </button>
+
       <div className="w-px h-4" style={{ background: 'var(--border-default)' }} />
 
       {/* Alignment */}
@@ -125,6 +157,23 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle }) {
           className="rounded cursor-pointer"
           style={{ width: 24, height: 20, border: '1px solid var(--border-default)', padding: 1, background: 'none' }}
           title="Text color"
+        />
+      </div>
+
+      <div className="w-px h-4" style={{ background: 'var(--border-default)' }} />
+
+      {/* Highlight */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Highlight</span>
+        <input
+          data-editor-toolbar="true"
+          type="color"
+          defaultValue="#ffff00"
+          onMouseDown={keepEditorFocus}
+          onChange={(e) => execCmd('hiliteColor', e.target.value)}
+          className="rounded cursor-pointer"
+          style={{ width: 24, height: 20, border: '1px solid var(--border-default)', padding: 1, background: 'none' }}
+          title="Highlight color"
         />
       </div>
 

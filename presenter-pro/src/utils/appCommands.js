@@ -52,6 +52,12 @@ export async function runAppCommand(command) {
       }
       return canClose
     }
+    case 'edit:presentationSettings':
+      if (appState.currentView === 'editor') {
+        appState.setPresentationSettingsOpen(true)
+        return true
+      }
+      return false
     case 'edit:undo':
       if (isTextFieldFocused()) {
         document.execCommand('undo')

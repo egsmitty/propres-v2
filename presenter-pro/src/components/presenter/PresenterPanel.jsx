@@ -139,7 +139,7 @@ export default function PresenterPanel() {
               : isLogo
               ? <span style={{ color: '#4a7cff', fontSize: 10 }}>LOGO</span>
               : previewSlide?.body
-              ? previewSlide.body
+              ? <span dangerouslySetInnerHTML={{ __html: previewSlide.body }} />
               : <span style={{ color: '#444' }}>—</span>
             }
           </div>
@@ -206,8 +206,8 @@ export default function PresenterPanel() {
                   <span className="shrink-0 truncate" style={{ maxWidth: 160 }}>{section.title}</span>
                   <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
                 </div>
-                {/* 2-column thumbnail grid */}
-                <div className="grid grid-cols-2 gap-1">
+                {/* Responsive thumbnail grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${presenterPanelWidth >= 520 ? 4 : presenterPanelWidth >= 380 ? 3 : 2}, 1fr)`, gap: 4 }}>
                   {section.slides.map((slide) => {
                     const isLive = slide.id === liveSlideId
                     const isSelected = !isPresenting && slide.id === selectedSlideId
@@ -252,7 +252,7 @@ export default function PresenterPanel() {
                           }}
                         />
                         {slide.body
-                          ? <span style={{ display: 'block', overflow: 'hidden', maxHeight: '100%' }}>{slide.body}</span>
+                          ? <span dangerouslySetInnerHTML={{ __html: slide.body }} style={{ display: 'block', overflow: 'hidden', maxHeight: '100%' }} />
                           : <span style={{ color: '#444' }}>—</span>
                         }
                       </button>

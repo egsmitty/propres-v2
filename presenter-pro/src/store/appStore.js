@@ -12,6 +12,7 @@ export const useAppStore = create((set) => ({
   filmstripVisible: true,
   tutorialOpen: false,
   tutorialStepIndex: 0,
+  presentationSettingsOpen: false,
 
   setCurrentView: (view) => set({ currentView: view }),
   setHomeTab: (tab) => set({ homeTab: tab }),
@@ -22,6 +23,7 @@ export const useAppStore = create((set) => ({
   setAllowWindowClose: (val) => set({ allowWindowClose: val }),
   setShortcutsOpen: (val) => set({ shortcutsOpen: val }),
   setFilmstripVisible: (val) => set({ filmstripVisible: val }),
+  setPresentationSettingsOpen: (val) => set({ presentationSettingsOpen: val }),
   setTutorialOpen: (val) => set({ tutorialOpen: val }),
   setTutorialStepIndex: (val) => set({ tutorialStepIndex: val }),
 }))

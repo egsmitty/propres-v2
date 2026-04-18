@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { useAppStore } from '@/store/appStore'
@@ -7,6 +7,19 @@ import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/
 import { getSectionContentLabel, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import SlideTextEditor from './SlideTextEditor'
 import FormattingToolbar from './FormattingToolbar'
+
+function getNativeDims(presentation) {
+  const ratio = presentation?.aspectRatio || '16:9'
+  if (ratio === '4:3') return { w: 1440, h: 1080 }
+  if (ratio === '16:10') return { w: 1920, h: 1200 }
+  if (ratio === '1:1') return { w: 1080, h: 1080 }
+  if (ratio === 'custom') {
+    const w = presentation?.customAspectWidth || 1920
+    const h = presentation?.customAspectHeight || 1080
+    return { w, h }
+  }
+  return { w: 1920, h: 1080 }
+}
 
 function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
   if (!presentation) return null
@@ -27,6 +40,8 @@ export default function Canvas() {
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const [media, setMedia] = useState([])
+  const canvasRef = useRef(null)
+  const [canvasWidth, setCanvasWidth] = useState(0)
 
   const slide = getSelectedSlide(presentation, selectedSectionId, selectedSlideId)
   const section = presentation?.sections?.find((item) => item.id === selectedSectionId) || null
@@ -41,6 +56,16 @@ export default function Canvas() {
     () => media.find((item) => item.id === slide?.mediaId) || null,
     [media, slide?.mediaId]
   )
+
+  useEffect(() => {
+    if (!canvasRef.current) return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry) setCanvasWidth(entry.contentRect.width)
+    })
+    observer.observe(canvasRef.current)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     loadMedia()
@@ -101,12 +126,15 @@ export default function Canvas() {
   const textAlign = slide.textStyle?.align || 'center'
   const valign = slide.textStyle?.valign || 'center'
 
-  const valignClass =
+  const valignStyle =
     valign === 'top'
-      ? 'justify-start pt-8'
+      ? { justifyContent: 'flex-start', paddingTop: 80 }
       : valign === 'bottom'
-      ? 'justify-end pb-8'
-      : 'justify-center'
+      ? { justifyContent: 'flex-end', paddingBottom: 80 }
+      : { justifyContent: 'center' }
+
+  const { w: nativeW, h: nativeH } = getNativeDims(presentation)
+  const scale = canvasWidth > 0 ? canvasWidth / nativeW : 1
 
   return (
     <div
@@ -125,85 +153,118 @@ export default function Canvas() {
         className="flex-1 flex items-center justify-center p-6"
         onClick={handleClick}
       >
-        {/* 16:9 canvas */}
+        {/* Outer: maintains aspect ratio, clips scaled inner */}
         <div
-          className="relative w-full rounded shadow-2xl overflow-hidden"
+          ref={canvasRef}
+          className="relative rounded shadow-2xl overflow-hidden"
           style={{
-            maxWidth: '100%',
-            aspectRatio: '16/9',
+            width: '100%',
+            aspectRatio: `${nativeW}/${nativeH}`,
             background: '#1a1a1a',
             cursor: isEditing ? 'text' : 'default',
           }}
           onDoubleClick={handleDoubleClick}
         >
-          {!mediaOnlySlide && backgroundMedia && (
-            <CanvasBackground media={backgroundMedia} />
-          )}
+          {/* Inner: native resolution, scaled down via CSS transform */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: nativeW,
+              height: nativeH,
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            {!mediaOnlySlide && backgroundMedia && (
+              <CanvasBackground media={backgroundMedia} />
+            )}
 
-          {!mediaOnlySlide && (
-            <div
-              className="absolute inset-0"
-              style={{
-                background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent',
-              }}
-            />
-          )}
-
-          {mediaOnlySlide ? (
-            slideMedia ? (
-              <CanvasBackground media={slideMedia} />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center" style={{ color: '#777' }}>
-                Media slide
-              </div>
-            )
-          ) : (
-            <>
+            {!mediaOnlySlide && (
               <div
-                className={`absolute inset-0 flex flex-col ${valignClass} px-10`}
-                style={{ textAlign }}
-              >
-                {isEditing ? (
-                  <SlideTextEditor
-                    slide={slide}
-                    onSave={handleSave}
-                    onCancel={() => setEditingSlide(null)}
-                  />
-                ) : (
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent',
+                }}
+              />
+            )}
+
+            {mediaOnlySlide ? (
+              slideMedia ? (
+                <CanvasBackground media={slideMedia} />
+              ) : (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#777' }}>
+                  Media slide
+                </div>
+              )
+            ) : (
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    paddingLeft: 96,
+                    paddingRight: 96,
+                    textAlign,
+                    ...valignStyle,
+                  }}
+                >
+                  {isEditing ? (
+                    <SlideTextEditor
+                      slide={slide}
+                      onSave={handleSave}
+                      onCancel={() => setEditingSlide(null)}
+                    />
+                  ) : (
+                    <div
+                      className="w-full select-none group"
+                      style={{
+                        color: slide.textStyle?.color || '#ffffff',
+                        fontSize: slide.textStyle?.size || 52,
+                        fontWeight: slide.textStyle?.bold ? 700 : 400,
+                        lineHeight: 1.3,
+                        wordBreak: 'break-word',
+                        textShadow: '0 2px 16px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      {slide.body ? (
+                        <span dangerouslySetInnerHTML={{ __html: slide.body }} />
+                      ) : (
+                        <span
+                          style={{ color: '#555', fontSize: 28 }}
+                          className="opacity-0 group-hover:opacity-100"
+                        >
+                          Double-click to edit {section ? getSectionContentLabel(section.type).toLowerCase() : 'text'}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {!isEditing && slide.body && (
                   <div
-                    className="w-full select-none group"
                     style={{
-                      color: slide.textStyle?.color || '#ffffff',
-                      fontSize: Math.max(16, (slide.textStyle?.size || 52) * 0.5),
-                      fontWeight: slide.textStyle?.bold ? 700 : 400,
-                      lineHeight: 1.3,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      textShadow: '0 2px 16px rgba(0,0,0,0.5)',
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'rgba(255,255,255,0.3)',
+                      fontSize: 26,
+                      opacity: 0,
+                      pointerEvents: 'none',
                     }}
+                    className="hover:opacity-100 transition-opacity"
                   >
-                    {slide.body || (
-                      <span
-                        style={{ color: '#555', fontSize: 14 }}
-                        className="opacity-0 group-hover:opacity-100"
-                      >
-                        Double-click to edit {section ? getSectionContentLabel(section.type).toLowerCase() : 'text'}
-                      </span>
-                    )}
+                    Double-click to edit {section ? getSectionContentLabel(section.type).toLowerCase() : 'text'}
                   </div>
                 )}
-              </div>
-              {!isEditing && slide.body && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none"
-                  style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}
-                >
-                  Double-click to edit {section ? getSectionContentLabel(section.type).toLowerCase() : 'text'}
-                </div>
-              )}
-            </>
-          )}
-
+              </>
+            )}
+          </div>
         </div>
       </div>
 
