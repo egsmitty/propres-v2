@@ -31,7 +31,6 @@ Follow these rules for every task in this project:
   - Home recent cards show real first-slide text previews when available
   - filmstrip section and slide context menus were expanded
   - presenter/editor black and logo state sync is improved
-  - Notes pane added below canvas in editor (collapsible, speaker notes per slide)
 
 ## What's Pending
 - Audit remaining inline styles against the PDF's design-system guidance.

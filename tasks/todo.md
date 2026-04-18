@@ -1,14 +1,17 @@
-# Session 1 — Notes Pane
+# Remove Notes Pane & Zoom Controls
 
 ## Plan
-- [x] Create `src/components/editor/NotesPane.jsx` — collapsed bar (28px) with FileText icon + "Notes" label + chevron; expands to 120px with textarea; local `useState` for open/closed
-- [x] Add `updateSlideNotes` action to `editorStore.js` — finds slide by sectionId+slideId and sets `notes`, marks dirty
-- [x] Render `<NotesPane />` inside `Canvas.jsx` — place it after the background bar, wire it to the selected slide's notes via editorStore
-- [x] Verify: the existing `handleSave` (Cmd+S) in Editor.jsx already saves the full `presentation` object, so notes will persist automatically — no extra wiring needed
-- [x] Update CLAUDE.md to mark Notes Pane as complete
+- [x] Delete `NotesPane.jsx` file
+- [x] Remove NotesPane import and usage from `Canvas.jsx`
+- [x] Remove `ZoomControls` component and all zoom-related code from `Canvas.jsx`
+- [x] Remove `zoom`, `setZoom`, and `updateSlideNotes` from `editorStore.js`
+- [x] Remove `view:zoomIn` / `view:zoomOut` cases from `appCommands.js`
+- [x] Revert canvas div styling back to pre-notes/zoom layout
+- [x] Update CLAUDE.md to remove notes pane mention from "What's Built"
 
 ## Review
-- **NotesPane.jsx** — new component: 28px collapsed bar with FileText + "Notes" + rotating chevron; expands to 120px with a plain textarea. Uses local React state for open/closed and for the textarea value. Syncs from the store when the selected slide changes; pushes back to the store on blur only.
-- **editorStore.js** — added `updateSlideNotes(sectionId, slideId, notes)` action. Same pattern as `updateSlideBody` but deliberately omits undo history (notes are metadata, not slide content).
-- **Canvas.jsx** — imported and rendered `<NotesPane />` after the background bar, inside the existing flex-col layout. The canvas area (flex-1) shrinks automatically when the pane opens.
-- No other files touched. Save (Cmd+S) already serializes the full presentation object, so notes persist through the existing flow.
+- Deleted `NotesPane.jsx` entirely.
+- Removed `updateSlideNotes`, `zoom`, and `setZoom` from `editorStore.js`.
+- Removed the `ZoomControls` component and all zoom/notes references from `Canvas.jsx`; reverted canvas wrapper classes/styles to the pre-notes layout.
+- Removed `view:zoomIn` and `view:zoomOut` cases from `appCommands.js`.
+- Updated `CLAUDE.md` to reflect the removal.
