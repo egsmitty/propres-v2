@@ -9,11 +9,27 @@ import {
 } from '@/utils/ipc'
 import { alertDialog } from '@/utils/dialog'
 
+function withPresentationMeta(presentation, slide) {
+  if (!slide) return slide
+
+  return {
+    ...slide,
+    aspectRatio: presentation?.aspectRatio || '16:9',
+    customAspectWidth: presentation?.customAspectWidth ?? null,
+    customAspectHeight: presentation?.customAspectHeight ?? null,
+  }
+}
+
 export function flattenPresentationSlides(presentation) {
   if (!presentation) return []
 
   return presentation.sections.flatMap((section) =>
-    section.slides.map((slide) => withEffectiveBackground(presentation, section.id, slide))
+    section.slides.map((slide) =>
+      withPresentationMeta(
+        presentation,
+        withEffectiveBackground(presentation, section.id, slide)
+      )
+    )
   )
 }
 
@@ -75,8 +91,9 @@ export async function sendSlideLive(sectionId, slide) {
     sectionId,
     slide.sectionId ? slide : { ...slide, sectionId }
   )
-  await sendSlide(liveSlide, null)
-  usePresenterStore.getState().setLiveSlide(liveSlide.sectionId, liveSlide.id)
+  const slideWithMeta = withPresentationMeta(presentation, liveSlide)
+  await sendSlide(slideWithMeta, null)
+  usePresenterStore.getState().setLiveSlide(slideWithMeta.sectionId, slideWithMeta.id)
 
   return true
 }

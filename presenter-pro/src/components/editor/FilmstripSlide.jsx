@@ -4,7 +4,9 @@ import { useEditorStore } from '@/store/editorStore'
 import { useAppStore } from '@/store/appStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import ContextMenu from '@/components/shared/ContextMenu'
+import ScaledSlideText from '@/components/shared/ScaledSlideText'
 import { isMediaSlide } from '@/utils/sectionTypes'
+import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { alertDialog, showDialog } from '@/utils/dialog'
 
 export default function FilmstripSlide({ slide, index, selected, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete }) {
@@ -15,10 +17,6 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
   const isLive = liveSlideId === slide.id
   const [menu, setMenu] = useState(null)
   const mediaOnly = isMediaSlide(slide)
-
-  const plainBody = (slide.body || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
-  const lines = mediaOnly ? [slide.label || 'Media'] : plainBody.split('\n').filter(Boolean)
-  const previewFontSize = Math.max(6, Math.min(12, Math.round((slide.textStyle?.size || 52) / 8)))
 
   function handleContextMenu(e) {
     e.preventDefault()
@@ -76,7 +74,7 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
         onContextMenu={handleContextMenu}
         className="mx-2 mb-1 rounded cursor-pointer relative overflow-hidden"
         style={{
-          aspectRatio: '16/9',
+          aspectRatio: getPresentationAspectRatio(presentation),
           padding: 2,
           background: selected ? 'var(--bg-selected)' : 'transparent',
         }}
@@ -100,15 +98,7 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
           </span>
 
           <div
-            className="w-full px-1 text-center"
-            style={{
-              fontFamily: 'DM Mono, monospace',
-              fontSize: previewFontSize,
-              color: slide.textStyle?.color || '#ffffff',
-              fontWeight: slide.textStyle?.bold ? 700 : 400,
-              lineHeight: 1.3,
-              textAlign: slide.textStyle?.align || 'center',
-            }}
+            className="w-full h-full"
           >
             {mediaOnly ? (
               <div className="flex flex-col items-center justify-center gap-1" style={{ color: '#d1d5db' }}>
@@ -116,12 +106,16 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
                 <div className="truncate">{slide.label || 'Media'}</div>
               </div>
             ) : (
-              <>
-                {lines.slice(0, 4).map((line, i) => (
-                  <div key={i} className="truncate">{line}</div>
-                ))}
-                {lines.length > 4 && <div style={{ color: '#666', fontSize: 6 }}>…</div>}
-              </>
+              <ScaledSlideText
+                presentation={presentation}
+                slide={slide}
+                empty="Click to edit"
+                shadow="none"
+                basePaddingX={96}
+                basePaddingY={80}
+                minPaddingX={6}
+                minPaddingY={6}
+              />
             )}
           </div>
 

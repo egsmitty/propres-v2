@@ -1,11 +1,12 @@
 import React, { useRef, useEffect } from 'react'
+import { slideBodyToHtml } from '@/utils/slideMarkup'
 
 export default function SlideTextEditor({ slide, onSave, onCancel }) {
   const ref = useRef(null)
 
   useEffect(() => {
     if (!ref.current) return
-    ref.current.innerHTML = slide.body || ''
+    ref.current.innerHTML = slideBodyToHtml(slide.body)
     // Place cursor at end
     const range = document.createRange()
     const sel = window.getSelection()

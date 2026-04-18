@@ -4,6 +4,8 @@ import { usePresenterStore } from '@/store/presenterStore'
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
 import { sendSlide } from '@/utils/ipc'
 import { getSectionColor } from '@/utils/sectionTypes'
+import { getPresentationAspectRatio } from '@/utils/presentationSizing'
+import ScaledSlideText from '@/components/shared/ScaledSlideText'
 
 export default function PresenterPanel() {
   const presentation = useEditorStore((s) => s.presentation)
@@ -122,25 +124,25 @@ export default function PresenterPanel() {
           <div
             className="rounded overflow-hidden flex items-center justify-center"
             style={{
-              aspectRatio: '16/9',
+              aspectRatio: getPresentationAspectRatio(presentation),
               background: isBlack ? '#000' : '#111',
               border: isPresenting ? '1px solid #16a34a' : '1px solid var(--border-subtle)',
-              fontSize: 9,
               color: '#fff',
-              textAlign: 'center',
-              padding: 8,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              lineHeight: 1.3,
+              position: 'relative',
             }}
           >
             {isBlack
               ? <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
               : isLogo
               ? <span style={{ color: '#4a7cff', fontSize: 10 }}>LOGO</span>
-              : previewSlide?.body
-              ? <span dangerouslySetInnerHTML={{ __html: previewSlide.body }} />
-              : <span style={{ color: '#444' }}>—</span>
+              : <ScaledSlideText
+                  presentation={presentation}
+                  slide={previewSlide}
+                  empty="—"
+                  shadow="none"
+                  minPaddingX={8}
+                  minPaddingY={8}
+                />
             }
           </div>
         </div>
@@ -218,7 +220,7 @@ export default function PresenterPanel() {
                         key={slide.id}
                         onClick={() => goToSlide(enriched)}
                         style={{
-                          aspectRatio: '16/9',
+                          aspectRatio: getPresentationAspectRatio(presentation),
                           background: isLive ? 'rgba(22,163,74,0.12)' : '#111',
                           border: isLive
                             ? '2px solid #16a34a'
@@ -229,17 +231,7 @@ export default function PresenterPanel() {
                           borderRadius: 4,
                           overflow: 'hidden',
                           position: 'relative',
-                          fontSize: 6,
-                          color: '#ccc',
-                          textAlign: 'center',
-                          padding: '3px 4px 3px 7px',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          lineHeight: 1.3,
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
                         }}
                       >
                         {/* Section color strip */}
@@ -251,10 +243,16 @@ export default function PresenterPanel() {
                             background: section.color || getSectionColor(slide.type),
                           }}
                         />
-                        {slide.body
-                          ? <span dangerouslySetInnerHTML={{ __html: slide.body }} style={{ display: 'block', overflow: 'hidden', maxHeight: '100%' }} />
-                          : <span style={{ color: '#444' }}>—</span>
-                        }
+                        <div style={{ position: 'absolute', inset: 0 }}>
+                          <ScaledSlideText
+                            presentation={presentation}
+                            slide={slide}
+                            empty="—"
+                            shadow="none"
+                            minPaddingX={7}
+                            minPaddingY={5}
+                          />
+                        </div>
                       </button>
                     )
                   })}
