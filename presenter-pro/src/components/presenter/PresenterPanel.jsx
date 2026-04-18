@@ -18,6 +18,7 @@ export default function PresenterPanel() {
   const isLogo = usePresenterStore((s) => s.isLogo)
   const allSlides = usePresenterStore((s) => s.allSlides)
   const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
+  const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth)
 
   const liveIdx = allSlides.findIndex((sl) => sl.id === liveSlideId)
   const liveSlide = liveIdx >= 0 ? allSlides[liveIdx] : null
@@ -40,7 +41,7 @@ export default function PresenterPanel() {
       const tag = document.activeElement?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return
       if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev() }
-      if (e.key === 'ArrowRight') { e.preventDefault(); goNext() }
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -87,14 +88,14 @@ export default function PresenterPanel() {
     <div
       className="shrink-0 overflow-hidden"
       style={{
-        width: presenterPanelOpen ? 300 : 0,
+        width: presenterPanelOpen ? presenterPanelWidth : 0,
         transition: 'width 0.2s ease',
         borderLeft: presenterPanelOpen ? '1px solid var(--border-subtle)' : 'none',
         background: 'var(--bg-surface)',
       }}
     >
       {/* Fixed-width inner — gets clipped by overflow-hidden during animation */}
-      <div className="flex flex-col h-full" style={{ width: 300, minWidth: 300 }}>
+      <div className="flex flex-col h-full" style={{ width: presenterPanelWidth, minWidth: presenterPanelWidth }}>
 
         {/* ── Section 1: Live Preview ─────────────────────────────── */}
         <div className="shrink-0 p-3 pb-2">
