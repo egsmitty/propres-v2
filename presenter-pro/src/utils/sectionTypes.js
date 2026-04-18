@@ -67,8 +67,15 @@ export function getSectionContentLabel(type) {
   return getSectionTypeMeta(type).contentLabel
 }
 
+export const DEFAULT_PLACEHOLDER_TEXT = 'Double-click to edit'
+
+export function resolvePlaceholderText(text, fallback = DEFAULT_PLACEHOLDER_TEXT) {
+  if (!text) return fallback
+  return text === 'Click to edit' ? DEFAULT_PLACEHOLDER_TEXT : text
+}
+
 export const DEFAULT_TEXT_STYLE = {
-  size: 52,
+  size: 100,
   align: 'center',
   valign: 'center',
   color: '#ffffff',
@@ -102,7 +109,7 @@ export function createTextSlide(sectionType = 'announcement', overrides = {}) {
     type: overrides.type || 'text',
     label: overrides.label || meta.defaultSlideLabel,
     body: overrides.body || '',
-    placeholderText: overrides.placeholderText ?? 'Click to edit',
+    placeholderText: overrides.placeholderText ?? DEFAULT_PLACEHOLDER_TEXT,
     notes: overrides.notes || '',
     backgroundId: overrides.backgroundId ?? null,
     textStyle: mergeTextStyle(overrides.textStyle),

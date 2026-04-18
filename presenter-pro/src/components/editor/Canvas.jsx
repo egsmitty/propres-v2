@@ -4,7 +4,7 @@ import { usePresenterStore } from '@/store/presenterStore'
 import { useAppStore } from '@/store/appStore'
 import { getMedia, sendSlide } from '@/utils/ipc'
 import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/backgrounds'
-import { DEFAULT_TEXT_BOX, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
+import { DEFAULT_TEXT_BOX, getSectionTypeLabel, isMediaSlide, resolvePlaceholderText } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
 import ContextMenu from '@/components/shared/ContextMenu'
@@ -384,7 +384,7 @@ export default function Canvas() {
                       className="w-full select-none"
                       style={{
                         color: textStyle.color || '#ffffff',
-                        fontSize: textStyle.size || 52,
+                        fontSize: textStyle.size || 100,
                         fontWeight: textStyle.bold ? 700 : 400,
                         fontStyle: textStyle.italic ? 'italic' : 'normal',
                         textDecoration: textStyle.underline ? 'underline' : 'none',
@@ -399,10 +399,18 @@ export default function Canvas() {
                         <span dangerouslySetInnerHTML={{ __html: slideBodyToHtml(slide.body) }} />
                       ) : (
                         <span
-                          style={{ color: '#555', fontSize: 28 }}
+                          style={{
+                            color: '#6b7280',
+                            fontSize: textStyle.size || 100,
+                            fontWeight: textStyle.bold ? 700 : 400,
+                            fontStyle: textStyle.italic ? 'italic' : 'normal',
+                            textDecoration: textStyle.underline ? 'underline' : 'none',
+                            lineHeight: textStyle.lineHeight || 1.3,
+                            fontFamily: textStyle.fontFamily || 'Arial, sans-serif',
+                          }}
                           className="opacity-100"
                         >
-                          {slide.placeholderText || 'Click to edit'}
+                          {resolvePlaceholderText(slide.placeholderText)}
                         </span>
                       )}
                     </div>

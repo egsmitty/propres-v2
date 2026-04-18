@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { getPresentationScale } from '@/utils/presentationSizing'
+import { resolvePlaceholderText } from '@/utils/sectionTypes'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
 
 export default function ScaledSlideText({
@@ -32,8 +33,8 @@ export default function ScaledSlideText({
 
   const scale = getPresentationScale(presentation, size.width, size.height)
   const valign = slide?.textStyle?.valign || 'center'
-  const fontSize = (slide?.textStyle?.size || 52) * scale
-  const emptyText = showPlaceholder ? slide?.placeholderText || empty : empty
+  const fontSize = (slide?.textStyle?.size || 100) * scale
+  const emptyText = showPlaceholder ? resolvePlaceholderText(slide?.placeholderText, empty) : empty
   const textBox = slide?.textBox || { x: 240, y: 270, width: 1440, height: 540, backgroundColor: 'transparent' }
   const paddingX = Math.max(minPaddingX, 28 * scale)
   const paddingY = Math.max(minPaddingY, 22 * scale)
@@ -76,7 +77,19 @@ export default function ScaledSlideText({
         {slide?.body ? (
           <div dangerouslySetInnerHTML={{ __html: slideBodyToHtml(slide.body) }} />
         ) : emptyText ? (
-          <span style={{ color: '#555', fontSize: Math.max(8, 28 * scale) }}>{emptyText}</span>
+          <span
+            style={{
+              color: '#6b7280',
+              fontSize,
+              fontWeight: slide?.textStyle?.bold ? 700 : 400,
+              fontStyle: slide?.textStyle?.italic ? 'italic' : 'normal',
+              textDecoration: slide?.textStyle?.underline ? 'underline' : 'none',
+              lineHeight: slide?.textStyle?.lineHeight || 1.3,
+              fontFamily: slide?.textStyle?.fontFamily || 'Arial, sans-serif',
+            }}
+          >
+            {emptyText}
+          </span>
         ) : null}
       </div>
     </div>
