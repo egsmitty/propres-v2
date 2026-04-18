@@ -238,6 +238,37 @@ export async function insertMediaSlideIntoCurrentPresentation(media) {
   return slide
 }
 
+export async function deleteSelectedSlideFromCurrentPresentation() {
+  const state = useEditorStore.getState()
+  const presentation = state.presentation
+  if (!presentation || !state.selectedSectionId || !state.selectedSlideId) return false
+
+  const nextSections = presentation.sections.map((section) => ({
+    ...section,
+    slides: [...section.slides],
+  }))
+
+  const sectionIndex = nextSections.findIndex((section) => section.id === state.selectedSectionId)
+  if (sectionIndex === -1) return false
+
+  const slideIndex = nextSections[sectionIndex].slides.findIndex((slide) => slide.id === state.selectedSlideId)
+  if (slideIndex === -1) return false
+
+  nextSections[sectionIndex].slides.splice(slideIndex, 1)
+  state.mutateSections(() => nextSections)
+
+  const sameSectionNext = nextSections[sectionIndex].slides[slideIndex] || nextSections[sectionIndex].slides[slideIndex - 1]
+  if (sameSectionNext) {
+    state.setSelectedSlide(nextSections[sectionIndex].id, sameSectionNext.id)
+    return true
+  }
+
+  const nextSection = nextSections.find((section) => section.slides.length > 0)
+  const nextSlide = nextSection?.slides?.[0] || null
+  state.setSelectedSlide(nextSection?.id ?? null, nextSlide?.id ?? null)
+  return true
+}
+
 export async function renamePresentationById(id, currentTitle) {
   const title = await promptDialog('Rename presentation:', currentTitle || 'Untitled Presentation', { title: 'Rename', confirmLabel: 'Rename' })
   if (!title) return null

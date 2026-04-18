@@ -12,6 +12,7 @@ import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { updatePresentation } from '@/utils/ipc'
+import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentationCommands'
 import { startSidebarPresentationSession, stopPresentationSession, syncPresentationSession } from '@/utils/presenterFlow'
 import { alertDialog } from '@/utils/dialog'
 
@@ -128,6 +129,11 @@ export default function Editor() {
       const meta = e.metaKey || e.ctrlKey
 
       if (meta && e.key === 's') { e.preventDefault(); handleSave(); return }
+      if (!meta && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault()
+        deleteSelectedSlideFromCurrentPresentation()
+        return
+      }
       if (e.key === 'F5') { e.preventDefault(); handlePresent(); return }
       if (e.key === 'Escape' && isPresenting) { e.preventDefault(); handleStopPresenting(); return }
       if (e.key === '?' && !meta) {
