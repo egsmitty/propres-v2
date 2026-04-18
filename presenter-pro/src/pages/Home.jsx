@@ -751,7 +751,7 @@ function PresentationRow({ presentation, query, onOpen, onContextMenu }) {
 function PresentationPreview({ presentation }) {
   const slide = firstSlideOf(presentation)
 
-  if (!slide?.body) {
+  if (!slide) {
     return (
       <div
         className="w-[90px] rounded-2xl flex items-center justify-center shrink-0"

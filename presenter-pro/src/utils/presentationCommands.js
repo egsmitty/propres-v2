@@ -44,7 +44,6 @@ export async function createNewPresentation(title = 'Untitled Presentation') {
     slides: [
       createTextSlide('announcement', {
         label: 'Slide 1',
-        body: 'Click to edit',
       }),
     ],
   })

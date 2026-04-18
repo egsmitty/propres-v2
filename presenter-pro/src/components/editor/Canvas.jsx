@@ -232,9 +232,9 @@ export default function Canvas() {
                       ) : (
                         <span
                           style={{ color: '#555', fontSize: 28 }}
-                          className="opacity-0 group-hover:opacity-100"
+                          className="opacity-100"
                         >
-                          Double-click to edit {section ? getSectionContentLabel(section.type).toLowerCase() : 'text'}
+                          {slide.placeholderText || 'Click to edit'}
                         </span>
                       )}
                     </div>
