@@ -22,7 +22,6 @@ export const useEditorStore = create((set) => ({
   editingSlideId: null,
   isDirty: false,
   requiresInitialSave: false,
-  zoom: 1.0,
   past: [],
   future: [],
 
@@ -40,7 +39,6 @@ export const useEditorStore = create((set) => ({
   setEditingSlide: (slideId) => set({ editingSlideId: slideId }),
   setDirty: (val) => set({ isDirty: val }),
   setRequiresInitialSave: (val) => set({ requiresInitialSave: val }),
-  setZoom: (zoom) => set({ zoom: Math.min(1, Math.max(0.5, zoom)) }),
 
   undo: () =>
     set((state) => {
@@ -79,16 +77,6 @@ export const useEditorStore = create((set) => ({
         return { ...sec, slides: sec.slides.map((sl) => sl.id === slideId ? { ...sl, body } : sl) }
       })
       return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
-    }),
-
-  updateSlideNotes: (sectionId, slideId, notes) =>
-    set((state) => {
-      if (!state.presentation) return {}
-      const sections = state.presentation.sections.map((sec) => {
-        if (sec.id !== sectionId) return sec
-        return { ...sec, slides: sec.slides.map((sl) => sl.id === slideId ? { ...sl, notes } : sl) }
-      })
-      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave }
     }),
 
   updateSlideStyle: (sectionId, slideId, styleProps) =>

@@ -7,7 +7,6 @@ import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/
 import { getSectionContentLabel, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import SlideTextEditor from './SlideTextEditor'
 import FormattingToolbar from './FormattingToolbar'
-import NotesPane from './NotesPane'
 
 function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
   if (!presentation) return null
@@ -23,7 +22,6 @@ export default function Canvas() {
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
-  const zoom = useEditorStore((s) => s.zoom)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
   const setLiveSlide = usePresenterStore((s) => s.setLiveSlide)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -124,21 +122,17 @@ export default function Canvas() {
         />
       )}
       <div
-        className="flex-1 flex items-center justify-center p-6 min-h-0 overflow-hidden"
+        className="flex-1 flex items-center justify-center p-6"
         onClick={handleClick}
       >
         {/* 16:9 canvas */}
         <div
-          className="relative rounded shadow-2xl overflow-hidden"
+          className="relative w-full rounded shadow-2xl overflow-hidden"
           style={{
-            width: '100%',
-            maxHeight: '100%',
+            maxWidth: '100%',
             aspectRatio: '16/9',
             background: '#1a1a1a',
             cursor: isEditing ? 'text' : 'default',
-            transform: `scale(${zoom || 1})`,
-            transformOrigin: 'center center',
-            transition: 'transform 120ms ease',
           }}
           onDoubleClick={handleDoubleClick}
         >
@@ -245,16 +239,7 @@ export default function Canvas() {
           {mediaOnlySlide ? 'Change Media' : 'Set Background'}
         </button>
 
-        {/* Zoom controls */}
-        <div
-          className="flex items-center gap-1 ml-2 text-xs"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          <ZoomControls />
-        </div>
       </div>
-
-      <NotesPane />
     </div>
   )
 }
@@ -281,36 +266,5 @@ function CanvasBackground({ media }) {
       alt={media.name}
       className="absolute inset-0 w-full h-full object-cover"
     />
-  )
-}
-
-function ZoomControls() {
-  const zoom = useEditorStore((s) => s.zoom)
-  const setZoom = useEditorStore((s) => s.setZoom)
-
-  return (
-    <>
-      <button
-        onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-        className="w-5 h-5 flex items-center justify-center rounded"
-        style={{ color: 'var(--text-secondary)' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-      >
-        −
-      </button>
-      <span className="w-10 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-        {Math.round(zoom * 100)}%
-      </span>
-      <button
-        onClick={() => setZoom(Math.min(1, zoom + 0.1))}
-        className="w-5 h-5 flex items-center justify-center rounded"
-        style={{ color: 'var(--text-secondary)' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-      >
-        +
-      </button>
-    </>
   )
 }

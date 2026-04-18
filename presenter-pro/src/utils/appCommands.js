@@ -76,12 +76,6 @@ export async function runAppCommand(command) {
     case 'insert:video':
       appState.setMediaLibraryOpen(true)
       return true
-    case 'view:zoomIn':
-      editorState.setZoom(Math.min(2, (editorState.zoom || 1) + 0.1))
-      return true
-    case 'view:zoomOut':
-      editorState.setZoom(Math.max(0.5, (editorState.zoom || 1) - 0.1))
-      return true
     case 'view:filmstrip':
       appState.setFilmstripVisible(!appState.filmstripVisible)
       return true
