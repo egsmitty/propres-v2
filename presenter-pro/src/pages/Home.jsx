@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Home as HomeIcon, PlusCircle, FolderOpen, Clock3, BookOpen, Search, FileText, Plus } from 'lucide-react'
+import { Home as HomeIcon, PlusCircle, FolderOpen, Clock3, BookOpen, Search, FileText, Plus, MoreHorizontal, Pin } from 'lucide-react'
 import { getPresentations, getProfile } from '@/utils/ipc'
 import ContextMenu from '@/components/shared/ContextMenu'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
@@ -21,6 +21,35 @@ const NAV = [
   { id: 'recent', label: 'Recent', icon: Clock3 },
   { id: 'open', label: 'Open', icon: FolderOpen },
 ]
+
+const PINNED_PRESENTATIONS_KEY = 'presenterpro.home.pinnedPresentations'
+
+function loadPinnedPresentationIds() {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const raw = window.localStorage.getItem(PINNED_PRESENTATIONS_KEY)
+    const parsed = JSON.parse(raw || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function savePinnedPresentationIds(ids) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(PINNED_PRESENTATIONS_KEY, JSON.stringify(ids))
+}
+
+function sortPresentations(presentations, pinnedIds) {
+  const pinnedSet = new Set(pinnedIds)
+  return [...presentations].sort((a, b) => {
+    const aPinned = pinnedSet.has(a.id)
+    const bPinned = pinnedSet.has(b.id)
+    if (aPinned !== bPinned) return aPinned ? -1 : 1
+    return (b.updated_at || 0) - (a.updated_at || 0)
+  })
+}
 
 const TEMPLATE_VISUALS = {
   blank: {
@@ -149,6 +178,8 @@ export default function Home() {
   const [presentations, setPresentations] = useState([])
   const [menu, setMenu] = useState(null)
   const [query, setQuery] = useState('')
+  const [selectedPresentationId, setSelectedPresentationId] = useState(null)
+  const [pinnedIds, setPinnedIds] = useState(() => loadPinnedPresentationIds())
   const [profile, setProfile] = useState({
     displayName: 'PresenterPro User',
     initials: 'PP',
@@ -197,7 +228,35 @@ export default function Home() {
 
   async function handleDelete(pres) {
     const result = await deletePresentationById(pres.id, pres.title)
-    if (result?.success) await loadPresentations()
+    if (result?.success) {
+      setPinnedIds((current) => {
+        const next = current.filter((id) => id !== pres.id)
+        savePinnedPresentationIds(next)
+        return next
+      })
+      await loadPresentations()
+    }
+  }
+
+  function handleTogglePinned(pres) {
+    setPinnedIds((current) => {
+      const next = current.includes(pres.id)
+        ? current.filter((id) => id !== pres.id)
+        : [pres.id, ...current.filter((id) => id !== pres.id)]
+      savePinnedPresentationIds(next)
+      return next
+    })
+  }
+
+  function openPresentationMenu(eventLike, pres, source = 'context') {
+    const pinned = pinnedIds.includes(pres.id)
+    setSelectedPresentationId(pres.id)
+    setMenu((current) => {
+      if (source === 'actions' && current?.source === 'actions' && current?.pres?.id === pres.id) {
+        return null
+      }
+      return { x: eventLike.clientX, y: eventLike.clientY, pres, pinned, source }
+    })
   }
 
   function handleShowTutorial() {
@@ -207,14 +266,34 @@ export default function Home() {
   }
 
   const sortedPresentations = useMemo(
-    () => [...presentations].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0)),
-    [presentations]
+    () => sortPresentations(presentations, pinnedIds),
+    [presentations, pinnedIds]
   )
   const homeRecentPresentations = sortedPresentations.slice(0, 10)
   const recentPresentations = sortedPresentations.slice(0, 25)
   const filteredPresentations = sortedPresentations.filter((pres) =>
     matchesPresentationQuery(pres, query)
   )
+
+  const visiblePresentations =
+    homeTab === 'home'
+      ? homeRecentPresentations
+      : homeTab === 'recent'
+        ? recentPresentations
+        : homeTab === 'open'
+          ? filteredPresentations
+          : []
+
+  useEffect(() => {
+    if (!selectedPresentationId) return
+    if (!visiblePresentations.some((pres) => pres.id === selectedPresentationId)) {
+      setSelectedPresentationId(null)
+      setMenu((current) => (current?.pres?.id === selectedPresentationId ? null : current))
+    }
+  }, [visiblePresentations, selectedPresentationId])
+
+  const selectedPresentation =
+    visiblePresentations.find((pres) => pres.id === selectedPresentationId) || null
 
   return (
     <div className="flex h-full" style={{ background: 'var(--bg-app)' }}>
@@ -295,8 +374,8 @@ export default function Home() {
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col overflow-auto">
-        <div className="px-8 pt-7 pb-8 min-h-full">
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto px-8 pt-7 pb-24 min-h-0">
           <div className="flex items-start justify-between gap-6 mb-8">
             <div>
               <p
@@ -358,8 +437,14 @@ export default function Home() {
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
                 e.preventDefault()
-                setMenu({ x: e.clientX, y: e.clientY, pres })
+                openPresentationMenu(e, pres)
               }}
+              pinnedIds={pinnedIds}
+              onTogglePinned={handleTogglePinned}
+              selectedPresentationId={selectedPresentationId}
+              onSelectPresentation={setSelectedPresentationId}
+              menu={menu}
+              onActionMenuToggle={openPresentationMenu}
             />
           )}
 
@@ -377,8 +462,14 @@ export default function Home() {
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
                 e.preventDefault()
-                setMenu({ x: e.clientX, y: e.clientY, pres })
+                openPresentationMenu(e, pres)
               }}
+              pinnedIds={pinnedIds}
+              onTogglePinned={handleTogglePinned}
+              selectedPresentationId={selectedPresentationId}
+              onSelectPresentation={setSelectedPresentationId}
+              menu={menu}
+              onActionMenuToggle={openPresentationMenu}
             />
           )}
 
@@ -390,11 +481,68 @@ export default function Home() {
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
                 e.preventDefault()
-                setMenu({ x: e.clientX, y: e.clientY, pres })
+                openPresentationMenu(e, pres)
               }}
+              pinnedIds={pinnedIds}
+              onTogglePinned={handleTogglePinned}
+              selectedPresentationId={selectedPresentationId}
+              onSelectPresentation={setSelectedPresentationId}
+              menu={menu}
+              onActionMenuToggle={openPresentationMenu}
             />
           )}
         </div>
+
+        {(homeTab === 'home' || homeTab === 'recent' || homeTab === 'open') && (
+          <div
+            className="shrink-0 px-8 py-2.5 flex items-center justify-between gap-3"
+            style={{
+              borderTop: '1px solid var(--border-subtle)',
+              background: 'rgba(18, 22, 29, 0.92)',
+              backdropFilter: 'blur(14px)',
+            }}
+          >
+            <p className="text-[13px] truncate" style={{ color: 'var(--text-secondary)' }}>
+              {selectedPresentation
+                ? `Selected: ${selectedPresentation.title}`
+                : 'Select a presentation to open it.'}
+            </p>
+            <div className="flex items-center justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPresentationId(null)
+                  setMenu(null)
+                }}
+                disabled={!selectedPresentation}
+                className="px-4 py-2 rounded-full text-sm font-medium"
+                style={{
+                  background: selectedPresentation ? 'var(--bg-hover)' : 'transparent',
+                  color: selectedPresentation ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  border: '1px solid var(--border-default)',
+                  cursor: selectedPresentation ? 'pointer' : 'default',
+                  opacity: selectedPresentation ? 1 : 0.55,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => selectedPresentation && handleOpen(selectedPresentation)}
+                disabled={!selectedPresentation}
+                className="px-5 py-2 rounded-full text-sm font-medium"
+                style={{
+                  background: selectedPresentation ? 'var(--accent)' : 'rgba(74,124,255,0.32)',
+                  color: '#fff',
+                  cursor: selectedPresentation ? 'pointer' : 'default',
+                  opacity: selectedPresentation ? 1 : 0.72,
+                }}
+              >
+                Open
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {menu && (
@@ -403,6 +551,7 @@ export default function Home() {
           y={menu.y}
           items={[
             { label: 'Open', onClick: () => handleOpen(menu.pres) },
+            { label: menu.pinned ? 'Unpin' : 'Pin', onClick: () => handleTogglePinned(menu.pres) },
             { label: 'Rename', onClick: () => handleRename(menu.pres) },
             { divider: true },
             { label: 'Delete', danger: true, onClick: () => handleDelete(menu.pres) },
@@ -421,6 +570,12 @@ function HomeLibrary({
   presentations,
   onOpen,
   onContextMenu,
+  pinnedIds,
+  onTogglePinned,
+  selectedPresentationId,
+  onSelectPresentation,
+  menu,
+  onActionMenuToggle,
 }) {
   const homeTemplates = templates.slice(0, 4)
 
@@ -466,6 +621,12 @@ function HomeLibrary({
           presentations={presentations}
           onOpen={onOpen}
           onContextMenu={onContextMenu}
+          pinnedIds={pinnedIds}
+          onTogglePinned={onTogglePinned}
+          selectedPresentationId={selectedPresentationId}
+          onSelectPresentation={onSelectPresentation}
+          menu={menu}
+          onActionMenuToggle={onActionMenuToggle}
           emptyTitle="No recent presentations yet"
           emptyBody="Open or create a presentation and it will show up here for quick access."
         />
@@ -492,19 +653,25 @@ function NewLibrary({ templates, onNew, onTemplate }) {
   )
 }
 
-function RecentLibrary({ presentations, onOpen, onContextMenu }) {
+function RecentLibrary({ presentations, onOpen, onContextMenu, pinnedIds, onTogglePinned, selectedPresentationId, onSelectPresentation, menu, onActionMenuToggle }) {
   return (
     <PresentationList
       presentations={presentations}
       onOpen={onOpen}
       onContextMenu={onContextMenu}
+      pinnedIds={pinnedIds}
+      onTogglePinned={onTogglePinned}
+      selectedPresentationId={selectedPresentationId}
+      onSelectPresentation={onSelectPresentation}
+      menu={menu}
+      onActionMenuToggle={onActionMenuToggle}
       emptyTitle="No recent presentations yet"
       emptyBody="As you work, your most recently opened presentations will collect here."
     />
   )
 }
 
-function OpenLibrary({ presentations, query, setQuery, onOpen, onContextMenu }) {
+function OpenLibrary({ presentations, query, setQuery, onOpen, onContextMenu, pinnedIds, onTogglePinned, selectedPresentationId, onSelectPresentation, menu, onActionMenuToggle }) {
   return (
     <>
       <div className="flex items-center justify-between gap-3 mb-4">
@@ -537,6 +704,12 @@ function OpenLibrary({ presentations, query, setQuery, onOpen, onContextMenu }) 
         query={query}
         onOpen={onOpen}
         onContextMenu={onContextMenu}
+        pinnedIds={pinnedIds}
+        onTogglePinned={onTogglePinned}
+        selectedPresentationId={selectedPresentationId}
+        onSelectPresentation={onSelectPresentation}
+        menu={menu}
+        onActionMenuToggle={onActionMenuToggle}
         emptyTitle="No presentations match that search"
         emptyBody="Try a different title, month, or full date."
       />
@@ -653,6 +826,12 @@ function PresentationList({
   presentations,
   onOpen,
   onContextMenu,
+  pinnedIds = [],
+  onTogglePinned,
+  selectedPresentationId,
+  onSelectPresentation,
+  menu,
+  onActionMenuToggle,
   query = '',
   emptyTitle,
   emptyBody,
@@ -667,7 +846,7 @@ function PresentationList({
       }}
     >
       <div
-        className="grid grid-cols-[minmax(0,1.45fr)_180px_110px] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em]"
+        className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em]"
         style={{
           color: 'var(--text-tertiary)',
           borderBottom: '1px solid var(--border-subtle)',
@@ -701,6 +880,12 @@ function PresentationList({
             query={query}
             onOpen={onOpen}
             onContextMenu={onContextMenu}
+            pinned={pinnedIds.includes(pres.id)}
+            onTogglePinned={onTogglePinned}
+            selected={selectedPresentationId === pres.id}
+            onSelect={() => onSelectPresentation?.(pres.id)}
+            menu={menu}
+            onActionMenuToggle={onActionMenuToggle}
           />
         ))
       )}
@@ -708,23 +893,52 @@ function PresentationList({
   )
 }
 
-function PresentationRow({ presentation, query, onOpen, onContextMenu }) {
+function PresentationRow({
+  presentation,
+  query,
+  onOpen,
+  onContextMenu,
+  pinned = false,
+  onTogglePinned,
+  selected = false,
+  onSelect,
+  menu,
+  onActionMenuToggle,
+}) {
+  const [hovered, setHovered] = useState(false)
   const slide = firstSlideOf(presentation)
   const previewText =
     slideBodyToPlainText(slide?.body).split('\n').map((line) => line.trim()).filter(Boolean)[0] || 'No slide content yet'
+  const menuOpen = menu?.source === 'actions' && menu?.pres?.id === presentation.id
+  const showActions = hovered || selected || menuOpen
 
   return (
     <div
-      className="grid grid-cols-[minmax(0,1.45fr)_180px_110px] gap-4 px-5 py-4 items-center"
-      style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      onContextMenu={(e) => onContextMenu(e, presentation)}
+      className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-4 items-center cursor-pointer"
+      style={{
+        borderBottom: '1px solid var(--border-subtle)',
+        background: selected ? 'rgba(74,124,255,0.12)' : hovered ? 'var(--bg-hover)' : 'transparent',
+      }}
+      onClick={() => onSelect?.()}
+      onDoubleClick={() => onOpen(presentation)}
+      onContextMenu={(e) => {
+        onSelect?.()
+        onContextMenu(e, presentation)
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <div className="min-w-0 flex items-center gap-4">
         <PresentationPreview presentation={presentation} />
         <div className="min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-            <HighlightText text={presentation.title} query={query} />
-          </p>
+          <div className="flex items-center gap-2 min-w-0">
+            {pinned && (
+              <Pin size={13} fill="currentColor" style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            )}
+            <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+              <HighlightText text={presentation.title} query={query} />
+            </p>
+          </div>
           <p className="text-sm truncate mt-1" style={{ color: 'var(--text-secondary)' }}>
             {query ? <HighlightText text={previewText} query={query} /> : previewText}
           </p>
@@ -733,16 +947,57 @@ function PresentationRow({ presentation, query, onOpen, onContextMenu }) {
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
         <HighlightText text={formatDate(presentation.updated_at)} query={query} />
       </p>
-      <div className="flex justify-end">
-        <button
-          onClick={() => onOpen(presentation)}
-          className="w-24 px-3 py-2 rounded-full text-sm font-medium"
-          style={{ background: 'var(--accent)', color: '#fff' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
-        >
-          Open
-        </button>
+      <div className="flex justify-end items-center gap-2">
+        {showActions ? (
+          <>
+            <button
+              type="button"
+              aria-label={pinned ? 'Unpin presentation' : 'Pin presentation'}
+              title={pinned ? 'Unpin' : 'Pin'}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect?.()
+                onTogglePinned?.(presentation)
+              }}
+              className="w-11 h-11 rounded-full flex items-center justify-center"
+              style={{
+                background: pinned ? 'rgba(74,124,255,0.14)' : 'transparent',
+                color: pinned ? 'var(--accent)' : 'var(--text-tertiary)',
+                border: `1px solid ${pinned ? 'rgba(74,124,255,0.22)' : 'var(--border-subtle)'}`,
+              }}
+            >
+              <Pin size={18} fill={pinned ? 'currentColor' : 'none'} />
+            </button>
+            <button
+              type="button"
+              aria-label="More actions"
+              title="More actions"
+              onMouseDown={(e) => {
+                e.stopPropagation()
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect?.()
+                const rect = e.currentTarget.getBoundingClientRect()
+                onActionMenuToggle?.(
+                  { preventDefault() {}, clientX: rect.right - 8, clientY: rect.bottom + 6 },
+                  presentation,
+                  'actions'
+                )
+              }}
+              className="w-11 h-11 rounded-full flex items-center justify-center"
+              style={{
+                background: 'transparent',
+                color: 'var(--text-tertiary)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <MoreHorizontal size={18} />
+            </button>
+          </>
+        ) : (
+          <div className="w-[98px]" />
+        )}
       </div>
     </div>
   )

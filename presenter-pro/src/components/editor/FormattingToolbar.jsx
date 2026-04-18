@@ -51,7 +51,6 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle, textB
       <select
         data-editor-toolbar="true"
         value={fontFamily}
-        onMouseDown={keepEditorFocus}
         onChange={(e) => set({ fontFamily: e.target.value })}
         className="text-xs rounded outline-none"
         style={{
@@ -210,7 +209,6 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle, textB
           data-editor-toolbar="true"
           type="color"
           value={fillColor === 'transparent' ? '#ffffff' : fillColor}
-          onMouseDown={keepEditorFocus}
           onChange={(e) => setBox({ backgroundColor: e.target.value })}
           className="rounded cursor-pointer"
           style={{ width: 24, height: 20, border: '1px solid var(--border-default)', padding: 1, background: 'none' }}
@@ -238,7 +236,6 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle, textB
           min="0.8"
           max="3"
           value={lineHeight}
-          onMouseDown={keepEditorFocus}
           onChange={(e) => {
             const next = Number(e.target.value)
             if (!Number.isFinite(next)) return
@@ -254,9 +251,6 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle, textB
         />
       </div>
 
-      <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-        Press Esc to finish editing
-      </span>
     </div>
   )
 }

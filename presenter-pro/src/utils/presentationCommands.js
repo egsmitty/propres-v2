@@ -325,7 +325,7 @@ export function clearSelectedSlide() {
                 body: '',
                 mediaId: null,
                 backgroundId: null,
-                placeholderText: slide.placeholderText ?? 'Click to edit',
+                placeholderText: slide.placeholderText ?? DEFAULT_PLACEHOLDER_TEXT,
               }
             : slide
         ),
