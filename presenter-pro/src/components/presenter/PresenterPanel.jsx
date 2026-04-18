@@ -43,7 +43,7 @@ export default function PresenterPanel() {
       const tag = document.activeElement?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return
       if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev() }
-      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext() }
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.code === 'Space') { e.preventDefault(); goNext() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
