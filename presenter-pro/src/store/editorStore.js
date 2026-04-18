@@ -96,6 +96,23 @@ export const useEditorStore = create((set) => ({
       return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
     }),
 
+  updateSlideTextBox: (sectionId, slideId, textBoxProps) =>
+    set((state) => {
+      if (!state.presentation) return {}
+      const sections = state.presentation.sections.map((sec) => {
+        if (sec.id !== sectionId) return sec
+        return {
+          ...sec,
+          slides: sec.slides.map((sl) =>
+            sl.id === slideId
+              ? { ...sl, textBox: { ...sl.textBox, ...textBoxProps } }
+              : sl
+          )
+        }
+      })
+      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
+    }),
+
   setSlideBackground: (sectionId, slideId, mediaId) =>
     set((state) => {
       if (!state.presentation) return {}

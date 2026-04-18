@@ -3,7 +3,7 @@ import { getMedia } from '@/utils/ipc'
 import { fileUrlForPath, isVideoMedia } from '@/utils/backgrounds'
 import { isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationScale } from '@/utils/presentationSizing'
-import { slideBodyToHtml } from '@/utils/slideMarkup'
+import ScaledSlideText from '@/components/shared/ScaledSlideText'
 
 function formatRemaining(endAt) {
   if (!endAt) return '00:00'
@@ -166,16 +166,6 @@ export default function OutputRenderer() {
   const stageHeight = nativeHeight * stageScale
   const stageLeft = Math.max(0, (viewportSize.width - stageWidth) / 2)
   const stageTop = Math.max(0, (viewportSize.height - stageHeight) / 2)
-  const textAlign = slide?.textStyle?.align || 'center'
-  const valign = slide?.textStyle?.valign || 'center'
-
-  const valignStyle =
-    valign === 'top'
-      ? { justifyContent: 'flex-start', paddingTop: 80 }
-      : valign === 'bottom'
-      ? { justifyContent: 'flex-end', paddingBottom: 80 }
-      : { justifyContent: 'center' }
-
   return (
     <div
       ref={viewportRef}
@@ -212,31 +202,14 @@ export default function OutputRenderer() {
             }}
           />
         )}
-        {!mediaSlideItem?.file_path && slide?.body && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              paddingLeft: 96,
-              paddingRight: 96,
-              textAlign,
-              ...valignStyle,
-            }}
-          >
-            <div
-              dangerouslySetInnerHTML={{ __html: slideBodyToHtml(slide.body) }}
-              style={{
-                color: slide.textStyle?.color || '#ffffff',
-                fontSize: slide.textStyle?.size || 52,
-                fontWeight: slide.textStyle?.bold ? 700 : 400,
-                lineHeight: 1.3,
-                wordBreak: 'break-word',
-                textShadow: '0 2px 16px rgba(0,0,0,0.9)',
-                fontFamily: 'Inter, system-ui, sans-serif',
-                WebkitFontSmoothing: 'antialiased',
-              }}
+        {!mediaSlideItem?.file_path && (
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <ScaledSlideText
+              presentation={slide}
+              slide={slide}
+              empty=""
+              shadow="0 2px 16px rgba(0,0,0,0.9)"
+              showPlaceholder={false}
             />
           </div>
         )}

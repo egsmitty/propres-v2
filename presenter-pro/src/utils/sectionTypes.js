@@ -67,6 +67,34 @@ export function getSectionContentLabel(type) {
   return getSectionTypeMeta(type).contentLabel
 }
 
+export const DEFAULT_TEXT_STYLE = {
+  size: 52,
+  align: 'center',
+  valign: 'center',
+  color: '#ffffff',
+  bold: false,
+  italic: false,
+  underline: false,
+  lineHeight: 1.3,
+  fontFamily: 'Arial, sans-serif',
+}
+
+export const DEFAULT_TEXT_BOX = {
+  x: 240,
+  y: 270,
+  width: 1440,
+  height: 540,
+  backgroundColor: 'transparent',
+}
+
+export function mergeTextStyle(style = {}) {
+  return { ...DEFAULT_TEXT_STYLE, ...(style || {}) }
+}
+
+export function mergeTextBox(textBox = {}) {
+  return { ...DEFAULT_TEXT_BOX, ...(textBox || {}) }
+}
+
 export function createTextSlide(sectionType = 'announcement', overrides = {}) {
   const meta = getSectionTypeMeta(sectionType)
   return {
@@ -77,13 +105,8 @@ export function createTextSlide(sectionType = 'announcement', overrides = {}) {
     placeholderText: overrides.placeholderText ?? 'Click to edit',
     notes: overrides.notes || '',
     backgroundId: overrides.backgroundId ?? null,
-    textStyle: overrides.textStyle || {
-      size: 52,
-      align: 'center',
-      valign: 'center',
-      color: '#ffffff',
-      bold: false,
-    },
+    textStyle: mergeTextStyle(overrides.textStyle),
+    textBox: mergeTextBox(overrides.textBox),
     ...overrides,
   }
 }
@@ -98,13 +121,8 @@ export function createMediaSlide(media, overrides = {}) {
     notes: '',
     mediaId: media?.id ?? overrides.mediaId ?? null,
     backgroundId: null,
-    textStyle: {
-      size: 52,
-      align: 'center',
-      valign: 'center',
-      color: '#ffffff',
-      bold: false,
-    },
+    textStyle: mergeTextStyle(overrides.textStyle),
+    textBox: mergeTextBox(overrides.textBox),
     ...overrides,
   }
 }

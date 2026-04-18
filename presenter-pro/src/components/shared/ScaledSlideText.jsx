@@ -7,10 +7,9 @@ export default function ScaledSlideText({
   slide,
   empty = '—',
   shadow = 'none',
-  basePaddingX = 96,
-  basePaddingY = 80,
   minPaddingX = 4,
   minPaddingY = 4,
+  showPlaceholder = true,
 }) {
   const frameRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -34,13 +33,16 @@ export default function ScaledSlideText({
   const scale = getPresentationScale(presentation, size.width, size.height)
   const valign = slide?.textStyle?.valign || 'center'
   const fontSize = (slide?.textStyle?.size || 52) * scale
-  const emptyText = slide?.placeholderText || empty
+  const emptyText = showPlaceholder ? slide?.placeholderText || empty : empty
+  const textBox = slide?.textBox || { x: 240, y: 270, width: 1440, height: 540, backgroundColor: 'transparent' }
+  const paddingX = Math.max(minPaddingX, 28 * scale)
+  const paddingY = Math.max(minPaddingY, 22 * scale)
 
   const verticalStyle =
     valign === 'top'
-      ? { justifyContent: 'flex-start', paddingTop: Math.max(minPaddingY, basePaddingY * scale) }
+      ? { justifyContent: 'flex-start' }
       : valign === 'bottom'
-      ? { justifyContent: 'flex-end', paddingBottom: Math.max(minPaddingY, basePaddingY * scale) }
+      ? { justifyContent: 'flex-end' }
       : { justifyContent: 'center' }
 
   return (
@@ -48,26 +50,34 @@ export default function ScaledSlideText({
       <div
         style={{
           position: 'absolute',
-          inset: 0,
+          left: textBox.x * scale,
+          top: textBox.y * scale,
+          width: textBox.width * scale,
+          height: textBox.height * scale,
           display: 'flex',
           flexDirection: 'column',
-          paddingLeft: Math.max(minPaddingX, basePaddingX * scale),
-          paddingRight: Math.max(minPaddingX, basePaddingX * scale),
+          padding: `${paddingY}px ${paddingX}px`,
           textAlign: slide?.textStyle?.align || 'center',
           color: slide?.textStyle?.color || '#ffffff',
           fontSize,
           fontWeight: slide?.textStyle?.bold ? 700 : 400,
-          lineHeight: 1.3,
+          fontStyle: slide?.textStyle?.italic ? 'italic' : 'normal',
+          textDecoration: slide?.textStyle?.underline ? 'underline' : 'none',
+          lineHeight: slide?.textStyle?.lineHeight || 1.3,
+          fontFamily: slide?.textStyle?.fontFamily || 'Arial, sans-serif',
           wordBreak: 'break-word',
           textShadow: shadow,
+          background: textBox.backgroundColor || 'transparent',
+          borderRadius: Math.max(4, 10 * scale),
+          overflow: 'hidden',
           ...verticalStyle,
         }}
       >
         {slide?.body ? (
           <div dangerouslySetInnerHTML={{ __html: slideBodyToHtml(slide.body) }} />
-        ) : (
+        ) : emptyText ? (
           <span style={{ color: '#555', fontSize: Math.max(8, 28 * scale) }}>{emptyText}</span>
-        )}
+        ) : null}
       </div>
     </div>
   )

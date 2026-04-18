@@ -1,4 +1,4 @@
-import { uuid } from './uuid'
+import { createTextSlide } from './sectionTypes'
 
 const LABEL_RE = /^(verse|chorus|bridge|intro|outro|pre-chorus|tag|turnaround|turn|t\.a\.|blank)\s*\d*/i
 
@@ -42,15 +42,7 @@ export function parseSlides(text) {
       body = lines.join('\n')
     }
 
-    slides.push({
-      id: uuid(),
-      type,
-      label,
-      body,
-      notes: '',
-      backgroundId: null,
-      textStyle: { size: 52, align: 'center', valign: 'center', color: '#ffffff', bold: false },
-    })
+    slides.push(createTextSlide('song', { type, label, body }))
   }
 
   return slides
