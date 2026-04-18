@@ -229,7 +229,7 @@ function ResizeHandle({ onMouseDown }) {
         background: 'transparent',
         zIndex: 10,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--border-default)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
     />
   )
