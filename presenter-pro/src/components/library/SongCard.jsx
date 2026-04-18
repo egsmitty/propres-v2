@@ -5,16 +5,36 @@ import { createSection } from '@/utils/sectionTypes'
 import { confirmDialog } from '@/utils/dialog'
 import { uuid } from '@/utils/uuid'
 
+function resolveOrderedSlides(song) {
+  let slides = []
+  let songOrder = []
+
+  try {
+    slides = typeof song.slides === 'string' ? JSON.parse(song.slides) : song.slides
+  } catch {}
+
+  try {
+    const rawOrder = song.songOrder ?? song.song_order
+    songOrder = typeof rawOrder === 'string' ? JSON.parse(rawOrder) : rawOrder
+  } catch {}
+
+  if (!Array.isArray(songOrder) || !songOrder.length) return slides
+
+  const lookup = new Map(slides.map((slide) => [slide.id, slide]))
+  const orderedSlides = songOrder
+    .map((slideId) => lookup.get(slideId))
+    .filter(Boolean)
+
+  return orderedSlides.length ? orderedSlides : slides
+}
+
 export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
   const addSection = useEditorStore((s) => s.addSection)
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
   const presentation = useEditorStore((s) => s.presentation)
   const [isInserting, setIsInserting] = useState(false)
 
-  let slides = []
-  try {
-    slides = typeof song.slides === 'string' ? JSON.parse(song.slides) : song.slides
-  } catch {}
+  const slides = resolveOrderedSlides(song)
 
   async function handleInsert() {
     if (!presentation || isInserting) return
