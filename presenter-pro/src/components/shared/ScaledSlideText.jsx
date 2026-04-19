@@ -7,6 +7,7 @@ function resolveVerticalAlignment(box) {
   const valign = box?.textStyle?.valign || 'middle'
   if (valign === 'top') return { justifyContent: 'flex-start' }
   if (valign === 'bottom') return { justifyContent: 'flex-end' }
+  if (valign === 'center') return { justifyContent: 'center' }
   return { justifyContent: 'center' }
 }
 

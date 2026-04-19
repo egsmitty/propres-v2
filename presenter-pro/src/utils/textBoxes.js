@@ -60,7 +60,9 @@ export const DEFAULT_TEXT_BOX = {
 }
 
 export function mergeTextStyle(style = {}) {
-  return { ...DEFAULT_TEXT_STYLE, ...(style || {}) }
+  const next = { ...DEFAULT_TEXT_STYLE, ...(style || {}) }
+  if (next.valign === 'center') next.valign = 'middle'
+  return next
 }
 
 export function mergeTextBox(frame = {}) {
@@ -94,31 +96,48 @@ function legacyTextBoxId(slide) {
 }
 
 export function createTextBox(overrides = {}, options = {}) {
-  const textStyle = mergeTextStyle(overrides.textStyle)
-  const base = mergeTextBox({
-    autoFit: options.autoFit ?? overrides.autoFit ?? 'none',
-    ...overrides,
+  const {
+    id,
+    body,
+    placeholderText,
+    textStyle: rawTextStyle,
+    ...frameOverrides
+  } = overrides || {}
+
+  const textStyle = mergeTextStyle(rawTextStyle)
+  const frame = mergeTextBox({
+    autoFit: options.autoFit ?? frameOverrides.autoFit ?? 'none',
+    ...frameOverrides,
   })
 
   return {
-    id: overrides.id || uuid(),
-    body: overrides.body || '',
-    placeholderText: overrides.placeholderText ?? DEFAULT_PLACEHOLDER_TEXT,
+    id: id || uuid(),
+    body: body || '',
+    placeholderText: resolvePlaceholderText(placeholderText),
     textStyle,
-    ...base,
+    ...frame,
   }
 }
 
 export function normalizeTextBox(textBox, slide, index = 0) {
+  const upgradedFrame = upgradeLegacyFrame(textBox || {})
+  const {
+    id,
+    body,
+    placeholderText,
+    textStyle: rawTextStyle,
+    ...frameProps
+  } = upgradedFrame || {}
+
   return {
-    id: textBox?.id || (index === 0 ? legacyTextBoxId(slide) : uuid()),
-    body: textBox?.body || '',
-    placeholderText: resolvePlaceholderText(textBox?.placeholderText),
-    textStyle: mergeTextStyle(textBox?.textStyle),
+    id: id || (index === 0 ? legacyTextBoxId(slide) : uuid()),
+    body: body || '',
+    placeholderText: resolvePlaceholderText(placeholderText),
+    textStyle: mergeTextStyle(rawTextStyle),
     ...mergeTextBox({
-      autoFit: textBox?.autoFit ?? getDefaultAutoFitMode(slide),
+      autoFit: frameProps?.autoFit ?? getDefaultAutoFitMode(slide),
       zIndex: textBox?.zIndex ?? index,
-      ...textBox,
+      ...frameProps,
     }),
   }
 }

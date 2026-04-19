@@ -235,7 +235,7 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
     <div
       data-editor-toolbar="true"
       className="shrink-0 px-3 py-3"
-      style={{ background: 'var(--bg-toolbar)', borderBottom: '1px solid var(--border-subtle)' }}
+      style={{ background: 'var(--bg-toolbar)', borderBottom: '1px solid var(--border-subtle)', overflowX: 'hidden' }}
     >
       <div className="flex flex-wrap items-center gap-2">
         <ToolbarGroup wide>
@@ -243,7 +243,7 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
             data-editor-toolbar="true"
             onClick={() => addSlideTextBox(sectionId, slideId)}
             className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent)', color: '#fff', whiteSpace: 'nowrap' }}
           >
             <Plus size={16} />
             <span>Add Text Box</span>

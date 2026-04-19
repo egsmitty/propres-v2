@@ -379,13 +379,13 @@ export default function Home() {
           <div className="flex items-start justify-between gap-6 mb-8">
             <div>
               <p
-                className={homeTab === 'new' ? 'text-sm font-semibold uppercase tracking-[0.22em] mb-4' : 'text-xs font-semibold uppercase tracking-[0.18em] mb-3'}
+                className="text-xs font-semibold uppercase tracking-[0.18em] mb-3"
                 style={{ color: 'var(--accent)' }}
               >
                 PresenterPro
               </p>
               <h1
-                className={homeTab === 'new' ? 'text-[2.65rem] font-semibold leading-none' : 'text-[2rem] font-semibold'}
+                className="text-[2rem] font-semibold"
                 style={{ color: 'var(--text-primary)' }}
               >
                 {homeTab === 'home'
@@ -397,7 +397,7 @@ export default function Home() {
                       : 'Open Presentation'}
               </h1>
               <p
-                className={homeTab === 'new' ? 'text-base mt-3 max-w-3xl leading-7' : 'text-sm mt-2 max-w-2xl'}
+                className="text-sm mt-2 max-w-2xl"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 {homeTab === 'home'
@@ -495,7 +495,7 @@ export default function Home() {
 
         {(homeTab === 'home' || homeTab === 'recent' || homeTab === 'open') && (
           <div
-            className="shrink-0 px-8 py-2.5 flex items-center justify-between gap-3"
+            className="shrink-0 px-8 py-2 flex items-center justify-between gap-3"
             style={{
               borderTop: '1px solid var(--border-subtle)',
               background: 'rgba(18, 22, 29, 0.92)',
@@ -515,7 +515,7 @@ export default function Home() {
                   setMenu(null)
                 }}
                 disabled={!selectedPresentation}
-                className="px-4 py-2 rounded-full text-sm font-medium"
+                className="px-4 py-1.5 rounded-full text-sm font-medium"
                 style={{
                   background: selectedPresentation ? 'var(--bg-hover)' : 'transparent',
                   color: selectedPresentation ? 'var(--text-primary)' : 'var(--text-tertiary)',
@@ -530,7 +530,7 @@ export default function Home() {
                 type="button"
                 onClick={() => selectedPresentation && handleOpen(selectedPresentation)}
                 disabled={!selectedPresentation}
-                className="px-5 py-2 rounded-full text-sm font-medium"
+                className="px-5 py-1.5 rounded-full text-sm font-medium"
                 style={{
                   background: selectedPresentation ? 'var(--accent)' : 'rgba(74,124,255,0.32)',
                   color: '#fff',
@@ -582,8 +582,8 @@ function HomeLibrary({
   return (
     <>
       <section className="mb-10" data-tour="home-templates">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-[1.6rem] font-semibold" style={{ color: 'var(--text-primary)' }}>
             Templates
           </h2>
           <button
@@ -595,7 +595,10 @@ function HomeLibrary({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        <div
+          className="grid gap-4"
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
+        >
           {homeTemplates.map((template) => (
             <TemplateCard
               key={template.id}
@@ -608,12 +611,12 @@ function HomeLibrary({
       </section>
 
       <section>
-        <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
             Recent
           </h2>
           <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            Showing your latest 10 presentations
+            Latest 10 presentations
           </p>
         </div>
 
@@ -638,7 +641,10 @@ function HomeLibrary({
 function NewLibrary({ templates, onNew, onTemplate }) {
   return (
     <section>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-7">
+      <div
+        className="grid gap-5"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
+      >
         <TemplateCard blank variant="hero" onSelect={onNew} />
         {templates.map((template) => (
           <TemplateCard
@@ -720,46 +726,41 @@ function OpenLibrary({ presentations, query, setQuery, onOpen, onContextMenu, pi
 function TemplateCard({ template, onSelect, variant = 'compact', blank = false }) {
   const visual = TEMPLATE_VISUALS[blank ? 'blank' : template.id]
   const title = blank ? 'Blank Presentation' : template.title
-  const description = blank
-    ? 'Start with a clean deck and build every section yourself.'
-    : template.description
 
   return (
     <button
       onClick={onSelect}
-      className={variant === 'hero' ? 'text-left rounded-[32px] p-5' : 'text-left rounded-[28px] p-4'}
+      className={variant === 'hero' ? 'text-left rounded-[30px] p-4' : 'text-left rounded-[24px] p-3.5'}
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
-        boxShadow: '0 18px 48px rgba(8, 14, 30, 0.08)',
+        boxShadow: '0 14px 34px rgba(8, 14, 30, 0.07)',
+        transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = 'var(--border-default)'
         e.currentTarget.style.transform = 'translateY(-1px)'
+        e.currentTarget.style.boxShadow = '0 18px 38px rgba(8, 14, 30, 0.10)'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = 'var(--border-subtle)'
         e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = '0 14px 34px rgba(8, 14, 30, 0.07)'
       }}
     >
       <TemplatePreview visual={visual} blank={blank} variant={variant} />
-      <div className={variant === 'hero' ? 'pt-5' : 'pt-3'}>
-        {template?.featured && (
-          <div
-            className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-[0.16em] mb-2"
-            style={{ background: 'rgba(74,124,255,0.12)', color: 'var(--accent)' }}
-          >
-            Featured
-          </div>
-        )}
+      <div
+        className={
+          variant === 'hero'
+            ? 'pt-3.5 min-h-[3rem] flex items-start'
+            : 'pt-2.5 min-h-[2.6rem] flex items-start'
+        }
+      >
         <p
-          className={variant === 'hero' ? 'text-[1.2rem] font-semibold' : 'text-sm font-semibold'}
+          className={variant === 'hero' ? 'text-[1.08rem] font-semibold leading-tight' : 'text-[0.95rem] font-semibold leading-tight'}
           style={{ color: 'var(--text-primary)' }}
         >
           {title}
-        </p>
-        <p className={variant === 'hero' ? 'text-sm leading-6 mt-2' : 'text-xs leading-5 mt-1'} style={{ color: 'var(--text-secondary)' }}>
-          {description}
         </p>
       </div>
     </button>
@@ -767,46 +768,67 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false }
 }
 
 function TemplatePreview({ visual, blank, variant }) {
+  const isHero = variant === 'hero'
+
   return (
     <div
-      className={variant === 'hero' ? 'rounded-[28px] p-5 overflow-hidden' : 'rounded-[24px] p-4 overflow-hidden'}
+      className={isHero ? 'rounded-[26px] p-4 overflow-hidden' : 'rounded-[20px] p-3 overflow-hidden'}
       style={{
         background: visual.gradient,
-        minHeight: variant === 'hero' ? 280 : 180,
+        minHeight: isHero ? 212 : 132,
       }}
     >
       <div
-        className={variant === 'hero' ? 'rounded-[24px] h-full p-5 flex flex-col justify-between' : 'rounded-[22px] h-full p-4 flex flex-col justify-between'}
+        className={
+          isHero
+            ? 'rounded-[22px] h-full px-4.5 pt-4 pb-4.5 flex flex-col'
+            : 'rounded-[18px] h-full px-3.5 pt-3.5 pb-3.5 flex flex-col'
+        }
         style={{
           background: visual.card,
-          boxShadow: '0 12px 28px rgba(17, 25, 40, 0.14)',
+          boxShadow: '0 10px 24px rgba(17, 25, 40, 0.12)',
         }}
       >
-        <div>
+        <div
+          className={
+            isHero
+              ? 'min-h-[1.5rem] flex items-center justify-center text-center'
+              : 'min-h-[1.15rem] flex items-center justify-center text-center'
+          }
+        >
           <p
-            className={variant === 'hero' ? 'text-[12px] font-semibold uppercase tracking-[0.2em]' : 'text-[11px] font-semibold uppercase tracking-[0.18em]'}
+            className={
+              isHero
+                ? 'text-[11px] font-bold uppercase tracking-[0.22em] leading-none'
+                : 'text-[10px] font-bold uppercase tracking-[0.2em] leading-none'
+            }
             style={{ color: visual.accent }}
           >
             {visual.eyebrow}
-          </p>
-          <p className={variant === 'hero' ? 'text-[1.7rem] font-semibold mt-4' : 'text-xl font-semibold mt-3'} style={{ color: '#12161d' }}>
-            {visual.title}
           </p>
         </div>
 
         {blank ? (
           <div
-            className={variant === 'hero' ? 'rounded-[24px] border-2 border-dashed h-36 flex items-center justify-center' : 'rounded-2xl border-2 border-dashed h-24 flex items-center justify-center'}
+            className={
+              isHero
+                ? 'rounded-[20px] border-2 border-dashed flex-1 mt-2 flex items-center justify-center'
+                : 'rounded-2xl border-2 border-dashed h-16 mt-1.5 flex items-center justify-center'
+            }
             style={{ borderColor: 'rgba(47,115,255,0.22)', color: visual.accent }}
           >
-            <Plus size={variant === 'hero' ? 44 : 28} />
+            <Plus size={isHero ? 34 : 22} />
           </div>
         ) : (
-          <div className={variant === 'hero' ? 'space-y-3' : 'space-y-2'}>
+          <div className={isHero ? 'space-y-2 mt-2' : 'space-y-1.5 mt-1.5'}>
             {visual.lines.map((line) => (
               <div
                 key={line}
-                className={variant === 'hero' ? 'rounded-full px-4 py-2.5 text-sm font-medium' : 'rounded-full px-3 py-2 text-xs font-medium'}
+                className={
+                  isHero
+                    ? 'rounded-full px-4 py-2 text-sm font-medium'
+                    : 'rounded-full px-3 py-1.5 text-[12px] font-medium'
+                }
                 style={{
                   background: 'rgba(18,22,29,0.06)',
                   color: '#1c2430',
