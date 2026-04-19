@@ -1,7 +1,23 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup'
+import { resolvePlaceholderText } from '@/utils/textBoxes'
 
-export default function SlideTextEditor({ slide, onSave, onCancel }) {
+function selectAllContents(element, collapseToEnd = false) {
+  const range = document.createRange()
+  const selection = window.getSelection()
+  range.selectNodeContents(element)
+  if (collapseToEnd) range.collapse(false)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+export default function SlideTextEditor({
+  textBox,
+  onSave,
+  onBlurCommit,
+  onEscape,
+  onTabNext,
+}) {
   const ref = useRef(null)
   const [placeholderActive, setPlaceholderActive] = useState(false)
 
@@ -12,29 +28,18 @@ export default function SlideTextEditor({ slide, onSave, onCancel }) {
 
   useEffect(() => {
     if (!ref.current) return
-    const hasBody = slideBodyToPlainText(slide.body).trim().length > 0
-    const shouldShowPlaceholder = !hasBody && Boolean(slide.placeholderText)
+    const hasBody = slideBodyToPlainText(textBox?.body || '').trim().length > 0
+    const placeholderText = resolvePlaceholderText(textBox?.placeholderText)
+    const shouldShowPlaceholder = !hasBody && Boolean(placeholderText)
 
     setPlaceholderActive(shouldShowPlaceholder)
     ref.current.innerHTML = shouldShowPlaceholder
-      ? slide.placeholderText
-      : slideBodyToHtml(slide.body)
+      ? placeholderText
+      : slideBodyToHtml(textBox?.body || '')
 
-    const range = document.createRange()
-    const sel = window.getSelection()
-    range.selectNodeContents(ref.current)
-    if (!shouldShowPlaceholder) range.collapse(false)
-    sel.removeAllRanges()
-    sel.addRange(range)
+    selectAllContents(ref.current, !shouldShowPlaceholder)
     ref.current.focus()
-  }, [slide.body, slide.placeholderText])
-
-  function handleKeyDown(e) {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      saveCurrentValue()
-    }
-  }
+  }, [textBox?.body, textBox?.placeholderText, textBox?.id])
 
   function handleBeforeInput() {
     if (!ref.current || !placeholderActive) return
@@ -43,9 +48,24 @@ export default function SlideTextEditor({ slide, onSave, onCancel }) {
   }
 
   function handleInput() {
-    if (!ref.current) return
-    if (placeholderActive && slideBodyToPlainText(ref.current.innerHTML).trim() !== slide.placeholderText) {
+    if (!ref.current || !placeholderActive) return
+    if (slideBodyToPlainText(ref.current.innerHTML).trim() !== '') {
       setPlaceholderActive(false)
+    }
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      saveCurrentValue()
+      onEscape?.()
+      return
+    }
+
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      saveCurrentValue()
+      onTabNext?.(e.shiftKey ? -1 : 1)
     }
   }
 
@@ -53,33 +73,40 @@ export default function SlideTextEditor({ slide, onSave, onCancel }) {
     const nextTarget = e.relatedTarget
     if (nextTarget?.closest?.('[data-editor-toolbar="true"]')) return
     saveCurrentValue()
+    onBlurCommit?.()
   }
 
+  const style = textBox?.textStyle || {}
+
   return (
-    <div
-      ref={ref}
-      contentEditable
-      suppressContentEditableWarning
-      onBeforeInput={handleBeforeInput}
-      onKeyDown={handleKeyDown}
-      onInput={handleInput}
-      onBlur={handleBlur}
-      className="w-full outline-none"
-      style={{
-        color: placeholderActive ? '#555' : slide.textStyle?.color || '#ffffff',
-        fontSize: slide.textStyle?.size || 52,
-        fontWeight: slide.textStyle?.bold ? 700 : 400,
-        fontStyle: slide.textStyle?.italic ? 'italic' : 'normal',
-        textDecoration: slide.textStyle?.underline ? 'underline' : 'none',
-        textAlign: slide.textStyle?.align || 'center',
-        wordBreak: 'break-word',
-        lineHeight: slide.textStyle?.lineHeight || 1.3,
-        fontFamily: slide.textStyle?.fontFamily || 'Arial, sans-serif',
-        caretColor: '#fff',
-        userSelect: 'text',
-        cursor: 'text',
-        minHeight: '1em',
-      }}
-    />
+    <div className="w-full h-full flex flex-col" style={{ justifyContent: 'inherit' }}>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onBeforeInput={handleBeforeInput}
+        onInput={handleInput}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        className="w-full outline-none"
+        style={{
+          color: placeholderActive ? '#6b7280' : style.color || '#ffffff',
+          fontSize: style.size || 100,
+          fontWeight: style.bold ? 700 : 400,
+          fontStyle: style.italic ? 'italic' : 'normal',
+          textDecoration: [style.underline ? 'underline' : null, style.strikethrough ? 'line-through' : null].filter(Boolean).join(' ') || 'none',
+          textAlign: style.align || 'center',
+          lineHeight: style.lineHeight || 1.3,
+          fontFamily: style.fontFamily || 'Arial, sans-serif',
+          caretColor: style.color || '#ffffff',
+          userSelect: 'text',
+          cursor: 'text',
+          minHeight: '1em',
+          whiteSpace: textBox?.wrapText === false ? 'nowrap' : 'normal',
+          wordBreak: textBox?.wrapText === false ? 'normal' : 'break-word',
+          writingMode: textBox?.textDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb',
+        }}
+      />
+    </div>
   )
 }

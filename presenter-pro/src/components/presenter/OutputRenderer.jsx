@@ -160,6 +160,16 @@ export default function OutputRenderer() {
     )
   }
 
+  if (!slide) {
+    return (
+      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: '#444', fontSize: 18, fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '0.04em' }}>
+          Main Output Display
+        </span>
+      </div>
+    )
+  }
+
   const { width: nativeWidth, height: nativeHeight } = getPresentationDimensions(slide)
   const stageScale = getPresentationScale(slide, viewportSize.width, viewportSize.height)
   const stageWidth = nativeWidth * stageScale

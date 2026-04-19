@@ -5,8 +5,11 @@ import { usePresenterStore } from '@/store/presenterStore'
 import SectionHeader from './SectionHeader'
 import FilmstripSlide from './FilmstripSlide'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
+import SongEditorModal from '@/components/library/SongEditorModal'
+import ApplyThemeModal from '@/components/editor/ApplyThemeModal'
 import { createTextSlide, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
+import { getSongs } from '@/utils/ipc'
 import { uuid } from '@/utils/uuid'
 
 const AUTO_SCROLL_EDGE = 72
@@ -204,10 +207,15 @@ function PreviewInsert({ slide, width, presentation }) {
 export default function Filmstrip({ width = 224 }) {
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
+  const selectedSlideIds = useEditorStore((s) => s.selectedSlideIds)
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
+  const setSelectedSlideIds = useEditorStore((s) => s.setSelectedSlideIds)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const [collapsed, setCollapsed] = useState({})
+  const [editSong, setEditSong] = useState(null)
+  const [showApplyTheme, setShowApplyTheme] = useState(false)
   const [dragCandidate, setDragCandidate] = useState(null)
+  const anchorSlideRef = useRef(null)
   const [activeSlideDrag, setActiveSlideDrag] = useState(null)
   const [slideDropTarget, setSlideDropTarget] = useState(null)
   const [dragGhost, setDragGhost] = useState(null)
@@ -517,10 +525,74 @@ export default function Filmstrip({ width = 224 }) {
     setDragOverSection(null)
   }
 
+  async function handleEditSong(songId) {
+    const result = await getSongs()
+    const songs = result?.success ? result.data : []
+    const song = songs.find((s) => s.id === songId) || null
+    if (song) setEditSong(song)
+  }
+
+  function handleApplyTheme(styleProps) {
+    const ids = new Set(selectedSlideIds)
+    mutate((sections) =>
+      sections.map((sec) => ({
+        ...sec,
+        slides: sec.slides.map((sl) =>
+          ids.has(sl.id) ? { ...sl, textStyle: { ...sl.textStyle, ...styleProps } } : sl
+        ),
+      }))
+    )
+  }
+
   let slideIndex = 0
 
-  function handleSelectSlide(sectionId, slide) {
-    setSelectedSlide(sectionId, slide.id)
+  function handleSelectSlide(e, sectionId, slide) {
+    const allSlides = (presentation?.sections || []).flatMap((sec) =>
+      sec.slides.map((sl) => ({ id: sl.id, sectionId: sec.id }))
+    )
+    const metaToggle = Boolean(e?.metaKey || e?.ctrlKey)
+    const rangeSelect = Boolean(e?.shiftKey)
+
+    if (metaToggle) {
+      const current = useEditorStore.getState().selectedSlideIds
+      const alreadyIn = current.includes(slide.id)
+      const next = alreadyIn ? current.filter((id) => id !== slide.id) : [...current, slide.id]
+
+      if (alreadyIn) {
+        if (selectedSlideId === slide.id) {
+          const fallbackId = next[next.length - 1] || null
+          const fallbackSlide = fallbackId
+            ? allSlides.find((item) => item.id === fallbackId)
+            : null
+          setSelectedSlide(fallbackSlide?.sectionId ?? null, fallbackId)
+        }
+
+        if (anchorSlideRef.current === slide.id) {
+          anchorSlideRef.current = next[next.length - 1] || null
+        }
+      } else {
+        setSelectedSlide(sectionId, slide.id)
+        anchorSlideRef.current = slide.id
+      }
+
+      setSelectedSlideIds(next)
+    } else if (rangeSelect && anchorSlideRef.current) {
+      const anchorIdx = allSlides.findIndex((sl) => sl.id === anchorSlideRef.current)
+      const thisIdx = allSlides.findIndex((sl) => sl.id === slide.id)
+      if (anchorIdx >= 0 && thisIdx >= 0) {
+        const [start, end] = [Math.min(anchorIdx, thisIdx), Math.max(anchorIdx, thisIdx)]
+        setSelectedSlide(sectionId, slide.id)
+        setSelectedSlideIds(allSlides.slice(start, end + 1).map((sl) => sl.id))
+      } else {
+        setSelectedSlideIds([])
+        setSelectedSlide(sectionId, slide.id)
+        anchorSlideRef.current = slide.id
+      }
+    } else {
+      setSelectedSlideIds([])
+      setSelectedSlide(sectionId, slide.id)
+      anchorSlideRef.current = slide.id
+    }
   }
 
   return (
@@ -565,48 +637,70 @@ export default function Filmstrip({ width = 224 }) {
                 onRemove={() => removeSection(section.id)}
               />
 
-              {!isCollapsed && section.slides.map((slide) => {
-                slideIndex++
-                const idx = slideIndex
-                const showPreviewBefore =
-                  activeSlideDrag &&
-                  slideDropTarget?.sectionId === section.id &&
-                  slideDropTarget?.targetSlideId === slide.id
+              {!isCollapsed && (() => {
+                let lastLabel = null
+                return section.slides.map((slide) => {
+                  slideIndex++
+                  const idx = slideIndex
+                  const showPreviewBefore =
+                    activeSlideDrag &&
+                    slideDropTarget?.sectionId === section.id &&
+                    slideDropTarget?.targetSlideId === slide.id
 
-                return (
-                  <React.Fragment key={slide.id}>
-                    {showPreviewBefore && activeSlideDrag?.slide ? (
-                      <PreviewInsert
-                        slide={activeSlideDrag.slide}
-                        width={width}
-                        presentation={presentation}
-                      />
-                    ) : null}
-                    <div
-                      ref={(node) => registerSlideNode(originalSection.id, slide.id, node)}
-                      onMouseDown={(e) => onSlideMouseDown(e, originalSection.id, slide)}
-                      style={{
-                        opacity: activeSlideDrag ? 0.96 : 1,
-                        transition: 'opacity 120ms ease',
-                      }}
-                    >
-                      <FilmstripSlide
-                        slide={slide}
-                        index={idx}
-                        selected={selectedSlideId === slide.id}
-                        onSelect={() => handleSelectSlide(originalSection.id, slide)}
-                        onNewSlide={() => insertSlideAfter(originalSection, slide)}
-                        onDoubleClick={() => {
-                          handleSelectSlide(originalSection.id, slide)
-                          setEditingSlide(slide.id)
+                  const showSubHeader = Boolean(slide.label && slide.label !== lastLabel)
+                  if (showSubHeader) lastLabel = slide.label
+
+                  return (
+                    <React.Fragment key={slide.id}>
+                      {showSubHeader && (
+                        <div
+                          className="mx-2 mt-1 mb-0.5 truncate"
+                          style={{ fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', paddingLeft: 2 }}
+                        >
+                          {slide.label}
+                        </div>
+                      )}
+                      {showPreviewBefore && activeSlideDrag?.slide ? (
+                        <PreviewInsert
+                          slide={activeSlideDrag.slide}
+                          width={width}
+                          presentation={presentation}
+                        />
+                      ) : null}
+                      <div
+                        ref={(node) => registerSlideNode(originalSection.id, slide.id, node)}
+                        onMouseDown={(e) => onSlideMouseDown(e, originalSection.id, slide)}
+                        style={{
+                          opacity: activeSlideDrag ? 0.96 : 1,
+                          transition: 'opacity 120ms ease',
                         }}
-                        onDuplicate={() => duplicateSlide(originalSection, slide)}
-                        onDelete={() => deleteSlide(originalSection, slide)}
-                      />
-                    </div>
-                  </React.Fragment>
-                )
-              })}
+                      >
+                        <FilmstripSlide
+                          slide={slide}
+                          index={idx}
+                          selected={selectedSlideId === slide.id}
+                          isMultiSelected={selectedSlideIds.includes(slide.id)}
+                          onSelect={(e) => handleSelectSlide(e, originalSection.id, slide)}
+                          onNewSlide={() => insertSlideAfter(originalSection, slide)}
+                          onDoubleClick={() => {
+                            setSelectedSlideIds([])
+                            setSelectedSlide(originalSection.id, slide.id)
+                            setEditingSlide(slide.id)
+                          }}
+                          onDuplicate={() => duplicateSlide(originalSection, slide)}
+                          onDelete={() => deleteSlide(originalSection, slide)}
+                          onEditSong={slide.songId ? handleEditSong : undefined}
+                          onApplyTheme={
+                            selectedSlideIds.includes(slide.id) && selectedSlideIds.length > 1
+                              ? () => setShowApplyTheme(true)
+                              : undefined
+                          }
+                        />
+                      </div>
+                    </React.Fragment>
+                  )
+                })
+              })()}
 
               {!isCollapsed && showPreviewAtEnd && activeSlideDrag?.slide ? (
                 <PreviewInsert
@@ -646,6 +740,22 @@ export default function Filmstrip({ width = 224 }) {
           <GhostSlide slide={dragGhost.slide} width={width} presentation={presentation} floating />
         </div>
       ) : null}
+
+      {editSong && (
+        <SongEditorModal
+          song={editSong}
+          onClose={() => setEditSong(null)}
+          onSave={() => setEditSong(null)}
+        />
+      )}
+
+      {showApplyTheme && (
+        <ApplyThemeModal
+          count={selectedSlideIds.length}
+          onClose={() => setShowApplyTheme(false)}
+          onApply={(styleProps) => { handleApplyTheme(styleProps); setShowApplyTheme(false) }}
+        />
+      )}
     </div>
   )
 }

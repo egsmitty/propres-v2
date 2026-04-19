@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { getSettings, getSystemDisplays, openOutputWindow, openStageDisplayWindow, setSetting } from '@/utils/ipc'
+import { getSettings, getSystemDisplays, openOutputWindow, openStageDisplayWindow, closeOutputWindow, closeStageDisplayWindow, setSetting } from '@/utils/ipc'
 
 const DEFAULT_THEME = {
   fontSize: 84,
@@ -30,6 +30,8 @@ export default function OutputSettingsModal() {
   const [stageDisplayId, setStageDisplayId] = useState('')
   const [theme, setTheme] = useState(DEFAULT_THEME)
   const [saving, setSaving] = useState(false)
+  const [mainPreviewOpen, setMainPreviewOpen] = useState(false)
+  const [stagePreviewOpen, setStagePreviewOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -55,6 +57,12 @@ export default function OutputSettingsModal() {
 
   const hasDisplayConflict = Boolean(mainDisplayId && stageDisplayId && mainDisplayId === stageDisplayId)
 
+  async function handleClose() {
+    if (mainPreviewOpen) { await closeOutputWindow(); setMainPreviewOpen(false) }
+    if (stagePreviewOpen) { await closeStageDisplayWindow(); setStagePreviewOpen(false) }
+    setOutputSettingsOpen(false)
+  }
+
   async function handleSave() {
     if (hasDisplayConflict) return
     setSaving(true)
@@ -64,7 +72,27 @@ export default function OutputSettingsModal() {
       setSetting('stageDisplay.theme', JSON.stringify(theme)),
     ])
     setSaving(false)
-    setOutputSettingsOpen(false)
+    await handleClose()
+  }
+
+  async function toggleMainPreview() {
+    if (mainPreviewOpen) {
+      await closeOutputWindow()
+      setMainPreviewOpen(false)
+    } else {
+      await openOutputWindow(mainDisplayId ? { displayId: Number(mainDisplayId) } : { useConfiguredDisplay: false })
+      setMainPreviewOpen(true)
+    }
+  }
+
+  async function toggleStagePreview() {
+    if (stagePreviewOpen) {
+      await closeStageDisplayWindow()
+      setStagePreviewOpen(false)
+    } else {
+      await openStageDisplayWindow(stageDisplayId ? { displayId: Number(stageDisplayId) } : { useConfiguredDisplay: false })
+      setStagePreviewOpen(true)
+    }
   }
 
   return (
@@ -79,7 +107,7 @@ export default function OutputSettingsModal() {
         justifyContent: 'center',
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) setOutputSettingsOpen(false)
+        if (e.target === e.currentTarget) handleClose()
       }}
     >
       <div
@@ -162,19 +190,19 @@ export default function OutputSettingsModal() {
               <div className="flex items-center gap-2 mt-3">
                 <button
                   type="button"
-                  onClick={() => openOutputWindow()}
+                  onClick={toggleMainPreview}
                   className="text-xs px-3 py-1.5 rounded"
-                  style={{ background: 'var(--accent)', color: '#fff' }}
+                  style={{ background: mainPreviewOpen ? 'var(--bg-hover)' : 'var(--accent)', color: mainPreviewOpen ? 'var(--text-primary)' : '#fff', border: mainPreviewOpen ? '1px solid var(--border-default)' : 'none' }}
                 >
-                  Open Main Output Preview
+                  {mainPreviewOpen ? 'Close Main Preview' : 'Open Main Output Preview'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => openStageDisplayWindow()}
+                  onClick={toggleStagePreview}
                   className="text-xs px-3 py-1.5 rounded"
                   style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                 >
-                  Open Stage Display Preview
+                  {stagePreviewOpen ? 'Close Stage Preview' : 'Open Stage Display Preview'}
                 </button>
               </div>
 
@@ -241,7 +269,7 @@ export default function OutputSettingsModal() {
         <div className="flex justify-end gap-2 mt-5">
           <button
             type="button"
-            onClick={() => setOutputSettingsOpen(false)}
+            onClick={handleClose}
             className="text-xs px-3 py-1.5 rounded"
             style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
           >

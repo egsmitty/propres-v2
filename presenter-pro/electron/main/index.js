@@ -336,8 +336,27 @@ function createMainWindow() {
 //   })
 // }
 
-function createOutputWindow() {
+function setWindowedPreviewBounds(win) {
+  if (!win) return
+  win.setFullScreen(false)
+  win.setBounds({ width: 1280, height: 720 })
+  win.center()
+}
+
+function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = {}) {
   if (outputWindow) {
+    if (typeof displayId === 'number') {
+      const display = screen.getAllDisplays().find((d) => d.id === displayId)
+      if (display) {
+        outputWindow.setBounds(display.bounds)
+        outputWindow.setFullScreen(true)
+      }
+    } else if (useConfiguredDisplay) {
+      applyDisplayAssignment(outputWindow, 'output.mainDisplayId')
+    } else {
+      setWindowedPreviewBounds(outputWindow)
+    }
+
     if (!outputWindow.isVisible()) outputWindow.showInactive()
     if (presenterWindow && !presenterWindow.isDestroyed()) presenterWindow.focus()
     return
@@ -361,7 +380,17 @@ function createOutputWindow() {
 
   outputWindow.once('ready-to-show', () => {
     if (!outputWindow) return
-    applyDisplayAssignment(outputWindow, 'output.mainDisplayId')
+    if (typeof displayId === 'number') {
+      const display = screen.getAllDisplays().find((d) => d.id === displayId)
+      if (display) {
+        outputWindow.setBounds(display.bounds)
+        outputWindow.setFullScreen(true)
+      }
+    } else if (useConfiguredDisplay) {
+      applyDisplayAssignment(outputWindow, 'output.mainDisplayId')
+    } else {
+      setWindowedPreviewBounds(outputWindow)
+    }
     if (presenterWindow && !presenterWindow.isDestroyed()) {
       outputWindow.showInactive()
       presenterWindow.focus()
@@ -388,13 +417,24 @@ function createOutputWindow() {
 }
 
 function createStageDisplayWindow(options = {}) {
-  const { onlyIfAssigned = false } = options
-  const assignedDisplay = getConfiguredDisplay('output.stageDisplayId')
+  const { onlyIfAssigned = false, displayId = null, useConfiguredDisplay = true } = options
+  const assignedDisplay =
+    typeof displayId === 'number'
+      ? screen.getAllDisplays().find((d) => d.id === displayId) || null
+      : useConfiguredDisplay
+        ? getConfiguredDisplay('output.stageDisplayId')
+        : null
   if (onlyIfAssigned && !assignedDisplay) {
     return { opened: false, assigned: false }
   }
 
   if (stageDisplayWindow) {
+    if (assignedDisplay) {
+      stageDisplayWindow.setBounds(assignedDisplay.bounds)
+      stageDisplayWindow.setFullScreen(true)
+    } else {
+      stageDisplayWindow.setFullScreen(false)
+    }
     if (!stageDisplayWindow.isVisible()) stageDisplayWindow.showInactive()
     return { opened: true, assigned: Boolean(assignedDisplay) }
   }
@@ -417,7 +457,14 @@ function createStageDisplayWindow(options = {}) {
 
   stageDisplayWindow.once('ready-to-show', () => {
     if (!stageDisplayWindow) return
-    applyDisplayAssignment(stageDisplayWindow, 'output.stageDisplayId')
+    if (assignedDisplay) {
+      stageDisplayWindow.setBounds(assignedDisplay.bounds)
+      stageDisplayWindow.setFullScreen(true)
+    } else if (useConfiguredDisplay) {
+      applyDisplayAssignment(stageDisplayWindow, 'output.stageDisplayId')
+    } else {
+      stageDisplayWindow.setFullScreen(false)
+    }
     stageDisplayWindow.showInactive()
   })
 
@@ -582,7 +629,16 @@ function registerIpcHandlers() {
   //   return { success: true }
   // })
 
-  ipcMain.handle('output:open', () => { createOutputWindow(); return { success: true } })
+  ipcMain.handle('output:open', (_, options) => {
+    const resolvedOptions =
+      typeof options === 'number'
+        ? { displayId: Number(options) }
+        : options && typeof options === 'object'
+          ? options
+          : {}
+    createOutputWindow(resolvedOptions)
+    return { success: true }
+  })
   ipcMain.handle('output:close', () => { if (outputWindow) outputWindow.close(); return { success: true } })
   ipcMain.handle('stage:open', (_, options) => {
     try {

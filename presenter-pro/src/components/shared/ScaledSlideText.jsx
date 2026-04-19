@@ -1,7 +1,41 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { getPresentationScale } from '@/utils/presentationSizing'
-import { resolvePlaceholderText } from '@/utils/sectionTypes'
+import { getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
+
+function resolveVerticalAlignment(box) {
+  const valign = box?.textStyle?.valign || 'middle'
+  if (valign === 'top') return { justifyContent: 'flex-start' }
+  if (valign === 'bottom') return { justifyContent: 'flex-end' }
+  return { justifyContent: 'center' }
+}
+
+function renderOutline(box, scale) {
+  const width = (box.outlineWidth || 0) * scale
+  if (!width || box.outlineColor === 'transparent') return 'none'
+  const style = box.outlineStyle || 'solid'
+  return `${Math.max(1, width)}px ${style} ${box.outlineColor}`
+}
+
+function renderShadow(box, scale, fallbackShadow) {
+  if (box.shadowEnabled) {
+    return `${(box.shadowOffsetX || 0) * scale}px ${(box.shadowOffsetY || 10) * scale}px ${Math.max(4, (box.shadowBlur || 18) * scale)}px ${box.shadowColor || 'rgba(0,0,0,0.35)'}`
+  }
+  return fallbackShadow
+}
+
+function renderTextDecoration(style) {
+  return [
+    style?.underline ? 'underline' : null,
+    style?.strikethrough ? 'line-through' : null,
+  ].filter(Boolean).join(' ') || 'none'
+}
+
+function renderBody(box, empty, showPlaceholder) {
+  if (box.body) return { html: slideBodyToHtml(box.body), placeholder: false }
+  if (!showPlaceholder) return { html: '', placeholder: false }
+  return { html: resolvePlaceholderText(box.placeholderText, empty), placeholder: true }
+}
 
 export default function ScaledSlideText({
   presentation,
@@ -21,10 +55,7 @@ export default function ScaledSlideText({
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (!entry) return
-      setSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      })
+      setSize({ width: entry.contentRect.width, height: entry.contentRect.height })
     })
 
     observer.observe(frameRef.current)
@@ -32,66 +63,67 @@ export default function ScaledSlideText({
   }, [])
 
   const scale = getPresentationScale(presentation, size.width, size.height)
-  const valign = slide?.textStyle?.valign || 'center'
-  const fontSize = (slide?.textStyle?.size || 100) * scale
-  const emptyText = showPlaceholder ? resolvePlaceholderText(slide?.placeholderText, empty) : empty
-  const textBox = slide?.textBox || { x: 240, y: 270, width: 1440, height: 540, backgroundColor: 'transparent' }
-  const paddingX = Math.max(minPaddingX, 28 * scale)
-  const paddingY = Math.max(minPaddingY, 22 * scale)
-
-  const verticalStyle =
-    valign === 'top'
-      ? { justifyContent: 'flex-start' }
-      : valign === 'bottom'
-      ? { justifyContent: 'flex-end' }
-      : { justifyContent: 'center' }
+  const textBoxes = useMemo(() => getSlideTextBoxes(slide), [slide])
 
   return (
     <div ref={frameRef} className="relative w-full h-full overflow-hidden">
-      <div
-        style={{
-          position: 'absolute',
-          left: textBox.x * scale,
-          top: textBox.y * scale,
-          width: textBox.width * scale,
-          height: textBox.height * scale,
-          display: 'flex',
-          flexDirection: 'column',
-          padding: `${paddingY}px ${paddingX}px`,
-          textAlign: slide?.textStyle?.align || 'center',
-          color: slide?.textStyle?.color || '#ffffff',
-          fontSize,
-          fontWeight: slide?.textStyle?.bold ? 700 : 400,
-          fontStyle: slide?.textStyle?.italic ? 'italic' : 'normal',
-          textDecoration: slide?.textStyle?.underline ? 'underline' : 'none',
-          lineHeight: slide?.textStyle?.lineHeight || 1.3,
-          fontFamily: slide?.textStyle?.fontFamily || 'Arial, sans-serif',
-          wordBreak: 'break-word',
-          textShadow: shadow,
-          background: textBox.backgroundColor || 'transparent',
-          borderRadius: Math.max(4, 10 * scale),
-          overflow: 'hidden',
-          ...verticalStyle,
-        }}
-      >
-        {slide?.body ? (
-          <div dangerouslySetInnerHTML={{ __html: slideBodyToHtml(slide.body) }} />
-        ) : emptyText ? (
-          <span
+      {textBoxes.map((box) => {
+        const fontSize = (box?.textStyle?.size || 100) * scale
+        const body = renderBody(box, empty, showPlaceholder)
+        const paddingX = Math.max(minPaddingX, (box.paddingLeft || 28) * scale)
+        const paddingRight = Math.max(minPaddingX, (box.paddingRight || 28) * scale)
+        const paddingY = Math.max(minPaddingY, (box.paddingTop || 22) * scale)
+        const paddingBottom = Math.max(minPaddingY, (box.paddingBottom || 22) * scale)
+        const textDirection = box.textDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb'
+        const writingMode = textDirection === 'vertical-rl' ? 'vertical-rl' : 'horizontal-tb'
+        const transform = box.rotation ? `rotate(${box.rotation}deg)` : 'none'
+        const verticalStyle = resolveVerticalAlignment(box)
+
+        return (
+          <div
+            key={box.id}
             style={{
-              color: '#6b7280',
+              position: 'absolute',
+              left: box.x * scale,
+              top: box.y * scale,
+              width: box.width * scale,
+              height: box.height * scale,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: `${paddingY}px ${paddingRight}px ${paddingBottom}px ${paddingX}px`,
+              textAlign: box?.textStyle?.align || 'center',
+              color: body.placeholder ? '#6b7280' : box?.textStyle?.color || '#ffffff',
               fontSize,
-              fontWeight: slide?.textStyle?.bold ? 700 : 400,
-              fontStyle: slide?.textStyle?.italic ? 'italic' : 'normal',
-              textDecoration: slide?.textStyle?.underline ? 'underline' : 'none',
-              lineHeight: slide?.textStyle?.lineHeight || 1.3,
-              fontFamily: slide?.textStyle?.fontFamily || 'Arial, sans-serif',
+              fontWeight: box?.textStyle?.bold ? 700 : 400,
+              fontStyle: box?.textStyle?.italic ? 'italic' : 'normal',
+              textDecoration: renderTextDecoration(box?.textStyle),
+              lineHeight: box?.textStyle?.lineHeight || 1.3,
+              fontFamily: box?.textStyle?.fontFamily || 'Arial, sans-serif',
+              wordBreak: box.wrapText === false ? 'normal' : 'break-word',
+              whiteSpace: box.wrapText === false ? 'nowrap' : 'normal',
+              textShadow: renderShadow(box, scale, shadow),
+              background:
+                box.fillType === 'solid' || !box.fillType
+                  ? box.backgroundColor || 'transparent'
+                  : box.backgroundColor || 'transparent',
+              borderRadius: Math.max(0, (box.cornerRadius || 0) * scale),
+              border: renderOutline(box, scale),
+              overflow: 'hidden',
+              opacity: box.opacity ?? 1,
+              transform,
+              transformOrigin: 'center center',
+              writingMode,
+              ...verticalStyle,
             }}
           >
-            {emptyText}
-          </span>
-        ) : null}
-      </div>
+            {body.placeholder ? (
+              <span>{body.html}</span>
+            ) : (
+              <div dangerouslySetInnerHTML={{ __html: body.html }} />
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

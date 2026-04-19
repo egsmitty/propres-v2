@@ -1,5 +1,15 @@
 import { create } from 'zustand'
 import { normalizePresentation } from '@/utils/backgrounds'
+import {
+  createDefaultTextBoxForSlide,
+  createTextBox,
+  getSlideTextBoxes,
+  mergeTextBox,
+  mergeTextStyle,
+  reorderTextBoxes,
+  syncLegacyTextFields,
+  withUpdatedSlideTextBoxes,
+} from '@/utils/textBoxes'
 
 const HISTORY_LIMIT = 50
 
@@ -7,6 +17,7 @@ const snapshot = (state) => ({
   presentation: state.presentation,
   selectedSectionId: state.selectedSectionId,
   selectedSlideId: state.selectedSlideId,
+  selectedSlideIds: state.selectedSlideIds,
 })
 
 const historyOf = (state) => ({
@@ -14,11 +25,41 @@ const historyOf = (state) => ({
   future: [],
 })
 
+function updateSlideInPresentation(presentation, sectionId, slideId, updater) {
+  return presentation.sections.map((sec) => {
+    if (sec.id !== sectionId) return sec
+    return {
+      ...sec,
+      slides: sec.slides.map((slide) => {
+        if (slide.id !== slideId) return slide
+        return updater(slide)
+      }),
+    }
+  })
+}
+
+function commitTextBoxMutation(state, sectionId, slideId, updater) {
+  if (!state.presentation) return {}
+  const sections = updateSlideInPresentation(state.presentation, sectionId, slideId, (slide) => updater(slide))
+  return {
+    presentation: { ...state.presentation, sections },
+    isDirty: true,
+    requiresInitialSave: state.requiresInitialSave,
+    ...historyOf(state),
+  }
+}
+
+function targetIdsForSlide(slide, textBoxIds) {
+  if (Array.isArray(textBoxIds) && textBoxIds.length) return textBoxIds
+  return getSlideTextBoxes(slide).slice(0, 1).map((box) => box.id)
+}
+
 export const useEditorStore = create((set) => ({
   presentationId: null,
   presentation: null,
   selectedSectionId: null,
   selectedSlideId: null,
+  selectedSlideIds: [],
   editingSlideId: null,
   isDirty: false,
   requiresInitialSave: false,
@@ -29,13 +70,23 @@ export const useEditorStore = create((set) => ({
     set({
       presentation: normalizePresentation(presentation),
       presentationId: presentation?.id ?? null,
+      selectedSectionId: null,
+      selectedSlideId: null,
+      selectedSlideIds: [],
+      editingSlideId: null,
       isDirty: options.isDirty ?? false,
       requiresInitialSave: options.requiresInitialSave ?? false,
       past: [],
       future: [],
     }),
   setSelectedSlide: (sectionId, slideId) =>
-    set({ selectedSectionId: sectionId, selectedSlideId: slideId, editingSlideId: null }),
+    set({
+      selectedSectionId: sectionId,
+      selectedSlideId: slideId,
+      selectedSlideIds: [],
+      editingSlideId: null,
+    }),
+  setSelectedSlideIds: (ids) => set({ selectedSlideIds: ids }),
   setEditingSlide: (slideId) => set({ editingSlideId: slideId }),
   setDirty: (val) => set({ isDirty: val }),
   setRequiresInitialSave: (val) => set({ requiresInitialSave: val }),
@@ -50,6 +101,7 @@ export const useEditorStore = create((set) => ({
         presentation: prev.presentation,
         selectedSectionId: prev.selectedSectionId,
         selectedSlideId: prev.selectedSlideId,
+        selectedSlideIds: prev.selectedSlideIds || [],
         editingSlideId: null,
         isDirty: true,
       }
@@ -64,54 +116,129 @@ export const useEditorStore = create((set) => ({
         presentation: next.presentation,
         selectedSectionId: next.selectedSectionId,
         selectedSlideId: next.selectedSlideId,
+        selectedSlideIds: next.selectedSlideIds || [],
         editingSlideId: null,
         isDirty: true,
       }
     }),
 
-  updateSlideBody: (sectionId, slideId, body) =>
-    set((state) => {
-      if (!state.presentation) return {}
-      const sections = state.presentation.sections.map((sec) => {
-        if (sec.id !== sectionId) return sec
-        return { ...sec, slides: sec.slides.map((sl) => sl.id === slideId ? { ...sl, body } : sl) }
-      })
-      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
-    }),
+  updateSlideBody: (sectionId, slideId, body, textBoxId = null) =>
+    set((state) =>
+      commitTextBoxMutation(state, sectionId, slideId, (slide) =>
+        withUpdatedSlideTextBoxes(slide, (boxes) =>
+          boxes.map((box, index) => {
+            const id = textBoxId || boxes[0]?.id || (index === 0 ? box.id : null)
+            return box.id === id ? { ...box, body } : box
+          })
+        )
+      )
+    ),
 
-  updateSlideStyle: (sectionId, slideId, styleProps) =>
-    set((state) => {
-      if (!state.presentation) return {}
-      const sections = state.presentation.sections.map((sec) => {
-        if (sec.id !== sectionId) return sec
-        return {
-          ...sec,
-          slides: sec.slides.map((sl) =>
-            sl.id === slideId
-              ? { ...sl, textStyle: { ...sl.textStyle, ...styleProps } }
-              : sl
+  updateSlideStyle: (sectionId, slideId, styleProps, textBoxIds = null) =>
+    set((state) =>
+      commitTextBoxMutation(state, sectionId, slideId, (slide) => {
+        const ids = targetIdsForSlide(slide, textBoxIds)
+        return withUpdatedSlideTextBoxes(slide, (boxes) =>
+          boxes.map((box) =>
+            ids.includes(box.id)
+              ? { ...box, textStyle: mergeTextStyle({ ...box.textStyle, ...styleProps }) }
+              : box
           )
-        }
+        )
       })
-      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
-    }),
+    ),
 
-  updateSlideTextBox: (sectionId, slideId, textBoxProps) =>
-    set((state) => {
-      if (!state.presentation) return {}
-      const sections = state.presentation.sections.map((sec) => {
-        if (sec.id !== sectionId) return sec
-        return {
-          ...sec,
-          slides: sec.slides.map((sl) =>
-            sl.id === slideId
-              ? { ...sl, textBox: { ...sl.textBox, ...textBoxProps } }
-              : sl
+  updateSlideTextBox: (sectionId, slideId, textBoxProps, textBoxIds = null) =>
+    set((state) =>
+      commitTextBoxMutation(state, sectionId, slideId, (slide) => {
+        const ids = targetIdsForSlide(slide, textBoxIds)
+        return withUpdatedSlideTextBoxes(slide, (boxes) =>
+          boxes.map((box) =>
+            ids.includes(box.id)
+              ? { ...box, ...mergeTextBox({ ...box, ...textBoxProps }) }
+              : box
           )
-        }
+        )
       })
-      return { presentation: { ...state.presentation, sections }, isDirty: true, requiresInitialSave: state.requiresInitialSave, ...historyOf(state) }
-    }),
+    ),
+
+  updateSlideTextBoxes: (sectionId, slideId, updater) =>
+    set((state) =>
+      commitTextBoxMutation(state, sectionId, slideId, (slide) =>
+        syncLegacyTextFields(slide, reorderTextBoxes(updater(getSlideTextBoxes(slide))))
+      )
+    ),
+
+  addSlideTextBox: (sectionId, slideId, overrides = {}) =>
+    set((state) =>
+      commitTextBoxMutation(state, sectionId, slideId, (slide) => {
+        const boxes = getSlideTextBoxes(slide)
+        const highest = boxes.reduce((max, box) => Math.max(max, box.zIndex ?? 0), -1)
+        const next = createTextBox({
+          ...createDefaultTextBoxForSlide(slide),
+          x: 240 + boxes.length * 18,
+          y: 270 + boxes.length * 18,
+          zIndex: highest + 1,
+          ...overrides,
+        }, { autoFit: overrides.autoFit ?? undefined })
+        return syncLegacyTextFields(slide, reorderTextBoxes([...boxes, next]))
+      })
+    ),
+
+  removeSlideTextBoxes: (sectionId, slideId, textBoxIds) =>
+    set((state) =>
+      commitTextBoxMutation(state, sectionId, slideId, (slide) => {
+        const remaining = getSlideTextBoxes(slide).filter((box) => !textBoxIds.includes(box.id))
+        return syncLegacyTextFields(slide, reorderTextBoxes(remaining))
+      })
+    ),
+
+  duplicateSlideTextBoxes: (sectionId, slideId, textBoxIds) =>
+    set((state) =>
+      commitTextBoxMutation(state, sectionId, slideId, (slide) => {
+        const boxes = getSlideTextBoxes(slide)
+        const selected = boxes.filter((box) => textBoxIds.includes(box.id))
+        const maxZ = boxes.reduce((max, box) => Math.max(max, box.zIndex ?? 0), -1)
+        const clones = selected.map((box, index) => createTextBox({
+          ...box,
+          id: undefined,
+          x: box.x + 24,
+          y: box.y + 24,
+          zIndex: maxZ + index + 1,
+        }, { autoFit: box.autoFit }))
+        return syncLegacyTextFields(slide, reorderTextBoxes([...boxes, ...clones]))
+      })
+    ),
+
+  reorderSlideTextBoxes: (sectionId, slideId, textBoxIds, action) =>
+    set((state) =>
+      commitTextBoxMutation(state, sectionId, slideId, (slide) => {
+        const boxes = reorderTextBoxes(getSlideTextBoxes(slide))
+        let ordered = [...boxes]
+        const selected = ordered.filter((box) => textBoxIds.includes(box.id))
+        const rest = ordered.filter((box) => !textBoxIds.includes(box.id))
+
+        if (action === 'front') {
+          ordered = [...rest, ...selected]
+        } else if (action === 'back') {
+          ordered = [...selected, ...rest]
+        } else if (action === 'forward') {
+          for (let i = ordered.length - 2; i >= 0; i -= 1) {
+            if (textBoxIds.includes(ordered[i].id) && !textBoxIds.includes(ordered[i + 1].id)) {
+              ;[ordered[i], ordered[i + 1]] = [ordered[i + 1], ordered[i]]
+            }
+          }
+        } else if (action === 'backward') {
+          for (let i = 1; i < ordered.length; i += 1) {
+            if (textBoxIds.includes(ordered[i].id) && !textBoxIds.includes(ordered[i - 1].id)) {
+              ;[ordered[i], ordered[i - 1]] = [ordered[i - 1], ordered[i]]
+            }
+          }
+        }
+
+        return syncLegacyTextFields(slide, reorderTextBoxes(ordered))
+      })
+    ),
 
   setSlideBackground: (sectionId, slideId, mediaId) =>
     set((state) => {
