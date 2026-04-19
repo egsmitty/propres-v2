@@ -164,7 +164,6 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.5)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         className="flex flex-col rounded-lg shadow-2xl overflow-hidden"
