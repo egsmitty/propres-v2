@@ -85,6 +85,7 @@ export default function PresenterPanel() {
   const previewSlide = isPresenting ? liveSlide : selectedSlide
   const canGoPrev = isPresenting && liveIdx > 0
   const canGoNext = isPresenting && liveIdx < allSlides.length - 1
+  const slideGridColumns = Math.min(3, Math.max(1, Math.floor((presenterPanelWidth - 32) / 118)))
 
   if (!presenterPanelOpen) {
     return (
@@ -231,7 +232,7 @@ export default function PresenterPanel() {
                   <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
                 </div>
                 {/* Responsive thumbnail grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 4 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${slideGridColumns}, minmax(0, 1fr))`, gap: 4 }}>
                   {section.slides.map((slide) => {
                     const isLive = slide.id === liveSlideId
                     const isSelected = !isPresenting && slide.id === selectedSlideId

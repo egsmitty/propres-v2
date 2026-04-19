@@ -15,6 +15,7 @@ export const useAppStore = create((set) => ({
   presentationSettingsOpen: false,
   outputSettingsOpen: false,
   slideClipboard: null,
+  textBoxClipboard: null,
 
   setCurrentView: (view) => set({ currentView: view }),
   setHomeTab: (tab) => set({ homeTab: tab }),
@@ -28,6 +29,7 @@ export const useAppStore = create((set) => ({
   setPresentationSettingsOpen: (val) => set({ presentationSettingsOpen: val }),
   setOutputSettingsOpen: (val) => set({ outputSettingsOpen: val }),
   setSlideClipboard: (slide) => set({ slideClipboard: slide }),
+  setTextBoxClipboard: (textBoxClipboard) => set({ textBoxClipboard }),
   setTutorialOpen: (val) => set({ tutorialOpen: val }),
   setTutorialStepIndex: (val) => set({ tutorialStepIndex: val }),
 }))

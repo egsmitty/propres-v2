@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Output / Presenter
   openPresenterView: () => ipcRenderer.invoke('presenter:open'),
   closePresenterView: () => ipcRenderer.invoke('presenter:close'),
-  openOutputWindow: () => ipcRenderer.invoke('output:open'),
+  openOutputWindow: (options) => ipcRenderer.invoke('output:open', options),
   openStageDisplayWindow: (options) => ipcRenderer.invoke('stage:open', options),
   closeOutputWindow: () => ipcRenderer.invoke('output:close'),
   closeStageDisplayWindow: () => ipcRenderer.invoke('stage:close'),

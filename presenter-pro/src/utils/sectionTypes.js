@@ -23,6 +23,25 @@ export function getSectionColor(id) {
 }
 import { uuid } from '@/utils/uuid'
 import { showDialog } from '@/utils/dialog'
+import {
+  DEFAULT_PLACEHOLDER_TEXT,
+  DEFAULT_TEXT_BOX,
+  DEFAULT_TEXT_STYLE,
+  createDefaultTextBoxForSlide,
+  mergeTextBox,
+  mergeTextStyle,
+  resolvePlaceholderText,
+  syncLegacyTextFields,
+} from '@/utils/textBoxes'
+
+export {
+  DEFAULT_PLACEHOLDER_TEXT,
+  DEFAULT_TEXT_BOX,
+  DEFAULT_TEXT_STYLE,
+  mergeTextBox,
+  mergeTextStyle,
+  resolvePlaceholderText,
+}
 
 export const SECTION_TYPE_META = {
   song: {
@@ -67,46 +86,11 @@ export function getSectionContentLabel(type) {
   return getSectionTypeMeta(type).contentLabel
 }
 
-export const DEFAULT_PLACEHOLDER_TEXT = 'Double-click to edit'
-
-export function resolvePlaceholderText(text, fallback = DEFAULT_PLACEHOLDER_TEXT) {
-  if (!text) return fallback
-  return text === 'Click to edit' ? DEFAULT_PLACEHOLDER_TEXT : text
-}
-
-export const DEFAULT_TEXT_STYLE = {
-  size: 100,
-  align: 'center',
-  valign: 'center',
-  color: '#ffffff',
-  bold: false,
-  italic: false,
-  underline: false,
-  lineHeight: 1.3,
-  fontFamily: 'Arial, sans-serif',
-}
-
-export const DEFAULT_TEXT_BOX = {
-  x: 240,
-  y: 270,
-  width: 1440,
-  height: 540,
-  backgroundColor: 'transparent',
-}
-
-export function mergeTextStyle(style = {}) {
-  return { ...DEFAULT_TEXT_STYLE, ...(style || {}) }
-}
-
-export function mergeTextBox(textBox = {}) {
-  return { ...DEFAULT_TEXT_BOX, ...(textBox || {}) }
-}
-
 export function createTextSlide(sectionType = 'announcement', overrides = {}) {
   const meta = getSectionTypeMeta(sectionType)
-  return {
+  const baseSlide = {
     id: uuid(),
-    type: overrides.type || 'text',
+    type: overrides.type || normalizeSectionType(sectionType),
     label: overrides.label || meta.defaultSlideLabel,
     body: overrides.body || '',
     placeholderText: overrides.placeholderText ?? DEFAULT_PLACEHOLDER_TEXT,
@@ -114,8 +98,20 @@ export function createTextSlide(sectionType = 'announcement', overrides = {}) {
     backgroundId: overrides.backgroundId ?? null,
     textStyle: mergeTextStyle(overrides.textStyle),
     textBox: mergeTextBox(overrides.textBox),
+    textBoxes: overrides.textBoxes,
     ...overrides,
   }
+
+  const normalizedBoxes = Array.isArray(overrides.textBoxes) && overrides.textBoxes.length
+    ? overrides.textBoxes
+    : [createDefaultTextBoxForSlide({ ...baseSlide, type: normalizeSectionType(sectionType) }, {
+        body: baseSlide.body,
+        placeholderText: baseSlide.placeholderText,
+        textStyle: baseSlide.textStyle,
+        ...baseSlide.textBox,
+      })]
+
+  return syncLegacyTextFields({ ...baseSlide, type: normalizeSectionType(sectionType) }, normalizedBoxes)
 }
 
 export function createMediaSlide(media, overrides = {}) {
@@ -130,6 +126,7 @@ export function createMediaSlide(media, overrides = {}) {
     backgroundId: null,
     textStyle: mergeTextStyle(overrides.textStyle),
     textBox: mergeTextBox(overrides.textBox),
+    textBoxes: [],
     ...overrides,
   }
 }

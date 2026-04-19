@@ -61,8 +61,8 @@ export async function openPresenterView() {
 export async function closePresenterView() {
   return api().closePresenterView()
 }
-export async function openOutputWindow() {
-  return api().openOutputWindow()
+export async function openOutputWindow(options) {
+  return api().openOutputWindow(options)
 }
 export async function openStageDisplayWindow(options) {
   return api().openStageDisplayWindow(options)

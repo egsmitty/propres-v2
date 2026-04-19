@@ -10,7 +10,7 @@ import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { importMediaToSelectedSlide } from '@/utils/presentationCommands'
 import { alertDialog, showDialog } from '@/utils/dialog'
 
-export default function FilmstripSlide({ slide, index, selected, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete }) {
+export default function FilmstripSlide({ slide, index, selected, isMultiSelected, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete, onEditSong, onApplyTheme }) {
   const presentation = useEditorStore((s) => s.presentation)
   const moveSlideToSection = useEditorStore((s) => s.moveSlideToSection)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -22,7 +22,7 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
   function handleContextMenu(e) {
     e.preventDefault()
     e.stopPropagation()
-    onSelect()
+    onSelect?.({ metaKey: false, ctrlKey: false, shiftKey: false })
     setMenu({ x: e.clientX, y: e.clientY })
   }
 
@@ -57,6 +57,8 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
   }
 
   const menuItems = [
+    ...(slide.songId && onEditSong ? [{ label: 'Edit Song', onClick: () => onEditSong(slide.songId) }] : []),
+    ...(onApplyTheme ? [{ label: 'Apply Theme to Selection', onClick: onApplyTheme }, { divider: true }] : []),
     { label: 'Edit', onClick: onDoubleClick },
     { label: 'New Slide', onClick: onNewSlide },
     { label: 'Insert Image…', onClick: () => importMediaToSelectedSlide('image') },
@@ -72,14 +74,14 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
   return (
     <>
       <div
-        onClick={onSelect}
+        onClick={(e) => onSelect(e)}
         onDoubleClick={onDoubleClick}
         onContextMenu={handleContextMenu}
         className="mx-2 mb-1 rounded cursor-pointer relative overflow-hidden"
         style={{
           aspectRatio: getPresentationAspectRatio(presentation),
           padding: 2,
-          background: selected ? 'var(--bg-selected)' : 'transparent',
+          background: selected ? 'var(--bg-selected)' : isMultiSelected ? 'rgba(74,124,255,0.08)' : 'transparent',
         }}
       >
         <div
@@ -90,6 +92,8 @@ export default function FilmstripSlide({ slide, index, selected, onSelect, onNew
               ? '2px solid var(--live)'
               : selected
               ? '2px solid var(--accent)'
+              : isMultiSelected
+              ? '2px solid rgba(74,124,255,0.55)'
               : '1px solid #333',
           }}
         >

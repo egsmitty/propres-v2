@@ -6,12 +6,8 @@ export const SECTION_COLORS = [
   'var(--section-5)',
 ]
 
-import {
-  isMediaSlide,
-  mergeTextBox,
-  mergeTextStyle,
-  normalizeSectionType,
-} from '@/utils/sectionTypes'
+import { isMediaSlide, normalizeSectionType } from '@/utils/sectionTypes'
+import { syncLegacyTextFields } from '@/utils/textBoxes'
 
 export function normalizePresentation(presentation) {
   if (!presentation) return presentation
@@ -19,13 +15,13 @@ export function normalizePresentation(presentation) {
     ...section,
     type: normalizeSectionType(section.type),
     backgroundId: section.backgroundId ?? null,
-    slides: (section.slides || []).map((slide) => ({
-      ...slide,
-      backgroundId: slide.backgroundId ?? null,
-      mediaId: slide.mediaId ?? null,
-      textStyle: mergeTextStyle(slide.textStyle),
-      textBox: mergeTextBox(slide.textBox),
-    })),
+    slides: (section.slides || []).map((slide) =>
+      syncLegacyTextFields({
+        ...slide,
+        backgroundId: slide.backgroundId ?? null,
+        mediaId: slide.mediaId ?? null,
+      })
+    ),
   }))
 
   return {
