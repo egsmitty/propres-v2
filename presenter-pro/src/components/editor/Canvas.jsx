@@ -128,9 +128,35 @@ export default function Canvas() {
         return
       }
 
-      const nextWidth = clamp(box.width + dx, MIN_TEXT_BOX_WIDTH, nativeWidth - box.x)
-      const nextHeight = clamp(box.height + dy, MIN_TEXT_BOX_HEIGHT, nativeHeight - box.y)
-      const nextDraft = { ...box, width: nextWidth, height: nextHeight }
+      // Resize: compute new box based on which handle is being dragged
+      let { x, y, width, height } = box
+      if (mode === 'resize_se') {
+        width = clamp(width + dx, MIN_TEXT_BOX_WIDTH, nativeWidth - x)
+        height = clamp(height + dy, MIN_TEXT_BOX_HEIGHT, nativeHeight - y)
+      } else if (mode === 'resize_nw') {
+        const newW = clamp(width - dx, MIN_TEXT_BOX_WIDTH, x + width)
+        const newH = clamp(height - dy, MIN_TEXT_BOX_HEIGHT, y + height)
+        x = x + width - newW; y = y + height - newH; width = newW; height = newH
+      } else if (mode === 'resize_ne') {
+        const newH = clamp(height - dy, MIN_TEXT_BOX_HEIGHT, y + height)
+        y = y + height - newH; height = newH
+        width = clamp(width + dx, MIN_TEXT_BOX_WIDTH, nativeWidth - x)
+      } else if (mode === 'resize_sw') {
+        const newW = clamp(width - dx, MIN_TEXT_BOX_WIDTH, x + width)
+        x = x + width - newW; width = newW
+        height = clamp(height + dy, MIN_TEXT_BOX_HEIGHT, nativeHeight - y)
+      } else if (mode === 'resize_n') {
+        const newH = clamp(height - dy, MIN_TEXT_BOX_HEIGHT, y + height)
+        y = y + height - newH; height = newH
+      } else if (mode === 'resize_s') {
+        height = clamp(height + dy, MIN_TEXT_BOX_HEIGHT, nativeHeight - y)
+      } else if (mode === 'resize_e') {
+        width = clamp(width + dx, MIN_TEXT_BOX_WIDTH, nativeWidth - x)
+      } else if (mode === 'resize_w') {
+        const newW = clamp(width - dx, MIN_TEXT_BOX_WIDTH, x + width)
+        x = x + width - newW; width = newW
+      }
+      const nextDraft = { ...box, x, y, width, height }
       draftTextBoxRef.current = nextDraft
       setDraftTextBox(nextDraft)
       setSnapGuides({ horizontal: null, vertical: null })
@@ -225,7 +251,14 @@ export default function Canvas() {
       currentScale: scale || 1,
     }
 
-    document.body.style.cursor = mode === 'resize' ? 'nwse-resize' : 'move'
+    const cursorMap = {
+      move: 'move',
+      resize_se: 'nwse-resize', resize_nw: 'nwse-resize',
+      resize_ne: 'nesw-resize', resize_sw: 'nesw-resize',
+      resize_n: 'ns-resize', resize_s: 'ns-resize',
+      resize_e: 'ew-resize', resize_w: 'ew-resize',
+    }
+    document.body.style.cursor = cursorMap[mode] || 'move'
     document.body.style.userSelect = 'none'
   }
 
@@ -439,43 +472,8 @@ export default function Canvas() {
                     </div>
                   )}
 
-                  {!isEditing && (
-                    <>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: 16,
-                          top: -28,
-                          padding: '3px 8px',
-                          borderRadius: 999,
-                          background: 'rgba(12,17,28,0.82)',
-                          color: 'rgba(255,255,255,0.72)',
-                          fontSize: 12,
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
-                          pointerEvents: 'none',
-                        }}
-                      >
-                        Text Box
-                      </div>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => beginTextBoxInteraction(e, 'resize')}
-                        style={{
-                          position: 'absolute',
-                          right: -10,
-                          bottom: -10,
-                          width: 22,
-                          height: 22,
-                          borderRadius: 999,
-                          border: '2px solid rgba(255,255,255,0.85)',
-                          background: 'rgba(74,124,255,0.95)',
-                          boxShadow: '0 4px 16px rgba(0,0,0,0.32)',
-                          cursor: 'nwse-resize',
-                        }}
-                        aria-label="Resize text box"
-                      />
-                    </>
+                  {!isEditing && textBoxSelected && (
+                    <ResizeHandles onBegin={beginTextBoxInteraction} />
                   )}
                 </div>
               </>
@@ -534,6 +532,41 @@ export default function Canvas() {
 
       </div>
     </div>
+  )
+}
+
+const RESIZE_HANDLES = [
+  { mode: 'resize_nw', style: { top: -6, left: -6, cursor: 'nwse-resize' } },
+  { mode: 'resize_n',  style: { top: -6, left: '50%', transform: 'translateX(-50%)', cursor: 'ns-resize' } },
+  { mode: 'resize_ne', style: { top: -6, right: -6, cursor: 'nesw-resize' } },
+  { mode: 'resize_e',  style: { top: '50%', right: -6, transform: 'translateY(-50%)', cursor: 'ew-resize' } },
+  { mode: 'resize_se', style: { bottom: -6, right: -6, cursor: 'nwse-resize' } },
+  { mode: 'resize_s',  style: { bottom: -6, left: '50%', transform: 'translateX(-50%)', cursor: 'ns-resize' } },
+  { mode: 'resize_sw', style: { bottom: -6, left: -6, cursor: 'nesw-resize' } },
+  { mode: 'resize_w',  style: { top: '50%', left: -6, transform: 'translateY(-50%)', cursor: 'ew-resize' } },
+]
+
+function ResizeHandles({ onBegin }) {
+  return (
+    <>
+      {RESIZE_HANDLES.map(({ mode, style }) => (
+        <div
+          key={mode}
+          onMouseDown={(e) => onBegin(e, mode)}
+          style={{
+            position: 'absolute',
+            width: 12,
+            height: 12,
+            background: '#fff',
+            border: '2px solid rgba(74,124,255,0.9)',
+            borderRadius: 2,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+            zIndex: 10,
+            ...style,
+          }}
+        />
+      ))}
+    </>
   )
 }
 
