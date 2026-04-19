@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { normalizePresentation } from '@/utils/backgrounds'
 import {
+  DEFAULT_TEXT_BOX,
   createDefaultTextBoxForSlide,
   createTextBox,
   getSlideTextBoxes,
@@ -176,8 +177,8 @@ export const useEditorStore = create((set) => ({
         const highest = boxes.reduce((max, box) => Math.max(max, box.zIndex ?? 0), -1)
         const next = createTextBox({
           ...createDefaultTextBoxForSlide(slide),
-          x: 240 + boxes.length * 18,
-          y: 270 + boxes.length * 18,
+          x: DEFAULT_TEXT_BOX.x + boxes.length * 18,
+          y: DEFAULT_TEXT_BOX.y + boxes.length * 18,
           zIndex: highest + 1,
           ...overrides,
         }, { autoFit: overrides.autoFit ?? undefined })

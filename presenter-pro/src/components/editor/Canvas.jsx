@@ -241,12 +241,26 @@ export default function Canvas() {
 
   useEffect(() => {
     if (!canvasRef.current) return undefined
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (entry) setCanvasWidth(entry.contentRect.width)
+
+    const node = canvasRef.current
+    const measure = () => {
+      const rect = node.getBoundingClientRect()
+      if (rect.width > 0) setCanvasWidth(rect.width)
+    }
+
+    measure()
+    const frame = window.requestAnimationFrame(measure)
+    const observer = new ResizeObserver(() => {
+      measure()
     })
-    observer.observe(canvasRef.current)
-    return () => observer.disconnect()
+    observer.observe(node)
+    window.addEventListener('resize', measure)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', measure)
+      observer.disconnect()
+    }
   }, [])
 
   useEffect(() => {
