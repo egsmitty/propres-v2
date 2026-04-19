@@ -86,13 +86,35 @@ export default function PresenterPanel() {
   const canGoPrev = isPresenting && liveIdx > 0
   const canGoNext = isPresenting && liveIdx < allSlides.length - 1
 
+  if (!presenterPanelOpen) {
+    return (
+      <div
+        className="shrink-0 flex items-center justify-center cursor-pointer"
+        onClick={() => setPresenterPanelOpen(true)}
+        style={{
+          width: 20,
+          background: 'var(--bg-surface)',
+          borderLeft: '1px solid var(--border-subtle)',
+          color: 'var(--text-tertiary)',
+          fontSize: 12,
+          userSelect: 'none',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface)'; e.currentTarget.style.color = 'var(--text-tertiary)' }}
+        title="Show presenter panel"
+      >
+        ‹
+      </div>
+    )
+  }
+
   return (
     <div
       className="shrink-0 overflow-hidden"
       style={{
-        width: presenterPanelOpen ? presenterPanelWidth : 0,
+        width: presenterPanelWidth,
         transition: 'width 0.2s ease',
-        borderLeft: presenterPanelOpen ? '1px solid var(--border-subtle)' : 'none',
+        borderLeft: '1px solid var(--border-subtle)',
         background: 'var(--bg-surface)',
       }}
     >

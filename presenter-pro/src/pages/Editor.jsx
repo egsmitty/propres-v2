@@ -224,7 +224,7 @@ export default function Editor() {
           className="flex flex-1 overflow-hidden"
           style={{ pointerEvents: panelOpen ? 'none' : 'auto' }}
         >
-          {filmstripVisible && (
+          {filmstripVisible ? (
             <>
               <ErrorBoundary label="Filmstrip error"><Filmstrip width={filmstripWidth} /></ErrorBoundary>
               <ResizeHandle onMouseDown={(e) => {
@@ -233,19 +233,52 @@ export default function Editor() {
                 document.body.style.cursor = 'col-resize'
               }} />
             </>
+          ) : (
+            <CollapseSliver
+              direction="right"
+              onClick={() => useAppStore.getState().setFilmstripVisible(true)}
+            />
           )}
           <ErrorBoundary label="Canvas error"><Canvas onSave={handleSave} /></ErrorBoundary>
-          {presenterPanelOpen && (
+          {presenterPanelOpen ? (
             <ResizeHandle onMouseDown={(e) => {
               e.preventDefault()
               dragRef.current = { side: 'panel', startX: e.clientX, startWidth: presenterPanelWidth }
               document.body.style.cursor = 'col-resize'
             }} />
+          ) : (
+            <CollapseSliver
+              direction="left"
+              onClick={() => setPresenterPanelOpen(true)}
+            />
           )}
           <PresenterPanel />
         </div>
       </div>
       <StatusBar />
+    </div>
+  )
+}
+
+function CollapseSliver({ direction, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      className="shrink-0 flex items-center justify-center cursor-pointer"
+      style={{
+        width: 20,
+        background: 'var(--bg-filmstrip)',
+        borderRight: direction === 'right' ? '1px solid var(--border-default)' : 'none',
+        borderLeft: direction === 'left' ? '1px solid var(--border-default)' : 'none',
+        color: 'var(--text-tertiary)',
+        fontSize: 12,
+        userSelect: 'none',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-filmstrip)'; e.currentTarget.style.color = 'var(--text-tertiary)' }}
+      title={direction === 'right' ? 'Show filmstrip' : 'Show presenter panel'}
+    >
+      {direction === 'right' ? '›' : '‹'}
     </div>
   )
 }
