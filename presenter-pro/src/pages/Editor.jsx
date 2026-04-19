@@ -151,6 +151,17 @@ export default function Editor() {
       const meta = e.metaKey || e.ctrlKey
 
       if (meta && e.key === 's') { e.preventDefault(); handleSave(); return }
+      if (!meta && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault()
+        const state = useEditorStore.getState()
+        const pres = state.presentation
+        if (!pres) return
+        const allSlides = pres.sections.flatMap((sec) => sec.slides.map((sl) => ({ ...sl, sectionId: sec.id })))
+        const idx = allSlides.findIndex((sl) => sl.id === state.selectedSlideId)
+        const next = e.key === 'ArrowUp' ? allSlides[idx - 1] : allSlides[idx + 1]
+        if (next) state.setSelectedSlide(next.sectionId, next.id)
+        return
+      }
       if (!meta && (e.key === 'Delete' || e.key === 'Backspace')) {
         e.preventDefault()
         deleteSelectedSlideFromCurrentPresentation()
