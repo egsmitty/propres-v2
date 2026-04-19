@@ -231,7 +231,7 @@ export default function PresenterPanel() {
                   <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
                 </div>
                 {/* Responsive thumbnail grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${presenterPanelWidth >= 520 ? 4 : presenterPanelWidth >= 380 ? 3 : 2}, 1fr)`, gap: 4 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 4 }}>
                   {section.slides.map((slide) => {
                     const isLive = slide.id === liveSlideId
                     const isSelected = !isPresenting && slide.id === selectedSlideId
