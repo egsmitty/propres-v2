@@ -69,8 +69,12 @@ export function withEffectiveBackground(presentation, sectionId, slide) {
 
 export function fileUrlForPath(filePath) {
   if (!filePath) return ''
-  const normalized = filePath.replace(/#/g, '%23').replace(/\?/g, '%3F')
-  return `file://${normalized}`
+  // Normalize Windows backslashes to forward slashes
+  const forward = filePath.replace(/\\/g, '/')
+  // Windows absolute paths like C:/... need three slashes: file:///C:/...
+  const prefix = /^[A-Za-z]:\//.test(forward) ? 'file:///' : 'file://'
+  const encoded = forward.replace(/#/g, '%23').replace(/\?/g, '%3F').replace(/ /g, '%20')
+  return `${prefix}${encoded}`
 }
 
 export function isVideoMedia(media) {

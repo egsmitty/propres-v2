@@ -511,10 +511,11 @@ function registerIpcHandlers() {
       })
       if (result.canceled) return { success: true, data: [] }
       const inserted = result.filePaths.map((filePath) => {
-        const name = path.basename(filePath)
-        const ext = path.extname(filePath).toLowerCase().slice(1)
+        const absPath = path.resolve(filePath)
+        const name = path.basename(absPath)
+        const ext = path.extname(absPath).toLowerCase().slice(1)
         const type = ['mp4', 'mov', 'webm'].includes(ext) ? 'video' : 'image'
-        return mediaQueries.createMedia(db, { name, type, file_path: filePath })
+        return mediaQueries.createMedia(db, { name, type, file_path: absPath })
       })
       return { success: true, data: inserted }
     } catch (e) { return { success: false, error: e.message } }
@@ -531,7 +532,7 @@ function registerIpcHandlers() {
       })
       if (result.canceled || !result.filePaths?.length) return { success: true, data: null }
 
-      const filePath = result.filePaths[0]
+      const filePath = path.resolve(result.filePaths[0])
       const existing = mediaQueries.getMedia(db).find((item) => item.file_path === filePath)
       if (existing) return { success: true, data: existing }
 
