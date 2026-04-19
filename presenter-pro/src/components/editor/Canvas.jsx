@@ -191,7 +191,14 @@ export default function Canvas() {
   }
 
   function handleOuterClick() {
-    if (textBoxSelected && !isEditing) setTextBoxSelected(false)
+    if (isEditing) {
+      // Force the contentEditable to blur, which triggers onBlur → save in SlideTextEditor
+      const el = document.activeElement
+      if (el && el.isContentEditable) el.blur()
+      setTextBoxSelected(false)
+      return
+    }
+    if (textBoxSelected) setTextBoxSelected(false)
   }
 
   function handleSave(body) {
