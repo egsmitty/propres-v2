@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { useAppStore } from '@/store/appStore'
-import { getMedia, sendSlide } from '@/utils/ipc'
+import { getMedia } from '@/utils/ipc'
 import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/backgrounds'
 import { DEFAULT_TEXT_BOX, getSectionTypeLabel, isMediaSlide, resolvePlaceholderText } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
@@ -40,8 +40,6 @@ export default function Canvas() {
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
   const updateSlideTextBox = useEditorStore((s) => s.updateSlideTextBox)
-  const isPresenting = usePresenterStore((s) => s.isPresenting)
-  const setLiveSlide = usePresenterStore((s) => s.setLiveSlide)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const [media, setMedia] = useState([])
@@ -190,23 +188,8 @@ export default function Canvas() {
     if (result?.success) setMedia(result.data)
   }
 
-  async function handleClick() {
-    if (!slide || isEditing) return
-    if (isPresenting) {
-      // Send to output on click while presenting
-      await sendSlide(
-        {
-          ...slide,
-          sectionId: selectedSectionId,
-          effectiveBackgroundId,
-          aspectRatio: presentation?.aspectRatio || '16:9',
-          customAspectWidth: presentation?.customAspectWidth ?? null,
-          customAspectHeight: presentation?.customAspectHeight ?? null,
-        },
-        backgroundMedia
-      )
-      setLiveSlide(selectedSectionId, selectedSlideId)
-    }
+  function handleClick() {
+    // Canvas click only selects — presenter sidebar controls output
   }
 
   function handleDoubleClick() {
