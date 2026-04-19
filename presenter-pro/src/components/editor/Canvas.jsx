@@ -53,6 +53,7 @@ export default function Canvas() {
   const [menu, setMenu] = useState(null)
   const [draftTextBox, setDraftTextBox] = useState(null)
   const [snapGuides, setSnapGuides] = useState({ horizontal: null, vertical: null })
+  const [textBoxSelected, setTextBoxSelected] = useState(false)
 
   const slide = getSelectedSlide(presentation, selectedSectionId, selectedSlideId)
   const section = presentation?.sections?.find((item) => item.id === selectedSectionId) || null
@@ -87,6 +88,7 @@ export default function Canvas() {
     draftTextBoxRef.current = null
     setDraftTextBox(null)
     setSnapGuides({ horizontal: null, vertical: null })
+    setTextBoxSelected(false)
   }, [selectedSectionId, selectedSlideId])
 
   useEffect(() => {
@@ -182,7 +184,14 @@ export default function Canvas() {
   }
 
   function handleDoubleClick() {
-    if (slide && !mediaOnlySlide) setEditingSlide(slide.id)
+    if (slide && !mediaOnlySlide) {
+      setTextBoxSelected(true)
+      setEditingSlide(slide.id)
+    }
+  }
+
+  function handleOuterClick() {
+    if (textBoxSelected && !isEditing) setTextBoxSelected(false)
   }
 
   function handleSave(body) {
@@ -256,7 +265,7 @@ export default function Canvas() {
       className="flex-1 flex flex-col overflow-hidden"
       style={{ background: 'var(--bg-app)' }}
     >
-      {isEditing && !mediaOnlySlide && (
+      {(isEditing || textBoxSelected) && !mediaOnlySlide && (
         <FormattingToolbar
           sectionId={selectedSectionId}
           slideId={slide.id}
@@ -266,7 +275,7 @@ export default function Canvas() {
       )}
       <div
         className="flex-1 flex items-center justify-center p-6"
-        onClick={handleClick}
+        onClick={handleOuterClick}
         onContextMenu={handleContextMenu}
       >
         {/* Outer: maintains aspect ratio, clips scaled inner */}
@@ -346,7 +355,8 @@ export default function Canvas() {
                   />
                 )}
                 <div
-                  onMouseDown={(e) => beginTextBoxInteraction(e, 'move')}
+                  onClick={(e) => { e.stopPropagation(); if (!isEditing) setTextBoxSelected(true) }}
+                  onMouseDown={(e) => { if (textBoxSelected || isEditing) beginTextBoxInteraction(e, 'move') }}
                   style={{
                     position: 'absolute',
                     left: activeTextBox.x,
@@ -366,10 +376,16 @@ export default function Canvas() {
                     background: activeTextBox.backgroundColor || 'transparent',
                     border: isEditing
                       ? '2px solid rgba(74,124,255,0.95)'
-                      : '2px dashed rgba(255,255,255,0.28)',
+                      : textBoxSelected
+                      ? '2px solid rgba(74,124,255,0.7)'
+                      : '2px dashed rgba(255,255,255,0.18)',
                     borderRadius: 14,
-                    boxShadow: isEditing ? '0 0 0 4px rgba(74,124,255,0.16)' : 'none',
-                    cursor: isEditing ? 'text' : 'move',
+                    boxShadow: isEditing
+                      ? '0 0 0 4px rgba(74,124,255,0.16)'
+                      : textBoxSelected
+                      ? '0 0 0 3px rgba(74,124,255,0.12)'
+                      : 'none',
+                    cursor: isEditing ? 'text' : textBoxSelected ? 'move' : 'pointer',
                     overflow: 'visible',
                   }}
                 >
