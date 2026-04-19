@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Film } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
-import { sendSlideLive } from '@/utils/presenterFlow'
 import SectionHeader from './SectionHeader'
 import FilmstripSlide from './FilmstripSlide'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
@@ -207,7 +206,6 @@ export default function Filmstrip({ width = 224 }) {
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
-  const isPresenting = usePresenterStore((s) => s.isPresenting)
   const [collapsed, setCollapsed] = useState({})
   const [dragCandidate, setDragCandidate] = useState(null)
   const [activeSlideDrag, setActiveSlideDrag] = useState(null)
@@ -521,12 +519,8 @@ export default function Filmstrip({ width = 224 }) {
 
   let slideIndex = 0
 
-  async function handleSelectSlide(sectionId, slide) {
+  function handleSelectSlide(sectionId, slide) {
     setSelectedSlide(sectionId, slide.id)
-
-    if (isPresenting) {
-      await sendSlideLive(sectionId, slide)
-    }
   }
 
   return (
@@ -602,8 +596,8 @@ export default function Filmstrip({ width = 224 }) {
                         selected={selectedSlideId === slide.id}
                         onSelect={() => handleSelectSlide(originalSection.id, slide)}
                         onNewSlide={() => insertSlideAfter(originalSection, slide)}
-                        onDoubleClick={async () => {
-                          await handleSelectSlide(originalSection.id, slide)
+                        onDoubleClick={() => {
+                          handleSelectSlide(originalSection.id, slide)
                           setEditingSlide(slide.id)
                         }}
                         onDuplicate={() => duplicateSlide(originalSection, slide)}
