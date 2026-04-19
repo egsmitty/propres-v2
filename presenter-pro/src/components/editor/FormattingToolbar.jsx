@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 
@@ -22,12 +22,6 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle, textB
     updateSlideTextBox(sectionId, slideId, props)
   }
 
-  function handleSizeChange(value) {
-    const nextSize = Number(value)
-    if (!Number.isFinite(nextSize)) return
-    set({ size: Math.min(200, Math.max(12, nextSize)) })
-  }
-
   const size = textStyle?.size || 52
   const bold = textStyle?.bold || false
   const italic = textStyle?.italic || false
@@ -38,6 +32,30 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle, textB
   const lineHeight = textStyle?.lineHeight || 1.3
   const fillColor = textBox?.backgroundColor || 'transparent'
   const keepEditorFocus = (e) => e.preventDefault()
+
+  // Local draft state for size — only commits on Enter/Tab/blur
+  const [draftSize, setDraftSize] = useState(String(size))
+  const [sizeFocused, setSizeFocused] = useState(false)
+  useEffect(() => { if (!sizeFocused) setDraftSize(String(size)) }, [size, sizeFocused])
+
+  function commitSize() {
+    const next = Number(draftSize)
+    if (Number.isFinite(next) && next >= 12) set({ size: Math.min(200, Math.max(12, next)) })
+    else setDraftSize(String(size))
+    setSizeFocused(false)
+  }
+
+  // Local draft state for line height — same pattern
+  const [draftLineHeight, setDraftLineHeight] = useState(String(lineHeight))
+  const [lineHeightFocused, setLineHeightFocused] = useState(false)
+  useEffect(() => { if (!lineHeightFocused) setDraftLineHeight(String(lineHeight)) }, [lineHeight, lineHeightFocused])
+
+  function commitLineHeight() {
+    const next = Number(draftLineHeight)
+    if (Number.isFinite(next)) set({ lineHeight: Math.min(3, Math.max(0.8, next)) })
+    else setDraftLineHeight(String(lineHeight))
+    setLineHeightFocused(false)
+  }
 
   return (
     <div
@@ -82,10 +100,13 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle, textB
         <input
           data-editor-toolbar="true"
           type="number"
-          value={size}
+          value={draftSize}
           min={12}
           max={200}
-          onChange={(e) => handleSizeChange(e.target.value)}
+          onChange={(e) => setDraftSize(e.target.value)}
+          onFocus={() => setSizeFocused(true)}
+          onBlur={commitSize}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commitSize() } }}
           className="w-10 text-center text-xs rounded outline-none"
           style={{
             background: 'var(--bg-app)',
@@ -235,12 +256,11 @@ export default function FormattingToolbar({ sectionId, slideId, textStyle, textB
           step="0.1"
           min="0.8"
           max="3"
-          value={lineHeight}
-          onChange={(e) => {
-            const next = Number(e.target.value)
-            if (!Number.isFinite(next)) return
-            set({ lineHeight: Math.min(3, Math.max(0.8, next)) })
-          }}
+          value={draftLineHeight}
+          onChange={(e) => setDraftLineHeight(e.target.value)}
+          onFocus={() => setLineHeightFocused(true)}
+          onBlur={commitLineHeight}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commitLineHeight() } }}
           className="w-12 text-center text-xs rounded outline-none"
           style={{
             background: 'var(--bg-app)',
