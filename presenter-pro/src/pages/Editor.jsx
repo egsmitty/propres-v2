@@ -66,7 +66,8 @@ export default function Editor() {
           Math.max(FILMSTRIP_MIN_WIDTH, Math.min(FILMSTRIP_MAX_WIDTH, startWidth + dx))
         )
       } else {
-        setPresenterPanelWidth(Math.max(240, Math.min(420, startWidth - dx)))
+        const maxPanel = Math.floor(window.innerWidth * 0.5)
+        setPresenterPanelWidth(Math.max(240, Math.min(maxPanel, startWidth - dx)))
       }
     }
     function onUp() { dragRef.current = null; document.body.style.cursor = '' }
