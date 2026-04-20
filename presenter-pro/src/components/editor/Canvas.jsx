@@ -508,6 +508,21 @@ export default function Canvas() {
     return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [caseModeIndex, duplicateSlideTextBoxes, isEditing, mediaOnlySlide, primaryTextBox, removeSlideTextBoxes, selectedSectionId, selectedSlideId, selectedTextBoxIds, setEditingSlide, setTextBoxClipboard, slide, textBoxClipboard, textBoxes, updateSlideBody, updateSlideTextBoxes])
 
+  useEffect(() => {
+    function onDocMouseDown(e) {
+      if (!selectedTextBoxIds.length && !editingTextBoxId) return
+      if (e.target.closest?.('[data-tour="canvas"]')) return
+      if (e.target.closest?.('[data-editor-toolbar="true"]')) return
+      setSelectedTextBoxIds([])
+      if (editingTextBoxId) {
+        setEditingTextBoxId(null)
+        setEditingSlide(null)
+      }
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [selectedTextBoxIds, editingTextBoxId, setEditingSlide])
+
   function beginInteraction(event, type, options = {}) {
     event.preventDefault()
     event.stopPropagation()
@@ -727,7 +742,7 @@ export default function Canvas() {
         <div
           ref={canvasRef}
           className="relative rounded shadow-2xl overflow-hidden"
-          style={{ width: '100%', aspectRatio: getPresentationAspectRatio(presentation), background: '#1a1a1a' }}
+          style={{ width: '100%', maxHeight: '100%', aspectRatio: getPresentationAspectRatio(presentation), background: '#1a1a1a' }}
         >
           <div
             onMouseDown={handleBlankMouseDown}

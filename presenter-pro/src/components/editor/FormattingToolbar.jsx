@@ -125,7 +125,11 @@ function NumberField({ value, onCommit, min, max, step = 1, width = 50 }) {
       min={min}
       max={max}
       step={step}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => {
+        setDraft(e.target.value)
+        const n = Number(e.target.value)
+        if (Number.isFinite(n) && n >= min && n <= max) onCommit(n)
+      }}
       onFocus={() => setFocused(true)}
       onBlur={commit}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit() } }}
@@ -146,7 +150,7 @@ function NumberField({ value, onCommit, min, max, step = 1, width = 50 }) {
 
 // ─── Color button + popover ───────────────────────────────────────────────────
 
-function ColorPopover({ value, onChange, popoverRef }) {
+function ColorPopover({ value, onChange, onClose, popoverRef }) {
   return (
     <div
       data-editor-toolbar="true"
@@ -172,7 +176,7 @@ function ColorPopover({ value, onChange, popoverRef }) {
             key={c}
             data-editor-toolbar="true"
             title={c === 'transparent' ? 'Transparent' : c}
-            onClick={() => onChange(c)}
+            onClick={() => { onChange(c); onClose?.() }}
             style={{
               width: 20, height: 20, borderRadius: 4, padding: 0, cursor: 'pointer',
               background: c === 'transparent'
@@ -241,7 +245,7 @@ function ColorBtn({ title, value, onChange, children }) {
           }}
         />
       </button>
-      {open && <ColorPopover value={value} onChange={onChange} popoverRef={popoverRef} />}
+      {open && <ColorPopover value={value} onChange={onChange} onClose={() => setOpen(false)} popoverRef={popoverRef} />}
     </div>
   )
 }
