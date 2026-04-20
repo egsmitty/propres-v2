@@ -450,6 +450,7 @@ export default function Canvas() {
       if (!selectedTextBoxIds.length) return
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (isEditing) return
         event.preventDefault()
         event.stopPropagation()
         removeSlideTextBoxes(selectedSectionId, selectedSlideId, selectedTextBoxIds)
@@ -713,14 +714,14 @@ export default function Canvas() {
 
   return (
     <div data-tour="canvas" className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
-      {!!selectedTextBoxIds.length && !mediaOnlySlide && (
-        <FormattingToolbar
-          sectionId={selectedSectionId}
-          slideId={slide.id}
-          selectedTextBoxIds={selectedTextBoxIds}
-          primaryTextBox={primaryTextBox}
-        />
-      )}
+      <FormattingToolbar
+        sectionId={selectedSectionId}
+        slideId={slide.id}
+        selectedTextBoxIds={selectedTextBoxIds}
+        primaryTextBox={primaryTextBox}
+        canvasRef={canvasRef}
+        scale={scale}
+      />
 
       <div className="flex-1 flex items-center justify-center p-6" onContextMenu={(event) => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY, target: 'slide' }) }}>
         <div
