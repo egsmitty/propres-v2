@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus, Copy, Trash2, Music, Image, FileText, BookOpen, Play } from 'lucide-react'
+import { Plus, Copy, Trash2, Music, Image, FileText, BookOpen, Play, Type } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
@@ -44,6 +44,8 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
+  const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
+  const addSlideTextBox = useEditorStore((s) => s.addSlideTextBox)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
 
   const hasPresentation = !!presentation
@@ -95,6 +97,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
       <ToolbarBtn icon={Plus} label="New Slide" shortcut="⌘M" onClick={handleNewSlide} disabled={!hasPresentation || panelOpen} />
       <ToolbarBtn icon={Copy} label="Duplicate Slide" onClick={handleDuplicate} disabled={!hasSlide || panelOpen} />
       <ToolbarBtn icon={Trash2} label="Delete Slide" onClick={handleDelete} disabled={!hasSlide || panelOpen} />
+      <ToolbarBtn icon={Type} label="Add Text Box" onClick={() => addSlideTextBox(selectedSectionId, selectedSlideId)} disabled={!hasSlide || panelOpen} />
 
       <Separator />
 
