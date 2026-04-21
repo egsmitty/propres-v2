@@ -40,14 +40,16 @@ export async function openPresentationInEditor(id) {
   return loadPresentationIntoEditor(loaded.data)
 }
 
+function markPresentationFreshOpen() {
+  const state = useEditorStore.getState()
+  state.setDirty(false)
+  state.setRequiresInitialSave(true)
+}
+
 export async function createNewPresentation(title = 'Untitled Presentation') {
   const initialSection = createSection('announcement', 0, {
     title: 'Slides',
-    slides: [
-      createTextSlide('announcement', {
-        label: 'Slide 1',
-      }),
-    ],
+    slides: [createTextSlide('announcement')],
   })
 
   const result = await createPresentation({
@@ -57,12 +59,7 @@ export async function createNewPresentation(title = 'Untitled Presentation') {
 
   if (!result?.success || !result.data) return null
   const loaded = await openPresentationInEditor(result.data.id)
-  if (loaded) {
-    useEditorStore.getState().setPresentation(loaded, {
-      isDirty: false,
-      requiresInitialSave: true,
-    })
-  }
+  if (loaded) markPresentationFreshOpen()
   return loaded
 }
 
@@ -88,12 +85,7 @@ export async function createPresentationFromTemplate(templateId) {
   if (!result?.success || !result.data) return null
 
   const loaded = await openPresentationInEditor(result.data.id)
-  if (loaded) {
-    useEditorStore.getState().setPresentation(loaded, {
-      isDirty: false,
-      requiresInitialSave: true,
-    })
-  }
+  if (loaded) markPresentationFreshOpen()
   return loaded
 }
 
@@ -152,12 +144,10 @@ export async function insertNewSlideIntoCurrentPresentation() {
   let sections = presentation.sections ? [...presentation.sections] : []
 
   if (!sections.length) {
-    const setup = await promptForSectionSetup()
-    if (!setup) return null
-    sectionType = setup.type
+    sectionType = 'announcement'
     newSlide = createTextSlide(sectionType)
     const section = createSection(sectionType, 0, {
-      title: setup.title,
+      title: 'Slides',
       slides: [newSlide],
     })
     sections = [section]

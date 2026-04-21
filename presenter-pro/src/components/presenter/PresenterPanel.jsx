@@ -83,6 +83,13 @@ export default function PresenterPanel() {
   }
 
   const previewSlide = isPresenting ? liveSlide : selectedSlide
+  const previewSectionId = isPresenting ? liveSectionId : selectedSectionId
+  const previewSection = presentation?.sections?.find((entry) => entry.id === previewSectionId) || null
+  const previewStatus = isBlack
+    ? 'Black output'
+    : isLogo
+      ? 'Logo output'
+      : previewSection?.title || null
   const canGoPrev = isPresenting && liveIdx > 0
   const canGoNext = isPresenting && liveIdx < allSlides.length - 1
   const slideGridColumns = Math.min(3, Math.max(1, Math.floor((presenterPanelWidth - 32) / 118)))
@@ -154,6 +161,32 @@ export default function PresenterPanel() {
               position: 'relative',
             }}
           >
+            {previewStatus ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  zIndex: 2,
+                  maxWidth: '68%',
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(10, 10, 10, 0.68)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'rgba(255,255,255,0.84)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: 1.2,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  pointerEvents: 'none',
+                }}
+                title={previewStatus}
+              >
+                {previewStatus}
+              </div>
+            ) : null}
             {isBlack
               ? <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
               : isLogo

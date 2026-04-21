@@ -61,6 +61,7 @@ export const useEditorStore = create((set) => ({
   selectedSectionId: null,
   selectedSlideId: null,
   selectedSlideIds: [],
+  lastAddedTextBoxId: null,
   editingSlideId: null,
   isDirty: false,
   requiresInitialSave: false,
@@ -74,6 +75,7 @@ export const useEditorStore = create((set) => ({
       selectedSectionId: null,
       selectedSlideId: null,
       selectedSlideIds: [],
+      lastAddedTextBoxId: null,
       editingSlideId: null,
       isDirty: options.isDirty ?? false,
       requiresInitialSave: options.requiresInitialSave ?? false,
@@ -88,6 +90,7 @@ export const useEditorStore = create((set) => ({
       editingSlideId: null,
     }),
   setSelectedSlideIds: (ids) => set({ selectedSlideIds: ids }),
+  clearLastAddedTextBoxId: () => set({ lastAddedTextBoxId: null }),
   setEditingSlide: (slideId) => set({ editingSlideId: slideId }),
   setDirty: (val) => set({ isDirty: val }),
   setRequiresInitialSave: (val) => set({ requiresInitialSave: val }),
@@ -172,18 +175,30 @@ export const useEditorStore = create((set) => ({
 
   addSlideTextBox: (sectionId, slideId, overrides = {}) =>
     set((state) =>
-      commitTextBoxMutation(state, sectionId, slideId, (slide) => {
-        const boxes = getSlideTextBoxes(slide)
-        const highest = boxes.reduce((max, box) => Math.max(max, box.zIndex ?? 0), -1)
-        const next = createTextBox({
-          ...createDefaultTextBoxForSlide(slide),
-          x: DEFAULT_TEXT_BOX.x + boxes.length * 18,
+      {
+        const nextState = commitTextBoxMutation(state, sectionId, slideId, (slide) => {
+          const boxes = getSlideTextBoxes(slide)
+          const highest = boxes.reduce((max, box) => Math.max(max, box.zIndex ?? 0), -1)
+          const next = createTextBox({
+            ...createDefaultTextBoxForSlide(slide),
+            x: DEFAULT_TEXT_BOX.x + boxes.length * 18,
           y: DEFAULT_TEXT_BOX.y + boxes.length * 18,
-          zIndex: highest + 1,
-          ...overrides,
-        }, { autoFit: overrides.autoFit ?? undefined })
-        return syncLegacyTextFields(slide, reorderTextBoxes([...boxes, next]))
-      })
+            zIndex: highest + 1,
+            ...overrides,
+          }, { autoFit: overrides.autoFit ?? undefined })
+          return syncLegacyTextFields(slide, reorderTextBoxes([...boxes, next]))
+        })
+
+        const updatedSlide = nextState.presentation?.sections
+          ?.find((section) => section.id === sectionId)
+          ?.slides?.find((slide) => slide.id === slideId)
+        const addedId = getSlideTextBoxes(updatedSlide).at(-1)?.id || null
+
+        return {
+          ...nextState,
+          lastAddedTextBoxId: addedId,
+        }
+      }
     ),
 
   removeSlideTextBoxes: (sectionId, slideId, textBoxIds) =>
