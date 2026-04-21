@@ -1,43 +1,714 @@
-import React from 'react'
-import { Plus, Copy, Trash2, Music, Image, FileText, BookOpen, Play, Type } from 'lucide-react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  BookOpen,
+  Check,
+  ChevronDown,
+  Copy,
+  Eraser,
+  FileText,
+  Image,
+  Italic,
+  LayoutPanelTop,
+  Music,
+  Play,
+  Plus,
+  Strikethrough,
+  Trash2,
+  Type,
+  Underline,
+} from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
+import {
+  applyEditorBoxStyle,
+  applyEditorInlineStyle,
+  clearEditorFormatting,
+  getCurrentOrSavedTextBoxId,
+  clearSavedEditorSelection,
+  getCurrentOrSavedSlideTextEditor,
+  getSelectedTextInEditor,
+  markEditorToolbarInteraction,
+  getEditorCommandState,
+  restoreEditorSelection,
+  runEditorCommand,
+  saveEditorSelection,
+} from '@/utils/richTextEditor'
+import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
+import { DEFAULT_TEXT_STYLE, getSlideTextBoxes } from '@/utils/textBoxes'
 import { uuid } from '@/utils/uuid'
+import { slideBodyToPlainText } from '@/utils/slideMarkup'
 import {
   insertNewSectionIntoCurrentPresentation,
   insertNewSlideIntoCurrentPresentation,
 } from '@/utils/presentationCommands'
 
-function ToolbarBtn({ icon: Icon, label, shortcut, onClick, disabled }) {
+const FONT_OPTIONS = [
+  'Arial',
+  'Helvetica',
+  'Georgia',
+  'Times New Roman',
+  'Trebuchet MS',
+  'Avenir Next',
+  'Gill Sans',
+  'Courier New',
+  'Verdana',
+]
+
+const LINE_SPACING_PRESETS = [1, 1.15, 1.3, 1.5, 2]
+const FONT_SIZE_PRESETS = [24, 32, 40, 48, 60, 72, 84, 100, 120, 144]
+
+function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
+  const section = presentation?.sections?.find((item) => item.id === selectedSectionId)
+  if (!section) return null
+  return section.slides?.find((item) => item.id === selectedSlideId) || null
+}
+
+function getEditorSelectionElement(editor) {
+  if (!editor || typeof window === 'undefined' || !window.getSelection) return null
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) return editor
+  const node = selection.getRangeAt(0).commonAncestorContainer
+  if (!node) return editor
+  return node.nodeType === Node.TEXT_NODE ? node.parentElement : node
+}
+
+function readEditorFontSize(editor) {
+  const element = getEditorSelectionElement(editor)
+  if (!element || typeof window === 'undefined' || !window.getComputedStyle) return 60
+  const size = parseFloat(window.getComputedStyle(element).fontSize || '60')
+  return Number.isFinite(size) ? Math.round(size) : 60
+}
+
+function readEditorFontFamily(editor) {
+  const element = getEditorSelectionElement(editor)
+  if (!element || typeof window === 'undefined' || !window.getComputedStyle) return FONT_OPTIONS[0]
+  const family = (window.getComputedStyle(element).fontFamily || FONT_OPTIONS[0]).replace(/["']/g, '')
+  return FONT_OPTIONS.find((option) => family.toLowerCase().includes(option.toLowerCase())) || FONT_OPTIONS[0]
+}
+
+function rgbToHex(value) {
+  const match = String(value || '').match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i)
+  if (!match) return value
+  const [, r, g, b] = match
+  return `#${[r, g, b].map((part) => Number(part).toString(16).padStart(2, '0')).join('')}`
+}
+
+function readEditorColor(editor, cssProp, fallback) {
+  const element = getEditorSelectionElement(editor)
+  if (!element || typeof window === 'undefined' || !window.getComputedStyle) return fallback
+  const value = window.getComputedStyle(element)[cssProp]
+  if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)') return fallback
+  return rgbToHex(value)
+}
+
+function readEditorTextColor(editor, fallback = '#ffffff') {
+  return readEditorColor(editor, 'color', fallback)
+}
+
+function readEditorHighlightColor(editor, fallback = 'transparent') {
+  return readEditorColor(editor, 'backgroundColor', fallback)
+}
+
+function normalizeAlignValue(value, fallback = 'center') {
+  const next = String(value || '').toLowerCase()
+  if (next.includes('justify')) return 'justify'
+  if (next.includes('right')) return 'right'
+  if (next.includes('left')) return 'left'
+  if (next.includes('center')) return 'center'
+  return fallback
+}
+
+function readEditorTextAlign(editor, fallback = 'center') {
+  const element = getEditorSelectionElement(editor)
+  if (!element || typeof window === 'undefined' || !window.getComputedStyle) return fallback
+  return normalizeAlignValue(window.getComputedStyle(element).textAlign, fallback)
+}
+
+function Group({ title, children, grow = false, noDivider = false }) {
+  return (
+    <div
+      className={`flex items-center gap-2 min-w-0 ${grow ? 'flex-1' : 'shrink-0'} ${noDivider ? '' : 'pr-3 mr-2'}`}
+      style={{ borderRight: noDivider ? 'none' : '1px solid var(--border-subtle)' }}
+    >
+      {title ? (
+        <span
+          className="shrink-0 text-[12px] font-bold uppercase tracking-[0.14em]"
+          style={{ color: 'rgba(18, 24, 38, 0.72)' }}
+        >
+          {title}
+        </span>
+      ) : null}
+      <div className="flex items-center gap-1.5 min-w-0">{children}</div>
+    </div>
+  )
+}
+
+function CommandButton({
+  icon: Icon,
+  label,
+  title,
+  onClick,
+  disabled,
+  active = false,
+  primary = false,
+  danger = false,
+  compact = false,
+  collapseLabel = false,
+}) {
+  const showLabel = Boolean(label) && !collapseLabel
+
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
-      title={shortcut ? `${label} (${shortcut})` : label}
-      className="flex items-center justify-center w-7 h-7 rounded"
-      style={{ color: disabled ? 'var(--text-tertiary)' : 'var(--text-secondary)', cursor: disabled ? 'default' : 'pointer' }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.background = 'var(--bg-hover)'
-          e.currentTarget.style.color = 'var(--text-primary)'
-        }
+      title={title || label}
+      data-editor-toolbar="true"
+      className="flex items-center gap-1.5 rounded-xl shrink-0 transition-colors"
+      style={{
+        height: compact ? 30 : 36,
+        minWidth: showLabel ? 0 : compact ? 30 : 36,
+        padding: showLabel ? (compact ? '0 9px' : '0 12px') : (compact ? '0 8px' : '0 10px'),
+        border: primary ? '1px solid rgba(74,124,255,0.24)' : '1px solid transparent',
+        background: disabled
+          ? 'transparent'
+          : active
+            ? 'var(--accent-dim)'
+            : primary
+              ? 'rgba(74,124,255,0.08)'
+              : 'transparent',
+        color: disabled
+          ? 'var(--text-tertiary)'
+          : danger
+            ? '#dc2626'
+            : active
+              ? 'var(--accent)'
+              : 'var(--text-primary)',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.58 : 1,
+        fontSize: compact ? 12 : 13,
+        fontWeight: showLabel ? 650 : 600,
       }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent'
-        e.currentTarget.style.color = disabled ? 'var(--text-tertiary)' : 'var(--text-secondary)'
+      onMouseEnter={(event) => {
+        if (disabled) return
+        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)'
+      }}
+      onMouseLeave={(event) => {
+        if (disabled) {
+          event.currentTarget.style.background = 'transparent'
+          return
+        }
+        event.currentTarget.style.background = active ? 'var(--accent-dim)' : primary ? 'rgba(74,124,255,0.08)' : 'transparent'
       }}
     >
-      <Icon size={15} />
+      <Icon size={compact ? 14 : 15} />
+      {showLabel && <span className="leading-none whitespace-nowrap">{label}</span>}
     </button>
   )
 }
 
-function Separator() {
-  return <div className="mx-1 h-5 w-px" style={{ background: 'var(--border-default)' }} />
+function PresentButton({ onPresent, isPresenting, disabled, collapseLabel = false }) {
+  return (
+    <button
+      type="button"
+      data-tour="present-button"
+      data-editor-toolbar="true"
+      onClick={onPresent}
+      title="Present (F5)"
+      disabled={disabled}
+      className="flex items-center gap-1.5 rounded-xl shrink-0"
+      style={{
+        height: 38,
+        padding: collapseLabel ? '0 11px' : '0 14px',
+        background: disabled ? 'var(--border-default)' : isPresenting ? 'var(--live)' : 'var(--accent)',
+        color: '#ffffff',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.7 : 1,
+        boxShadow: disabled ? 'none' : '0 4px 12px rgba(0,0,0,0.14)',
+        fontSize: 13,
+        fontWeight: 700,
+      }}
+      onMouseEnter={(event) => {
+        if (disabled) return
+        event.currentTarget.style.background = isPresenting ? '#15803d' : 'var(--accent-hover)'
+      }}
+      onMouseLeave={(event) => {
+        event.currentTarget.style.background = disabled ? 'var(--border-default)' : isPresenting ? 'var(--live)' : 'var(--accent)'
+      }}
+    >
+      <Play size={14} />
+      {!collapseLabel && (isPresenting ? 'Stop' : 'Present')}
+    </button>
+  )
+}
+
+function InlineMeta({ label, value, hideValue = false }) {
+  return (
+    <div className="min-w-0 flex items-baseline gap-1 px-0.5">
+      <span className="shrink-0 text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+        {label}
+      </span>
+      {!hideValue && (
+        <span className="truncate text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+          {value}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function InlineStyleButton({ icon: Icon, title, active, onClick }) {
+  return (
+    <button
+      type="button"
+      data-editor-toolbar="true"
+      title={title}
+      onClick={onClick}
+      className="flex items-center justify-center rounded-lg shrink-0"
+      style={{
+        width: 30,
+        height: 30,
+        border: '1px solid transparent',
+        background: active ? 'var(--accent-dim)' : 'transparent',
+        color: active ? 'var(--accent)' : 'var(--text-primary)',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={(event) => {
+        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)'
+      }}
+      onMouseLeave={(event) => {
+        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'transparent'
+      }}
+    >
+      <Icon size={14} />
+    </button>
+  )
+}
+
+function InlineTinyLabel({ children }) {
+  return (
+    <span className="shrink-0 text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+      {children}
+    </span>
+  )
+}
+
+function InlineChoiceButton({ label, active, onClick, width = 56 }) {
+  return (
+    <button
+      type="button"
+      data-editor-toolbar="true"
+      onClick={onClick}
+      className="flex items-center justify-center rounded-lg shrink-0"
+      style={{
+        minWidth: width,
+        height: 30,
+        padding: '0 10px',
+        border: '1px solid transparent',
+        background: active ? 'var(--accent-dim)' : 'transparent',
+        color: active ? 'var(--accent)' : 'var(--text-primary)',
+        cursor: 'pointer',
+        fontSize: 12,
+        fontWeight: 650,
+      }}
+      onMouseEnter={(event) => {
+        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)'
+      }}
+      onMouseLeave={(event) => {
+        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'transparent'
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+function LiveNumberField({ value, min, max, onChange, width = 72 }) {
+  const [draft, setDraft] = useState(String(value ?? ''))
+  const [focused, setFocused] = useState(false)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (!focused) {
+      setDraft(String(value ?? ''))
+    }
+  }, [value, focused])
+
+  function commitDraft(nextDraft) {
+    const trimmed = String(nextDraft ?? '').trim()
+    if (!trimmed) {
+      setDraft(String(value ?? ''))
+      return
+    }
+    const numeric = Number(trimmed)
+    if (!Number.isFinite(numeric)) {
+      setDraft(String(value ?? ''))
+      return
+    }
+    const clamped = Math.max(min, Math.min(max, Math.round(numeric)))
+    setDraft(String(clamped))
+    onChange(clamped)
+  }
+
+  return (
+    <input
+      data-editor-toolbar="true"
+      type="text"
+      inputMode="numeric"
+      ref={inputRef}
+      value={draft}
+      onMouseDown={(event) => {
+        markEditorToolbarInteraction()
+        event.stopPropagation()
+      }}
+      onClick={(event) => {
+        event.stopPropagation()
+      }}
+      onFocus={(event) => {
+        setFocused(true)
+        event.currentTarget.select()
+      }}
+      onChange={(event) => {
+        const next = event.target.value.replace(/[^\d]/g, '')
+        setDraft(next)
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === 'Tab') {
+          event.preventDefault()
+          commitDraft(draft)
+          if (event.key === 'Enter') {
+            event.currentTarget.select()
+          }
+        } else if (event.key === 'Escape') {
+          setDraft(String(value ?? ''))
+          event.currentTarget.blur()
+        }
+      }}
+      onBlur={() => {
+        commitDraft(draft)
+        setFocused(false)
+      }}
+      style={{
+        width,
+        height: 32,
+        padding: '0 10px',
+        borderRadius: 10,
+        border: '1px solid var(--border-default)',
+        background: 'var(--bg-app)',
+        color: 'var(--text-primary)',
+        fontSize: 12.5,
+        fontWeight: 650,
+        outline: 'none',
+      }}
+    />
+  )
+}
+
+function InlineSelect({ value, onChange, children, width = 138 }) {
+  return (
+    <select
+      data-editor-toolbar="true"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      style={{
+        width,
+        height: 30,
+        padding: '0 8px',
+        borderRadius: 8,
+        border: '1px solid var(--border-default)',
+        background: 'var(--bg-app)',
+        color: 'var(--text-primary)',
+        fontSize: 12.5,
+        fontWeight: 500,
+        outline: 'none',
+      }}
+    >
+      {children}
+    </select>
+  )
+}
+
+function usePopoverOpen() {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef(null)
+  const popoverRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onDown(e) {
+      if (triggerRef.current?.contains(e.target)) return
+      if (!popoverRef.current?.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  return { open, setOpen, triggerRef, popoverRef }
+}
+
+function normalizeEditorHtml(html) {
+  return String(html || '').replace(/&nbsp;/gi, ' ')
+}
+
+function defaultEditorBoxStyles(style = DEFAULT_TEXT_STYLE) {
+  return {
+    fontFamily: style.fontFamily || 'Arial, sans-serif',
+    fontSize: `${style.size || 100}px`,
+    color: style.color || '#ffffff',
+    backgroundColor: style.highlightColor === 'transparent' ? 'transparent' : (style.highlightColor || 'transparent'),
+    fontWeight: style.bold ? 700 : 400,
+    fontStyle: style.italic ? 'italic' : 'normal',
+    textDecoration: [
+      style.underline ? 'underline' : null,
+      style.strikethrough ? 'line-through' : null,
+    ].filter(Boolean).join(' ') || 'none',
+  }
+}
+
+function PopoverShell({ popoverRef, triggerRef, width = 180, children }) {
+  const [position, setPosition] = useState(null)
+
+  useLayoutEffect(() => {
+    if (!triggerRef?.current || typeof window === 'undefined') return undefined
+
+    function updatePosition() {
+      const triggerRect = triggerRef.current.getBoundingClientRect()
+      const popoverHeight = popoverRef.current?.offsetHeight || 220
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      const gap = 8
+
+      let left = Math.min(triggerRect.left, viewportWidth - width - 12)
+      left = Math.max(12, left)
+
+      let top = triggerRect.bottom + gap
+      if (top + popoverHeight > viewportHeight - 12) {
+        top = Math.max(12, triggerRect.top - popoverHeight - gap)
+      }
+
+      setPosition({ left, top })
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [triggerRef, popoverRef, width, children])
+
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div
+      data-editor-toolbar="true"
+      ref={popoverRef}
+      onMouseDown={(e) => {
+        markEditorToolbarInteraction()
+        if (!e.target.closest('input, select, textarea, [data-allow-focus="true"]')) {
+          e.preventDefault()
+        }
+      }}
+      style={{
+        position: 'fixed',
+        top: position?.top ?? -9999,
+        left: position?.left ?? -9999,
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 12,
+        padding: 8,
+        boxShadow: '0 18px 40px rgba(15, 23, 42, 0.28)',
+        zIndex: 1000,
+        width,
+      }}
+    >
+      {children}
+    </div>,
+    document.body
+  )
+}
+
+function PopoverMenuButton({ title, label, width = 138, children, popoverWidth = null }) {
+  const { open, setOpen, triggerRef, popoverRef } = usePopoverOpen()
+
+  return (
+    <div data-editor-toolbar="true" className="shrink-0">
+      <button
+        type="button"
+        data-editor-toolbar="true"
+        ref={triggerRef}
+        title={title}
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between gap-2 rounded-lg shrink-0"
+        style={{
+          width,
+          height: 30,
+          padding: '0 9px',
+          border: '1px solid var(--border-default)',
+          background: open ? 'var(--bg-hover)' : 'var(--bg-app)',
+          color: 'var(--text-primary)',
+          fontSize: 12.5,
+          fontWeight: 500,
+        }}
+      >
+        <span className="truncate">{label}</span>
+        <ChevronDown size={14} style={{ flexShrink: 0, color: 'var(--text-secondary)' }} />
+      </button>
+      {open ? (
+        <PopoverShell popoverRef={popoverRef} triggerRef={triggerRef} width={popoverWidth ?? (width + 54)}>
+          {children({ close: () => setOpen(false) })}
+        </PopoverShell>
+      ) : null}
+    </div>
+  )
+}
+
+function MenuOption({ active = false, onClick, children }) {
+  return (
+    <button
+      type="button"
+      data-editor-toolbar="true"
+      onClick={onClick}
+      className="w-full flex items-center justify-between gap-2 rounded-md"
+      style={{
+        height: 30,
+        padding: '0 10px',
+        background: active ? 'var(--accent-dim)' : 'transparent',
+        color: active ? 'var(--accent)' : 'var(--text-primary)',
+        fontSize: 12.5,
+        fontWeight: active ? 650 : 500,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = active ? 'var(--accent-dim)' : 'transparent' }}
+    >
+      <span className="truncate">{children}</span>
+      {active ? <Check size={14} /> : null}
+    </button>
+  )
+}
+
+function FontFamilyButton({ value, onChange, width }) {
+  return (
+    <PopoverMenuButton title="Font family" label={value || FONT_OPTIONS[0]} width={width} popoverWidth={Math.max(172, width + 42)}>
+      {({ close }) => (
+        <div className="flex flex-col gap-1 max-h-64 overflow-auto">
+          {FONT_OPTIONS.map((font) => (
+            <MenuOption key={font} active={font === value} onClick={() => { onChange(font); close() }}>
+              {font}
+            </MenuOption>
+          ))}
+        </div>
+      )}
+    </PopoverMenuButton>
+  )
+}
+
+function LineSpacingButton({ value, onChange }) {
+  return (
+    <PopoverMenuButton title="Line spacing" label={`${value}x`} width={82}>
+      {({ close }) => (
+        <div className="flex flex-col gap-1">
+          {LINE_SPACING_PRESETS.map((preset) => (
+            <MenuOption key={preset} active={Number(preset) === Number(value)} onClick={() => { onChange(preset); close() }}>
+              {preset}x
+            </MenuOption>
+          ))}
+        </div>
+      )}
+    </PopoverMenuButton>
+  )
+}
+
+function ColorDot({ title, value, onChange }) {
+  return (
+    <label
+      data-editor-toolbar="true"
+      title={title}
+      className="relative shrink-0 rounded-full overflow-hidden"
+      style={{
+        width: 24,
+        height: 24,
+        border: '1px solid var(--border-default)',
+        background: value === 'transparent' ? '#ffffff' : value,
+        cursor: 'pointer',
+      }}
+    >
+      <input
+        data-editor-toolbar="true"
+        type="color"
+        value={value === 'transparent' ? '#ffffff' : value}
+        onChange={(event) => onChange(event.target.value)}
+        style={{
+          position: 'absolute',
+          inset: -6,
+          opacity: 0,
+          cursor: 'pointer',
+        }}
+      />
+    </label>
+  )
+}
+
+function ColorPickerButton({ title, value, onChange }) {
+  const { open, setOpen, triggerRef, popoverRef } = usePopoverOpen()
+  const current = value === 'transparent' ? 'transparent' : (value || '#ffffff')
+  const colors = ['#ffffff', '#000000', '#ef4444', '#f59e0b', '#fde047', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', 'transparent']
+  return (
+    <div data-editor-toolbar="true" className="shrink-0">
+      <button
+        type="button"
+        data-editor-toolbar="true"
+        ref={triggerRef}
+        title={title}
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-full overflow-hidden"
+        style={{
+          width: 24,
+          height: 24,
+          border: '1px solid var(--border-default)',
+          background: current === 'transparent' ? '#ffffff' : current,
+        boxShadow: current === 'transparent' ? 'inset 0 0 0 1px rgba(0,0,0,0.12)' : 'none',
+      }}
+    />
+      {open ? (
+        <PopoverShell popoverRef={popoverRef} triggerRef={triggerRef} width={148}>
+          <div className="grid grid-cols-5 gap-2">
+            {colors.map((color) => (
+              <button
+                key={color}
+                type="button"
+                data-editor-toolbar="true"
+                title={color === 'transparent' ? 'Transparent' : color}
+                onClick={() => { onChange(color); setOpen(false) }}
+                className="rounded-md"
+                style={{
+                  width: 24,
+                  height: 24,
+                  background: color === 'transparent'
+                    ? 'repeating-linear-gradient(45deg, #bbb 0, #bbb 2px, #fff 0, #fff 4px)'
+                    : color,
+                  border: current === color ? '2px solid var(--accent)' : '1px solid rgba(128,128,128,0.25)',
+                }}
+              />
+            ))}
+          </div>
+        </PopoverShell>
+      ) : null}
+    </div>
+  )
 }
 
 export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }) {
+  const toolbarRef = useRef(null)
+  const presentClusterRef = useRef(null)
   const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
   const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
@@ -45,12 +716,217 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
+  const editingSlideId = useEditorStore((s) => s.editingSlideId)
+  const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const addSlideTextBox = useEditorStore((s) => s.addSlideTextBox)
+  const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
+  const updateSlideStyle = useEditorStore((s) => s.updateSlideStyle)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
+
+  const [editorTick, setEditorTick] = useState(0)
+  const [toolbarWidth, setToolbarWidth] = useState(0)
+  const [presentClusterWidth, setPresentClusterWidth] = useState(0)
 
   const hasPresentation = !!presentation
   const hasSlide = !!selectedSlideId
   const panelOpen = songLibraryOpen || mediaLibraryOpen
+  const section = useMemo(
+    () => presentation?.sections?.find((item) => item.id === selectedSectionId) || null,
+    [presentation, selectedSectionId]
+  )
+  const slide = useMemo(
+    () => getSelectedSlide(presentation, selectedSectionId, selectedSlideId),
+    [presentation, selectedSectionId, selectedSlideId]
+  )
+  const slideTextBoxes = useMemo(() => getSlideTextBoxes(slide), [slide])
+  const primaryTextBox = slideTextBoxes?.[0] || null
+  const isTextEditing = editingSlideId === selectedSlideId && Boolean(selectedSlideId)
+  const canAddTextBox = hasSlide && !panelOpen && !isMediaSlide(slide)
+  const activeTextBoxId = getCurrentOrSavedTextBoxId() || primaryTextBox?.id || null
+  const activeTextBox = slideTextBoxes.find((box) => box.id === activeTextBoxId) || primaryTextBox
+  const activeTextBoxIds = activeTextBoxId ? [activeTextBoxId] : null
+  const style = activeTextBox?.textStyle || DEFAULT_TEXT_STYLE
+
+  useEffect(() => {
+    if (!toolbarRef.current) return undefined
+    const node = toolbarRef.current
+    const update = () => setToolbarWidth(node.getBoundingClientRect().width)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(node)
+    window.addEventListener('resize', update)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!presentClusterRef.current) return undefined
+    const node = presentClusterRef.current
+    const update = () => setPresentClusterWidth(node.getBoundingClientRect().width)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(node)
+    window.addEventListener('resize', update)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isTextEditing) {
+      clearSavedEditorSelection()
+      return undefined
+    }
+    const bump = () => {
+      const editor = getCurrentOrSavedSlideTextEditor()
+      if (editor) saveEditorSelection(editor)
+      setEditorTick((value) => value + 1)
+    }
+    document.addEventListener('selectionchange', bump)
+    document.addEventListener('input', bump, true)
+    document.addEventListener('keyup', bump, true)
+    document.addEventListener('mouseup', bump, true)
+    return () => {
+      document.removeEventListener('selectionchange', bump)
+      document.removeEventListener('input', bump, true)
+      document.removeEventListener('keyup', bump, true)
+      document.removeEventListener('mouseup', bump, true)
+    }
+  }, [isTextEditing])
+
+  const activeEditor = isTextEditing ? getCurrentOrSavedSlideTextEditor() : null
+  const editorFontFamily = activeEditor ? readEditorFontFamily(activeEditor) : (style.fontFamily || FONT_OPTIONS[0])
+  const editorFontSize = activeEditor ? readEditorFontSize(activeEditor) : (style.size || 60)
+  const editorTextColor = activeEditor ? readEditorTextColor(activeEditor, style.color || '#ffffff') : (style.color || '#ffffff')
+  const editorHighlightColor = activeEditor ? readEditorHighlightColor(activeEditor, style.highlightColor || 'transparent') : (style.highlightColor || 'transparent')
+  const editorState = {
+    bold: getEditorCommandState('bold', activeEditor),
+    italic: getEditorCommandState('italic', activeEditor),
+    underline: getEditorCommandState('underline', activeEditor),
+    strike: getEditorCommandState('strikeThrough', activeEditor),
+    alignLeft: getEditorCommandState('justifyLeft', activeEditor),
+    alignCenter: getEditorCommandState('justifyCenter', activeEditor),
+    alignRight: getEditorCommandState('justifyRight', activeEditor),
+    justify: getEditorCommandState('justifyFull', activeEditor),
+  }
+  void editorTick
+
+  const effectiveWidth = Math.max(0, toolbarWidth - presentClusterWidth - 2)
+  const compactLevel = isTextEditing
+    ? effectiveWidth < 760 ? 4 : effectiveWidth < 890 ? 3 : effectiveWidth < 1020 ? 2 : effectiveWidth < 1140 ? 1 : 0
+    : effectiveWidth < 700 ? 3 : effectiveWidth < 840 ? 2 : effectiveWidth < 980 ? 1 : 0
+
+  const hideSecondaryLabels = compactLevel >= 2
+  const hideMostLabels = compactLevel >= 3
+  const hidePrimaryLabels = compactLevel >= 3
+  const hideEditSecondaryLabels = isTextEditing && compactLevel >= 1
+  const hideEditColorLabels = isTextEditing && compactLevel >= 2
+
+  const activeAlign = isTextEditing
+    ? readEditorTextAlign(activeEditor, style.align || 'center')
+    : (style.align || 'center')
+  const activeVerticalAlign = style.valign || 'middle'
+  const verticalAlignLabel = activeVerticalAlign === 'top' ? 'Top' : activeVerticalAlign === 'bottom' ? 'Bottom' : 'Middle'
+
+  function preserveEditorSelection() {
+    if (!isTextEditing) return
+    const editor = getCurrentOrSavedSlideTextEditor()
+    if (editor) saveEditorSelection(editor)
+  }
+
+  function handleToolbarMouseDownCapture(event) {
+    if (!isTextEditing) return
+    const target = event.target
+    if (!target.closest?.('[data-editor-toolbar="true"]')) return
+    markEditorToolbarInteraction()
+    preserveEditorSelection()
+    if (target.closest?.('button')) {
+      event.preventDefault()
+    }
+  }
+
+  function restoreInlineSelection(options = {}) {
+    const editor = getCurrentOrSavedSlideTextEditor()
+    if (!editor) return null
+    restoreEditorSelection(editor, options)
+    return editor
+  }
+
+  function canInlineFormat(editor) {
+    return Boolean(editor) && editor.dataset?.placeholderActive !== 'true'
+  }
+
+  function hasInlineTextSelection(editor) {
+    return canInlineFormat(editor) && getSelectedTextInEditor(editor).trim().length > 0
+  }
+
+  function persistInlineEditor(editor) {
+    if (!editor || editor.dataset?.placeholderActive === 'true') return
+    const textBoxId = editor.dataset?.textBoxId || activeTextBoxId
+    if (!textBoxId || !selectedSectionId || !selectedSlideId) return
+    updateSlideBody(selectedSectionId, selectedSlideId, normalizeEditorHtml(editor.innerHTML), textBoxId)
+  }
+
+  function applyRangeOrTypingCommand(inlineCommand, value = null) {
+    const editor = restoreInlineSelection()
+    if (canInlineFormat(editor) && inlineCommand) {
+      const success = runEditorCommand(inlineCommand, value, editor)
+      if (success) {
+        persistInlineEditor(editor)
+        setEditorTick((tick) => tick + 1)
+        return true
+      }
+    }
+    return false
+  }
+
+  function applyTextStyle(styleProps, inlineCommand = null, value = null) {
+    if (applyRangeOrTypingCommand(inlineCommand, value)) return
+    if (!isTextEditing && selectedSectionId && selectedSlideId) {
+      updateSlideStyle(selectedSectionId, selectedSlideId, styleProps, activeTextBoxIds)
+    }
+  }
+
+  function applyTextBoxStyle(styleProps) {
+    if (selectedSectionId && selectedSlideId) {
+      updateSlideStyle(selectedSectionId, selectedSlideId, styleProps, activeTextBoxIds)
+    }
+  }
+
+  function handleLineHeight(next) {
+    if (selectedSectionId && selectedSlideId) updateSlideStyle(selectedSectionId, selectedSlideId, { lineHeight: next }, activeTextBoxIds)
+    setEditorTick((tick) => tick + 1)
+  }
+
+  function handleVerticalAlign(next) {
+    if (selectedSectionId && selectedSlideId) updateSlideStyle(selectedSectionId, selectedSlideId, { valign: next }, activeTextBoxIds)
+    setEditorTick((tick) => tick + 1)
+  }
+
+  function handleClearFormatting() {
+    const editor = restoreInlineSelection()
+    if (canInlineFormat(editor)) {
+      if (hasInlineTextSelection(editor) && clearEditorFormatting(editor)) {
+        persistInlineEditor(editor)
+        setEditorTick((tick) => tick + 1)
+        return
+      }
+
+      const plain = slideBodyToPlainText(editor.innerHTML)
+      editor.innerHTML = plain.replace(/\n/g, '<br />')
+      applyEditorBoxStyle(defaultEditorBoxStyles(DEFAULT_TEXT_STYLE), editor, {
+        stripProps: ['fontFamily', 'fontSize', 'color', 'backgroundColor', 'fontWeight', 'fontStyle', 'textDecoration'],
+      })
+      persistInlineEditor(editor)
+      applyTextBoxStyle(DEFAULT_TEXT_STYLE)
+      setEditorTick((tick) => tick + 1)
+      return
+    }
+    if (selectedSectionId && selectedSlideId) updateSlideStyle(selectedSectionId, selectedSlideId, DEFAULT_TEXT_STYLE, activeTextBoxIds)
+  }
 
   function handleNewSlide() {
     insertNewSlideIntoCurrentPresentation()
@@ -80,91 +956,199 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
       }))
     )
     const nextPresentation = useEditorStore.getState().presentation
-    const nextSection = nextPresentation?.sections?.find((section) => section.slides?.length)
+    const nextSection = nextPresentation?.sections?.find((entry) => entry.slides?.length)
     const nextSlide = nextSection?.slides?.[0]
     state.setSelectedSlide(nextSection?.id ?? null, nextSlide?.id ?? null)
   }
 
+  function toggleSongLibrary() {
+    setMediaLibraryOpen(false)
+    setSongLibraryOpen(!songLibraryOpen)
+  }
+
+  function toggleMediaLibrary() {
+    setSongLibraryOpen(false)
+    setMediaLibraryOpen(!mediaLibraryOpen)
+  }
+
+  const sectionMeta = section
+    ? `${getSectionTypeLabel(section.type)} · ${section.slides?.length || 0} slides`
+    : 'No section selected'
+  const mediaMeta = slide?.backgroundId
+    ? 'Background set'
+    : slide?.mediaId
+      ? 'Media attached'
+      : 'None'
+
   return (
     <div
+      ref={toolbarRef}
       data-tour="editor-toolbar"
-      className="flex items-center px-2 h-9 shrink-0 gap-0.5"
+      data-editor-toolbar={isTextEditing ? 'true' : undefined}
+      onMouseDownCapture={handleToolbarMouseDownCapture}
+      className="shrink-0 px-1.5 py-2"
       style={{
         background: 'var(--bg-toolbar)',
         borderBottom: '1px solid var(--border-subtle)',
+        overflowX: 'hidden',
+        overflowY: 'visible',
       }}
     >
-      <ToolbarBtn icon={Plus} label="New Slide" shortcut="⌘M" onClick={handleNewSlide} disabled={!hasPresentation || panelOpen} />
-      <ToolbarBtn icon={Copy} label="Duplicate Slide" onClick={handleDuplicate} disabled={!hasSlide || panelOpen} />
-      <ToolbarBtn icon={Trash2} label="Delete Slide" onClick={handleDelete} disabled={!hasSlide || panelOpen} />
-      <ToolbarBtn icon={Type} label="Add Text Box" onClick={() => addSlideTextBox(selectedSectionId, selectedSlideId)} disabled={!hasSlide || panelOpen} />
+      <div className="flex items-center gap-1 min-w-0 overflow-hidden" style={{ minHeight: 44 }}>
+        {isTextEditing ? (
+          <>
+            <Group title="Text">
+              <FontFamilyButton
+                value={editorFontFamily}
+                width={compactLevel >= 3 ? 110 : compactLevel >= 1 ? 138 : 170}
+                onChange={(value) => {
+                  const editor = restoreInlineSelection({ focus: false })
+                  if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ fontFamily: value }, editor)) {
+                    persistInlineEditor(editor)
+                    setEditorTick((tick) => tick + 1)
+                    return
+                  }
+                  if (isTextEditing && editor) {
+                    applyEditorBoxStyle({ fontFamily: value }, editor, {
+                      stripProps: ['fontFamily'],
+                    })
+                    persistInlineEditor(editor)
+                    applyTextBoxStyle({ fontFamily: value })
+                    setEditorTick((tick) => tick + 1)
+                    return
+                  }
+                  applyTextBoxStyle({ fontFamily: value })
+                  setEditorTick((tick) => tick + 1)
+                }}
+              />
+              <LiveNumberField
+                value={editorFontSize}
+                min={8}
+                max={320}
+                width={compactLevel >= 2 ? 78 : 92}
+                onChange={(value) => {
+                  const editor = restoreInlineSelection({ focus: false })
+                  if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ fontSize: `${value}px` }, editor)) {
+                    persistInlineEditor(editor)
+                    setEditorTick((tick) => tick + 1)
+                    return
+                  }
+                  if (editor) {
+                    applyEditorBoxStyle({ fontSize: `${value}px` }, editor, {
+                      stripProps: ['fontSize'],
+                    })
+                    persistInlineEditor(editor)
+                  }
+                  applyTextBoxStyle({ size: value })
+                  setEditorTick((tick) => tick + 1)
+                }}
+              />
+              <InlineStyleButton icon={Bold} title="Bold (Cmd/Ctrl+B)" active={editorState.bold || style.bold} onClick={() => applyTextStyle({ bold: !style.bold }, 'bold')} />
+              <InlineStyleButton icon={Italic} title="Italic (Cmd/Ctrl+I)" active={editorState.italic || style.italic} onClick={() => applyTextStyle({ italic: !style.italic }, 'italic')} />
+              <InlineStyleButton icon={Underline} title="Underline (Cmd/Ctrl+U)" active={editorState.underline || style.underline} onClick={() => applyTextStyle({ underline: !style.underline }, 'underline')} />
+              {!hideEditSecondaryLabels && <InlineStyleButton icon={Strikethrough} title="Strikethrough" active={editorState.strike || style.strikethrough} onClick={() => applyTextStyle({ strikethrough: !style.strikethrough }, 'strikeThrough')} />}
+              {!hidePrimaryLabels && <CommandButton icon={Eraser} label="Clear" title="Clear Formatting" onClick={handleClearFormatting} compact collapseLabel={hideEditSecondaryLabels} />}
+            </Group>
 
-      <Separator />
+            <Group title="Paragraph" grow>
+              <InlineStyleButton icon={AlignLeft} title="Align Left" active={activeAlign === 'left'} onClick={() => applyTextStyle({ align: 'left' }, 'justifyLeft')} />
+              <InlineStyleButton icon={AlignCenter} title="Align Center" active={activeAlign === 'center'} onClick={() => applyTextStyle({ align: 'center' }, 'justifyCenter')} />
+              <InlineStyleButton icon={AlignRight} title="Align Right" active={activeAlign === 'right'} onClick={() => applyTextStyle({ align: 'right' }, 'justifyRight')} />
+              {!hideEditSecondaryLabels && <InlineStyleButton icon={AlignJustify} title="Justify" active={activeAlign === 'justify'} onClick={() => applyTextStyle({ align: 'justify' }, 'justifyFull')} />}
+              {!hideEditSecondaryLabels && <InlineTinyLabel>Line</InlineTinyLabel>}
+              <LineSpacingButton value={style.lineHeight || 1.3} onChange={(value) => handleLineHeight(Number(value))} />
+              {!hideEditSecondaryLabels && <InlineTinyLabel>Vertical</InlineTinyLabel>}
+              <PopoverMenuButton title="Vertical alignment" label={verticalAlignLabel} width={compactLevel >= 2 ? 84 : 104} popoverWidth={140}>
+                {({ close }) => (
+                  <div className="flex flex-col gap-1">
+                    <MenuOption active={activeVerticalAlign === 'top'} onClick={() => { handleVerticalAlign('top'); close() }}>Top</MenuOption>
+                    <MenuOption active={activeVerticalAlign === 'middle'} onClick={() => { handleVerticalAlign('middle'); close() }}>Middle</MenuOption>
+                    <MenuOption active={activeVerticalAlign === 'bottom'} onClick={() => { handleVerticalAlign('bottom'); close() }}>Bottom</MenuOption>
+                  </div>
+                )}
+              </PopoverMenuButton>
+              <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+                {!hideEditColorLabels && <InlineTinyLabel>Text</InlineTinyLabel>}
+                <ColorPickerButton title="Text color" value={editorTextColor} onChange={(value) => {
+                  const editor = restoreInlineSelection({ focus: false })
+                  if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ color: value }, editor)) {
+                    persistInlineEditor(editor)
+                    setEditorTick((tick) => tick + 1)
+                    return
+                  }
+                  if (editor) {
+                    applyEditorBoxStyle({ color: value }, editor, {
+                      stripProps: ['color'],
+                    })
+                    persistInlineEditor(editor)
+                  }
+                  applyTextBoxStyle({ color: value })
+                  setEditorTick((tick) => tick + 1)
+                }} />
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+                {!hideEditColorLabels && <InlineTinyLabel>Highlight</InlineTinyLabel>}
+                <ColorPickerButton title="Highlight color" value={editorHighlightColor === 'transparent' ? 'transparent' : editorHighlightColor} onChange={(value) => {
+                  const next = value === 'transparent' ? 'transparent' : value
+                  const editor = restoreInlineSelection({ focus: false })
+                  if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ backgroundColor: next }, editor)) {
+                    persistInlineEditor(editor)
+                    setEditorTick((tick) => tick + 1)
+                    return
+                  }
+                  if (editor) {
+                    applyEditorBoxStyle({ backgroundColor: next }, editor, {
+                      stripProps: ['backgroundColor'],
+                    })
+                    persistInlineEditor(editor)
+                  }
+                  applyTextBoxStyle({ highlightColor: next })
+                  setEditorTick((tick) => tick + 1)
+                }} />
+              </div>
+            </Group>
+          </>
+        ) : (
+          <>
+            <Group title="Slides">
+              <CommandButton icon={Plus} label="New" title="New Slide (Cmd+M)" onClick={handleNewSlide} disabled={!hasPresentation || panelOpen} primary collapseLabel={hidePrimaryLabels} />
+              <CommandButton icon={Type} label="Text Box" title="Add Text Box" onClick={() => addSlideTextBox(selectedSectionId, selectedSlideId)} disabled={!canAddTextBox} collapseLabel={hidePrimaryLabels} />
+              <CommandButton icon={Copy} title="Duplicate Slide" onClick={handleDuplicate} disabled={!hasSlide || panelOpen} compact />
+              <CommandButton icon={Trash2} title="Delete Slide" onClick={handleDelete} disabled={!hasSlide || panelOpen} danger compact />
+            </Group>
 
-      <ToolbarBtn
-        icon={Music}
-        label="Song Library"
-        onClick={() => {
-          setMediaLibraryOpen(false)
-          setSongLibraryOpen(!songLibraryOpen)
-        }}
-      />
-      <ToolbarBtn icon={FileText} label="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation || panelOpen} />
-      <ToolbarBtn icon={BookOpen} label="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation || panelOpen} />
-      <ToolbarBtn
-        icon={Image}
-        label="Media Library"
-        onClick={() => {
-          setSongLibraryOpen(false)
-          setMediaLibraryOpen(!mediaLibraryOpen)
-        }}
-      />
+            <Group title="Media">
+              <CommandButton icon={Music} label="Song" title="Song Library" onClick={toggleSongLibrary} disabled={false} active={songLibraryOpen} collapseLabel={hideMostLabels} />
+              <CommandButton icon={Image} label="Media" title="Media Library" onClick={toggleMediaLibrary} disabled={false} active={mediaLibraryOpen} collapseLabel={hideMostLabels} />
+            </Group>
 
-      <Separator />
+            <Group title="Section">
+              <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} />
+              <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} />
+            </Group>
+          </>
+        )}
 
-      <button
-        data-tour="present-button"
-        onClick={onPresent}
-        title="Present (F5)"
-        disabled={panelOpen}
-        className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium ml-1"
-        style={{
-          background: panelOpen ? 'var(--border-default)' : isPresenting ? 'var(--live)' : 'var(--accent)',
-          color: '#ffffff',
-          cursor: panelOpen ? 'default' : 'pointer',
-          opacity: panelOpen ? 0.7 : 1,
-        }}
-        onMouseEnter={(e) => {
-          if (panelOpen) return
-          e.currentTarget.style.background = isPresenting ? '#15803d' : 'var(--accent-hover)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = panelOpen ? 'var(--border-default)' : isPresenting ? 'var(--live)' : 'var(--accent)'
-        }}
-      >
-        <Play size={13} />
-        {isPresenting ? 'Stop' : 'Present'}
-      </button>
-
-      {onTogglePanel && (
-        <button
-          onClick={onTogglePanel}
-          title="Toggle Presenter Panel"
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs ml-1"
-          style={{
-            background: presenterPanelOpen ? 'var(--bg-hover)' : 'transparent',
-            color: presenterPanelOpen ? 'var(--text-primary)' : 'var(--text-secondary)',
-            border: '1px solid var(--border-default)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = presenterPanelOpen ? 'var(--bg-hover)' : 'transparent'
-            e.currentTarget.style.color = presenterPanelOpen ? 'var(--text-primary)' : 'var(--text-secondary)'
-          }}
+        <div
+          ref={presentClusterRef}
+          className="ml-auto shrink-0 flex items-center gap-2 pl-3"
+          style={{ borderLeft: '1px solid var(--border-subtle)' }}
         >
-          ⊞ Presenter
-        </button>
-      )}
+          <PresentButton onPresent={onPresent} isPresenting={isPresenting} disabled={panelOpen} collapseLabel={false} />
+          {onTogglePanel && (
+            <CommandButton
+              icon={LayoutPanelTop}
+              label="Presenter"
+              title="Presenter"
+              onClick={onTogglePanel}
+              disabled={false}
+              active={presenterPanelOpen}
+              primary
+              collapseLabel={false}
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

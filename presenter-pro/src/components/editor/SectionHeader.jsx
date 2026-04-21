@@ -106,8 +106,8 @@ export default function SectionHeader({ section, collapsed, onToggle, onAddSlide
           </span>
         )}
 
-        <span className="text-xs mr-1" style={{ color: 'var(--text-tertiary)' }}>
-          {section.slides.length}
+        <span className="text-xs mr-1 whitespace-nowrap" style={{ color: 'var(--text-tertiary)' }}>
+          {section.slides.length} {section.slides.length === 1 ? 'slide' : 'slides'}
         </span>
 
         <button

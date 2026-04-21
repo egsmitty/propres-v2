@@ -187,7 +187,7 @@ export function syncLegacyTextFields(slide, textBoxes = getSlideTextBoxes(slide)
     body: primary.body,
     placeholderText: primary.placeholderText,
     textStyle: mergeTextStyle(primary.textStyle),
-    textBox: mergeTextBox(primary),
+    textBox: legacyFrameFromTextBox(primary),
     textBoxes: sortedBoxes,
   }
 }
@@ -200,6 +200,17 @@ export function withUpdatedSlideTextBoxes(slide, updater) {
 
 export function findTextBox(slide, textBoxId) {
   return getSlideTextBoxes(slide).find((textBox) => textBox.id === textBoxId) || null
+}
+
+function legacyFrameFromTextBox(textBox = {}) {
+  const {
+    id,
+    body,
+    placeholderText,
+    textStyle,
+    ...frameProps
+  } = textBox || {}
+  return mergeTextBox(frameProps)
 }
 
 export function createDefaultTextBoxForSlide(slide, overrides = {}) {

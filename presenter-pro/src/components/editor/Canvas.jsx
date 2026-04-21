@@ -6,6 +6,7 @@ import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/
 import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
+import { clearEditorFormatting, runEditorCommand } from '@/utils/richTextEditor'
 import ContextMenu from '@/components/shared/ContextMenu'
 import {
   clearSelectedSlide,
@@ -20,7 +21,6 @@ import {
   resolvePlaceholderText,
 } from '@/utils/textBoxes'
 import SlideTextEditor from './SlideTextEditor'
-import FormattingToolbar from './FormattingToolbar'
 
 const SNAP_THRESHOLD = 8
 const MIN_TEXT_BOX_WIDTH = 20
@@ -31,17 +31,17 @@ const MARQUEE_FILL = 'rgba(74,124,255,0.12)'
 const MARQUEE_BORDER = 'rgba(74,124,255,0.9)'
 const INDICATOR_STYLE = {
   position: 'absolute',
-  padding: '6px 10px',
+  padding: '14px 22px',
   borderRadius: 999,
   background: 'rgba(12, 18, 32, 0.92)',
   border: '1px solid rgba(255,255,255,0.12)',
   color: '#fff',
-  fontSize: 12,
+  fontSize: 28,
   fontWeight: 700,
   letterSpacing: '0.03em',
   pointerEvents: 'none',
   whiteSpace: 'nowrap',
-  boxShadow: '0 6px 18px rgba(0,0,0,0.28)',
+  boxShadow: '0 12px 28px rgba(0,0,0,0.32)',
 }
 
 function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
@@ -197,6 +197,8 @@ export default function Canvas() {
   const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
+  const lastAddedTextBoxId = useEditorStore((s) => s.lastAddedTextBoxId)
+  const clearLastAddedTextBoxId = useEditorStore((s) => s.clearLastAddedTextBoxId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
   const updateSlideTextBoxes = useEditorStore((s) => s.updateSlideTextBoxes)
@@ -223,6 +225,7 @@ export default function Canvas() {
   const canvasRef = useRef(null)
   const interactionRef = useRef(null)
   const pendingOutsideBlurRef = useRef(false)
+  const previousSlideIdRef = useRef(null)
 
   const slide = getSelectedSlide(presentation, selectedSectionId, selectedSlideId)
   const section = presentation?.sections?.find((item) => item.id === selectedSectionId) || null
@@ -281,6 +284,43 @@ export default function Canvas() {
     setMetric(null)
     setEditingSlide(null)
   }, [selectedSectionId, selectedSlideId, setEditingSlide])
+
+  useEffect(() => {
+    const currentSlideId = slide?.id ?? null
+    const slideChanged = previousSlideIdRef.current !== currentSlideId
+    previousSlideIdRef.current = currentSlideId
+
+    if (!slideChanged || !slide || mediaOnlySlide || editingTextBoxId || selectedTextBoxIds.length) return
+    if (textBoxes.length !== 1) return
+
+    const [box] = textBoxes
+    if ((box.body || '').trim()) return
+
+    setSelectedTextBoxIds([box.id])
+  }, [editingTextBoxId, mediaOnlySlide, selectedTextBoxIds.length, slide?.id, textBoxes])
+
+  useEffect(() => {
+    if (!lastAddedTextBoxId || !slide || mediaOnlySlide) return
+
+    const addedBox = textBoxes.find((box) => box.id === lastAddedTextBoxId)
+    if (!addedBox) return
+
+    setDraftBoxes(null)
+    setEditingTextBoxId(null)
+    setSelectedTextBoxIds([lastAddedTextBoxId])
+    setSnapGuides({ vertical: null, horizontal: null })
+    setSelectionRect(null)
+    setMetric(null)
+    setEditingSlide(null)
+    clearLastAddedTextBoxId()
+  }, [
+    clearLastAddedTextBoxId,
+    lastAddedTextBoxId,
+    mediaOnlySlide,
+    setEditingSlide,
+    slide,
+    textBoxes,
+  ])
 
   useEffect(() => {
     if (!slide || mediaOnlySlide) return undefined
@@ -421,11 +461,19 @@ export default function Canvas() {
 
       if (isEditing && meta) {
         const lower = event.key.toLowerCase()
-        if (lower === 'b') { event.preventDefault(); useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, { bold: !primaryTextBox?.textStyle?.bold }, selectedTextBoxIds); return }
-        if (lower === 'i') { event.preventDefault(); useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, { italic: !primaryTextBox?.textStyle?.italic }, selectedTextBoxIds); return }
-        if (lower === 'u') { event.preventDefault(); useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, { underline: !primaryTextBox?.textStyle?.underline }, selectedTextBoxIds); return }
-        if (lower === 'l' || lower === 'e' || lower === 'r' || lower === 'j') { event.preventDefault(); const map = { l: 'left', e: 'center', r: 'right', j: 'justify' }; useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, { align: map[lower] }, selectedTextBoxIds); return }
-        if (event.key === ' ') { event.preventDefault(); useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, DEFAULT_TEXT_STYLE, selectedTextBoxIds); return }
+        if (lower === 'b') { event.preventDefault(); if (!runEditorCommand('bold')) useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, { bold: !primaryTextBox?.textStyle?.bold }, selectedTextBoxIds); return }
+        if (lower === 'i') { event.preventDefault(); if (!runEditorCommand('italic')) useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, { italic: !primaryTextBox?.textStyle?.italic }, selectedTextBoxIds); return }
+        if (lower === 'u') { event.preventDefault(); if (!runEditorCommand('underline')) useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, { underline: !primaryTextBox?.textStyle?.underline }, selectedTextBoxIds); return }
+        if (lower === 'l' || lower === 'e' || lower === 'r' || lower === 'j') {
+          event.preventDefault()
+          const commandMap = { l: 'justifyLeft', e: 'justifyCenter', r: 'justifyRight', j: 'justifyFull' }
+          const styleMap = { l: 'left', e: 'center', r: 'right', j: 'justify' }
+          if (!runEditorCommand(commandMap[lower])) {
+            useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, { align: styleMap[lower] }, selectedTextBoxIds)
+          }
+          return
+        }
+        if (event.key === ' ') { event.preventDefault(); if (!clearEditorFormatting()) useEditorStore.getState().updateSlideStyle(selectedSectionId, selectedSlideId, DEFAULT_TEXT_STYLE, selectedTextBoxIds); return }
       }
 
       if (meta && event.key.toLowerCase() === 'v' && textBoxClipboard?.length) {
@@ -509,18 +557,43 @@ export default function Canvas() {
   }, [caseModeIndex, duplicateSlideTextBoxes, isEditing, mediaOnlySlide, primaryTextBox, removeSlideTextBoxes, selectedSectionId, selectedSlideId, selectedTextBoxIds, setEditingSlide, setTextBoxClipboard, slide, textBoxClipboard, textBoxes, updateSlideBody, updateSlideTextBoxes])
 
   useEffect(() => {
-    function onDocMouseDown(e) {
-      if (!selectedTextBoxIds.length && !editingTextBoxId) return
-      if (e.target.closest?.('[data-tour="canvas"]')) return
-      if (e.target.closest?.('[data-editor-toolbar="true"]')) return
+    function clearActiveSelection() {
+      const active = document.activeElement
+      if (active?.isContentEditable) active.blur()
       setSelectedTextBoxIds([])
       if (editingTextBoxId) {
         setEditingTextBoxId(null)
         setEditingSlide(null)
       }
     }
-    document.addEventListener('mousedown', onDocMouseDown)
-    return () => document.removeEventListener('mousedown', onDocMouseDown)
+
+    function onDocMouseDown(e) {
+      if (!selectedTextBoxIds.length && !editingTextBoxId) return
+      if (e.target.closest?.('[data-textbox-root="true"]')) return
+      if (e.target.closest?.('[data-editor-toolbar="true"]')) return
+      if (e.target.closest?.('[data-context-menu="true"]')) return
+      clearActiveSelection()
+    }
+
+    function onWindowBlur() {
+      if (!selectedTextBoxIds.length && !editingTextBoxId) return
+      clearActiveSelection()
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState !== 'hidden') return
+      if (!selectedTextBoxIds.length && !editingTextBoxId) return
+      clearActiveSelection()
+    }
+
+    document.addEventListener('mousedown', onDocMouseDown, true)
+    window.addEventListener('blur', onWindowBlur)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown, true)
+      window.removeEventListener('blur', onWindowBlur)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [selectedTextBoxIds, editingTextBoxId, setEditingSlide])
 
   function beginInteraction(event, type, options = {}) {
@@ -544,6 +617,7 @@ export default function Canvas() {
 
   function handleBlankMouseDown(event) {
     if (event.button !== 0) return
+    if (event.target.closest?.('[data-textbox-root="true"]')) return
     pendingOutsideBlurRef.current = true
 
     if (isEditing) {
@@ -623,6 +697,7 @@ export default function Canvas() {
     return (
       <div
         key={box.id}
+        data-textbox-root="true"
         onMouseDown={(event) => handleTextBoxMouseDown(event, box)}
         onDoubleClick={(event) => handleTextBoxDoubleClick(event, box.id)}
         onContextMenu={(event) => handleTextBoxContextMenu(event, box.id)}
@@ -729,14 +804,6 @@ export default function Canvas() {
 
   return (
     <div data-tour="canvas" className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
-      <FormattingToolbar
-        sectionId={selectedSectionId}
-        slideId={slide.id}
-        selectedTextBoxIds={selectedTextBoxIds}
-        primaryTextBox={primaryTextBox}
-        canvasRef={canvasRef}
-        scale={scale}
-      />
 
       <div className="flex-1 flex items-center justify-center p-6" onContextMenu={(event) => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY, target: 'slide' }) }}>
         <div
@@ -760,7 +827,7 @@ export default function Canvas() {
                 {selectionRect && <SelectionRect rect={selectionRect} />}
                 {renderedBoxes.map(renderTextBox)}
                 {metric && primaryTextBox && (
-                  <div style={{ ...INDICATOR_STYLE, left: primaryTextBox.x + 8, top: primaryTextBox.y - 44 }}>
+                  <div style={{ ...INDICATOR_STYLE, left: primaryTextBox.x + 8, top: primaryTextBox.y - 72 }}>
                     {metric.type === 'move' && `X ${metric.x} · Y ${metric.y}`}
                     {metric.type === 'resize' && `${metric.width} × ${metric.height}`}
                     {metric.type === 'rotate' && `${metric.rotation}°`}
@@ -798,22 +865,29 @@ export default function Canvas() {
         />
       )}
 
-      <div className="shrink-0 flex items-center px-4 h-9 gap-3" style={{ background: 'var(--bg-toolbar)', borderTop: '1px solid var(--border-subtle)' }}>
-        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {section ? `${getSectionTypeLabel(section.type)} Background:` : 'Section Background:'}
-        </span>
-        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          {mediaOnlySlide ? slideMedia?.name || 'Media slide' : backgroundMedia ? backgroundMedia.name : 'No background'}
-        </span>
-        <button
-          className="ml-auto text-xs px-2.5 py-1 rounded"
-          style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-          onMouseEnter={(event) => (event.currentTarget.style.background = 'var(--bg-hover)')}
-          onMouseLeave={(event) => (event.currentTarget.style.background = 'var(--bg-surface)')}
-          onClick={() => setMediaLibraryOpen(true)}
-        >
-          {mediaOnlySlide ? 'Change Media' : 'Set Background'}
-        </button>
+      <div
+        className="shrink-0 px-4 py-2"
+        style={{ background: 'var(--bg-toolbar)', borderTop: '1px solid var(--border-subtle)' }}
+      >
+        <div className="flex items-center gap-3 justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>
+              {section ? `${getSectionTypeLabel(section.type)} Background` : 'Section Background'}
+            </div>
+            <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              {mediaOnlySlide ? slideMedia?.name || 'Media slide' : backgroundMedia ? backgroundMedia.name : 'No background'}
+            </div>
+          </div>
+          <button
+            className="shrink-0 text-xs px-3 py-1.5 rounded-md font-medium"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            onMouseEnter={(event) => (event.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={(event) => (event.currentTarget.style.background = 'var(--bg-surface)')}
+            onClick={() => setMediaLibraryOpen(true)}
+          >
+            {mediaOnlySlide ? 'Change Media' : 'Set Background'}
+          </button>
+        </div>
       </div>
     </div>
   )

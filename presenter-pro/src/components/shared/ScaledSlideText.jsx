@@ -38,6 +38,19 @@ function renderBody(box, empty, showPlaceholder) {
   return { html: resolvePlaceholderText(box.placeholderText, empty), placeholder: true }
 }
 
+function scaleInlineHtml(html, scale) {
+  if (!html || scale === 1) return html
+
+  const scalePx = (_, value) => {
+    const next = Math.max(1, Number.parseFloat(value || '0') * scale)
+    return `${next.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')}px`
+  }
+
+  return String(html)
+    .replace(/font-size\s*:\s*([\d.]+)px/gi, (match, value) => match.replace(value + 'px', scalePx('', value)))
+    .replace(/line-height\s*:\s*([\d.]+)px/gi, (match, value) => match.replace(value + 'px', scalePx('', value)))
+}
+
 export default function ScaledSlideText({
   presentation,
   slide,
@@ -71,6 +84,7 @@ export default function ScaledSlideText({
       {textBoxes.map((box) => {
         const fontSize = (box?.textStyle?.size || 100) * scale
         const body = renderBody(box, empty, showPlaceholder)
+        const renderedHtml = body.placeholder ? body.html : scaleInlineHtml(body.html, scale)
         const paddingX = Math.max(minPaddingX, (box.paddingLeft || 28) * scale)
         const paddingRight = Math.max(minPaddingX, (box.paddingRight || 28) * scale)
         const paddingY = Math.max(minPaddingY, (box.paddingTop || 22) * scale)
@@ -120,7 +134,7 @@ export default function ScaledSlideText({
             {body.placeholder ? (
               <span>{body.html}</span>
             ) : (
-              <div dangerouslySetInnerHTML={{ __html: body.html }} />
+              <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
             )}
           </div>
         )

@@ -7,6 +7,13 @@ import {
   Trash2, Underline,
 } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
+import {
+  applyEditorFontSize,
+  clearEditorFormatting,
+  getActiveSlideTextEditor,
+  getEditorCommandState,
+  runEditorCommand,
+} from '@/utils/richTextEditor'
 import { DEFAULT_TEXT_BOX, DEFAULT_TEXT_STYLE } from '@/utils/textBoxes'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -43,6 +50,29 @@ const CASE_OPTIONS = [
 const TOOLBAR_H = 38
 const TOOLBAR_GAP = 8
 const TOOLBAR_MAX_W = 680
+
+function useInlineEditingScope() {
+  const editor = getActiveSlideTextEditor()
+  const inlineActive = Boolean(editor)
+
+  function runInline(command, value = null) {
+    return runEditorCommand(command, value, editor)
+  }
+
+  return {
+    inlineActive,
+    editor,
+    runInline,
+    bold: getEditorCommandState('bold', editor),
+    italic: getEditorCommandState('italic', editor),
+    underline: getEditorCommandState('underline', editor),
+    strikeThrough: getEditorCommandState('strikeThrough', editor),
+    alignLeft: getEditorCommandState('justifyLeft', editor),
+    alignCenter: getEditorCommandState('justifyCenter', editor),
+    alignRight: getEditorCommandState('justifyRight', editor),
+    justify: getEditorCommandState('justifyFull', editor),
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -411,6 +441,7 @@ function MorePanel({ sectionId, slideId, ids, primaryTextBox, onClose }) {
   const duplicateSlideTextBoxes = useEditorStore((s) => s.duplicateSlideTextBoxes)
   const removeSlideTextBoxes = useEditorStore((s) => s.removeSlideTextBoxes)
   const reorderSlideTextBoxes = useEditorStore((s) => s.reorderSlideTextBoxes)
+  const inline = useInlineEditingScope()
 
   const style = primaryTextBox?.textStyle || DEFAULT_TEXT_STYLE
   const box = primaryTextBox || DEFAULT_TEXT_BOX
@@ -419,6 +450,11 @@ function MorePanel({ sectionId, slideId, ids, primaryTextBox, onClose }) {
   const sb = (props) => updateSlideTextBox(sectionId, slideId, props, ids)
 
   function clearFormatting() {
+    if (inline.inlineActive && clearEditorFormatting(inline.editor)) {
+      onClose()
+      return
+    }
+
     ss({ ...DEFAULT_TEXT_STYLE })
     sb({
       backgroundColor: 'transparent', fillType: 'solid',
@@ -461,7 +497,14 @@ function MorePanel({ sectionId, slideId, ids, primaryTextBox, onClose }) {
             {v.charAt(0).toUpperCase() + v.slice(1)}
           </MBtn>
         ))}
-        <MBtn title="Justify" active={style.align === 'justify'} onClick={() => ss({ align: 'justify' })}>Justify</MBtn>
+        <MBtn
+          title="Justify"
+          active={inline.inlineActive ? inline.justify : style.align === 'justify'}
+          onClick={() => {
+            if (inline.inlineActive && inline.runInline('justifyFull')) return
+            ss({ align: 'justify' })
+          }}
+        >Justify</MBtn>
       </MRow>
 
       {/* Paragraph spacing */}
@@ -573,6 +616,7 @@ function MorePanel({ sectionId, slideId, ids, primaryTextBox, onClose }) {
 export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxIds, primaryTextBox, canvasRef, scale }) {
   const updateSlideStyle = useEditorStore((s) => s.updateSlideStyle)
   const updateSlideTextBox = useEditorStore((s) => s.updateSlideTextBox)
+  const inline = useInlineEditingScope()
 
   const [moreOpen, setMoreOpen] = useState(false)
   const moreTriggerRef = useRef(null)
@@ -592,6 +636,24 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
   const ids = selectedTextBoxIds || []
   const style = primaryTextBox?.textStyle || DEFAULT_TEXT_STYLE
   const box = primaryTextBox || DEFAULT_TEXT_BOX
+  const activeStyle = {
+    ...style,
+    bold: inline.inlineActive ? inline.bold : style.bold,
+    italic: inline.inlineActive ? inline.italic : style.italic,
+    underline: inline.inlineActive ? inline.underline : style.underline,
+    strikethrough: inline.inlineActive ? inline.strikeThrough : style.strikethrough,
+    align: inline.inlineActive
+      ? inline.justify
+        ? 'justify'
+        : inline.alignLeft
+          ? 'left'
+          : inline.alignRight
+            ? 'right'
+            : inline.alignCenter
+              ? 'center'
+              : style.align
+      : style.align,
+  }
 
   if (!ids.length || !primaryTextBox) return null
 
@@ -600,6 +662,12 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
 
   function ss(props) { updateSlideStyle(sectionId, slideId, props, ids) }
   function sb(props) { updateSlideTextBox(sectionId, slideId, props, ids) }
+
+  function applyTextCommand(command, props, value = null) {
+    if (inline.inlineActive && inline.runInline(command, value)) return true
+    ss(props)
+    return false
+  }
 
   return (
     <div
@@ -630,7 +698,11 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
       <select
         data-editor-toolbar="true"
         value={style.fontFamily || DEFAULT_TEXT_STYLE.fontFamily}
-        onChange={(e) => ss({ fontFamily: e.target.value })}
+        onChange={(e) => {
+          const value = e.target.value
+          if (inline.inlineActive && inline.runInline('fontName', value)) return
+          ss({ fontFamily: value })
+        }}
         style={{
           height: 26, fontSize: 11, borderRadius: 4, padding: '0 4px', outline: 'none',
           background: 'var(--bg-app)', border: '1px solid var(--border-default)',
@@ -641,32 +713,48 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
       </select>
 
       {/* Font size */}
-      <NumberField value={style.size || 100} onCommit={(v) => ss({ size: v })} min={8} max={320} width={50} />
+      <NumberField
+        value={style.size || 100}
+        onCommit={(v) => {
+          if (inline.inlineActive && applyEditorFontSize(v, inline.editor)) return
+          ss({ size: v })
+        }}
+        min={8}
+        max={320}
+        width={50}
+      />
 
       <Sep />
 
       {/* B I U S */}
-      <Btn title="Bold (⌘B)" active={style.bold} onClick={() => ss({ bold: !style.bold })}><Bold size={13} /></Btn>
-      <Btn title="Italic (⌘I)" active={style.italic} onClick={() => ss({ italic: !style.italic })}><Italic size={13} /></Btn>
-      <Btn title="Underline (⌘U)" active={style.underline} onClick={() => ss({ underline: !style.underline })}><Underline size={13} /></Btn>
-      <Btn title="Strikethrough" active={style.strikethrough} onClick={() => ss({ strikethrough: !style.strikethrough })}><Strikethrough size={13} /></Btn>
+      <Btn title="Bold (⌘B)" active={activeStyle.bold} onClick={() => applyTextCommand('bold', { bold: !style.bold })}><Bold size={13} /></Btn>
+      <Btn title="Italic (⌘I)" active={activeStyle.italic} onClick={() => applyTextCommand('italic', { italic: !style.italic })}><Italic size={13} /></Btn>
+      <Btn title="Underline (⌘U)" active={activeStyle.underline} onClick={() => applyTextCommand('underline', { underline: !style.underline })}><Underline size={13} /></Btn>
+      <Btn title="Strikethrough" active={activeStyle.strikethrough} onClick={() => applyTextCommand('strikeThrough', { strikethrough: !style.strikethrough })}><Strikethrough size={13} /></Btn>
 
       <Sep />
 
       {/* Text color + highlight */}
-      <ColorBtn title="Text Color" value={style.color || '#ffffff'} onChange={(v) => ss({ color: v })}>A</ColorBtn>
+      <ColorBtn title="Text Color" value={style.color || '#ffffff'} onChange={(v) => {
+        if (inline.inlineActive && inline.runInline('foreColor', v)) return
+        ss({ color: v })
+      }}>A</ColorBtn>
       <ColorBtn
         title="Highlight"
         value={style.highlightColor === 'transparent' ? 'transparent' : (style.highlightColor || 'transparent')}
-        onChange={(v) => ss({ highlightColor: v })}
+        onChange={(v) => {
+          const next = v === 'transparent' ? 'transparent' : v
+          if (inline.inlineActive && inline.runInline('hiliteColor', next === 'transparent' ? '#000000' : next)) return
+          ss({ highlightColor: next })
+        }}
       >H</ColorBtn>
 
       <Sep />
 
       {/* Alignment */}
-      <Btn title="Align Left (⌘L)" active={style.align === 'left'} onClick={() => ss({ align: 'left' })}><AlignLeft size={13} /></Btn>
-      <Btn title="Align Center (⌘E)" active={style.align === 'center'} onClick={() => ss({ align: 'center' })}><AlignCenter size={13} /></Btn>
-      <Btn title="Align Right (⌘R)" active={style.align === 'right'} onClick={() => ss({ align: 'right' })}><AlignRight size={13} /></Btn>
+      <Btn title="Align Left (⌘L)" active={activeStyle.align === 'left'} onClick={() => applyTextCommand('justifyLeft', { align: 'left' })}><AlignLeft size={13} /></Btn>
+      <Btn title="Align Center (⌘E)" active={activeStyle.align === 'center'} onClick={() => applyTextCommand('justifyCenter', { align: 'center' })}><AlignCenter size={13} /></Btn>
+      <Btn title="Align Right (⌘R)" active={activeStyle.align === 'right'} onClick={() => applyTextCommand('justifyRight', { align: 'right' })}><AlignRight size={13} /></Btn>
 
       <Sep />
 

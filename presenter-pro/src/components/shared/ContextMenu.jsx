@@ -27,6 +27,7 @@ export default function ContextMenu({ x, y, items, onClose }) {
   return (
     <div
       ref={ref}
+      data-context-menu="true"
       className="fixed z-50 py-1 rounded shadow-xl"
       style={{
         top: adjustedY,

@@ -1,5 +1,12 @@
 const HTML_TAG_RE = /<\/?[a-z][\s\S]*>/i
 
+function normalizeEntities(text) {
+  return String(text || '')
+    .replace(/&amp;nbsp;/gi, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\u00a0/g, ' ')
+}
+
 function escapeHtml(text) {
   return text
     .replace(/&/g, '&amp;')
@@ -8,7 +15,7 @@ function escapeHtml(text) {
 }
 
 export function slideBodyToHtml(body) {
-  const value = String(body || '').replace(/\r\n?/g, '\n')
+  const value = normalizeEntities(body).replace(/\r\n?/g, '\n')
   if (!value) return ''
 
   if (!HTML_TAG_RE.test(value)) {
@@ -19,7 +26,7 @@ export function slideBodyToHtml(body) {
 }
 
 export function slideBodyToPlainText(body) {
-  const value = String(body || '')
+  const value = normalizeEntities(body)
   if (!value) return ''
 
   return value

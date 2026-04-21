@@ -98,7 +98,7 @@ export default function OnboardingTutorial({ onComplete }) {
   }, [step, currentView])
 
   const tooltipStyle = useMemo(() => {
-    const width = 340
+    const width = 380
     const maxHeight = Math.min(320, window.innerHeight - 40)
 
     if (!targetRect) {
@@ -239,8 +239,11 @@ export default function OnboardingTutorial({ onComplete }) {
         >
           <button
             onClick={onComplete}
-            className="px-3 py-1.5 rounded text-xs font-medium"
+            className="rounded text-sm font-semibold"
             style={{
+              height: 40,
+              minWidth: 112,
+              padding: '0 16px',
               background: 'transparent',
               border: '1px solid var(--border-default)',
               color: 'var(--text-secondary)',
@@ -253,8 +256,11 @@ export default function OnboardingTutorial({ onComplete }) {
             {stepIndex > 0 && (
               <button
                 onClick={handleBack}
-                className="px-3 py-1.5 rounded text-xs font-medium"
+                className="rounded text-sm font-semibold"
                 style={{
+                  height: 40,
+                  minWidth: 84,
+                  padding: '0 16px',
                   background: 'var(--bg-app)',
                   border: '1px solid var(--border-default)',
                   color: 'var(--text-primary)',
@@ -268,23 +274,29 @@ export default function OnboardingTutorial({ onComplete }) {
               <button
                 onClick={handleTemplateAction}
                 disabled={isWorking}
-                className="px-3 py-1.5 rounded text-xs font-medium"
+                className="rounded text-sm font-semibold whitespace-nowrap"
                 style={{
+                  height: 40,
+                  minWidth: 168,
+                  padding: '0 18px',
                   background: 'var(--accent)',
                   color: '#fff',
                   opacity: isWorking ? 0.7 : 1,
                   cursor: isWorking ? 'default' : 'pointer',
                 }}
               >
-                {isWorking ? 'Opening...' : 'Open Featured Example'}
+                {isWorking ? 'Opening…' : 'Open Featured Example'}
               </button>
             )}
 
             {canAdvance && (
               <button
                 onClick={handleNext}
-                className="px-3 py-1.5 rounded text-xs font-medium"
+                className="rounded text-sm font-semibold whitespace-nowrap"
                 style={{
+                  height: 40,
+                  minWidth: 104,
+                  padding: '0 18px',
                   background: 'var(--accent)',
                   color: '#fff',
                 }}
