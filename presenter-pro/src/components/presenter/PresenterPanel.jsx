@@ -86,11 +86,6 @@ export default function PresenterPanel() {
   const previewSlide = isPresenting ? liveSlide : selectedSlide
   const previewSectionId = isPresenting ? liveSectionId : selectedSectionId
   const previewSection = presentation?.sections?.find((entry) => entry.id === previewSectionId) || null
-  const previewStatus = isBlack
-    ? 'Black output'
-    : isLogo
-      ? 'Logo output'
-      : previewSection?.title || null
   const canGoPrev = isPresenting && liveIdx > 0
   const canGoNext = isPresenting && liveIdx < allSlides.length - 1
   const slideGridColumns = Math.min(3, Math.max(1, Math.floor((presenterPanelWidth - 32) / 118)))
@@ -98,22 +93,44 @@ export default function PresenterPanel() {
   if (!presenterPanelOpen) {
     return (
       <div
-        className="shrink-0 flex items-center justify-center cursor-pointer"
+        className="shrink-0 flex flex-col items-center justify-center cursor-pointer"
         onClick={() => setPresenterPanelOpen(true)}
         style={{
-          width: 40,
-          background: 'var(--bg-surface)',
-          borderLeft: '1px solid var(--border-subtle)',
-          color: 'var(--text-tertiary)',
+          width: 56,
+          background: 'linear-gradient(180deg, #f1f3f6 0%, #e6e9ee 100%)',
+          borderLeft: '1px solid rgba(15, 23, 42, 0.12)',
+          boxShadow: 'inset 1px 0 0 rgba(255,255,255,0.72), inset 8px 0 14px rgba(15, 23, 42, 0.1)',
+          color: 'var(--text-secondary)',
           fontSize: 12,
           userSelect: 'none',
           zIndex: 5,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface)'; e.currentTarget.style.color = 'var(--text-tertiary)' }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'linear-gradient(180deg, #f6f7f9 0%, #e9edf2 100%)'
+          e.currentTarget.style.color = 'var(--text-primary)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'linear-gradient(180deg, #f1f3f6 0%, #e6e9ee 100%)'
+          e.currentTarget.style.color = 'var(--text-secondary)'
+        }}
         title="Show presenter panel"
       >
-        ‹
+        <div
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: 26,
+            height: 26,
+            background: '#ffffff',
+            border: '1px solid rgba(15, 23, 42, 0.12)',
+            boxShadow: '-4px 0 10px rgba(15, 23, 42, 0.12)',
+            color: 'var(--text-primary)',
+            fontSize: 16,
+            fontWeight: 700,
+            lineHeight: 1,
+          }}
+        >
+          ‹
+        </div>
       </div>
     )
   }
@@ -160,35 +177,8 @@ export default function PresenterPanel() {
               background: isBlack ? '#000' : '#111',
               border: isPresenting ? '1px solid #16a34a' : '1px solid var(--border-subtle)',
               color: '#fff',
-              position: 'relative',
             }}
           >
-            {previewStatus ? (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  zIndex: 2,
-                  maxWidth: '68%',
-                  padding: '4px 8px',
-                  borderRadius: 999,
-                  background: 'rgba(10, 10, 10, 0.68)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.84)',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  pointerEvents: 'none',
-                }}
-                title={previewStatus}
-              >
-                {previewStatus}
-              </div>
-            ) : null}
             {isBlack
               ? <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
               : isLogo

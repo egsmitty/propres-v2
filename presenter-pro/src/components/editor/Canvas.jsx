@@ -99,6 +99,32 @@ function renderTextDecoration(style) {
   return [style?.underline ? 'underline' : null, style?.strikethrough ? 'line-through' : null].filter(Boolean).join(' ') || 'none'
 }
 
+function baseHighlightStyle(style) {
+  const color = style?.highlightColor
+  if (!color || color === 'transparent') return null
+  return {
+    display: 'inline-block',
+    maxWidth: '100%',
+    backgroundColor: color,
+    boxDecorationBreak: 'clone',
+    WebkitBoxDecorationBreak: 'clone',
+    padding: '0 0.05em',
+  }
+}
+
+function renderTextBody(bodyHtml, style) {
+  const highlightStyle = baseHighlightStyle(style)
+  if (!highlightStyle) {
+    return <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+  }
+
+  return (
+    <div style={{ width: '100%', textAlign: style?.align || 'center' }}>
+      <span style={highlightStyle} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+    </div>
+  )
+}
+
 function cycleCase(text, index) {
   const modes = ['sentence', 'lower', 'upper', 'title', 'toggle']
   const mode = modes[index % modes.length]
@@ -773,7 +799,7 @@ export default function Canvas() {
           ) : placeholder ? (
             <span>{resolvePlaceholderText(box.placeholderText)}</span>
           ) : (
-            <div dangerouslySetInnerHTML={{ __html: slideBodyToHtml(box.body) }} />
+            renderTextBody(slideBodyToHtml(box.body), style)
           )}
         </div>
 
@@ -877,12 +903,12 @@ export default function Canvas() {
         className="shrink-0 px-4 py-2"
         style={{ background: 'var(--bg-toolbar)', borderTop: '1px solid var(--border-subtle)' }}
       >
-        <div className="flex items-center gap-3 justify-between">
-          <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3 justify-between flex-wrap">
+          <div className="min-w-[220px] flex-1">
             <div className="text-[11px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>
               {section ? `${getSectionTypeLabel(section.type)} Background` : 'Section Background'}
             </div>
-            <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-xs mt-0.5 break-words" style={{ color: 'var(--text-tertiary)' }}>
               {mediaOnlySlide ? slideMedia?.name || 'Media slide' : backgroundMedia ? backgroundMedia.name : 'No background'}
             </div>
           </div>

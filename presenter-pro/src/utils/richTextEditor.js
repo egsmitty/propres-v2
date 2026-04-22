@@ -175,6 +175,18 @@ function clearStyleProperty(style, prop) {
   else if (prop === 'fontWeight') style.fontWeight = ''
   else if (prop === 'fontStyle') style.fontStyle = ''
   else if (prop === 'textDecoration') style.textDecoration = ''
+  else if (prop === 'textAlign') style.textAlign = ''
+  else if (prop === 'lineHeight') style.lineHeight = ''
+}
+
+function stripStylePropsFromTree(root, stripProps = []) {
+  if (!root || !stripProps.length) return
+  root.querySelectorAll?.('*').forEach((node) => {
+    stripProps.forEach((prop) => clearStyleProperty(node.style, prop))
+    if (!node.getAttribute('style')?.trim()) {
+      node.removeAttribute('style')
+    }
+  })
 }
 
 function unwrapEmptyFormattingNodes(editor) {
@@ -193,24 +205,61 @@ function getEditorRange(editor) {
   return getLiveEditorRange(editor) || getSavedEditorRange(editor)
 }
 
-export function applyEditorInlineStyle(styleProps, editor = getCurrentOrSavedSlideTextEditor()) {
+export function applyEditorInlineStyle(styleProps, editor = getCurrentOrSavedSlideTextEditor(), options = {}) {
   const range = getEditorRange(editor)
   if (!range || range.collapsed) return false
 
   const selection = getSelectionObject()
-  const span = document.createElement('span')
-  Object.entries(styleProps || {}).forEach(([key, value]) => {
-    span.style[key] = value
-  })
-
   const fragment = range.extractContents()
-  span.appendChild(fragment)
-  range.insertNode(span)
-
   const nextRange = document.createRange()
-  nextRange.selectNodeContents(span)
+  stripStylePropsFromTree(fragment, options.stripProps || [])
+
+  const entries = Object.entries(styleProps || {}).filter(([, value]) => value !== null && value !== undefined && value !== '')
+  if (options.skipWrapperWhenEmpty && !entries.length) {
+    range.insertNode(fragment)
+    nextRange.setStart(range.startContainer, range.startOffset)
+    nextRange.setEnd(range.endContainer, range.endOffset)
+  } else {
+    const span = document.createElement('span')
+    entries.forEach(([key, value]) => {
+      span.style[key] = value
+    })
+    span.appendChild(fragment)
+    range.insertNode(span)
+    nextRange.selectNodeContents(span)
+  }
+
   selection.removeAllRanges()
   selection.addRange(nextRange)
+
+  emitEditorInput(editor)
+  saveEditorSelection(editor)
+  return true
+}
+
+export function applyEditorWholeTextStyle(styleProps, editor = getCurrentOrSavedSlideTextEditor(), options = {}) {
+  if (!editor) return false
+
+  const stripProps = options.stripProps || []
+  stripProps.forEach((prop) => clearStyleProperty(editor.style, prop))
+  stripStylePropsFromTree(editor, stripProps)
+  unwrapEmptyFormattingNodes(editor)
+
+  const entries = Object.entries(styleProps || {}).filter(([, value]) => value !== null && value !== undefined && value !== '')
+  if (options.skipWrapperWhenEmpty && !entries.length) {
+    emitEditorInput(editor)
+    saveEditorSelection(editor)
+    return true
+  }
+
+  const wrapper = document.createElement('span')
+  entries.forEach(([key, value]) => {
+    wrapper.style[key] = value
+  })
+  while (editor.firstChild) {
+    wrapper.appendChild(editor.firstChild)
+  }
+  editor.appendChild(wrapper)
 
   emitEditorInput(editor)
   saveEditorSelection(editor)

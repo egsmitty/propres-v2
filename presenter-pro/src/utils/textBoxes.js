@@ -32,10 +32,10 @@ const LEGACY_DEFAULT_TEXT_BOX = {
 }
 
 export const DEFAULT_TEXT_BOX = {
-  x: 320,
-  y: 330,
-  width: 1280,
-  height: 420,
+  x: 110,
+  y: 105,
+  width: 1700,
+  height: 870,
   rotation: 0,
   zIndex: 0,
   fillType: 'solid',
