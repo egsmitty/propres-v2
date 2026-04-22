@@ -416,6 +416,14 @@ export default function Filmstrip({ width = 224 }) {
     setCollapsed((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }))
   }
 
+  function collapseAllSections() {
+    const next = {}
+    ;(presentation?.sections || []).forEach((section) => {
+      next[section.id] = true
+    })
+    setCollapsed(next)
+  }
+
   function mutate(fn) {
     useEditorStore.getState().mutateSections(fn)
   }
@@ -525,7 +533,9 @@ export default function Filmstrip({ width = 224 }) {
     setDragOverSection(null)
   }
 
-  async function handleEditSong(songId) {
+  async function handleEditSong(section) {
+    const songId = section?.songId || section?.slides?.find((slide) => slide.songId)?.songId
+    if (!songId) return
     const result = await getSongs()
     const songs = result?.success ? result.data : []
     const song = songs.find((s) => s.id === songId) || null
@@ -599,10 +609,33 @@ export default function Filmstrip({ width = 224 }) {
     <div
       ref={containerRef}
       data-tour="filmstrip"
-      className="h-full overflow-y-auto shrink-0 flex flex-col"
+      className="h-full overflow-hidden shrink-0 flex flex-col"
       style={{ width, background: 'var(--bg-filmstrip)', borderRight: '1px solid var(--border-default)' }}
     >
-      <div className="py-1">
+      <div
+        className="shrink-0 flex items-center justify-between px-3 py-2"
+        style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}
+      >
+        <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Service Order
+        </div>
+        <button
+          type="button"
+          onClick={collapseAllSections}
+          className="px-2.5 py-1 rounded text-[11px] font-medium"
+          style={{ color: 'var(--text-primary)', background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
+          onMouseEnter={(event) => {
+            event.currentTarget.style.background = 'var(--bg-hover)'
+          }}
+          onMouseLeave={(event) => {
+            event.currentTarget.style.background = 'var(--bg-app)'
+          }}
+        >
+          Collapse All
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto py-1">
         {sectionsForPreview.map((section) => {
           const isCollapsed = collapsed[section.id]
           const originalSection = sectionsById.get(section.id) || section
@@ -635,6 +668,7 @@ export default function Filmstrip({ width = 224 }) {
                 onToggle={() => toggleSection(section.id)}
                 onAddSlide={() => addSlideToSection(originalSection)}
                 onRemove={() => removeSection(section.id)}
+                onEditSong={originalSection.type === 'song' ? () => handleEditSong(originalSection) : undefined}
               />
 
               {!isCollapsed && (() => {
@@ -689,7 +723,7 @@ export default function Filmstrip({ width = 224 }) {
                           }}
                           onDuplicate={() => duplicateSlide(originalSection, slide)}
                           onDelete={() => deleteSlide(originalSection, slide)}
-                          onEditSong={slide.songId ? handleEditSong : undefined}
+                          onEditSong={originalSection.type === 'song' ? () => handleEditSong(originalSection) : undefined}
                           onApplyTheme={
                             selectedSlideIds.includes(slide.id) && selectedSlideIds.length > 1
                               ? () => setShowApplyTheme(true)

@@ -19,6 +19,7 @@ const snapshot = (state) => ({
   selectedSectionId: state.selectedSectionId,
   selectedSlideId: state.selectedSlideId,
   selectedSlideIds: state.selectedSlideIds,
+  selectedTextBoxIds: state.selectedTextBoxIds,
 })
 
 const historyOf = (state) => ({
@@ -61,6 +62,7 @@ export const useEditorStore = create((set) => ({
   selectedSectionId: null,
   selectedSlideId: null,
   selectedSlideIds: [],
+  selectedTextBoxIds: [],
   lastAddedTextBoxId: null,
   editingSlideId: null,
   isDirty: false,
@@ -75,6 +77,7 @@ export const useEditorStore = create((set) => ({
       selectedSectionId: null,
       selectedSlideId: null,
       selectedSlideIds: [],
+      selectedTextBoxIds: [],
       lastAddedTextBoxId: null,
       editingSlideId: null,
       isDirty: options.isDirty ?? false,
@@ -87,9 +90,11 @@ export const useEditorStore = create((set) => ({
       selectedSectionId: sectionId,
       selectedSlideId: slideId,
       selectedSlideIds: [],
+      selectedTextBoxIds: [],
       editingSlideId: null,
     }),
   setSelectedSlideIds: (ids) => set({ selectedSlideIds: ids }),
+  setSelectedTextBoxIds: (ids) => set({ selectedTextBoxIds: ids }),
   clearLastAddedTextBoxId: () => set({ lastAddedTextBoxId: null }),
   setEditingSlide: (slideId) => set({ editingSlideId: slideId }),
   setDirty: (val) => set({ isDirty: val }),
@@ -106,6 +111,7 @@ export const useEditorStore = create((set) => ({
         selectedSectionId: prev.selectedSectionId,
         selectedSlideId: prev.selectedSlideId,
         selectedSlideIds: prev.selectedSlideIds || [],
+        selectedTextBoxIds: prev.selectedTextBoxIds || [],
         editingSlideId: null,
         isDirty: true,
       }
@@ -121,6 +127,7 @@ export const useEditorStore = create((set) => ({
         selectedSectionId: next.selectedSectionId,
         selectedSlideId: next.selectedSlideId,
         selectedSlideIds: next.selectedSlideIds || [],
+        selectedTextBoxIds: next.selectedTextBoxIds || [],
         editingSlideId: null,
         isDirty: true,
       }

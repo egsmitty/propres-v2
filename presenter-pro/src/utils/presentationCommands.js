@@ -26,6 +26,44 @@ function selectFirstSlide(presentation) {
   useEditorStore.getState().setSelectedSlide(firstSection?.id ?? null, firstSlide?.id ?? null)
 }
 
+function insertSectionAfterSelection(sections = [], selectedSectionId, section) {
+  if (!section) return sections
+  if (!sections.length) return [section]
+
+  const currentIndex = sections.findIndex((entry) => entry.id === selectedSectionId)
+  const insertIndex = currentIndex >= 0 ? currentIndex + 1 : sections.length
+  const next = [...sections]
+  next.splice(insertIndex, 0, section)
+  return next
+}
+
+function insertSlideAfterSelection(sections = [], selectedSectionId, selectedSlideId, nextSlide, fallbackSectionType = 'announcement') {
+  if (!nextSlide) return { sections, sectionId: selectedSectionId }
+
+  if (!sections.length) {
+    const section = createSection(fallbackSectionType, 0, {
+      title: 'Slides',
+      slides: [nextSlide],
+    })
+    return { sections: [section], sectionId: section.id }
+  }
+
+  const currentSectionIndex = sections.findIndex((section) => section.id === selectedSectionId)
+  const targetSectionIndex = currentSectionIndex >= 0 ? currentSectionIndex : 0
+  const targetSection = sections[targetSectionIndex]
+  const slides = [...targetSection.slides]
+  const selectedIndex = slides.findIndex((slide) => slide.id === selectedSlideId)
+  const insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : slides.length
+  slides.splice(insertIndex, 0, nextSlide)
+
+  return {
+    sectionId: targetSection.id,
+    sections: sections.map((section, index) =>
+      index === targetSectionIndex ? { ...section, slides } : section
+    ),
+  }
+}
+
 export function loadPresentationIntoEditor(presentation) {
   const normalized = normalizePresentation(presentation)
   useEditorStore.getState().setPresentation(normalized)
@@ -139,40 +177,41 @@ export async function insertNewSlideIntoCurrentPresentation() {
     presentation.sections[0] ||
     null
   let sectionType = currentSection?.type || 'announcement'
-  let newSlide = createTextSlide(sectionType)
-  let targetSectionId = state.selectedSectionId
-  let sections = presentation.sections ? [...presentation.sections] : []
-
-  if (!sections.length) {
-    sectionType = 'announcement'
-    newSlide = createTextSlide(sectionType)
-    const section = createSection(sectionType, 0, {
-      title: 'Slides',
-      slides: [newSlide],
-    })
-    sections = [section]
-    targetSectionId = section.id
-  } else {
-    const targetSection =
-      sections.find((section) => section.id === targetSectionId) || sections[0]
-    targetSectionId = targetSection.id
-    sections = sections.map((section) =>
-      section.id === targetSectionId
-        ? { ...section, slides: [...section.slides, newSlide] }
-        : section
-    )
-  }
+  const newSlide = createTextSlide(sectionType)
+  const sections = presentation.sections ? [...presentation.sections] : []
+  const inserted = insertSlideAfterSelection(
+    sections,
+    state.selectedSectionId,
+    state.selectedSlideId,
+    newSlide,
+    sectionType
+  )
 
   state.setPresentation(
     normalizePresentation({
       ...presentation,
-      sections,
+      sections: inserted.sections,
     })
   )
   state.setDirty(true)
-  state.setSelectedSlide(targetSectionId, newSlide.id)
+  state.setSelectedSlide(inserted.sectionId, newSlide.id)
 
   return newSlide
+}
+
+export function insertSectionAfterCurrentSelection(section) {
+  const state = useEditorStore.getState()
+  if (!state.presentation || !section) return null
+
+  const nextSections = insertSectionAfterSelection(
+    state.presentation.sections || [],
+    state.selectedSectionId,
+    section
+  )
+
+  state.mutateSections(() => nextSections)
+  state.setSelectedSlide(section.id, section.slides[0]?.id ?? null)
+  return section
 }
 
 export async function insertNewSectionIntoCurrentPresentation(sectionType = 'announcement') {
@@ -188,9 +227,7 @@ export async function insertNewSectionIntoCurrentPresentation(sectionType = 'ann
     slides: [createTextSlide(setup.type)],
   })
 
-  state.addSection(section)
-  state.setSelectedSlide(section.id, section.slides[0]?.id ?? null)
-  return section
+  return insertSectionAfterCurrentSelection(section)
 }
 
 export async function ensureSectionForInsertion(preferredType = null) {
@@ -221,12 +258,20 @@ export async function insertMediaSlideIntoCurrentPresentation(media) {
   const presentation = state.presentation
   if (!presentation || !media) return null
 
+  const slide = createMediaSlide(media)
   const targetSection = await ensureSectionForInsertion()
   if (!targetSection) return null
 
-  const slide = createMediaSlide(media)
-  state.insertSlideIntoSection(targetSection.id, slide)
-  state.setSelectedSlide(targetSection.id, slide.id)
+  const inserted = insertSlideAfterSelection(
+    state.presentation.sections || [],
+    state.selectedSectionId || targetSection.id,
+    state.selectedSlideId,
+    slide,
+    targetSection.type
+  )
+
+  state.mutateSections(() => inserted.sections)
+  state.setSelectedSlide(inserted.sectionId, slide.id)
   return slide
 }
 
@@ -242,21 +287,8 @@ export async function importMediaToSelectedSlide(kind) {
   const picked = await pickMedia(kind)
   if (!picked?.success || !picked.data) return picked
 
-  let sectionId = state.selectedSectionId
-  let slideId = state.selectedSlideId
-
-  if (!sectionId || !slideId) {
-    const section = await ensureSectionForInsertion()
-    if (!section) return null
-    const slide = createTextSlide(section.type)
-    state.insertSlideIntoSection(section.id, slide)
-    state.setSelectedSlide(section.id, slide.id)
-    sectionId = section.id
-    slideId = slide.id
-  }
-
-  state.setSlideBackground(sectionId, slideId, picked.data.id)
-  return picked
+  const inserted = await insertMediaSlideIntoCurrentPresentation(picked.data)
+  return inserted ? picked : null
 }
 
 export function copySelectedSlideToClipboard() {

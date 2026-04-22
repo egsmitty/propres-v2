@@ -57,7 +57,7 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
   }
 
   const menuItems = [
-    ...(slide.songId && onEditSong ? [{ label: 'Edit Song', onClick: () => onEditSong(slide.songId) }] : []),
+    ...(onEditSong ? [{ label: 'Edit Song', onClick: onEditSong }] : []),
     ...(onApplyTheme ? [{ label: 'Apply Theme to Selection', onClick: onApplyTheme }, { divider: true }] : []),
     { label: 'Edit', onClick: onDoubleClick },
     { label: 'New Slide', onClick: onNewSlide },

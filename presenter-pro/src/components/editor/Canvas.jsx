@@ -200,6 +200,7 @@ export default function Canvas() {
   const lastAddedTextBoxId = useEditorStore((s) => s.lastAddedTextBoxId)
   const clearLastAddedTextBoxId = useEditorStore((s) => s.clearLastAddedTextBoxId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
+  const setSelectedTextBoxIdsInStore = useEditorStore((s) => s.setSelectedTextBoxIds)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
   const updateSlideTextBoxes = useEditorStore((s) => s.updateSlideTextBoxes)
   const duplicateSlideTextBoxes = useEditorStore((s) => s.duplicateSlideTextBoxes)
@@ -278,12 +279,17 @@ export default function Canvas() {
     interactionRef.current = null
     setDraftBoxes(null)
     setSelectedTextBoxIds([])
+    setSelectedTextBoxIdsInStore([])
     setEditingTextBoxId(null)
     setSnapGuides({ vertical: null, horizontal: null })
     setSelectionRect(null)
     setMetric(null)
     setEditingSlide(null)
-  }, [selectedSectionId, selectedSlideId, setEditingSlide])
+  }, [selectedSectionId, selectedSlideId, setEditingSlide, setSelectedTextBoxIdsInStore])
+
+  useEffect(() => {
+    setSelectedTextBoxIdsInStore(selectedTextBoxIds)
+  }, [selectedTextBoxIds, setSelectedTextBoxIdsInStore])
 
   useEffect(() => {
     const currentSlideId = slide?.id ?? null
@@ -297,6 +303,7 @@ export default function Canvas() {
     if ((box.body || '').trim()) return
 
     setSelectedTextBoxIds([box.id])
+    setEditingSlide(slide.id)
   }, [editingTextBoxId, mediaOnlySlide, selectedTextBoxIds.length, slide?.id, textBoxes])
 
   useEffect(() => {
@@ -644,12 +651,14 @@ export default function Canvas() {
     const alreadySelected = selectedTextBoxIds.includes(textBox.id)
 
     if (event.shiftKey) {
+      setEditingSlide(slide?.id || null)
       setSelectedTextBoxIds((current) => current.includes(textBox.id) ? current.filter((id) => id !== textBox.id) : [...current, textBox.id])
       return
     }
 
     const nextIds = alreadySelected && selectedTextBoxIds.length ? selectedTextBoxIds : [textBox.id]
     setSelectedTextBoxIds(nextIds)
+    setEditingSlide(slide?.id || null)
 
     beginInteraction(event, 'move', {
       boxes: renderedBoxes.filter((box) => nextIds.includes(box.id)),
@@ -733,7 +742,7 @@ export default function Canvas() {
             fontWeight: style.bold ? 700 : 400,
             fontStyle: placeholder ? 'italic' : (style.italic ? 'italic' : 'normal'),
             textDecoration: renderTextDecoration(style),
-            lineHeight: style.lineHeight || 1.3,
+            lineHeight: style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight,
             fontFamily: style.fontFamily || 'Arial, sans-serif',
             wordBreak: box.wrapText === false ? 'normal' : 'break-word',
             whiteSpace: box.wrapText === false ? 'nowrap' : 'normal',
@@ -799,7 +808,7 @@ export default function Canvas() {
   }
 
   if (!slide) {
-    return <EmptyState message="Select a slide from the filmstrip" />
+    return <EmptyState message="Select a slide from the service order" />
   }
 
   return (

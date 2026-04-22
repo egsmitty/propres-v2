@@ -3,30 +3,12 @@ import { useEditorStore } from '@/store/editorStore'
 import { deleteSong } from '@/utils/ipc'
 import { createSection } from '@/utils/sectionTypes'
 import { confirmDialog } from '@/utils/dialog'
-import { uuid } from '@/utils/uuid'
 import ContextMenu from '@/components/shared/ContextMenu'
+import { getOrderedSongSlides } from '@/utils/songSections'
+import { insertSectionAfterCurrentSelection } from '@/utils/presentationCommands'
 
 function resolveOrderedSlides(song) {
-  let slides = []
-  let songOrder = []
-
-  try {
-    slides = typeof song.slides === 'string' ? JSON.parse(song.slides) : song.slides
-  } catch {}
-
-  try {
-    const rawOrder = song.songOrder ?? song.song_order
-    songOrder = typeof rawOrder === 'string' ? JSON.parse(rawOrder) : rawOrder
-  } catch {}
-
-  if (!Array.isArray(songOrder) || !songOrder.length) return slides
-
-  const lookup = new Map(slides.map((slide) => [slide.id, slide]))
-  const orderedSlides = songOrder
-    .map((slideId) => lookup.get(slideId))
-    .filter(Boolean)
-
-  return orderedSlides.length ? orderedSlides : slides
+  return getOrderedSongSlides(song)
 }
 
 export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
@@ -44,10 +26,10 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
     try {
       const newSection = createSection('song', presentation.sections.length, {
         title: song.title,
-        slides: slides.map((sl) => ({ ...sl, id: uuid() })),
+        songId: song.id,
+        slides: getOrderedSongSlides(song, { regenerateSlideIds: true, regenerateGroupIds: true, songId: song.id }),
       })
-      addSection(newSection)
-      setSelectedSlide(newSection.id, newSection.slides[0]?.id ?? null)
+      insertSectionAfterCurrentSelection(newSection)
       await Promise.resolve(onInsert?.(newSection))
     } finally {
       setIsInserting(false)

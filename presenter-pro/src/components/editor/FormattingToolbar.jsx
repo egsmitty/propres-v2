@@ -35,7 +35,7 @@ const FONT_OPTIONS = [
   'Verdana, sans-serif',
 ]
 
-const LINE_SPACING_PRESETS = [1, 1.15, 1.3, 1.5, 2]
+const LINE_SPACING_PRESETS = [0.5, 0.75, 1, 1.15, 1.3, 1.5, 2]
 const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8)
 const MAX_FONT_SIZE_DISPLAY = internalToDisplayFontSize(320)
 
@@ -767,7 +767,7 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
       <Sep />
 
       {/* Line spacing */}
-      <LineSpacingBtn value={style.lineHeight || 1.3} onChange={(v) => ss({ lineHeight: v })} />
+      <LineSpacingBtn value={style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight} onChange={(v) => ss({ lineHeight: v })} />
 
       <Sep />
 
