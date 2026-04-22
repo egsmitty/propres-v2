@@ -32,6 +32,32 @@ function renderTextDecoration(style) {
   ].filter(Boolean).join(' ') || 'none'
 }
 
+function baseHighlightStyle(style) {
+  const color = style?.highlightColor
+  if (!color || color === 'transparent') return null
+  return {
+    display: 'inline-block',
+    maxWidth: '100%',
+    backgroundColor: color,
+    boxDecorationBreak: 'clone',
+    WebkitBoxDecorationBreak: 'clone',
+    padding: '0 0.05em',
+  }
+}
+
+function renderTextBody(html, style) {
+  const highlightStyle = baseHighlightStyle(style)
+  if (!highlightStyle) {
+    return <div dangerouslySetInnerHTML={{ __html: html }} />
+  }
+
+  return (
+    <div style={{ width: '100%', textAlign: style?.align || 'center' }}>
+      <span style={highlightStyle} dangerouslySetInnerHTML={{ __html: html }} />
+    </div>
+  )
+}
+
 function renderBody(box, empty, showPlaceholder) {
   if (box.body) return { html: slideBodyToHtml(box.body), placeholder: false }
   if (!showPlaceholder) return { html: '', placeholder: false }
@@ -134,7 +160,7 @@ export default function ScaledSlideText({
             {body.placeholder ? (
               <span>{body.html}</span>
             ) : (
-              <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+              renderTextBody(renderedHtml, box?.textStyle)
             )}
           </div>
         )

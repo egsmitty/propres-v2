@@ -13,12 +13,15 @@ import {
   Copy,
   Eraser,
   FileText,
+  Highlighter,
   Image,
   Italic,
   LayoutPanelTop,
   Music,
+  Palette,
   Play,
   Plus,
+  Square,
   Strikethrough,
   Trash2,
   Type,
@@ -29,6 +32,7 @@ import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import {
   applyEditorBoxStyle,
+  applyEditorWholeTextStyle,
   applyEditorInlineStyle,
   clearEditorFormatting,
   getCurrentOrSavedTextBoxId,
@@ -52,7 +56,7 @@ import {
   internalToDisplayFontSize,
 } from '@/utils/textBoxes'
 import { uuid } from '@/utils/uuid'
-import { slideBodyToPlainText } from '@/utils/slideMarkup'
+import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup'
 import {
   insertNewSectionIntoCurrentPresentation,
   insertNewSlideIntoCurrentPresentation,
@@ -273,6 +277,18 @@ function InlineTinyLabel({ children }) {
   return (
     <span className="shrink-0 text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
       {children}
+    </span>
+  )
+}
+
+function InlineTinyIconLabel({ icon: Icon, title }) {
+  return (
+    <span
+      className="shrink-0 inline-flex items-center justify-center"
+      title={title}
+      style={{ width: 14, height: 14, color: 'var(--text-secondary)' }}
+    >
+      <Icon size={12} />
     </span>
   )
 }
@@ -769,6 +785,66 @@ function ColorPickerButton({ title, value, onChange }) {
   )
 }
 
+function CombinedColorButton({
+  textColor,
+  highlightColor,
+  fillColor,
+  onTextChange,
+  onHighlightChange,
+  onFillChange,
+}) {
+  const { open, setOpen, triggerRef, popoverRef } = usePopoverOpen()
+
+  return (
+    <div data-editor-toolbar="true" className="shrink-0">
+      <button
+        type="button"
+        data-editor-toolbar="true"
+        ref={triggerRef}
+        title="Color controls"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-center rounded-lg shrink-0"
+        style={{
+          width: 34,
+          height: 30,
+          border: '1px solid var(--border-default)',
+          background: open ? 'var(--bg-hover)' : 'var(--bg-app)',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        <Palette size={14} />
+      </button>
+      {open ? (
+        <PopoverShell popoverRef={popoverRef} triggerRef={triggerRef} width={172}>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Type size={13} style={{ color: 'var(--text-secondary)' }} />
+                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Text</span>
+              </div>
+              <ColorPickerButton title="Text color" value={textColor} onChange={onTextChange} />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Highlighter size={13} style={{ color: 'var(--text-secondary)' }} />
+                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Highlight</span>
+              </div>
+              <ColorPickerButton title="Highlight color" value={highlightColor} onChange={onHighlightChange} />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Square size={12} style={{ color: 'var(--text-secondary)' }} />
+                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Fill</span>
+              </div>
+              <ColorPickerButton title="Textbox fill color" value={fillColor} onChange={onFillChange} />
+            </div>
+          </div>
+        </PopoverShell>
+      ) : null}
+    </div>
+  )
+}
+
 export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }) {
   const toolbarRef = useRef(null)
   const presentClusterRef = useRef(null)
@@ -787,6 +863,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const removeSlideTextBoxes = useEditorStore((s) => s.removeSlideTextBoxes)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
   const updateSlideStyle = useEditorStore((s) => s.updateSlideStyle)
+  const updateSlideTextBoxes = useEditorStore((s) => s.updateSlideTextBoxes)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
 
   const [editorTick, setEditorTick] = useState(0)
@@ -885,6 +962,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const editorHighlightColor = activeEditor
     ? normalizeColorValue(editorSnapshot?.backgroundColor, style.highlightColor || 'transparent')
     : (style.highlightColor || 'transparent')
+  const boxFillColor = activeTextBox?.backgroundColor || 'transparent'
   const editorState = {
     bold: getEditorCommandState('bold', activeEditor),
     italic: getEditorCommandState('italic', activeEditor),
@@ -911,6 +989,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const hidePrimaryLabels = compactLevel >= 3
   const hideEditSecondaryLabels = isTextEditing && compactLevel >= 1
   const hideEditColorLabels = isTextEditing && compactLevel >= 4
+  const collapseEditColorsToPalette = isTextEditing && effectiveWidth < 900
 
   const activeAlign = isTextEditing
     ? normalizeAlignValue(editorSnapshot?.textAlign, style.align || 'center')
@@ -959,6 +1038,34 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
     updateSlideBody(selectedSectionId, selectedSlideId, normalizeEditorHtml(editor.innerHTML), textBoxId)
   }
 
+  function getWholeTextTargetIds() {
+    return selectedTextBoxIds.length ? selectedTextBoxIds : activeTextBoxIds
+  }
+
+  function normalizeSelectedTextBoxesToPlainText(targetIds = getWholeTextTargetIds()) {
+    if (!selectedSectionId || !selectedSlideId || !targetIds?.length) return
+    updateSlideTextBoxes(selectedSectionId, selectedSlideId, (boxes) =>
+      boxes.map((box) =>
+        targetIds.includes(box.id)
+          ? { ...box, body: slideBodyToHtml(slideBodyToPlainText(box.body || '')) }
+          : box
+      )
+    )
+  }
+
+  function applyWholeTextOverride(styleProps, editorStyleProps = {}, stripProps = []) {
+    const editor = restoreInlineSelection({ focus: false })
+    if (editor && canInlineFormat(editor)) {
+      editor.innerHTML = slideBodyToHtml(slideBodyToPlainText(editor.innerHTML))
+      applyEditorBoxStyle(editorStyleProps, editor, { stripProps })
+      persistInlineEditor(editor)
+    } else {
+      normalizeSelectedTextBoxesToPlainText()
+    }
+    applyTextBoxStyle(styleProps)
+    setEditorTick((tick) => tick + 1)
+  }
+
   function applyRangeOrTypingCommand(inlineCommand, value = null) {
     const editor = restoreInlineSelection()
     if (canInlineFormat(editor) && inlineCommand) {
@@ -974,15 +1081,53 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
 
   function applyTextStyle(styleProps, inlineCommand = null, value = null) {
     if (applyRangeOrTypingCommand(inlineCommand, value)) return
-    if (!isTextEditing && selectedSectionId && selectedSlideId) {
-      updateSlideStyle(selectedSectionId, selectedSlideId, styleProps, activeTextBoxIds)
+    const nextStyle = { ...DEFAULT_TEXT_STYLE, ...style, ...styleProps }
+    const editorStyleProps = {}
+    const stripProps = []
+
+    if (Object.prototype.hasOwnProperty.call(styleProps, 'bold')) {
+      editorStyleProps.fontWeight = nextStyle.bold ? 700 : 400
+      stripProps.push('fontWeight')
     }
+    if (Object.prototype.hasOwnProperty.call(styleProps, 'italic')) {
+      editorStyleProps.fontStyle = nextStyle.italic ? 'italic' : 'normal'
+      stripProps.push('fontStyle')
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(styleProps, 'underline') ||
+      Object.prototype.hasOwnProperty.call(styleProps, 'strikethrough')
+    ) {
+      editorStyleProps.textDecoration = [
+        nextStyle.underline ? 'underline' : null,
+        nextStyle.strikethrough ? 'line-through' : null,
+      ].filter(Boolean).join(' ') || 'none'
+      stripProps.push('textDecoration')
+    }
+    if (Object.prototype.hasOwnProperty.call(styleProps, 'align')) {
+      editorStyleProps.textAlign = nextStyle.align || 'center'
+      stripProps.push('textAlign')
+    }
+
+    applyWholeTextOverride(styleProps, editorStyleProps, stripProps)
   }
 
   function applyTextBoxStyle(styleProps) {
     if (selectedSectionId && selectedSlideId) {
       updateSlideStyle(selectedSectionId, selectedSlideId, styleProps, activeTextBoxIds)
     }
+  }
+
+  function applyTextBoxFrameStyle(frameProps) {
+    const targetIds = getWholeTextTargetIds()
+    if (!selectedSectionId || !selectedSlideId || !targetIds?.length) return
+    updateSlideTextBoxes(selectedSectionId, selectedSlideId, (boxes) =>
+      boxes.map((box) =>
+        targetIds.includes(box.id)
+          ? { ...box, ...frameProps }
+          : box
+      )
+    )
+    setEditorTick((tick) => tick + 1)
   }
 
   function applyFontSizeValue(value) {
@@ -993,14 +1138,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
       setEditorTick((tick) => tick + 1)
       return
     }
-    if (editor) {
-      applyEditorBoxStyle({ fontSize: `${internalValue}px` }, editor, {
-        stripProps: ['fontSize'],
-      })
-      persistInlineEditor(editor)
-    }
-    applyTextBoxStyle({ size: internalValue })
-    setEditorTick((tick) => tick + 1)
+    applyWholeTextOverride({ size: internalValue }, { fontSize: `${internalValue}px` }, ['fontSize'])
   }
 
   function nudgeFontSize(direction) {
@@ -1011,8 +1149,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
 
   function handleLineHeight(next) {
     const clamped = Math.max(0.1, Math.min(3, Math.round(next * 100) / 100))
-    if (selectedSectionId && selectedSlideId) updateSlideStyle(selectedSectionId, selectedSlideId, { lineHeight: clamped }, activeTextBoxIds)
-    setEditorTick((tick) => tick + 1)
+    applyWholeTextOverride({ lineHeight: clamped }, { lineHeight: clamped }, ['lineHeight'])
   }
 
   function nudgeLineHeight(direction) {
@@ -1024,6 +1161,55 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   function handleVerticalAlign(next) {
     if (selectedSectionId && selectedSlideId) updateSlideStyle(selectedSectionId, selectedSlideId, { valign: next }, activeTextBoxIds)
     setEditorTick((tick) => tick + 1)
+  }
+
+  function handleTextColorChange(value) {
+    const editor = restoreInlineSelection({ focus: false })
+    if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ color: value }, editor)) {
+      persistInlineEditor(editor)
+      setEditorTick((tick) => tick + 1)
+      return
+    }
+    applyWholeTextOverride({ color: value }, { color: value }, ['color'])
+  }
+
+  function handleHighlightColorChange(value) {
+    const next = value === 'transparent' ? 'transparent' : value
+    const editor = restoreInlineSelection({ focus: false })
+    if (hasInlineTextSelection(editor) && applyEditorInlineStyle(
+      next === 'transparent' ? {} : { backgroundColor: next },
+      editor,
+      { stripProps: ['backgroundColor'], skipWrapperWhenEmpty: next === 'transparent' }
+    )) {
+      persistInlineEditor(editor)
+      setEditorTick((tick) => tick + 1)
+      return
+    }
+    if (editor && canInlineFormat(editor)) {
+      editor.innerHTML = slideBodyToHtml(slideBodyToPlainText(editor.innerHTML))
+      applyEditorWholeTextStyle(
+        next === 'transparent' ? {} : { backgroundColor: next },
+        editor,
+        { stripProps: ['backgroundColor'], skipWrapperWhenEmpty: next === 'transparent' }
+      )
+      persistInlineEditor(editor)
+      applyTextBoxStyle({ highlightColor: next })
+      setEditorTick((tick) => tick + 1)
+      return
+    }
+    applyWholeTextOverride(
+      { highlightColor: next },
+      {},
+      ['backgroundColor']
+    )
+  }
+
+  function handleFillColorChange(value) {
+    const next = value === 'transparent' ? 'transparent' : value
+    applyTextBoxFrameStyle({
+      fillType: 'solid',
+      backgroundColor: next,
+    })
   }
 
   function handleClearFormatting() {
@@ -1126,17 +1312,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                     setEditorTick((tick) => tick + 1)
                     return
                   }
-                  if (isTextEditing && editor) {
-                    applyEditorBoxStyle({ fontFamily: value }, editor, {
-                      stripProps: ['fontFamily'],
-                    })
-                    persistInlineEditor(editor)
-                    applyTextBoxStyle({ fontFamily: value })
-                    setEditorTick((tick) => tick + 1)
-                    return
-                  }
-                  applyTextBoxStyle({ fontFamily: value })
-                  setEditorTick((tick) => tick + 1)
+                  applyWholeTextOverride({ fontFamily: value }, { fontFamily: value }, ['fontFamily'])
                 }}
               />
               <div
@@ -1209,45 +1385,35 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                   </div>
                 )}
               </PopoverMenuButton>
-              <div className="flex items-center gap-1.5 shrink-0 min-w-0">
-                {!hideEditColorLabels && <InlineTinyLabel>Text</InlineTinyLabel>}
-                <ColorPickerButton title="Text color" value={editorTextColor} onChange={(value) => {
-                  const editor = restoreInlineSelection({ focus: false })
-                  if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ color: value }, editor)) {
-                    persistInlineEditor(editor)
-                    setEditorTick((tick) => tick + 1)
-                    return
-                  }
-                  if (editor) {
-                    applyEditorBoxStyle({ color: value }, editor, {
-                      stripProps: ['color'],
-                    })
-                    persistInlineEditor(editor)
-                  }
-                  applyTextBoxStyle({ color: value })
-                  setEditorTick((tick) => tick + 1)
-                }} />
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0 min-w-0">
-                {!hideEditColorLabels && <InlineTinyLabel>Highlight</InlineTinyLabel>}
-                <ColorPickerButton title="Highlight color" value={editorHighlightColor === 'transparent' ? 'transparent' : editorHighlightColor} onChange={(value) => {
-                  const next = value === 'transparent' ? 'transparent' : value
-                  const editor = restoreInlineSelection({ focus: false })
-                  if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ backgroundColor: next }, editor)) {
-                    persistInlineEditor(editor)
-                    setEditorTick((tick) => tick + 1)
-                    return
-                  }
-                  if (editor) {
-                    applyEditorBoxStyle({ backgroundColor: next }, editor, {
-                      stripProps: ['backgroundColor'],
-                    })
-                    persistInlineEditor(editor)
-                  }
-                  applyTextBoxStyle({ highlightColor: next })
-                  setEditorTick((tick) => tick + 1)
-                }} />
-              </div>
+              {collapseEditColorsToPalette ? (
+                <CombinedColorButton
+                  textColor={editorTextColor}
+                  highlightColor={editorHighlightColor === 'transparent' ? 'transparent' : editorHighlightColor}
+                  fillColor={boxFillColor === 'transparent' ? 'transparent' : boxFillColor}
+                  onTextChange={handleTextColorChange}
+                  onHighlightChange={handleHighlightColorChange}
+                  onFillChange={handleFillColorChange}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+                    {hideEditColorLabels ? <InlineTinyIconLabel icon={Type} title="Text color" /> : <InlineTinyLabel>Text</InlineTinyLabel>}
+                    <ColorPickerButton title="Text color" value={editorTextColor} onChange={handleTextColorChange} />
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+                    {hideEditColorLabels ? <InlineTinyIconLabel icon={Highlighter} title="Highlight color" /> : <InlineTinyLabel>Highlight</InlineTinyLabel>}
+                    <ColorPickerButton title="Highlight color" value={editorHighlightColor === 'transparent' ? 'transparent' : editorHighlightColor} onChange={handleHighlightColorChange} />
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+                    {hideEditColorLabels ? <InlineTinyIconLabel icon={Square} title="Textbox fill color" /> : <InlineTinyLabel>Fill</InlineTinyLabel>}
+                    <ColorPickerButton
+                      title="Textbox fill color"
+                      value={boxFillColor === 'transparent' ? 'transparent' : boxFillColor}
+                      onChange={handleFillColorChange}
+                    />
+                  </div>
+                </>
+              )}
             </Group>
 
           </div>
