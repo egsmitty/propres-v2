@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup'
-import { resolvePlaceholderText } from '@/utils/textBoxes'
+import { DEFAULT_TEXT_STYLE, resolvePlaceholderText } from '@/utils/textBoxes'
 import { isRecentEditorToolbarInteraction } from '@/utils/richTextEditor'
 
 function selectAllContents(element, collapseToEnd = false) {
@@ -36,8 +36,8 @@ export default function SlideTextEditor({
   const [placeholderActive, setPlaceholderActive] = useState(false)
 
   function clearPlaceholder() {
-    if (!ref.current || !placeholderActive) return
-    ref.current.innerHTML = ''
+    if (!placeholderActive) return
+    if (ref.current) ref.current.innerHTML = ''
     setPlaceholderActive(false)
   }
 
@@ -55,10 +55,10 @@ export default function SlideTextEditor({
     seedingRef.current = true
     setPlaceholderActive(shouldShowPlaceholder)
     ref.current.innerHTML = shouldShowPlaceholder
-      ? placeholderText
+      ? ''
       : slideBodyToHtml(textBox?.body || '')
 
-    selectAllContents(ref.current, !shouldShowPlaceholder)
+    selectAllContents(ref.current, true)
     ref.current.focus()
     window.requestAnimationFrame(() => {
       seedingRef.current = false
@@ -152,10 +152,10 @@ export default function SlideTextEditor({
         onBlur={handleBlur}
         className="w-full outline-none"
         style={{
-          color: placeholderActive ? '#6b7280' : style.color || '#ffffff',
-          fontSize: style.size || 100,
+          color: placeholderActive ? '#888888' : style.color || '#ffffff',
+          fontSize: style.size || DEFAULT_TEXT_STYLE.size,
           fontWeight: style.bold ? 700 : 400,
-          fontStyle: style.italic ? 'italic' : 'normal',
+          fontStyle: placeholderActive ? 'italic' : (style.italic ? 'italic' : 'normal'),
           textDecoration: [style.underline ? 'underline' : null, style.strikethrough ? 'line-through' : null].filter(Boolean).join(' ') || 'none',
           textAlign: style.align || 'center',
           lineHeight: style.lineHeight || 1.3,

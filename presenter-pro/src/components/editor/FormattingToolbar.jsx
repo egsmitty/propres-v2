@@ -14,7 +14,12 @@ import {
   getEditorCommandState,
   runEditorCommand,
 } from '@/utils/richTextEditor'
-import { DEFAULT_TEXT_BOX, DEFAULT_TEXT_STYLE } from '@/utils/textBoxes'
+import {
+  DEFAULT_TEXT_BOX,
+  DEFAULT_TEXT_STYLE,
+  displayToInternalFontSize,
+  internalToDisplayFontSize,
+} from '@/utils/textBoxes'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -31,6 +36,8 @@ const FONT_OPTIONS = [
 ]
 
 const LINE_SPACING_PRESETS = [1, 1.15, 1.3, 1.5, 2]
+const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8)
+const MAX_FONT_SIZE_DISPLAY = internalToDisplayFontSize(320)
 
 const PRESET_COLORS = [
   '#ffffff', '#eeeeee', '#cccccc', '#888888', '#555555', '#222222', '#000000',
@@ -714,13 +721,14 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
 
       {/* Font size */}
       <NumberField
-        value={style.size || 100}
+        value={internalToDisplayFontSize(style.size || DEFAULT_TEXT_STYLE.size)}
         onCommit={(v) => {
-          if (inline.inlineActive && applyEditorFontSize(v, inline.editor)) return
-          ss({ size: v })
+          const internalValue = displayToInternalFontSize(v, style.size || DEFAULT_TEXT_STYLE.size)
+          if (inline.inlineActive && applyEditorFontSize(internalValue, inline.editor)) return
+          ss({ size: internalValue })
         }}
-        min={8}
-        max={320}
+        min={MIN_FONT_SIZE_DISPLAY}
+        max={MAX_FONT_SIZE_DISPLAY}
         width={50}
       />
 

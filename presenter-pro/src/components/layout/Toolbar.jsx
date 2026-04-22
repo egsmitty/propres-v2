@@ -33,6 +33,8 @@ import {
   getCurrentOrSavedTextBoxId,
   clearSavedEditorSelection,
   getCurrentOrSavedSlideTextEditor,
+  getEditorSelectionSnapshot,
+  hasSelectionInEditor,
   getSelectedTextInEditor,
   markEditorToolbarInteraction,
   getEditorCommandState,
@@ -41,7 +43,12 @@ import {
   saveEditorSelection,
 } from '@/utils/richTextEditor'
 import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
-import { DEFAULT_TEXT_STYLE, getSlideTextBoxes } from '@/utils/textBoxes'
+import {
+  DEFAULT_TEXT_STYLE,
+  displayToInternalFontSize,
+  getSlideTextBoxes,
+  internalToDisplayFontSize,
+} from '@/utils/textBoxes'
 import { uuid } from '@/utils/uuid'
 import { slideBodyToPlainText } from '@/utils/slideMarkup'
 import {
@@ -62,7 +69,10 @@ const FONT_OPTIONS = [
 ]
 
 const LINE_SPACING_PRESETS = [1, 1.15, 1.3, 1.5, 2]
-const FONT_SIZE_PRESETS = [24, 32, 40, 48, 60, 72, 84, 100, 120, 144]
+const PRESENT_CLUSTER_FALLBACK_WIDTH = 312
+const RIBBON_COLLISION_BUFFER = 28
+const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8)
+const MAX_FONT_SIZE_DISPLAY = internalToDisplayFontSize(320)
 
 function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
   const section = presentation?.sections?.find((item) => item.id === selectedSectionId)
@@ -70,26 +80,8 @@ function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
   return section.slides?.find((item) => item.id === selectedSlideId) || null
 }
 
-function getEditorSelectionElement(editor) {
-  if (!editor || typeof window === 'undefined' || !window.getSelection) return null
-  const selection = window.getSelection()
-  if (!selection || selection.rangeCount === 0) return editor
-  const node = selection.getRangeAt(0).commonAncestorContainer
-  if (!node) return editor
-  return node.nodeType === Node.TEXT_NODE ? node.parentElement : node
-}
-
-function readEditorFontSize(editor) {
-  const element = getEditorSelectionElement(editor)
-  if (!element || typeof window === 'undefined' || !window.getComputedStyle) return 60
-  const size = parseFloat(window.getComputedStyle(element).fontSize || '60')
-  return Number.isFinite(size) ? Math.round(size) : 60
-}
-
-function readEditorFontFamily(editor) {
-  const element = getEditorSelectionElement(editor)
-  if (!element || typeof window === 'undefined' || !window.getComputedStyle) return FONT_OPTIONS[0]
-  const family = (window.getComputedStyle(element).fontFamily || FONT_OPTIONS[0]).replace(/["']/g, '')
+function normalizeFontFamilyValue(value, fallback = FONT_OPTIONS[0]) {
+  const family = String(value || fallback).replace(/["']/g, '')
   return FONT_OPTIONS.find((option) => family.toLowerCase().includes(option.toLowerCase())) || FONT_OPTIONS[0]
 }
 
@@ -100,20 +92,9 @@ function rgbToHex(value) {
   return `#${[r, g, b].map((part) => Number(part).toString(16).padStart(2, '0')).join('')}`
 }
 
-function readEditorColor(editor, cssProp, fallback) {
-  const element = getEditorSelectionElement(editor)
-  if (!element || typeof window === 'undefined' || !window.getComputedStyle) return fallback
-  const value = window.getComputedStyle(element)[cssProp]
+function normalizeColorValue(value, fallback) {
   if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)') return fallback
   return rgbToHex(value)
-}
-
-function readEditorTextColor(editor, fallback = '#ffffff') {
-  return readEditorColor(editor, 'color', fallback)
-}
-
-function readEditorHighlightColor(editor, fallback = 'transparent') {
-  return readEditorColor(editor, 'backgroundColor', fallback)
 }
 
 function normalizeAlignValue(value, fallback = 'center') {
@@ -125,22 +106,16 @@ function normalizeAlignValue(value, fallback = 'center') {
   return fallback
 }
 
-function readEditorTextAlign(editor, fallback = 'center') {
-  const element = getEditorSelectionElement(editor)
-  if (!element || typeof window === 'undefined' || !window.getComputedStyle) return fallback
-  return normalizeAlignValue(window.getComputedStyle(element).textAlign, fallback)
-}
-
 function Group({ title, children, grow = false, noDivider = false }) {
   return (
     <div
-      className={`flex items-center gap-2 min-w-0 ${grow ? 'flex-1' : 'shrink-0'} ${noDivider ? '' : 'pr-3 mr-2'}`}
+      className={`flex items-center gap-3 min-w-0 ${grow ? 'flex-1' : 'shrink-0'} ${noDivider ? '' : 'pr-4 mr-3'}`}
       style={{ borderRight: noDivider ? 'none' : '1px solid var(--border-subtle)' }}
     >
       {title ? (
         <span
           className="shrink-0 text-[12px] font-bold uppercase tracking-[0.14em]"
-          style={{ color: 'rgba(18, 24, 38, 0.72)' }}
+          style={{ color: 'rgba(18, 24, 38, 0.72)', paddingLeft: 2 }}
         >
           {title}
         </span>
@@ -330,31 +305,41 @@ function InlineChoiceButton({ label, active, onClick, width = 56 }) {
   )
 }
 
-function LiveNumberField({ value, min, max, onChange, width = 72 }) {
+function LiveNumberField({ value, min, max, onChange, width = 72, integrated = false }) {
   const [draft, setDraft] = useState(String(value ?? ''))
   const [focused, setFocused] = useState(false)
   const inputRef = useRef(null)
+  const lastCommittedRef = useRef(null)
 
   useEffect(() => {
-    if (!focused) {
-      setDraft(String(value ?? ''))
-    }
+    if (focused) return
+    const nextValue = String(value ?? '')
+    if (lastCommittedRef.current && nextValue !== lastCommittedRef.current) return
+    setDraft(nextValue)
+    lastCommittedRef.current = null
   }, [value, focused])
 
   function commitDraft(nextDraft) {
     const trimmed = String(nextDraft ?? '').trim()
     if (!trimmed) {
       setDraft(String(value ?? ''))
-      return
+      lastCommittedRef.current = null
+      return false
     }
     const numeric = Number(trimmed)
     if (!Number.isFinite(numeric)) {
       setDraft(String(value ?? ''))
-      return
+      lastCommittedRef.current = null
+      return false
     }
     const clamped = Math.max(min, Math.min(max, Math.round(numeric)))
-    setDraft(String(clamped))
-    onChange(clamped)
+    const nextValue = String(clamped)
+    setDraft(nextValue)
+    lastCommittedRef.current = nextValue
+    if (String(value ?? '') !== nextValue) {
+      onChange(clamped)
+    }
+    return true
   }
 
   return (
@@ -387,21 +372,24 @@ function LiveNumberField({ value, min, max, onChange, width = 72 }) {
             event.currentTarget.select()
           }
         } else if (event.key === 'Escape') {
+          lastCommittedRef.current = null
           setDraft(String(value ?? ''))
           event.currentTarget.blur()
         }
       }}
       onBlur={() => {
-        commitDraft(draft)
+        if (!lastCommittedRef.current || lastCommittedRef.current !== String(draft ?? '')) {
+          commitDraft(draft)
+        }
         setFocused(false)
       }}
       style={{
         width,
         height: 32,
-        padding: '0 10px',
-        borderRadius: 10,
-        border: '1px solid var(--border-default)',
-        background: 'var(--bg-app)',
+        padding: integrated ? '0 8px 0 10px' : '0 10px',
+        borderRadius: integrated ? 0 : 10,
+        border: integrated ? 'none' : '1px solid var(--border-default)',
+        background: integrated ? 'transparent' : 'var(--bg-app)',
         color: 'var(--text-primary)',
         fontSize: 12.5,
         fontWeight: 650,
@@ -460,7 +448,7 @@ function normalizeEditorHtml(html) {
 function defaultEditorBoxStyles(style = DEFAULT_TEXT_STYLE) {
   return {
     fontFamily: style.fontFamily || 'Arial, sans-serif',
-    fontSize: `${style.size || 100}px`,
+    fontSize: `${style.size || DEFAULT_TEXT_STYLE.size}px`,
     color: style.color || '#ffffff',
     backgroundColor: style.highlightColor === 'transparent' ? 'transparent' : (style.highlightColor || 'transparent'),
     fontWeight: style.bold ? 700 : 400,
@@ -470,6 +458,12 @@ function defaultEditorBoxStyles(style = DEFAULT_TEXT_STYLE) {
       style.strikethrough ? 'line-through' : null,
     ].filter(Boolean).join(' ') || 'none',
   }
+}
+
+function eventTargetsEditor(event, editor) {
+  const target = event?.target
+  if (!target || !editor) return false
+  return target === editor || editor.contains(target)
 }
 
 function PopoverShell({ popoverRef, triggerRef, width = 180, children }) {
@@ -719,6 +713,8 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const addSlideTextBox = useEditorStore((s) => s.addSlideTextBox)
+  const duplicateSlideTextBoxes = useEditorStore((s) => s.duplicateSlideTextBoxes)
+  const removeSlideTextBoxes = useEditorStore((s) => s.removeSlideTextBoxes)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
   const updateSlideStyle = useEditorStore((s) => s.updateSlideStyle)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
@@ -747,7 +743,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const activeTextBoxIds = activeTextBoxId ? [activeTextBoxId] : null
   const style = activeTextBox?.textStyle || DEFAULT_TEXT_STYLE
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!toolbarRef.current) return undefined
     const node = toolbarRef.current
     const update = () => setToolbarWidth(node.getBoundingClientRect().width)
@@ -761,7 +757,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
     }
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!presentClusterRef.current) return undefined
     const node = presentClusterRef.current
     const update = () => setPresentClusterWidth(node.getBoundingClientRect().width)
@@ -780,9 +776,16 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
       clearSavedEditorSelection()
       return undefined
     }
-    const bump = () => {
+    const bump = (event) => {
       const editor = getCurrentOrSavedSlideTextEditor()
-      if (editor) saveEditorSelection(editor)
+      if (!editor) return
+      if (event?.type !== 'selectionchange' && !eventTargetsEditor(event, editor)) return
+      if (event?.type === 'selectionchange') {
+        const active = document.activeElement
+        const editorFocused = active === editor || editor.contains(active)
+        if (!editorFocused && !hasSelectionInEditor(editor)) return
+      }
+      if (hasSelectionInEditor(editor)) saveEditorSelection(editor)
       setEditorTick((value) => value + 1)
     }
     document.addEventListener('selectionchange', bump)
@@ -798,10 +801,20 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   }, [isTextEditing])
 
   const activeEditor = isTextEditing ? getCurrentOrSavedSlideTextEditor() : null
-  const editorFontFamily = activeEditor ? readEditorFontFamily(activeEditor) : (style.fontFamily || FONT_OPTIONS[0])
-  const editorFontSize = activeEditor ? readEditorFontSize(activeEditor) : (style.size || 60)
-  const editorTextColor = activeEditor ? readEditorTextColor(activeEditor, style.color || '#ffffff') : (style.color || '#ffffff')
-  const editorHighlightColor = activeEditor ? readEditorHighlightColor(activeEditor, style.highlightColor || 'transparent') : (style.highlightColor || 'transparent')
+  const editorSnapshot = activeEditor ? getEditorSelectionSnapshot(activeEditor) : null
+  const editorFontFamily = activeEditor
+    ? normalizeFontFamilyValue(editorSnapshot?.fontFamily, style.fontFamily || FONT_OPTIONS[0])
+    : (style.fontFamily || FONT_OPTIONS[0])
+  const editorFontSizeInternal = activeEditor
+    ? (Number.isFinite(editorSnapshot?.fontSize) && editorSnapshot.fontSize > 0 ? Math.round(editorSnapshot.fontSize) : (style.size || DEFAULT_TEXT_STYLE.size))
+    : (style.size || DEFAULT_TEXT_STYLE.size)
+  const editorFontSize = internalToDisplayFontSize(editorFontSizeInternal)
+  const editorTextColor = activeEditor
+    ? normalizeColorValue(editorSnapshot?.color, style.color || '#ffffff')
+    : (style.color || '#ffffff')
+  const editorHighlightColor = activeEditor
+    ? normalizeColorValue(editorSnapshot?.backgroundColor, style.highlightColor || 'transparent')
+    : (style.highlightColor || 'transparent')
   const editorState = {
     bold: getEditorCommandState('bold', activeEditor),
     italic: getEditorCommandState('italic', activeEditor),
@@ -814,23 +827,26 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   }
   void editorTick
 
-  const effectiveWidth = Math.max(0, toolbarWidth - presentClusterWidth - 2)
+  const reservedPresentWidth = Math.max(
+    presentClusterWidth,
+    onTogglePanel ? PRESENT_CLUSTER_FALLBACK_WIDTH : PRESENT_CLUSTER_FALLBACK_WIDTH - 120
+  )
+  const effectiveWidth = Math.max(0, toolbarWidth - reservedPresentWidth - RIBBON_COLLISION_BUFFER)
   const compactLevel = isTextEditing
-    ? effectiveWidth < 760 ? 4 : effectiveWidth < 890 ? 3 : effectiveWidth < 1020 ? 2 : effectiveWidth < 1140 ? 1 : 0
-    : effectiveWidth < 700 ? 3 : effectiveWidth < 840 ? 2 : effectiveWidth < 980 ? 1 : 0
+    ? effectiveWidth < 820 ? 4 : effectiveWidth < 940 ? 3 : effectiveWidth < 1080 ? 2 : effectiveWidth < 1200 ? 1 : 0
+    : effectiveWidth < 740 ? 3 : effectiveWidth < 880 ? 2 : effectiveWidth < 1020 ? 1 : 0
 
   const hideSecondaryLabels = compactLevel >= 2
   const hideMostLabels = compactLevel >= 3
   const hidePrimaryLabels = compactLevel >= 3
   const hideEditSecondaryLabels = isTextEditing && compactLevel >= 1
-  const hideEditColorLabels = isTextEditing && compactLevel >= 2
+  const hideEditColorLabels = isTextEditing && compactLevel >= 4
 
   const activeAlign = isTextEditing
-    ? readEditorTextAlign(activeEditor, style.align || 'center')
+    ? normalizeAlignValue(editorSnapshot?.textAlign, style.align || 'center')
     : (style.align || 'center')
   const activeVerticalAlign = style.valign || 'middle'
   const verticalAlignLabel = activeVerticalAlign === 'top' ? 'Top' : activeVerticalAlign === 'bottom' ? 'Bottom' : 'Middle'
-
   function preserveEditorSelection() {
     if (!isTextEditing) return
     const editor = getCurrentOrSavedSlideTextEditor()
@@ -860,7 +876,10 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   }
 
   function hasInlineTextSelection(editor) {
-    return canInlineFormat(editor) && getSelectedTextInEditor(editor).trim().length > 0
+    if (!canInlineFormat(editor)) return false
+    const snapshot = getEditorSelectionSnapshot(editor)
+    const selectedText = snapshot?.selectedText ?? getSelectedTextInEditor(editor)
+    return selectedText.trim().length > 0
   }
 
   function persistInlineEditor(editor) {
@@ -894,6 +913,30 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
     if (selectedSectionId && selectedSlideId) {
       updateSlideStyle(selectedSectionId, selectedSlideId, styleProps, activeTextBoxIds)
     }
+  }
+
+  function applyFontSizeValue(value) {
+    const internalValue = displayToInternalFontSize(value, editorFontSizeInternal)
+    const editor = restoreInlineSelection({ focus: false })
+    if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ fontSize: `${internalValue}px` }, editor)) {
+      persistInlineEditor(editor)
+      setEditorTick((tick) => tick + 1)
+      return
+    }
+    if (editor) {
+      applyEditorBoxStyle({ fontSize: `${internalValue}px` }, editor, {
+        stripProps: ['fontSize'],
+      })
+      persistInlineEditor(editor)
+    }
+    applyTextBoxStyle({ size: internalValue })
+    setEditorTick((tick) => tick + 1)
+  }
+
+  function nudgeFontSize(direction) {
+    const baseSize = editorFontSize || internalToDisplayFontSize(style.size || DEFAULT_TEXT_STYLE.size)
+    const next = Math.max(MIN_FONT_SIZE_DISPLAY, Math.min(MAX_FONT_SIZE_DISPLAY, Math.round(baseSize + direction)))
+    applyFontSizeValue(next)
   }
 
   function handleLineHeight(next) {
@@ -971,32 +1014,30 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
     setMediaLibraryOpen(!mediaLibraryOpen)
   }
 
-  const sectionMeta = section
-    ? `${getSectionTypeLabel(section.type)} · ${section.slides?.length || 0} slides`
-    : 'No section selected'
-  const mediaMeta = slide?.backgroundId
-    ? 'Background set'
-    : slide?.mediaId
-      ? 'Media attached'
-      : 'None'
-
   return (
     <div
       ref={toolbarRef}
       data-tour="editor-toolbar"
       data-editor-toolbar={isTextEditing ? 'true' : undefined}
       onMouseDownCapture={handleToolbarMouseDownCapture}
-      className="shrink-0 px-1.5 py-2"
+      className={`shrink-0 py-2.5 ${isTextEditing ? 'px-4' : 'px-1.5'}`}
       style={{
         background: 'var(--bg-toolbar)',
         borderBottom: '1px solid var(--border-subtle)',
         overflowX: 'hidden',
         overflowY: 'visible',
+        boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.48)',
       }}
     >
-      <div className="flex items-center gap-1 min-w-0 overflow-hidden" style={{ minHeight: 44 }}>
+      <div
+        className="flex gap-1 min-w-0 overflow-hidden"
+        style={{
+          minHeight: 44,
+          alignItems: 'center',
+        }}
+      >
         {isTextEditing ? (
-          <>
+          <div className="flex min-w-0 flex-1 gap-1 overflow-hidden items-center">
             <Group title="Text">
               <FontFamilyButton
                 value={editorFontFamily}
@@ -1023,25 +1064,10 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
               />
               <LiveNumberField
                 value={editorFontSize}
-                min={8}
-                max={320}
+                min={MIN_FONT_SIZE_DISPLAY}
+                max={MAX_FONT_SIZE_DISPLAY}
                 width={compactLevel >= 2 ? 78 : 92}
-                onChange={(value) => {
-                  const editor = restoreInlineSelection({ focus: false })
-                  if (hasInlineTextSelection(editor) && applyEditorInlineStyle({ fontSize: `${value}px` }, editor)) {
-                    persistInlineEditor(editor)
-                    setEditorTick((tick) => tick + 1)
-                    return
-                  }
-                  if (editor) {
-                    applyEditorBoxStyle({ fontSize: `${value}px` }, editor, {
-                      stripProps: ['fontSize'],
-                    })
-                    persistInlineEditor(editor)
-                  }
-                  applyTextBoxStyle({ size: value })
-                  setEditorTick((tick) => tick + 1)
-                }}
+                onChange={applyFontSizeValue}
               />
               <InlineStyleButton icon={Bold} title="Bold (Cmd/Ctrl+B)" active={editorState.bold || style.bold} onClick={() => applyTextStyle({ bold: !style.bold }, 'bold')} />
               <InlineStyleButton icon={Italic} title="Italic (Cmd/Ctrl+I)" active={editorState.italic || style.italic} onClick={() => applyTextStyle({ italic: !style.italic }, 'italic')} />
@@ -1050,7 +1076,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
               {!hidePrimaryLabels && <CommandButton icon={Eraser} label="Clear" title="Clear Formatting" onClick={handleClearFormatting} compact collapseLabel={hideEditSecondaryLabels} />}
             </Group>
 
-            <Group title="Paragraph" grow>
+            <Group title="Paragraph" grow noDivider>
               <InlineStyleButton icon={AlignLeft} title="Align Left" active={activeAlign === 'left'} onClick={() => applyTextStyle({ align: 'left' }, 'justifyLeft')} />
               <InlineStyleButton icon={AlignCenter} title="Align Center" active={activeAlign === 'center'} onClick={() => applyTextStyle({ align: 'center' }, 'justifyCenter')} />
               <InlineStyleButton icon={AlignRight} title="Align Right" active={activeAlign === 'right'} onClick={() => applyTextStyle({ align: 'right' }, 'justifyRight')} />
@@ -1107,7 +1133,8 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 }} />
               </div>
             </Group>
-          </>
+
+          </div>
         ) : (
           <>
             <Group title="Slides">
@@ -1131,7 +1158,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
 
         <div
           ref={presentClusterRef}
-          className="ml-auto shrink-0 flex items-center gap-2 pl-3"
+          className="ml-auto shrink-0 flex items-center gap-2 pl-3 self-center"
           style={{ borderLeft: '1px solid var(--border-subtle)' }}
         >
           <PresentButton onPresent={onPresent} isPresenting={isPresenting} disabled={panelOpen} collapseLabel={false} />
