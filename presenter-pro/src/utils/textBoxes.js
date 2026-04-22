@@ -16,7 +16,7 @@ export const DEFAULT_TEXT_STYLE = {
   align: 'center',
   valign: 'middle',
   justify: false,
-  lineHeight: 0.5,
+  lineHeight: 1,
   paragraphBefore: 0,
   paragraphAfter: 0,
   bullets: false,
