@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, shell, screen } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell, screen, nativeImage } = require('electron')
 const os = require('os')
+const fs = require('fs')
 const path = require('path')
 const { getDb } = require('../db/index')
 const { runMigrations } = require('../db/migrations')
@@ -27,6 +28,29 @@ let allowPresenterWindowClose = false
 let presentationSessionSlides = []
 let currentStageSlide = null
 let currentStageBackground = null
+
+function resolveRuntimeAssetPath(...segments) {
+  const candidates = [
+    path.join(process.resourcesPath, ...segments),
+    path.join(app.getAppPath(), ...segments),
+    path.join(__dirname, '../../', ...segments),
+  ]
+
+  return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || null
+}
+
+function resolveWindowIcon() {
+  const iconPath = resolveRuntimeAssetPath(
+    'public',
+    'icons',
+    process.platform === 'win32' ? 'app-icon.ico' : 'app-icon.png'
+  )
+  if (!iconPath) return undefined
+  const image = nativeImage.createFromPath(iconPath)
+  return image.isEmpty() ? undefined : image
+}
+
+const appWindowIcon = resolveWindowIcon()
 
 function resolveReadyQueue(queue) {
   queue.forEach((resolve) => resolve({ success: true }))
@@ -261,6 +285,7 @@ function createMainWindow() {
     minWidth: 1200,
     minHeight: 700,
     frame: false,
+    icon: appWindowIcon,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -371,6 +396,7 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
     title: 'Output',
     frame: false,
     show: false,
+    icon: appWindowIcon,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -448,6 +474,7 @@ function createStageDisplayWindow(options = {}) {
     frame: false,
     show: false,
     backgroundColor: '#000000',
+    icon: appWindowIcon,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -855,6 +882,10 @@ function buildNativeMenu() {
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
+  const dockIconPath = resolveRuntimeAssetPath('public', 'icons', 'app-icon.png')
+  if (process.platform === 'darwin' && dockIconPath && app.dock?.setIcon) {
+    app.dock.setIcon(dockIconPath)
+  }
   const db = getDb()
   runMigrations(db)
   seed(db)
