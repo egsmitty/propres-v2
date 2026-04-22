@@ -190,10 +190,8 @@ export default function OutputRenderer() {
           position: 'absolute',
           left: stageLeft,
           top: stageTop,
-          width: nativeWidth,
-          height: nativeHeight,
-          transform: `scale(${stageScale || 1})`,
-          transformOrigin: 'top left',
+          width: stageWidth,
+          height: stageHeight,
           overflow: 'hidden',
           background: '#000',
         }}
