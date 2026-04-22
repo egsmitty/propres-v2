@@ -21,6 +21,7 @@ export default function PresenterPanel() {
   const allSlides = usePresenterStore((s) => s.allSlides)
   const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
   const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth)
+  const setPresenterPanelOpen = usePresenterStore((s) => s.setPresenterPanelOpen)
 
   const liveIdx = allSlides.findIndex((sl) => sl.id === liveSlideId)
   const liveSlide = liveIdx >= 0 ? allSlides[liveIdx] : null
@@ -100,12 +101,13 @@ export default function PresenterPanel() {
         className="shrink-0 flex items-center justify-center cursor-pointer"
         onClick={() => setPresenterPanelOpen(true)}
         style={{
-          width: 20,
+          width: 40,
           background: 'var(--bg-surface)',
           borderLeft: '1px solid var(--border-subtle)',
           color: 'var(--text-tertiary)',
           fontSize: 12,
           userSelect: 'none',
+          zIndex: 5,
         }}
         onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface)'; e.currentTarget.style.color = 'var(--text-tertiary)' }}

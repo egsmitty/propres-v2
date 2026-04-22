@@ -70,7 +70,7 @@ const FONT_OPTIONS = [
   'Verdana',
 ]
 
-const LINE_SPACING_PRESETS = [0.5, 0.75, 1, 1.15, 1.3, 1.5, 2]
+const LINE_SPACING_PRESETS = [1, 1.15, 1.3, 1.5, 2]
 const PRESENT_CLUSTER_FALLBACK_WIDTH = 312
 const RIBBON_COLLISION_BUFFER = 28
 const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8)

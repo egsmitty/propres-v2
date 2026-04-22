@@ -257,12 +257,7 @@ export default function Editor() {
               dragRef.current = { side: 'panel', startX: e.clientX, startWidth: presenterPanelWidth }
               document.body.style.cursor = 'col-resize'
             }} />
-          ) : (
-            <CollapseSliver
-              direction="left"
-              onClick={() => setPresenterPanelOpen(true)}
-            />
-          )}
+          ) : null}
           <PresenterPanel />
         </div>
       </div>

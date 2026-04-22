@@ -559,7 +559,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
                         fontSize: 26,
-                        lineHeight: 0.5,
+                        lineHeight: 1,
                         maxWidth: '80%',
                       }}
                     >

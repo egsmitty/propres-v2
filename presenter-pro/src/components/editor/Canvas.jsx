@@ -568,10 +568,8 @@ export default function Canvas() {
       const active = document.activeElement
       if (active?.isContentEditable) active.blur()
       setSelectedTextBoxIds([])
-      if (editingTextBoxId) {
-        setEditingTextBoxId(null)
-        setEditingSlide(null)
-      }
+      setEditingTextBoxId(null)
+      setEditingSlide(null)
     }
 
     function onDocMouseDown(e) {
@@ -638,6 +636,7 @@ export default function Canvas() {
     }
 
     setSelectedTextBoxIds([])
+    setEditingSlide(null)
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
     const localX = (event.clientX - rect.left) / scale
