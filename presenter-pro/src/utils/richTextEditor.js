@@ -12,6 +12,74 @@ function nodeBelongsToEditor(node, editor) {
   return node === editor || editor.contains(node)
 }
 
+function getRangeContainerElement(range, editor) {
+  if (!range) return editor || null
+  const node = range.commonAncestorContainer
+  if (!nodeBelongsToEditor(node, editor)) return editor || null
+  return node.nodeType === Node.TEXT_NODE ? node.parentElement : node
+}
+
+function getLiveEditorRange(editor) {
+  if (!editor) return null
+  const selection = getSelectionObject()
+  if (!selection || selection.rangeCount === 0) return null
+  const range = selection.getRangeAt(0)
+  return nodeBelongsToEditor(range.commonAncestorContainer, editor) ? range : null
+}
+
+function getSavedEditorRange(editor) {
+  if (!editor || !savedEditorSelection?.range || !savedEditorSelection?.editor?.isConnected) return null
+  if (savedEditorSelection.editor !== editor) return null
+  return savedEditorSelection.range.cloneRange()
+}
+
+function readQueryCommandState(command) {
+  if (typeof document === 'undefined' || typeof document.queryCommandState !== 'function') return false
+  try {
+    return Boolean(document.queryCommandState(command))
+  } catch {
+    return false
+  }
+}
+
+function buildSelectionSnapshot(editor, range) {
+  if (!editor || !range || typeof window === 'undefined' || !window.getComputedStyle) return null
+  const element = getRangeContainerElement(range, editor)
+  if (!element) return null
+
+  const computed = window.getComputedStyle(element)
+  const textDecoration = `${computed.textDecorationLine || ''} ${computed.textDecoration || ''}`.toLowerCase()
+  const fontWeight = String(computed.fontWeight || '').toLowerCase()
+  const numericWeight = Number.parseInt(fontWeight, 10)
+  const textAlign = String(computed.textAlign || '').toLowerCase()
+
+  return {
+    selectedText: range.toString() || '',
+    collapsed: range.collapsed,
+    fontSize: Number.parseFloat(computed.fontSize || '0') || 0,
+    fontFamily: computed.fontFamily || '',
+    color: computed.color || '',
+    backgroundColor: computed.backgroundColor || '',
+    textAlign,
+    bold: Number.isFinite(numericWeight) ? numericWeight >= 600 : fontWeight === 'bold',
+    italic: computed.fontStyle === 'italic',
+    underline: textDecoration.includes('underline'),
+    strike: textDecoration.includes('line-through'),
+    alignLeft: textAlign.includes('left'),
+    alignCenter: textAlign.includes('center'),
+    alignRight: textAlign.includes('right'),
+    justify: textAlign.includes('justify'),
+    commandBold: readQueryCommandState('bold'),
+    commandItalic: readQueryCommandState('italic'),
+    commandUnderline: readQueryCommandState('underline'),
+    commandStrike: readQueryCommandState('strikeThrough'),
+    commandAlignLeft: readQueryCommandState('justifyLeft'),
+    commandAlignCenter: readQueryCommandState('justifyCenter'),
+    commandAlignRight: readQueryCommandState('justifyRight'),
+    commandJustify: readQueryCommandState('justifyFull'),
+  }
+}
+
 export function getActiveSlideTextEditor() {
   if (typeof document === 'undefined') return null
   const active = document.activeElement
@@ -34,27 +102,22 @@ export function getCurrentOrSavedTextBoxId() {
 }
 
 export function hasSelectionInEditor(editor = getCurrentOrSavedSlideTextEditor()) {
-  if (!editor) return false
-  const selection = getSelectionObject()
-  if (!selection || selection.rangeCount === 0) return false
-  const range = selection.getRangeAt(0)
-  return nodeBelongsToEditor(range.commonAncestorContainer, editor)
+  return Boolean(getLiveEditorRange(editor))
 }
 
 export function getSelectedTextInEditor(editor = getCurrentOrSavedSlideTextEditor()) {
-  if (!hasSelectionInEditor(editor)) return ''
-  return getSelectionObject()?.toString() || ''
+  const range = getLiveEditorRange(editor) || getSavedEditorRange(editor)
+  return range?.toString() || ''
 }
 
 export function saveEditorSelection(editor = getCurrentOrSavedSlideTextEditor()) {
   if (!editor) return false
-  const selection = getSelectionObject()
-  if (!selection || selection.rangeCount === 0) return false
-  const range = selection.getRangeAt(0)
-  if (!nodeBelongsToEditor(range.commonAncestorContainer, editor)) return false
+  const range = getLiveEditorRange(editor) || getSavedEditorRange(editor)
+  if (!range) return false
   savedEditorSelection = {
     editor,
     range: range.cloneRange(),
+    snapshot: buildSelectionSnapshot(editor, range),
   }
   return true
 }
@@ -78,6 +141,16 @@ export function restoreEditorSelection(editor = null, options = {}) {
 
 export function clearSavedEditorSelection() {
   savedEditorSelection = null
+}
+
+export function getEditorSelectionSnapshot(editor = getCurrentOrSavedSlideTextEditor()) {
+  if (!editor) return null
+
+  const liveRange = getLiveEditorRange(editor)
+  if (liveRange) return buildSelectionSnapshot(editor, liveRange)
+
+  if (!savedEditorSelection?.editor?.isConnected || savedEditorSelection.editor !== editor) return null
+  return savedEditorSelection.snapshot || buildSelectionSnapshot(editor, getSavedEditorRange(editor))
 }
 
 export function markEditorToolbarInteraction() {
@@ -117,10 +190,7 @@ function unwrapEmptyFormattingNodes(editor) {
 }
 
 function getEditorRange(editor) {
-  if (!editor || !hasSelectionInEditor(editor)) return null
-  const selection = getSelectionObject()
-  if (!selection || selection.rangeCount === 0) return null
-  return selection.getRangeAt(0)
+  return getLiveEditorRange(editor) || getSavedEditorRange(editor)
 }
 
 export function applyEditorInlineStyle(styleProps, editor = getCurrentOrSavedSlideTextEditor()) {
@@ -222,13 +292,22 @@ export function clearEditorFormatting(editor = getCurrentOrSavedSlideTextEditor(
 }
 
 export function getEditorCommandState(command, editor = getCurrentOrSavedSlideTextEditor()) {
-  if (!editor || !hasSelectionInEditor(editor)) return false
-  if (typeof document === 'undefined' || typeof document.queryCommandState !== 'function') return false
-  try {
-    return Boolean(document.queryCommandState(command))
-  } catch {
-    return false
+  if (editor && hasSelectionInEditor(editor)) {
+    return readQueryCommandState(command)
   }
+
+  const snapshot = getEditorSelectionSnapshot(editor)
+  if (!snapshot) return false
+
+  if (command === 'bold') return snapshot.commandBold || snapshot.bold
+  if (command === 'italic') return snapshot.commandItalic || snapshot.italic
+  if (command === 'underline') return snapshot.commandUnderline || snapshot.underline
+  if (command === 'strikeThrough') return snapshot.commandStrike || snapshot.strike
+  if (command === 'justifyLeft') return snapshot.commandAlignLeft || snapshot.alignLeft
+  if (command === 'justifyCenter') return snapshot.commandAlignCenter || snapshot.alignCenter
+  if (command === 'justifyRight') return snapshot.commandAlignRight || snapshot.alignRight
+  if (command === 'justifyFull') return snapshot.commandJustify || snapshot.justify
+  return false
 }
 
 export function getEditorCommandValue(command, editor = getCurrentOrSavedSlideTextEditor()) {

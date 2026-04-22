@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { getPresentationScale } from '@/utils/presentationSizing'
-import { getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes'
+import { DEFAULT_TEXT_STYLE, getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
 
 function resolveVerticalAlignment(box) {
@@ -82,7 +82,7 @@ export default function ScaledSlideText({
   return (
     <div ref={frameRef} className="relative w-full h-full overflow-hidden">
       {textBoxes.map((box) => {
-        const fontSize = (box?.textStyle?.size || 100) * scale
+        const fontSize = (box?.textStyle?.size || DEFAULT_TEXT_STYLE.size) * scale
         const body = renderBody(box, empty, showPlaceholder)
         const renderedHtml = body.placeholder ? body.html : scaleInlineHtml(body.html, scale)
         const paddingX = Math.max(minPaddingX, (box.paddingLeft || 28) * scale)
@@ -107,10 +107,10 @@ export default function ScaledSlideText({
               flexDirection: 'column',
               padding: `${paddingY}px ${paddingRight}px ${paddingBottom}px ${paddingX}px`,
               textAlign: box?.textStyle?.align || 'center',
-              color: body.placeholder ? '#6b7280' : box?.textStyle?.color || '#ffffff',
+              color: body.placeholder ? '#888888' : box?.textStyle?.color || '#ffffff',
               fontSize,
               fontWeight: box?.textStyle?.bold ? 700 : 400,
-              fontStyle: box?.textStyle?.italic ? 'italic' : 'normal',
+              fontStyle: body.placeholder ? 'italic' : (box?.textStyle?.italic ? 'italic' : 'normal'),
               textDecoration: renderTextDecoration(box?.textStyle),
               lineHeight: box?.textStyle?.lineHeight || 1.3,
               fontFamily: box?.textStyle?.fontFamily || 'Arial, sans-serif',
