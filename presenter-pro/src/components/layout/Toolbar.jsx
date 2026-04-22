@@ -909,7 +909,6 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const hideSecondaryLabels = compactLevel >= 2
   const hideMostLabels = compactLevel >= 3
   const hidePrimaryLabels = compactLevel >= 3
-  const hideEditGroupTitles = isTextEditing && compactLevel >= 1
   const hideEditSecondaryLabels = isTextEditing && compactLevel >= 1
   const hideEditColorLabels = isTextEditing && compactLevel >= 4
 
@@ -1116,7 +1115,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
       >
         {isTextEditing ? (
           <div className="flex min-w-0 flex-1 gap-1 overflow-hidden items-center">
-            <Group title={hideEditGroupTitles ? null : 'Text'}>
+            <Group title="Text">
               <FontFamilyButton
                 value={editorFontFamily}
                 width={compactLevel >= 3 ? 110 : compactLevel >= 1 ? 138 : 170}
@@ -1172,7 +1171,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
               {!hidePrimaryLabels && <CommandButton icon={Eraser} label="Clear" title="Clear Formatting" onClick={handleClearFormatting} compact collapseLabel={hideEditSecondaryLabels} />}
             </Group>
 
-            <Group title={hideEditGroupTitles ? null : 'Paragraph'} grow noDivider>
+            <Group title="Paragraph" grow noDivider>
               <InlineStyleButton icon={AlignLeft} title="Align Left" active={activeAlign === 'left'} onClick={() => applyTextStyle({ align: 'left' }, 'justifyLeft')} />
               <InlineStyleButton icon={AlignCenter} title="Align Center" active={activeAlign === 'center'} onClick={() => applyTextStyle({ align: 'center' }, 'justifyCenter')} />
               <InlineStyleButton icon={AlignRight} title="Align Right" active={activeAlign === 'right'} onClick={() => applyTextStyle({ align: 'right' }, 'justifyRight')} />
