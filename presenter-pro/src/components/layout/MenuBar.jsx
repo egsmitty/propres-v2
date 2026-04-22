@@ -70,14 +70,14 @@ const MENUS = [
 
 function MenuItem({ item, onAction, onClose }) {
   if (item.divider) {
-    return <div style={{ height: 1, background: 'var(--border-subtle)', margin: '3px 0' }} />
+    return <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
   }
 
   const disabled = item.disabled
 
   return (
     <button
-      className="w-full text-left flex items-center justify-between px-3 py-1 text-xs rounded"
+      className="w-full text-left flex items-center justify-between px-3 py-1.5 text-[12px] rounded-md"
       style={{
         color: disabled ? 'var(--text-tertiary)' : 'var(--text-primary)',
         cursor: disabled ? 'default' : 'pointer',
@@ -97,7 +97,7 @@ function MenuItem({ item, onAction, onClose }) {
     >
       <span>{item.label}</span>
       {item.shortcut && (
-        <span className="ml-6 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="ml-6 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
           {item.shortcut}
         </span>
       )}
@@ -111,7 +111,6 @@ export default function MenuBar() {
 
   const filmstripVisible = useAppStore((s) => s.filmstripVisible)
   const presentation = useEditorStore((s) => s.presentation)
-  const isDirty = useEditorStore((s) => s.isDirty)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
 
   useEffect(() => {
@@ -167,7 +166,7 @@ export default function MenuBar() {
   return (
     <div
       ref={menuRef}
-      className="flex items-center px-1 h-7 shrink-0"
+      className="flex items-center px-2 h-9 shrink-0 gap-0.5"
       style={{
         background: 'var(--bg-toolbar)',
         borderBottom: '1px solid var(--border-subtle)',
@@ -176,7 +175,7 @@ export default function MenuBar() {
       {computedMenus.map((menu) => (
         <div key={menu.label} className="relative">
           <button
-            className="px-2.5 py-0.5 text-xs rounded"
+            className="px-3 py-1 text-[12px] font-medium rounded-md"
             style={{
               color: 'var(--text-primary)',
               background: openMenu === menu.label ? 'var(--bg-hover)' : 'transparent',
@@ -191,11 +190,11 @@ export default function MenuBar() {
 
           {openMenu === menu.label && (
             <div
-              className="absolute top-full left-0 z-50 py-1 rounded shadow-lg min-w-40"
+              className="absolute top-full left-0 z-50 py-1 rounded-lg shadow-lg min-w-44"
               style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-default)',
-                marginTop: 2,
+                marginTop: 4,
               }}
             >
               {menu.items.map((item, i) => (

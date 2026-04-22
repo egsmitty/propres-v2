@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup'
-import { resolvePlaceholderText } from '@/utils/textBoxes'
+import { DEFAULT_TEXT_STYLE, resolvePlaceholderText } from '@/utils/textBoxes'
+import { isRecentEditorToolbarInteraction } from '@/utils/richTextEditor'
 
 function selectAllContents(element, collapseToEnd = false) {
   const range = document.createRange()
@@ -11,6 +12,17 @@ function selectAllContents(element, collapseToEnd = false) {
   selection.addRange(range)
 }
 
+function normalizeEditorHtml(html) {
+  return String(html || '')
+    .replace(/&nbsp;/gi, ' ')
+}
+
+function isTextInsertionKey(event) {
+  if (!event) return false
+  if (event.metaKey || event.ctrlKey || event.altKey) return false
+  return event.key.length === 1 || event.key === 'Enter'
+}
+
 export default function SlideTextEditor({
   textBox,
   onSave,
@@ -19,11 +31,19 @@ export default function SlideTextEditor({
   onTabNext,
 }) {
   const ref = useRef(null)
+  const blurFrameRef = useRef(null)
+  const seedingRef = useRef(false)
   const [placeholderActive, setPlaceholderActive] = useState(false)
+
+  function clearPlaceholder() {
+    if (!placeholderActive) return
+    if (ref.current) ref.current.innerHTML = ''
+    setPlaceholderActive(false)
+  }
 
   function saveCurrentValue() {
     if (!ref.current) return
-    onSave(placeholderActive ? '' : ref.current.innerHTML)
+    onSave(placeholderActive ? '' : normalizeEditorHtml(ref.current.innerHTML))
   }
 
   useEffect(() => {
@@ -32,14 +52,24 @@ export default function SlideTextEditor({
     const placeholderText = resolvePlaceholderText(textBox?.placeholderText)
     const shouldShowPlaceholder = !hasBody && Boolean(placeholderText)
 
+    seedingRef.current = true
     setPlaceholderActive(shouldShowPlaceholder)
     ref.current.innerHTML = shouldShowPlaceholder
-      ? placeholderText
+      ? ''
       : slideBodyToHtml(textBox?.body || '')
 
-    selectAllContents(ref.current, !shouldShowPlaceholder)
+    selectAllContents(ref.current, true)
     ref.current.focus()
-  }, [textBox?.body, textBox?.placeholderText, textBox?.id])
+    window.requestAnimationFrame(() => {
+      seedingRef.current = false
+    })
+  }, [textBox?.id, textBox?.placeholderText])
+
+  useEffect(() => () => {
+    if (blurFrameRef.current) {
+      window.cancelAnimationFrame(blurFrameRef.current)
+    }
+  }, [])
 
   function handleBeforeInput() {
     if (!ref.current || !placeholderActive) return
@@ -48,13 +78,22 @@ export default function SlideTextEditor({
   }
 
   function handleInput() {
-    if (!ref.current || !placeholderActive) return
-    if (slideBodyToPlainText(ref.current.innerHTML).trim() !== '') {
+    if (!ref.current) return
+    const nextBody = normalizeEditorHtml(ref.current.innerHTML)
+    const hasContent = slideBodyToPlainText(nextBody).trim() !== ''
+
+    if (placeholderActive && hasContent) {
       setPlaceholderActive(false)
     }
+
+    onSave(hasContent ? nextBody : '')
   }
 
   function handleKeyDown(e) {
+    if (placeholderActive && (isTextInsertionKey(e) || e.key === 'Backspace' || e.key === 'Delete')) {
+      clearPlaceholder()
+    }
+
     if (e.key === 'Escape') {
       e.preventDefault()
       saveCurrentValue()
@@ -69,11 +108,24 @@ export default function SlideTextEditor({
     }
   }
 
+  function handlePaste() {
+    clearPlaceholder()
+  }
+
   function handleBlur(e) {
     const nextTarget = e.relatedTarget
     if (nextTarget?.closest?.('[data-editor-toolbar="true"]')) return
-    saveCurrentValue()
-    onBlurCommit?.()
+
+    if (blurFrameRef.current) {
+      window.cancelAnimationFrame(blurFrameRef.current)
+    }
+
+    blurFrameRef.current = window.requestAnimationFrame(() => {
+      const active = document.activeElement
+      if (active?.closest?.('[data-editor-toolbar="true"]') || isRecentEditorToolbarInteraction()) return
+      saveCurrentValue()
+      onBlurCommit?.()
+    })
   }
 
   const style = textBox?.textStyle || {}
@@ -82,18 +134,28 @@ export default function SlideTextEditor({
     <div className="w-full h-full flex flex-col" style={{ justifyContent: 'inherit' }}>
       <div
         ref={ref}
+        data-slide-text-editor="true"
+        data-text-box-id={textBox?.id || ''}
+        data-placeholder-active={placeholderActive ? 'true' : 'false'}
         contentEditable
         suppressContentEditableWarning
         onBeforeInput={handleBeforeInput}
         onInput={handleInput}
+        onPaste={handlePaste}
+        onFocus={() => {
+          if (blurFrameRef.current) {
+            window.cancelAnimationFrame(blurFrameRef.current)
+            blurFrameRef.current = null
+          }
+        }}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         className="w-full outline-none"
         style={{
-          color: placeholderActive ? '#6b7280' : style.color || '#ffffff',
-          fontSize: style.size || 100,
+          color: placeholderActive ? '#888888' : style.color || '#ffffff',
+          fontSize: style.size || DEFAULT_TEXT_STYLE.size,
           fontWeight: style.bold ? 700 : 400,
-          fontStyle: style.italic ? 'italic' : 'normal',
+          fontStyle: placeholderActive ? 'italic' : (style.italic ? 'italic' : 'normal'),
           textDecoration: [style.underline ? 'underline' : null, style.strikethrough ? 'line-through' : null].filter(Boolean).join(' ') || 'none',
           textAlign: style.align || 'center',
           lineHeight: style.lineHeight || 1.3,

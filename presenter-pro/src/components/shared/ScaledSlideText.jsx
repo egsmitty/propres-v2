@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { getPresentationScale } from '@/utils/presentationSizing'
-import { getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes'
+import { DEFAULT_TEXT_STYLE, getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
 
 function resolveVerticalAlignment(box) {
@@ -38,6 +38,19 @@ function renderBody(box, empty, showPlaceholder) {
   return { html: resolvePlaceholderText(box.placeholderText, empty), placeholder: true }
 }
 
+function scaleInlineHtml(html, scale) {
+  if (!html || scale === 1) return html
+
+  const scalePx = (_, value) => {
+    const next = Math.max(1, Number.parseFloat(value || '0') * scale)
+    return `${next.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')}px`
+  }
+
+  return String(html)
+    .replace(/font-size\s*:\s*([\d.]+)px/gi, (match, value) => match.replace(value + 'px', scalePx('', value)))
+    .replace(/line-height\s*:\s*([\d.]+)px/gi, (match, value) => match.replace(value + 'px', scalePx('', value)))
+}
+
 export default function ScaledSlideText({
   presentation,
   slide,
@@ -69,8 +82,9 @@ export default function ScaledSlideText({
   return (
     <div ref={frameRef} className="relative w-full h-full overflow-hidden">
       {textBoxes.map((box) => {
-        const fontSize = (box?.textStyle?.size || 100) * scale
+        const fontSize = (box?.textStyle?.size || DEFAULT_TEXT_STYLE.size) * scale
         const body = renderBody(box, empty, showPlaceholder)
+        const renderedHtml = body.placeholder ? body.html : scaleInlineHtml(body.html, scale)
         const paddingX = Math.max(minPaddingX, (box.paddingLeft || 28) * scale)
         const paddingRight = Math.max(minPaddingX, (box.paddingRight || 28) * scale)
         const paddingY = Math.max(minPaddingY, (box.paddingTop || 22) * scale)
@@ -93,10 +107,10 @@ export default function ScaledSlideText({
               flexDirection: 'column',
               padding: `${paddingY}px ${paddingRight}px ${paddingBottom}px ${paddingX}px`,
               textAlign: box?.textStyle?.align || 'center',
-              color: body.placeholder ? '#6b7280' : box?.textStyle?.color || '#ffffff',
+              color: body.placeholder ? '#888888' : box?.textStyle?.color || '#ffffff',
               fontSize,
               fontWeight: box?.textStyle?.bold ? 700 : 400,
-              fontStyle: box?.textStyle?.italic ? 'italic' : 'normal',
+              fontStyle: body.placeholder ? 'italic' : (box?.textStyle?.italic ? 'italic' : 'normal'),
               textDecoration: renderTextDecoration(box?.textStyle),
               lineHeight: box?.textStyle?.lineHeight || 1.3,
               fontFamily: box?.textStyle?.fontFamily || 'Arial, sans-serif',
@@ -120,7 +134,7 @@ export default function ScaledSlideText({
             {body.placeholder ? (
               <span>{body.html}</span>
             ) : (
-              <div dangerouslySetInnerHTML={{ __html: body.html }} />
+              <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
             )}
           </div>
         )
