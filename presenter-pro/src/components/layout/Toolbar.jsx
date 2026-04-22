@@ -9,6 +9,7 @@ import {
   BookOpen,
   Check,
   ChevronDown,
+  ChevronUp,
   Copy,
   Eraser,
   FileText,
@@ -45,6 +46,7 @@ import {
 import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import {
   DEFAULT_TEXT_STYLE,
+  FONT_SIZE_DISPLAY_PRESETS,
   displayToInternalFontSize,
   getSlideTextBoxes,
   internalToDisplayFontSize,
@@ -272,6 +274,34 @@ function InlineTinyLabel({ children }) {
     <span className="shrink-0 text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
       {children}
     </span>
+  )
+}
+
+function InlineStepperButton({ icon: Icon, title, onClick }) {
+  return (
+    <button
+      type="button"
+      data-editor-toolbar="true"
+      title={title}
+      onClick={onClick}
+      className="flex items-center justify-center rounded-md shrink-0"
+      style={{
+        width: 22,
+        height: 15,
+        border: '1px solid transparent',
+        background: 'transparent',
+        color: 'var(--text-secondary)',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={(event) => {
+        event.currentTarget.style.background = 'var(--bg-hover)'
+      }}
+      onMouseLeave={(event) => {
+        event.currentTarget.style.background = 'transparent'
+      }}
+    >
+      <Icon size={11} />
+    </button>
   )
 }
 
@@ -602,6 +632,45 @@ function FontFamilyButton({ value, onChange, width }) {
         </div>
       )}
     </PopoverMenuButton>
+  )
+}
+
+function FontSizePresetButton({ value, onChange, width = 72, integrated = false }) {
+  const { open, setOpen, triggerRef, popoverRef } = usePopoverOpen()
+
+  return (
+    <div data-editor-toolbar="true" className="shrink-0">
+      <button
+        type="button"
+        data-editor-toolbar="true"
+        ref={triggerRef}
+        title="Font size presets"
+        onClick={() => setOpen((current) => !current)}
+        className="flex items-center justify-center gap-1 rounded-md shrink-0"
+        style={{
+          width,
+          height: 30,
+          padding: integrated ? '0 6px' : '0 8px',
+          border: integrated ? 'none' : '1px solid var(--border-default)',
+          background: integrated ? 'transparent' : open ? 'var(--bg-hover)' : 'var(--bg-app)',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        {!integrated ? <span className="truncate text-[12.5px] font-medium">{value} pt</span> : null}
+        <ChevronDown size={13} />
+      </button>
+      {open ? (
+        <PopoverShell popoverRef={popoverRef} triggerRef={triggerRef} width={integrated ? 84 : width + 28}>
+          <div className="flex flex-col gap-1 max-h-64 overflow-auto">
+            {FONT_SIZE_DISPLAY_PRESETS.map((preset) => (
+              <MenuOption key={preset} active={Number(preset) === Number(value)} onClick={() => { onChange(preset); setOpen(false) }}>
+                {preset}
+              </MenuOption>
+            ))}
+          </div>
+        </PopoverShell>
+      ) : null}
+    </div>
   )
 }
 
@@ -1062,13 +1131,31 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                   setEditorTick((tick) => tick + 1)
                 }}
               />
-              <LiveNumberField
-                value={editorFontSize}
-                min={MIN_FONT_SIZE_DISPLAY}
-                max={MAX_FONT_SIZE_DISPLAY}
-                width={compactLevel >= 2 ? 78 : 92}
-                onChange={applyFontSizeValue}
-              />
+              <div
+                className="flex items-center shrink-0"
+                style={{
+                  height: 32,
+                  borderRadius: 10,
+                  border: '1px solid var(--border-default)',
+                  background: 'var(--bg-app)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
+                }}
+              >
+                <LiveNumberField
+                  value={editorFontSize}
+                  min={MIN_FONT_SIZE_DISPLAY}
+                  max={MAX_FONT_SIZE_DISPLAY}
+                  width={compactLevel >= 2 ? 58 : 68}
+                  onChange={applyFontSizeValue}
+                  integrated
+                />
+                <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border-subtle)' }} />
+                <FontSizePresetButton value={editorFontSize} onChange={applyFontSizeValue} width={24} integrated />
+                <div className="flex flex-col gap-0.5">
+                  <InlineStepperButton icon={ChevronUp} title="Increase font size" onClick={() => nudgeFontSize(2)} />
+                  <InlineStepperButton icon={ChevronDown} title="Decrease font size" onClick={() => nudgeFontSize(-2)} />
+                </div>
+              </div>
               <InlineStyleButton icon={Bold} title="Bold (Cmd/Ctrl+B)" active={editorState.bold || style.bold} onClick={() => applyTextStyle({ bold: !style.bold }, 'bold')} />
               <InlineStyleButton icon={Italic} title="Italic (Cmd/Ctrl+I)" active={editorState.italic || style.italic} onClick={() => applyTextStyle({ italic: !style.italic }, 'italic')} />
               <InlineStyleButton icon={Underline} title="Underline (Cmd/Ctrl+U)" active={editorState.underline || style.underline} onClick={() => applyTextStyle({ underline: !style.underline }, 'underline')} />
