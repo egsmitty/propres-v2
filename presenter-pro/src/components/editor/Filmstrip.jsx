@@ -389,6 +389,10 @@ export default function Filmstrip({ width = 224 }) {
     () => stripDraggedSlide(presentation?.sections || [], activeSlideDrag),
     [presentation?.sections, activeSlideDrag]
   )
+  const allSectionsCollapsed = useMemo(
+    () => sectionsForPreview.length > 0 && sectionsForPreview.every((section) => collapsed[section.id]),
+    [collapsed, sectionsForPreview]
+  )
 
   if (!presentation) {
     return (
@@ -419,7 +423,7 @@ export default function Filmstrip({ width = 224 }) {
   function collapseAllSections() {
     const next = {}
     ;(presentation?.sections || []).forEach((section) => {
-      next[section.id] = true
+      next[section.id] = !allSectionsCollapsed
     })
     setCollapsed(next)
   }
@@ -631,7 +635,7 @@ export default function Filmstrip({ width = 224 }) {
             event.currentTarget.style.background = 'var(--bg-app)'
           }}
         >
-          Collapse All
+          {allSectionsCollapsed ? 'Expand All' : 'Collapse All'}
         </button>
       </div>
 
