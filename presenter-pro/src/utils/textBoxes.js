@@ -1,6 +1,8 @@
 import { uuid } from '@/utils/uuid'
 
 export const DEFAULT_PLACEHOLDER_TEXT = 'Double-click to edit'
+export const FONT_SIZE_DISPLAY_SCALE = 0.4
+export const FONT_SIZE_DISPLAY_PRESETS = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 56, 64]
 
 export const DEFAULT_TEXT_STYLE = {
   fontFamily: 'Arial, sans-serif',
@@ -63,6 +65,18 @@ export function mergeTextStyle(style = {}) {
   const next = { ...DEFAULT_TEXT_STYLE, ...(style || {}) }
   if (next.valign === 'center') next.valign = 'middle'
   return next
+}
+
+export function internalToDisplayFontSize(size, fallback = DEFAULT_TEXT_STYLE.size) {
+  const numeric = Number(size)
+  const base = Number.isFinite(numeric) && numeric > 0 ? numeric : fallback
+  return Math.max(1, Math.round(base * FONT_SIZE_DISPLAY_SCALE))
+}
+
+export function displayToInternalFontSize(size, fallback = DEFAULT_TEXT_STYLE.size) {
+  const numeric = Number(size)
+  const display = Number.isFinite(numeric) && numeric > 0 ? numeric : internalToDisplayFontSize(fallback)
+  return Math.max(1, Math.round(display / FONT_SIZE_DISPLAY_SCALE))
 }
 
 export function mergeTextBox(frame = {}) {
@@ -187,7 +201,7 @@ export function syncLegacyTextFields(slide, textBoxes = getSlideTextBoxes(slide)
     body: primary.body,
     placeholderText: primary.placeholderText,
     textStyle: mergeTextStyle(primary.textStyle),
-    textBox: mergeTextBox(primary),
+    textBox: legacyFrameFromTextBox(primary),
     textBoxes: sortedBoxes,
   }
 }
@@ -200,6 +214,17 @@ export function withUpdatedSlideTextBoxes(slide, updater) {
 
 export function findTextBox(slide, textBoxId) {
   return getSlideTextBoxes(slide).find((textBox) => textBox.id === textBoxId) || null
+}
+
+function legacyFrameFromTextBox(textBox = {}) {
+  const {
+    id,
+    body,
+    placeholderText,
+    textStyle,
+    ...frameProps
+  } = textBox || {}
+  return mergeTextBox(frameProps)
 }
 
 export function createDefaultTextBoxForSlide(slide, overrides = {}) {
