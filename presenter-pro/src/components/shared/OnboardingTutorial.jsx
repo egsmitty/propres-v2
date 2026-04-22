@@ -30,9 +30,9 @@ const STEPS = [
   {
     id: 'filmstrip',
     selector: '[data-tour="filmstrip"]',
-    title: 'Sections Stay Organized',
+    title: 'Service Order Stays Organized',
     body:
-      'Your service stays grouped here by section. Songs, announcements, and sermons each keep their own slides, names, and running section background until you change sections.',
+      'Your service order stays grouped here by section. Songs, announcements, and sermons each keep their own slides, names, and running section background until you change sections.',
   },
   {
     id: 'canvas',

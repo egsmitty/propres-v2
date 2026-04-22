@@ -21,11 +21,10 @@ const MENUS = [
     items: [
       { label: 'New Slide', shortcut: '⌘M', action: 'insert:newSlide' },
       { divider: true },
-      { label: 'Song from Library', action: 'insert:song' },
-      { divider: true },
-      { label: 'Image…', action: 'insert:image' },
-      { label: 'Video…', action: 'insert:video' },
-      { label: 'Blank Slide', action: 'insert:blank' },
+      { label: 'Song', action: 'insert:song' },
+      { label: 'Media', action: 'insert:media' },
+      { label: 'Announcement', action: 'insert:announcement' },
+      { label: 'Sermon', action: 'insert:sermon' },
     ]
   },
   {
@@ -40,7 +39,7 @@ const MENUS = [
       { label: 'Zoom In', shortcut: '⌘+', action: 'view:zoomIn' },
       { label: 'Zoom Out', shortcut: '⌘-', action: 'view:zoomOut' },
       { divider: true },
-      { label: 'Filmstrip', action: 'view:filmstrip' },
+      { label: 'Service Order', action: 'view:filmstrip' },
       { divider: true },
       { label: 'Output Settings…', action: 'view:outputSettings' },
       { label: 'Presenter View', action: 'view:presenterView' },
@@ -154,7 +153,7 @@ export default function MenuBar() {
       if (item.action === 'view:filmstrip') {
         return {
           ...item,
-          label: filmstripVisible ? 'Hide Filmstrip' : 'Show Filmstrip',
+          label: filmstripVisible ? 'Hide Service Order' : 'Show Service Order',
           disabled,
         }
       }

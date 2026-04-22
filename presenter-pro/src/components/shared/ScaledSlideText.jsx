@@ -112,7 +112,7 @@ export default function ScaledSlideText({
               fontWeight: box?.textStyle?.bold ? 700 : 400,
               fontStyle: body.placeholder ? 'italic' : (box?.textStyle?.italic ? 'italic' : 'normal'),
               textDecoration: renderTextDecoration(box?.textStyle),
-              lineHeight: box?.textStyle?.lineHeight || 1.3,
+              lineHeight: box?.textStyle?.lineHeight || DEFAULT_TEXT_STYLE.lineHeight,
               fontFamily: box?.textStyle?.fontFamily || 'Arial, sans-serif',
               wordBreak: box.wrapText === false ? 'normal' : 'break-word',
               whiteSpace: box.wrapText === false ? 'nowrap' : 'normal',

@@ -158,7 +158,7 @@ export default function SlideTextEditor({
           fontStyle: placeholderActive ? 'italic' : (style.italic ? 'italic' : 'normal'),
           textDecoration: [style.underline ? 'underline' : null, style.strikethrough ? 'line-through' : null].filter(Boolean).join(' ') || 'none',
           textAlign: style.align || 'center',
-          lineHeight: style.lineHeight || 1.3,
+          lineHeight: style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight,
           fontFamily: style.fontFamily || 'Arial, sans-serif',
           caretColor: style.color || '#ffffff',
           userSelect: 'text',

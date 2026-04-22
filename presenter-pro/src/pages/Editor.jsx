@@ -287,7 +287,7 @@ function CollapseSliver({ direction, onClick }) {
       }}
       onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-filmstrip)'; e.currentTarget.style.color = 'var(--text-tertiary)' }}
-      title={direction === 'right' ? 'Show filmstrip' : 'Show presenter panel'}
+      title={direction === 'right' ? 'Show service order' : 'Show presenter panel'}
     >
       {direction === 'right' ? '›' : '‹'}
     </div>

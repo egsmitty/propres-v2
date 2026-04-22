@@ -2,10 +2,10 @@ import React, { useState } from 'react'
 import { ChevronRight, ChevronDown, Plus, Image } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import ContextMenu from '@/components/shared/ContextMenu'
-import { getSectionTypeLabel, normalizeSectionType, SECTION_TYPE_META } from '@/utils/sectionTypes'
-import { promptDialog, showDialog } from '@/utils/dialog'
+import { getSectionTypeLabel } from '@/utils/sectionTypes'
+import { promptDialog } from '@/utils/dialog'
 
-export default function SectionHeader({ section, collapsed, onToggle, onAddSlide, onRemove }) {
+export default function SectionHeader({ section, collapsed, onToggle, onAddSlide, onRemove, onEditSong }) {
   const [menu, setMenu] = useState(null)
   const updateSectionMeta = useEditorStore((s) => s.updateSectionMeta)
 
@@ -15,50 +15,50 @@ export default function SectionHeader({ section, collapsed, onToggle, onAddSlide
   }
 
   async function handleEditSection() {
-    const title = await promptDialog('Section title:', section.title, { title: 'Rename Section', confirmLabel: 'Rename' })
+    const title = await promptDialog(
+      'Section title:',
+      section.title,
+      {
+        title: section.type === 'announcement'
+          ? 'Rename Announcements'
+          : section.type === 'sermon'
+            ? 'Rename Sermon'
+            : 'Rename Section',
+        confirmLabel: 'Rename',
+      }
+    )
     if (!title) return
     updateSectionMeta(section.id, { title })
   }
 
-  async function handleChangeColor() {
-    const color = await promptDialog('Section color (hex):', section.color || '#4a7cff', { title: 'Section Color', confirmLabel: 'Apply' })
-    if (!color) return
-    updateSectionMeta(section.id, { color })
-  }
-
-  async function handleChangeType() {
-    const result = await showDialog({
-      title: 'Change Section Type',
-      fields: [
+  const menuItems = section.type === 'song'
+    ? [
+        { label: 'Edit Song', onClick: onEditSong, disabled: !onEditSong },
+        { divider: true },
+        { label: 'Remove Song', danger: true, onClick: onRemove },
+      ]
+    : [
         {
-          name: 'type',
-          label: 'Section Type',
-          type: 'select',
-          defaultValue: normalizeSectionType(section.type),
-          options: Object.keys(SECTION_TYPE_META).map((key) => ({
-            value: key,
-            label: SECTION_TYPE_META[key].label,
-          })),
+          label: section.type === 'announcement'
+            ? 'Rename Announcements'
+            : section.type === 'sermon'
+              ? 'Rename Sermon'
+              : 'Rename Section',
+          onClick: handleEditSection,
         },
-      ],
-      actions: [
-        { label: 'Cancel', value: null, cancel: true },
-        { label: 'Apply', value: 'confirm', primary: true },
-      ],
-    })
-    if (!result || result.action !== 'confirm') return
-    updateSectionMeta(section.id, { type: normalizeSectionType(result.values.type) })
-  }
-
-  const menuItems = [
-    { label: 'Edit Section', onClick: handleEditSection },
-    { label: 'Change Section Type', onClick: handleChangeType },
-    { label: 'Change Color', onClick: handleChangeColor },
-    { divider: true },
-    { label: 'Add Slide', onClick: onAddSlide },
-    { divider: true },
-    { label: 'Remove Section', danger: true, onClick: onRemove },
-  ]
+        { divider: true },
+        { label: 'Add Slide', onClick: onAddSlide },
+        { divider: true },
+        {
+          label: section.type === 'announcement'
+            ? 'Remove Announcements'
+            : section.type === 'sermon'
+              ? 'Remove Sermon'
+              : 'Remove Section',
+          danger: true,
+          onClick: onRemove,
+        },
+      ]
 
   return (
     <>

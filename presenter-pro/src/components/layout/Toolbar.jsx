@@ -70,7 +70,7 @@ const FONT_OPTIONS = [
   'Verdana',
 ]
 
-const LINE_SPACING_PRESETS = [1, 1.15, 1.3, 1.5, 2]
+const LINE_SPACING_PRESETS = [0.5, 0.75, 1, 1.15, 1.3, 1.5, 2]
 const PRESENT_CLUSTER_FALLBACK_WIDTH = 312
 const RIBBON_COLLISION_BUFFER = 28
 const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8)
@@ -676,7 +676,7 @@ function FontSizePresetButton({ value, onChange, width = 72, integrated = false 
 
 function LineSpacingButton({ value, onChange }) {
   return (
-    <PopoverMenuButton title="Line spacing" label={`${value}x`} width={82}>
+    <PopoverMenuButton title="Line height" label={`LH ${value}x`} width={92}>
       {({ close }) => (
         <div className="flex flex-col gap-1">
           {LINE_SPACING_PRESETS.map((preset) => (
@@ -779,6 +779,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
+  const selectedTextBoxIds = useEditorStore((s) => s.selectedTextBoxIds)
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const addSlideTextBox = useEditorStore((s) => s.addSlideTextBox)
@@ -807,7 +808,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const primaryTextBox = slideTextBoxes?.[0] || null
   const isTextEditing = editingSlideId === selectedSlideId && Boolean(selectedSlideId)
   const canAddTextBox = hasSlide && !panelOpen && !isMediaSlide(slide)
-  const activeTextBoxId = getCurrentOrSavedTextBoxId() || primaryTextBox?.id || null
+  const activeTextBoxId = getCurrentOrSavedTextBoxId() || selectedTextBoxIds[selectedTextBoxIds.length - 1] || primaryTextBox?.id || null
   const activeTextBox = slideTextBoxes.find((box) => box.id === activeTextBoxId) || primaryTextBox
   const activeTextBoxIds = activeTextBoxId ? [activeTextBoxId] : null
   const style = activeTextBox?.textStyle || DEFAULT_TEXT_STYLE
@@ -902,12 +903,13 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   )
   const effectiveWidth = Math.max(0, toolbarWidth - reservedPresentWidth - RIBBON_COLLISION_BUFFER)
   const compactLevel = isTextEditing
-    ? effectiveWidth < 820 ? 4 : effectiveWidth < 940 ? 3 : effectiveWidth < 1080 ? 2 : effectiveWidth < 1200 ? 1 : 0
+    ? effectiveWidth < 980 ? 4 : effectiveWidth < 1120 ? 3 : effectiveWidth < 1280 ? 2 : effectiveWidth < 1720 ? 1 : 0
     : effectiveWidth < 740 ? 3 : effectiveWidth < 880 ? 2 : effectiveWidth < 1020 ? 1 : 0
 
   const hideSecondaryLabels = compactLevel >= 2
   const hideMostLabels = compactLevel >= 3
   const hidePrimaryLabels = compactLevel >= 3
+  const hideEditGroupTitles = isTextEditing && compactLevel >= 1
   const hideEditSecondaryLabels = isTextEditing && compactLevel >= 1
   const hideEditColorLabels = isTextEditing && compactLevel >= 4
 
@@ -1009,8 +1011,15 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   }
 
   function handleLineHeight(next) {
-    if (selectedSectionId && selectedSlideId) updateSlideStyle(selectedSectionId, selectedSlideId, { lineHeight: next }, activeTextBoxIds)
+    const clamped = Math.max(0.1, Math.min(3, Math.round(next * 100) / 100))
+    if (selectedSectionId && selectedSlideId) updateSlideStyle(selectedSectionId, selectedSlideId, { lineHeight: clamped }, activeTextBoxIds)
     setEditorTick((tick) => tick + 1)
+  }
+
+  function nudgeLineHeight(direction) {
+    const base = Number(style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight)
+    const next = Math.max(0.1, Math.min(3, Math.round((base + direction) * 100) / 100))
+    handleLineHeight(next)
   }
 
   function handleVerticalAlign(next) {
@@ -1107,7 +1116,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
       >
         {isTextEditing ? (
           <div className="flex min-w-0 flex-1 gap-1 overflow-hidden items-center">
-            <Group title="Text">
+            <Group title={hideEditGroupTitles ? null : 'Text'}>
               <FontFamilyButton
                 value={editorFontFamily}
                 width={compactLevel >= 3 ? 110 : compactLevel >= 1 ? 138 : 170}
@@ -1163,20 +1172,41 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
               {!hidePrimaryLabels && <CommandButton icon={Eraser} label="Clear" title="Clear Formatting" onClick={handleClearFormatting} compact collapseLabel={hideEditSecondaryLabels} />}
             </Group>
 
-            <Group title="Paragraph" grow noDivider>
+            <Group title={hideEditGroupTitles ? null : 'Paragraph'} grow noDivider>
               <InlineStyleButton icon={AlignLeft} title="Align Left" active={activeAlign === 'left'} onClick={() => applyTextStyle({ align: 'left' }, 'justifyLeft')} />
               <InlineStyleButton icon={AlignCenter} title="Align Center" active={activeAlign === 'center'} onClick={() => applyTextStyle({ align: 'center' }, 'justifyCenter')} />
               <InlineStyleButton icon={AlignRight} title="Align Right" active={activeAlign === 'right'} onClick={() => applyTextStyle({ align: 'right' }, 'justifyRight')} />
               {!hideEditSecondaryLabels && <InlineStyleButton icon={AlignJustify} title="Justify" active={activeAlign === 'justify'} onClick={() => applyTextStyle({ align: 'justify' }, 'justifyFull')} />}
-              {!hideEditSecondaryLabels && <InlineTinyLabel>Line</InlineTinyLabel>}
-              <LineSpacingButton value={style.lineHeight || 1.3} onChange={(value) => handleLineHeight(Number(value))} />
-              {!hideEditSecondaryLabels && <InlineTinyLabel>Vertical</InlineTinyLabel>}
-              <PopoverMenuButton title="Vertical alignment" label={verticalAlignLabel} width={compactLevel >= 2 ? 84 : 104} popoverWidth={140}>
+              {!hideEditSecondaryLabels && <InlineTinyLabel>Line Height</InlineTinyLabel>}
+              <div
+                className="flex items-center shrink-0"
+                style={{
+                  height: 32,
+                  borderRadius: 10,
+                  border: '1px solid var(--border-default)',
+                  background: 'var(--bg-app)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
+                }}
+              >
+                <LineSpacingButton value={style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight} onChange={(value) => handleLineHeight(Number(value))} />
+                <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border-subtle)' }} />
+                <div className="flex flex-col gap-0.5">
+                  <InlineStepperButton icon={ChevronUp} title="Increase line height" onClick={() => nudgeLineHeight(0.05)} />
+                  <InlineStepperButton icon={ChevronDown} title="Decrease line height" onClick={() => nudgeLineHeight(-0.05)} />
+                </div>
+              </div>
+              {!hideEditSecondaryLabels && <InlineTinyLabel>Vertical Align</InlineTinyLabel>}
+              <PopoverMenuButton
+                title="Vertical alignment"
+                label={hideEditSecondaryLabels ? verticalAlignLabel : `Align ${verticalAlignLabel}`}
+                width={compactLevel >= 2 ? 92 : 128}
+                popoverWidth={160}
+              >
                 {({ close }) => (
                   <div className="flex flex-col gap-1">
-                    <MenuOption active={activeVerticalAlign === 'top'} onClick={() => { handleVerticalAlign('top'); close() }}>Top</MenuOption>
-                    <MenuOption active={activeVerticalAlign === 'middle'} onClick={() => { handleVerticalAlign('middle'); close() }}>Middle</MenuOption>
-                    <MenuOption active={activeVerticalAlign === 'bottom'} onClick={() => { handleVerticalAlign('bottom'); close() }}>Bottom</MenuOption>
+                    <MenuOption active={activeVerticalAlign === 'top'} onClick={() => { handleVerticalAlign('top'); close() }}>Align Top</MenuOption>
+                    <MenuOption active={activeVerticalAlign === 'middle'} onClick={() => { handleVerticalAlign('middle'); close() }}>Align Middle</MenuOption>
+                    <MenuOption active={activeVerticalAlign === 'bottom'} onClick={() => { handleVerticalAlign('bottom'); close() }}>Align Bottom</MenuOption>
                   </div>
                 )}
               </PopoverMenuButton>
@@ -1231,12 +1261,9 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
               <CommandButton icon={Trash2} title="Delete Slide" onClick={handleDelete} disabled={!hasSlide || panelOpen} danger compact />
             </Group>
 
-            <Group title="Media">
+            <Group title="Insert">
               <CommandButton icon={Music} label="Song" title="Song Library" onClick={toggleSongLibrary} disabled={false} active={songLibraryOpen} collapseLabel={hideMostLabels} />
               <CommandButton icon={Image} label="Media" title="Media Library" onClick={toggleMediaLibrary} disabled={false} active={mediaLibraryOpen} collapseLabel={hideMostLabels} />
-            </Group>
-
-            <Group title="Section">
               <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} />
               <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} />
             </Group>

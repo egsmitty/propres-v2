@@ -16,6 +16,7 @@ import {
   clearSelectedSlide,
   importMediaToSelectedSlide,
   insertNewSlideIntoCurrentPresentation,
+  insertNewSectionIntoCurrentPresentation,
   pasteSlideAfterSelected,
   saveCurrentPresentation,
   saveCurrentPresentationAs,
@@ -88,6 +89,13 @@ export async function runAppCommand(command) {
     case 'insert:song':
       appState.setSongLibraryOpen(true)
       return true
+    case 'insert:media':
+      appState.setMediaLibraryOpen(true)
+      return true
+    case 'insert:announcement':
+      return insertNewSectionIntoCurrentPresentation('announcement')
+    case 'insert:sermon':
+      return insertNewSectionIntoCurrentPresentation('sermon')
     case 'insert:image':
       return importMediaToSelectedSlide('image')
     case 'insert:video':
