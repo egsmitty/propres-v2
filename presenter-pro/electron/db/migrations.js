@@ -22,6 +22,12 @@ function runMigrations(db) {
       created_at INTEGER DEFAULT (unixepoch())
     );
 
+    CREATE TABLE IF NOT EXISTS media_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      created_at INTEGER DEFAULT (unixepoch())
+    );
+
     CREATE TABLE IF NOT EXISTS presentations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -42,6 +48,7 @@ function runMigrations(db) {
   try { db.exec('ALTER TABLE presentations ADD COLUMN custom_aspect_width INTEGER') } catch (_) {}
   try { db.exec('ALTER TABLE presentations ADD COLUMN custom_aspect_height INTEGER') } catch (_) {}
   try { db.exec('ALTER TABLE songs ADD COLUMN song_order TEXT') } catch (_) {}
+  try { db.exec('ALTER TABLE media ADD COLUMN folder_id INTEGER') } catch (_) {}
 }
 
 module.exports = { runMigrations }

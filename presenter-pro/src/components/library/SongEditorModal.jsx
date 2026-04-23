@@ -613,7 +613,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
           </div>
 
           <div
-            className="flex flex-col min-h-0"
+            className="flex flex-col min-h-0 overflow-hidden"
             style={{ width: '34%', borderLeft: '1px solid var(--border-subtle)' }}
           >
             <div
@@ -643,11 +643,11 @@ export default function SongEditorModal({ song, onClose, onSave }) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
               {groups.map((group) => (
                 <div
                   key={group.id}
-                  className="rounded-lg overflow-hidden"
+                  className="rounded-lg overflow-hidden shrink-0"
                   style={{
                     background: 'var(--bg-app)',
                     border: group.id === selectedGroupId ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',

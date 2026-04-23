@@ -363,29 +363,27 @@ export async function deleteSelectedSlideFromCurrentPresentation() {
   const presentation = state.presentation
   if (!presentation || !state.selectedSectionId || !state.selectedSlideId) return false
 
+  const selectedIds = [...(state.selectedSlideIds || [])]
+  if (!selectedIds.includes(state.selectedSlideId)) selectedIds.push(state.selectedSlideId)
+  if (!selectedIds.length) return false
+
+  const idsToDelete = new Set(selectedIds)
+  const allSlides = presentation.sections.flatMap((section) =>
+    section.slides.map((slide) => ({ id: slide.id, sectionId: section.id }))
+  )
+  const primaryIndex = allSlides.findIndex((slide) => slide.id === state.selectedSlideId)
+  const nextSelection =
+    allSlides.slice(primaryIndex + 1).find((slide) => !idsToDelete.has(slide.id)) ||
+    allSlides.slice(0, Math.max(0, primaryIndex)).reverse().find((slide) => !idsToDelete.has(slide.id)) ||
+    null
+
   const nextSections = presentation.sections.map((section) => ({
     ...section,
-    slides: [...section.slides],
+    slides: section.slides.filter((slide) => !idsToDelete.has(slide.id)),
   }))
 
-  const sectionIndex = nextSections.findIndex((section) => section.id === state.selectedSectionId)
-  if (sectionIndex === -1) return false
-
-  const slideIndex = nextSections[sectionIndex].slides.findIndex((slide) => slide.id === state.selectedSlideId)
-  if (slideIndex === -1) return false
-
-  nextSections[sectionIndex].slides.splice(slideIndex, 1)
   state.mutateSections(() => nextSections)
-
-  const sameSectionNext = nextSections[sectionIndex].slides[slideIndex] || nextSections[sectionIndex].slides[slideIndex - 1]
-  if (sameSectionNext) {
-    state.setSelectedSlide(nextSections[sectionIndex].id, sameSectionNext.id)
-    return true
-  }
-
-  const nextSection = nextSections.find((section) => section.slides.length > 0)
-  const nextSlide = nextSection?.slides?.[0] || null
-  state.setSelectedSlide(nextSection?.id ?? null, nextSlide?.id ?? null)
+  state.setSelectedSlide(nextSelection?.sectionId ?? null, nextSelection?.id ?? null)
   return true
 }
 

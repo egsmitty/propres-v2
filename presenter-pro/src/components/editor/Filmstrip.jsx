@@ -10,7 +10,9 @@ import ApplyThemeModal from '@/components/editor/ApplyThemeModal'
 import { createTextSlide, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { getSongs } from '@/utils/ipc'
+import { withUpdatedSlideTextBoxes } from '@/utils/textBoxes'
 import { uuid } from '@/utils/uuid'
+import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentationCommands'
 
 const AUTO_SCROLL_EDGE = 72
 const AUTO_SCROLL_MAX_STEP = 26
@@ -100,6 +102,18 @@ function computeGhostPosition(pointerX, pointerY, width, anchor = { x: 0.5, y: 0
     x: pointerX - ghostWidth * anchor.x,
     y: pointerY - 18 - 160 * anchor.y,
   }
+}
+
+function getAllSlides(presentation) {
+  return (presentation?.sections || []).flatMap((sec) =>
+    sec.slides.map((sl) => ({ id: sl.id, sectionId: sec.id }))
+  )
+}
+
+function getEffectiveSelectedSlideIds(selectedSlideIds = [], selectedSlideId = null) {
+  const ids = [...selectedSlideIds]
+  if (selectedSlideId && !ids.includes(selectedSlideId)) ids.push(selectedSlideId)
+  return ids
 }
 
 function GhostSlide({ slide, width, presentation, floating = false, compact = false, showLabel = true }) {
@@ -228,6 +242,10 @@ export default function Filmstrip({ width = 224 }) {
   const [dragOverSection, setDragOverSection] = useState(null)
   const slideNodeRefs = useRef(new Map())
   const endNodeRefs = useRef(new Map())
+  const effectiveSelectedSlideIds = useMemo(
+    () => getEffectiveSelectedSlideIds(selectedSlideIds, selectedSlideId),
+    [selectedSlideId, selectedSlideIds]
+  )
 
   function maybeAutoScroll(clientY) {
     const container = containerRef.current
@@ -476,12 +494,16 @@ export default function Filmstrip({ width = 224 }) {
   }
 
   function deleteSlide(section, slide) {
-    mutate((sections) =>
-      sections.map((sec) =>
-        sec.id !== section.id ? sec : { ...sec, slides: sec.slides.filter((sl) => sl.id !== slide.id) }
-      )
+    const selection = getEffectiveSelectedSlideIds(
+      useEditorStore.getState().selectedSlideIds,
+      useEditorStore.getState().selectedSlideId
     )
-    if (selectedSlideId === slide.id) selectFirstAvailableSlide()
+    if (!selection.includes(slide.id)) {
+      setSelectedSlide(section.id, slide.id)
+      setSelectedSlideIds([slide.id])
+      anchorSlideRef.current = slide.id
+    }
+    deleteSelectedSlideFromCurrentPresentation()
   }
 
   function removeSection(sectionId) {
@@ -493,6 +515,7 @@ export default function Filmstrip({ width = 224 }) {
   function onSlideMouseDown(e, sectionId, slide) {
     if (e.button !== 0) return
     e.stopPropagation()
+    containerRef.current?.focus()
     const rect = e.currentTarget.getBoundingClientRect()
     const anchor = {
       x: rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0.5,
@@ -546,13 +569,35 @@ export default function Filmstrip({ width = 224 }) {
     if (song) setEditSong(song)
   }
 
-  function handleApplyTheme(styleProps) {
-    const ids = new Set(selectedSlideIds)
+  function handleApplyTheme(theme) {
+    const ids = new Set(effectiveSelectedSlideIds)
     mutate((sections) =>
       sections.map((sec) => ({
         ...sec,
         slides: sec.slides.map((sl) =>
-          ids.has(sl.id) ? { ...sl, textStyle: { ...sl.textStyle, ...styleProps } } : sl
+          ids.has(sl.id) && !isMediaSlide(sl)
+            ? withUpdatedSlideTextBoxes(
+                {
+                  ...sl,
+                  backgroundId:
+                    theme.backgroundMode === 'set'
+                      ? theme.backgroundId
+                      : theme.backgroundMode === 'clear'
+                        ? null
+                        : sl.backgroundId ?? null,
+                },
+                (boxes) =>
+                  boxes.map((box) => ({
+                    ...box,
+                    backgroundColor: theme.textBoxFillColor ?? box.backgroundColor,
+                    fillType: 'solid',
+                    textStyle: {
+                      ...box.textStyle,
+                      ...theme.textStyle,
+                    },
+                  }))
+              )
+            : sl
         ),
       }))
     )
@@ -561,16 +606,27 @@ export default function Filmstrip({ width = 224 }) {
   let slideIndex = 0
 
   function handleSelectSlide(e, sectionId, slide) {
-    const allSlides = (presentation?.sections || []).flatMap((sec) =>
-      sec.slides.map((sl) => ({ id: sl.id, sectionId: sec.id }))
-    )
+    containerRef.current?.focus()
+    const allSlides = getAllSlides(presentation)
     const metaToggle = Boolean(e?.metaKey || e?.ctrlKey)
     const rangeSelect = Boolean(e?.shiftKey)
+    const currentSelection = getEffectiveSelectedSlideIds(
+      useEditorStore.getState().selectedSlideIds,
+      useEditorStore.getState().selectedSlideId
+    )
 
     if (metaToggle) {
-      const current = useEditorStore.getState().selectedSlideIds
-      const alreadyIn = current.includes(slide.id)
-      const next = alreadyIn ? current.filter((id) => id !== slide.id) : [...current, slide.id]
+      const alreadyIn = currentSelection.includes(slide.id)
+      if (alreadyIn && currentSelection.length === 1) {
+        setSelectedSlide(sectionId, slide.id)
+        setSelectedSlideIds([slide.id])
+        anchorSlideRef.current = slide.id
+        return
+      }
+
+      const next = alreadyIn
+        ? currentSelection.filter((id) => id !== slide.id)
+        : [...currentSelection, slide.id]
 
       if (alreadyIn) {
         if (selectedSlideId === slide.id) {
@@ -590,8 +646,10 @@ export default function Filmstrip({ width = 224 }) {
       }
 
       setSelectedSlideIds(next)
-    } else if (rangeSelect && anchorSlideRef.current) {
-      const anchorIdx = allSlides.findIndex((sl) => sl.id === anchorSlideRef.current)
+    } else if (rangeSelect) {
+      const anchorId = anchorSlideRef.current || selectedSlideId || slide.id
+      anchorSlideRef.current = anchorId
+      const anchorIdx = allSlides.findIndex((sl) => sl.id === anchorId)
       const thisIdx = allSlides.findIndex((sl) => sl.id === slide.id)
       if (anchorIdx >= 0 && thisIdx >= 0) {
         const [start, end] = [Math.min(anchorIdx, thisIdx), Math.max(anchorIdx, thisIdx)]
@@ -603,15 +661,33 @@ export default function Filmstrip({ width = 224 }) {
         anchorSlideRef.current = slide.id
       }
     } else {
-      setSelectedSlideIds([])
       setSelectedSlide(sectionId, slide.id)
+      setSelectedSlideIds([slide.id])
       anchorSlideRef.current = slide.id
     }
+  }
+
+  function handleFilmstripKeyDown(event) {
+    const meta = event.metaKey || event.ctrlKey
+    if (!meta || event.key.toLowerCase() !== 'a') return
+
+    const allSlides = getAllSlides(presentation)
+    if (!allSlides.length) return
+
+    event.preventDefault()
+    const primary =
+      allSlides.find((entry) => entry.id === selectedSlideId) ||
+      allSlides[0]
+    setSelectedSlide(primary.sectionId, primary.id)
+    setSelectedSlideIds(allSlides.map((slide) => slide.id))
+    anchorSlideRef.current = primary.id
   }
 
   return (
     <div
       ref={containerRef}
+      tabIndex={0}
+      onKeyDown={handleFilmstripKeyDown}
       data-tour="filmstrip"
       className="h-full overflow-hidden shrink-0 flex flex-col"
       style={{ width, background: 'var(--bg-filmstrip)', borderRight: '1px solid var(--border-default)' }}
@@ -717,19 +793,19 @@ export default function Filmstrip({ width = 224 }) {
                           slide={slide}
                           index={idx}
                           selected={selectedSlideId === slide.id}
-                          isMultiSelected={selectedSlideIds.includes(slide.id)}
+                          isMultiSelected={effectiveSelectedSlideIds.includes(slide.id)}
                           onSelect={(e) => handleSelectSlide(e, originalSection.id, slide)}
                           onNewSlide={() => insertSlideAfter(originalSection, slide)}
                           onDoubleClick={() => {
-                            setSelectedSlideIds([])
                             setSelectedSlide(originalSection.id, slide.id)
+                            setSelectedSlideIds([slide.id])
                             setEditingSlide(slide.id)
                           }}
                           onDuplicate={() => duplicateSlide(originalSection, slide)}
                           onDelete={() => deleteSlide(originalSection, slide)}
                           onEditSong={originalSection.type === 'song' ? () => handleEditSong(originalSection) : undefined}
                           onApplyTheme={
-                            selectedSlideIds.includes(slide.id) && selectedSlideIds.length > 1
+                            effectiveSelectedSlideIds.includes(slide.id) && effectiveSelectedSlideIds.length > 1
                               ? () => setShowApplyTheme(true)
                               : undefined
                           }
@@ -789,9 +865,9 @@ export default function Filmstrip({ width = 224 }) {
 
       {showApplyTheme && (
         <ApplyThemeModal
-          count={selectedSlideIds.length}
+          count={effectiveSelectedSlideIds.length}
           onClose={() => setShowApplyTheme(false)}
-          onApply={(styleProps) => { handleApplyTheme(styleProps); setShowApplyTheme(false) }}
+          onApply={(theme) => { handleApplyTheme(theme); setShowApplyTheme(false) }}
         />
       )}
     </div>

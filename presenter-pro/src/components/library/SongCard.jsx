@@ -4,7 +4,7 @@ import { deleteSong } from '@/utils/ipc'
 import { createSection } from '@/utils/sectionTypes'
 import { confirmDialog } from '@/utils/dialog'
 import ContextMenu from '@/components/shared/ContextMenu'
-import { getOrderedSongSlides } from '@/utils/songSections'
+import { flattenSongGroupsToSlides, getOrderedSongSlides, getSongGroupsAndArrangement } from '@/utils/songSections'
 import { insertSectionAfterCurrentSelection } from '@/utils/presentationCommands'
 
 function resolveOrderedSlides(song) {
@@ -24,10 +24,17 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
     if (!presentation || isInserting) return
     setIsInserting(true)
     try {
+      const { groups, arrangement } = getSongGroupsAndArrangement(song)
+      const flattened = flattenSongGroupsToSlides(groups, arrangement, {
+        regenerateSlideIds: true,
+        regenerateGroupIds: true,
+        songId: song.id,
+      })
       const newSection = createSection('song', presentation.sections.length, {
         title: song.title,
         songId: song.id,
-        slides: getOrderedSongSlides(song, { regenerateSlideIds: true, regenerateGroupIds: true, songId: song.id }),
+        songOrder: flattened.arrangement,
+        slides: flattened.slides,
       })
       insertSectionAfterCurrentSelection(newSection)
       await Promise.resolve(onInsert?.(newSection))

@@ -7,6 +7,19 @@ function stripBrackets(value = '') {
   return String(value).replace(/^\[|\]$/g, '').trim()
 }
 
+function toArray(value) {
+  if (Array.isArray(value)) return value
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 function toTitleCase(value = '') {
   return String(value)
     .split(/\s+/)
@@ -105,13 +118,7 @@ export function parseRawSongSlides(song) {
 }
 
 export function parseRawSongArrangement(song) {
-  try {
-    const rawOrder = song?.songOrder ?? song?.song_order
-    const parsed = typeof rawOrder === 'string' ? JSON.parse(rawOrder) : rawOrder
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
+  return toArray(song?.songOrder ?? song?.song_order)
 }
 
 export function normalizeSongGroupsFromSlides(slides = []) {
@@ -150,6 +157,18 @@ export function normalizeSongGroupsFromSlides(slides = []) {
   return groups
 }
 
+function normalizeSectionSongOrder(section) {
+  return toArray(section?.songOrder)
+}
+
+function getSlideGroupId(slide) {
+  return slide?.groupId || slide?.sectionGroupId || null
+}
+
+function getSlideGroupSignature(slide) {
+  return `${resolveSongSectionType(slide?.type || 'verse')}::${String(slide?.label || '').trim()}`
+}
+
 export function normalizeSongArrangement(order = [], groups = []) {
   const groupIds = groups.map((group) => group.id)
   const knownGroupIds = new Set(groupIds)
@@ -171,12 +190,6 @@ export function normalizeSongArrangement(order = [], groups = []) {
     return groupIds
   }
 
-  for (const groupId of groupIds) {
-    if (!arrangement.includes(groupId)) {
-      arrangement.push(groupId)
-    }
-  }
-
   return arrangement
 }
 
@@ -185,6 +198,78 @@ export function getSongGroupsAndArrangement(song) {
   const groups = normalizeSongGroupsFromSlides(slides)
   const arrangement = normalizeSongArrangement(parseRawSongArrangement(song), groups)
   return { groups, arrangement }
+}
+
+export function getSongSectionGroupsAndArrangement(section) {
+  const slides = Array.isArray(section?.slides) ? section.slides : []
+  const storedArrangement = normalizeSectionSongOrder(section)
+  const groups = []
+  const groupLookup = new Map()
+  const signatureLookup = new Map()
+  const arrangement = []
+  const occurrences = []
+
+  let currentOccurrence = null
+
+  slides.forEach((slide) => {
+    const explicitGroupId = getSlideGroupId(slide)
+    const signature = getSlideGroupSignature(slide)
+
+    if (
+      !currentOccurrence ||
+      currentOccurrence.explicitGroupId !== explicitGroupId ||
+      currentOccurrence.signature !== signature
+    ) {
+      currentOccurrence = {
+        explicitGroupId,
+        signature,
+        type: resolveSongSectionType(slide?.type || 'verse'),
+        label: slide?.label || makeSongGroupLabel(slide?.type || 'verse'),
+        slides: [],
+      }
+      occurrences.push(currentOccurrence)
+    }
+
+    currentOccurrence.slides.push({
+      id: slide?.id || uuid(),
+      body: slide?.body || '',
+    })
+  })
+
+  occurrences.forEach((occurrence, index) => {
+    let groupId = occurrence.explicitGroupId || null
+    if (!groupId) {
+      const storedId = storedArrangement[index]
+      if (storedId) groupId = storedId
+    }
+    if (!groupId) {
+      groupId = signatureLookup.get(occurrence.signature) || null
+    }
+    if (!groupId) {
+      groupId = uuid()
+    }
+
+    if (!groupLookup.has(groupId)) {
+      const group = createSongSectionGroup(
+        occurrence.type,
+        occurrence.label,
+        occurrence.slides,
+        groupId
+      )
+      groupLookup.set(groupId, group)
+      groups.push(group)
+      if (!signatureLookup.has(occurrence.signature)) {
+        signatureLookup.set(occurrence.signature, groupId)
+      }
+    }
+
+    arrangement.push(groupId)
+  })
+
+  return {
+    groups,
+    arrangement: normalizeSongArrangement(arrangement, groups),
+  }
 }
 
 export function flattenSongGroupsToSlides(groups = [], arrangement = [], options = {}) {
@@ -213,7 +298,8 @@ export function flattenSongGroupsToSlides(groups = [], arrangement = [], options
     group.slides.forEach((slide) => {
       slides.push(
         createTextSlide('song', {
-          id: slide.id,
+          // Flattened arrangement slides must stay unique even when a group repeats.
+          id: uuid(),
           type: group.type,
           label: group.label,
           body: slide.body,

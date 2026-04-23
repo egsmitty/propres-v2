@@ -190,6 +190,7 @@ export default function PresenterPanel() {
                   shadow="none"
                   minPaddingX={8}
                   minPaddingY={8}
+                  showPlaceholder={false}
                 />
             }
           </div>

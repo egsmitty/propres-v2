@@ -38,11 +38,23 @@ export async function deleteSong(id) {
 export async function getMedia() {
   return api().getMedia()
 }
+export async function getMediaFolders() {
+  return api().getMediaFolders()
+}
+export async function createMediaFolder(data) {
+  return api().createMediaFolder(data)
+}
 export async function createMedia(data) {
   return api().createMedia(data)
 }
-export async function importMedia() {
-  return api().importMedia()
+export async function updateMediaFolder(id, data) {
+  return api().updateMediaFolder(id, data)
+}
+export async function deleteMediaFolder(id) {
+  return api().deleteMediaFolder(id)
+}
+export async function importMedia(options) {
+  return api().importMedia(options)
 }
 export async function pickMedia(kind) {
   return api().pickMedia(kind)

@@ -1,12 +1,33 @@
-import React, { useState, useEffect } from 'react'
-import { X, Image, Upload, Film, Search, Pencil, Trash2 } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  ArrowLeft,
+  Film,
+  Folder,
+  FolderPlus,
+  Image,
+  Pencil,
+  Search,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
-import { deleteMedia, getMedia, importMedia, updateMedia } from '@/utils/ipc'
+import {
+  createMediaFolder,
+  deleteMedia,
+  deleteMediaFolder,
+  getMedia,
+  getMediaFolders,
+  importMedia,
+  updateMedia,
+  updateMediaFolder,
+} from '@/utils/ipc'
 import { fileUrlForPath, isVideoMedia } from '@/utils/backgrounds'
 import { getSectionTypeLabel } from '@/utils/sectionTypes'
 import { insertMediaSlideIntoCurrentPresentation } from '@/utils/presentationCommands'
-import { confirmDialog, promptDialog } from '@/utils/dialog'
+import { confirmDialog, promptDialog, showDialog } from '@/utils/dialog'
+import ContextMenu from '@/components/shared/ContextMenu'
 
 export default function MediaLibraryPanel() {
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -15,32 +36,126 @@ export default function MediaLibraryPanel() {
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const setSlideBackground = useEditorStore((s) => s.setSlideBackground)
   const setSectionBackground = useEditorStore((s) => s.setSectionBackground)
+
   const [media, setMedia] = useState([])
+  const [folders, setFolders] = useState([])
   const [tab, setTab] = useState('images')
   const [query, setQuery] = useState('')
+  const [currentFolderId, setCurrentFolderId] = useState(null)
+  const [selectedFolderId, setSelectedFolderId] = useState(null)
+  const [menu, setMenu] = useState(null)
 
   useEffect(() => {
-    loadMedia()
+    loadLibrary()
   }, [])
 
-  async function loadMedia() {
-    const result = await getMedia()
-    if (result?.success) setMedia(result.data)
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (!selectedFolderId) return
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return
+      event.preventDefault()
+      const folder = folders.find((item) => item.id === selectedFolderId)
+      if (folder) void handleDeleteFolder(folder)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [folders, selectedFolderId])
+
+  async function loadLibrary() {
+    const [mediaResult, folderResult] = await Promise.all([getMedia(), getMediaFolders()])
+    if (mediaResult?.success) setMedia(mediaResult.data)
+    if (folderResult?.success) setFolders(folderResult.data)
   }
 
   async function handleImport() {
-    const result = await importMedia()
-    if (result?.success) loadMedia()
+    const result = await importMedia({ folderId: currentFolderId })
+    if (result?.success) loadLibrary()
   }
 
-  async function handleRename(item) {
+  async function handleNewFolder() {
+    const name = await promptDialog('Folder name:', '', {
+      title: 'New Folder',
+      confirmLabel: 'Create',
+      placeholder: 'New Folder',
+    })
+    if (!name) return
+    const result = await createMediaFolder({ name })
+    if (result?.success) {
+      setSelectedFolderId(result.data?.id ?? null)
+      loadLibrary()
+    }
+  }
+
+  async function handleRenameFolder(folder) {
+    const nextName = await promptDialog('Rename folder:', folder.name, {
+      title: 'Rename Folder',
+      confirmLabel: 'Rename',
+    })
+    if (!nextName || nextName === folder.name) return
+    const result = await updateMediaFolder(folder.id, { name: nextName })
+    if (result?.success) loadLibrary()
+  }
+
+  async function handleDeleteFolder(folder) {
+    const count = media.filter((item) => item.folder_id === folder.id).length
+    const ok = await confirmDialog(
+      count
+        ? `Delete folder "${folder.name}" and remove its ${count} media item${count === 1 ? '' : 's'} from your media library? The files on your hard drive will not be deleted.`
+        : `Delete folder "${folder.name}"?`,
+      {
+        title: 'Delete Folder',
+        confirmLabel: 'Delete',
+        danger: true,
+      }
+    )
+    if (!ok) return
+    const result = await deleteMediaFolder(folder.id)
+    if (result?.success) {
+      if (currentFolderId === folder.id) setCurrentFolderId(null)
+      if (selectedFolderId === folder.id) setSelectedFolderId(null)
+      loadLibrary()
+    }
+  }
+
+  async function handleRenameItem(item) {
     const nextName = await promptDialog('Rename media item:', item.name, { title: 'Rename Media', confirmLabel: 'Rename' })
     if (!nextName || nextName === item.name) return
     const result = await updateMedia(item.id, { name: nextName })
-    if (result?.success) loadMedia()
+    if (result?.success) loadLibrary()
   }
 
-  async function handleDelete(item) {
+  async function handleMoveItem(item) {
+    const folderOptions = [
+      { value: 'root', label: 'Library Root' },
+      ...folders.map((folder) => ({ value: String(folder.id), label: folder.name })),
+    ]
+    const result = await showDialog({
+      title: 'Move Media',
+      description: `Choose where "${item.name}" should live.`,
+      fields: [
+        {
+          name: 'folderId',
+          label: 'Folder',
+          type: 'select',
+          defaultValue: item.folder_id ? String(item.folder_id) : 'root',
+          options: folderOptions,
+        },
+      ],
+      actions: [
+        { label: 'Cancel', value: null, cancel: true },
+        { label: 'Move', value: 'confirm', primary: true },
+      ],
+    })
+    if (!result || result.action !== 'confirm') return
+    const nextFolderId = result.values?.folderId === 'root' ? null : Number(result.values?.folderId)
+    const updateResult = await updateMedia(item.id, { folder_id: Number.isFinite(nextFolderId) ? nextFolderId : null })
+    if (updateResult?.success) loadLibrary()
+  }
+
+  async function handleDeleteItem(item) {
     const ok = await confirmDialog(`Delete "${item.name}" from the media library?`, {
       title: 'Delete Media',
       confirmLabel: 'Delete',
@@ -48,7 +163,7 @@ export default function MediaLibraryPanel() {
     })
     if (!ok) return
     const result = await deleteMedia(item.id)
-    if (result?.success) loadMedia()
+    if (result?.success) loadLibrary()
   }
 
   function applyToSlide(mediaId) {
@@ -68,13 +183,29 @@ export default function MediaLibraryPanel() {
     if (result) setMediaLibraryOpen(false)
   }
 
-  const filtered = media.filter((m) => {
-    const matchesType = tab === 'images' ? m.type === 'image' : m.type === 'video'
-    const matchesQuery = !query.trim() || m.name.toLowerCase().includes(query.trim().toLowerCase())
-    return matchesType && matchesQuery
-  })
+  const currentFolder = folders.find((folder) => folder.id === currentFolderId) || null
   const selectedSection = presentation?.sections?.find((section) => section.id === selectedSectionId) || null
   const sectionLabel = selectedSection ? getSectionTypeLabel(selectedSection.type) : 'Section'
+  const normalizedQuery = query.trim().toLowerCase()
+
+  const visibleFolders = useMemo(
+    () =>
+      currentFolderId
+        ? []
+        : folders.filter((folder) => !normalizedQuery || folder.name.toLowerCase().includes(normalizedQuery)),
+    [currentFolderId, folders, normalizedQuery]
+  )
+
+  const visibleMedia = useMemo(
+    () =>
+      media.filter((item) => {
+        const matchesType = tab === 'images' ? item.type === 'image' : item.type === 'video'
+        const matchesFolder = currentFolderId ? item.folder_id === currentFolderId : item.folder_id == null
+        const matchesQuery = !normalizedQuery || item.name.toLowerCase().includes(normalizedQuery)
+        return matchesType && matchesFolder && matchesQuery
+      }),
+    [currentFolderId, media, normalizedQuery, tab]
+  )
 
   return (
     <div
@@ -85,8 +216,8 @@ export default function MediaLibraryPanel() {
         borderRight: '1px solid var(--border-default)',
         animation: 'slide-in-left 150ms ease',
       }}
+      onMouseDown={() => setSelectedFolderId(null)}
     >
-      {/* Header */}
       <div
         className="flex items-center justify-between px-3 py-2 shrink-0"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
@@ -108,7 +239,6 @@ export default function MediaLibraryPanel() {
         </button>
       </div>
 
-      {/* Tabs */}
       <div
         className="flex shrink-0"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
@@ -151,6 +281,39 @@ export default function MediaLibraryPanel() {
           </p>
         </div>
 
+        <div className="flex items-center gap-2 mb-2">
+          {currentFolder ? (
+            <button
+              type="button"
+              onClick={() => { setCurrentFolderId(null); setSelectedFolderId(null) }}
+              className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
+              style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+              title="Back to media library"
+            >
+              <ArrowLeft size={14} />
+            </button>
+          ) : null}
+          <div
+            className="flex-1 rounded-xl px-3 py-2"
+            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
+          >
+            <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              {currentFolder ? 'Folder' : 'Library'}
+            </p>
+            <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+              {currentFolder ? `Library / ${currentFolder.name}` : 'Library Root'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleNewFolder}
+            className="px-2.5 h-8 rounded-lg text-[11px] font-medium shrink-0"
+            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+          >
+            New Folder
+          </button>
+        </div>
+
         <div
           className="flex items-center gap-2 px-2.5 py-2 rounded-xl"
           style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
@@ -159,27 +322,114 @@ export default function MediaLibraryPanel() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search library..."
+            placeholder={currentFolder ? 'Search this folder...' : 'Search library...'}
             className="flex-1 bg-transparent outline-none text-xs"
             style={{ color: 'var(--text-primary)' }}
+            onMouseDown={(event) => event.stopPropagation()}
           />
         </div>
       </div>
 
-      {/* Media grid */}
       <div className="flex-1 overflow-y-auto p-2">
-        {filtered.length === 0 ? (
+        {!currentFolder && (
+          <div className="mb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Folder size={13} style={{ color: 'var(--text-secondary)' }} />
+              <span className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+                Folders
+              </span>
+            </div>
+            {visibleFolders.length ? (
+              <div className="grid grid-cols-1 gap-2">
+                {visibleFolders.map((folder) => {
+                  const folderCount = media.filter((item) => item.folder_id === folder.id).length
+                  const selected = selectedFolderId === folder.id
+                  return (
+                    <button
+                      key={folder.id}
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.stopPropagation()
+                        setSelectedFolderId(folder.id)
+                      }}
+                      onDoubleClick={(event) => {
+                        event.stopPropagation()
+                        setCurrentFolderId(folder.id)
+                        setSelectedFolderId(folder.id)
+                      }}
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        setSelectedFolderId(folder.id)
+                        setMenu({
+                          x: event.clientX,
+                          y: event.clientY,
+                          items: [
+                            { label: 'Open Folder', onClick: () => setCurrentFolderId(folder.id) },
+                            { label: 'Rename Folder', onClick: () => handleRenameFolder(folder) },
+                            { divider: true },
+                            { label: 'Delete Folder', onClick: () => handleDeleteFolder(folder), danger: true },
+                          ],
+                        })
+                      }}
+                      className="w-full rounded-xl px-3 py-2 text-left"
+                      style={{
+                        background: selected ? 'rgba(74,124,255,0.1)' : 'var(--bg-app)',
+                        border: selected ? '1px solid rgba(74,124,255,0.55)' : '1px solid var(--border-default)',
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Folder size={16} style={{ color: selected ? 'var(--accent)' : 'var(--text-secondary)' }} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                            {folder.name}
+                          </p>
+                          <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                            {folderCount} item{folderCount === 1 ? '' : 's'}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div
+                className="rounded-xl px-3 py-4 text-center"
+                style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-tertiary)' }}
+              >
+                <FolderPlus size={18} className="mx-auto mb-2" />
+                <p className="text-xs">{query ? 'No folders match that search' : 'No folders yet'}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mb-2">
+          {tab === 'images'
+            ? <Image size={13} style={{ color: 'var(--text-secondary)' }} />
+            : <Film size={13} style={{ color: 'var(--text-secondary)' }} />}
+          <span className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            {currentFolder ? currentFolder.name : tab}
+          </span>
+        </div>
+
+        {visibleMedia.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2">
             {tab === 'images'
               ? <Image size={24} style={{ color: 'var(--text-tertiary)' }} />
               : <Film size={24} style={{ color: 'var(--text-tertiary)' }} />}
-            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              {query ? 'No media matches that search' : `No ${tab} imported yet`}
+            <p className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
+              {query
+                ? 'No media matches that search'
+                : currentFolder
+                  ? `No ${tab} in this folder yet`
+                  : `No ${tab} in the library root`}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {filtered.map((item) => (
+            {visibleMedia.map((item) => (
               <div
                 key={item.id}
                 className="rounded overflow-hidden group"
@@ -187,6 +437,21 @@ export default function MediaLibraryPanel() {
                 style={{
                   background: '#1a1a1a',
                   border: '1px solid var(--border-subtle)',
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setMenu({
+                    x: event.clientX,
+                    y: event.clientY,
+                    items: [
+                      { label: 'Rename Media', onClick: () => handleRenameItem(item) },
+                      { label: 'Move to Folder…', onClick: () => handleMoveItem(item) },
+                      ...(item.folder_id != null ? [{ label: 'Remove from Folder', onClick: () => updateMedia(item.id, { folder_id: null }).then((result) => { if (result?.success) loadLibrary() }) }] : []),
+                      { divider: true },
+                      { label: 'Delete Media', onClick: () => handleDeleteItem(item), danger: true },
+                    ],
+                  })
                 }}
               >
                 <div style={{ aspectRatio: '16/9' }} className="relative overflow-hidden">
@@ -245,7 +510,15 @@ export default function MediaLibraryPanel() {
                       {item.name}
                     </p>
                     <button
-                      onClick={() => handleRename(item)}
+                      onClick={() => handleMoveItem(item)}
+                      className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded"
+                      style={{ color: '#d1d5db' }}
+                      title="Move media"
+                    >
+                      <Folder size={11} />
+                    </button>
+                    <button
+                      onClick={() => handleRenameItem(item)}
                       className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded"
                       style={{ color: '#d1d5db' }}
                       title="Rename media item"
@@ -253,7 +526,7 @@ export default function MediaLibraryPanel() {
                       <Pencil size={11} />
                     </button>
                     <button
-                      onClick={() => handleDelete(item)}
+                      onClick={() => handleDeleteItem(item)}
                       className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded"
                       style={{ color: '#fda4af' }}
                       title="Delete media item"
@@ -271,7 +544,6 @@ export default function MediaLibraryPanel() {
         )}
       </div>
 
-      {/* Footer */}
       <div
         className="px-3 py-2 shrink-0"
         style={{ borderTop: '1px solid var(--border-subtle)' }}
@@ -288,9 +560,18 @@ export default function MediaLibraryPanel() {
           onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
         >
           <Upload size={13} />
-          Import To Library…
+          {currentFolder ? `Import To ${currentFolder.name}` : 'Import To Library…'}
         </button>
       </div>
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={menu.items}
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
     </div>
   )
 }

@@ -22,8 +22,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Media
   getMedia: () => ipcRenderer.invoke('db:media:getAll'),
+  getMediaFolders: () => ipcRenderer.invoke('db:mediaFolders:getAll'),
+  createMediaFolder: (data) => ipcRenderer.invoke('db:mediaFolders:create', data),
   createMedia: (data) => ipcRenderer.invoke('db:media:create', data),
-  importMedia: () => ipcRenderer.invoke('media:import'),
+  updateMediaFolder: (id, data) => ipcRenderer.invoke('db:mediaFolders:update', id, data),
+  deleteMediaFolder: (id) => ipcRenderer.invoke('db:mediaFolders:delete', id),
+  importMedia: (options) => ipcRenderer.invoke('media:import', options),
   pickMedia: (kind) => ipcRenderer.invoke('media:pick', { kind }),
   updateMedia: (id, data) => ipcRenderer.invoke('db:media:update', id, data),
   deleteMedia: (id) => ipcRenderer.invoke('db:media:delete', id),
