@@ -29,6 +29,13 @@ let presentationSessionSlides = []
 let currentStageSlide = null
 let currentStageBackground = null
 
+function normalizeMediaFilePath(filePath) {
+  const resolved = path.normalize(path.resolve(filePath))
+  return process.platform === 'win32'
+    ? resolved.replace(/\//g, '\\')
+    : resolved
+}
+
 function resolveRuntimeAssetPath(...segments) {
   const candidates = [
     path.join(process.resourcesPath, ...segments),
@@ -384,6 +391,7 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
 
     if (!outputWindow.isVisible()) outputWindow.showInactive()
     if (presenterWindow && !presenterWindow.isDestroyed()) presenterWindow.focus()
+    else mainWindow?.focus()
     return
   }
 
@@ -417,11 +425,11 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
     } else {
       setWindowedPreviewBounds(outputWindow)
     }
+    outputWindow.showInactive()
     if (presenterWindow && !presenterWindow.isDestroyed()) {
-      outputWindow.showInactive()
       presenterWindow.focus()
     } else {
-      outputWindow.show()
+      mainWindow?.focus()
     }
   })
 
@@ -571,11 +579,27 @@ function registerIpcHandlers() {
     try { return { success: true, data: mediaQueries.getMedia(db) } }
     catch (e) { return { success: false, error: e.message } }
   })
+  ipcMain.handle('db:mediaFolders:getAll', () => {
+    try { return { success: true, data: mediaQueries.getMediaFolders(db) } }
+    catch (e) { return { success: false, error: e.message } }
+  })
+  ipcMain.handle('db:mediaFolders:create', (_, data) => {
+    try { return { success: true, data: mediaQueries.createMediaFolder(db, data) } }
+    catch (e) { return { success: false, error: e.message } }
+  })
   ipcMain.handle('db:media:create', (_, data) => {
     try { return { success: true, data: mediaQueries.createMedia(db, data) } }
     catch (e) { return { success: false, error: e.message } }
   })
-  ipcMain.handle('media:import', async () => {
+  ipcMain.handle('db:mediaFolders:update', (_, id, data) => {
+    try { return { success: true, data: mediaQueries.updateMediaFolder(db, id, data) } }
+    catch (e) { return { success: false, error: e.message } }
+  })
+  ipcMain.handle('db:mediaFolders:delete', (_, id) => {
+    try { mediaQueries.deleteMediaFolder(db, id); return { success: true } }
+    catch (e) { return { success: false, error: e.message } }
+  })
+  ipcMain.handle('media:import', async (_, options = {}) => {
     try {
       const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile', 'multiSelections'],
@@ -585,11 +609,16 @@ function registerIpcHandlers() {
       })
       if (result.canceled) return { success: true, data: [] }
       const inserted = result.filePaths.map((filePath) => {
-        const absPath = path.resolve(filePath)
+        const absPath = normalizeMediaFilePath(filePath)
         const name = path.basename(absPath)
         const ext = path.extname(absPath).toLowerCase().slice(1)
         const type = ['mp4', 'mov', 'webm'].includes(ext) ? 'video' : 'image'
-        return mediaQueries.createMedia(db, { name, type, file_path: absPath })
+        return mediaQueries.createMedia(db, {
+          name,
+          type,
+          file_path: absPath,
+          folder_id: options?.folderId ?? null,
+        })
       })
       return { success: true, data: inserted }
     } catch (e) { return { success: false, error: e.message } }
@@ -606,8 +635,14 @@ function registerIpcHandlers() {
       })
       if (result.canceled || !result.filePaths?.length) return { success: true, data: null }
 
-      const filePath = path.resolve(result.filePaths[0])
-      const existing = mediaQueries.getMedia(db).find((item) => item.file_path === filePath)
+      const filePath = normalizeMediaFilePath(result.filePaths[0])
+      const matchPath = process.platform === 'win32' ? filePath.toLowerCase() : filePath
+      const existing = mediaQueries.getMedia(db).find((item) => {
+        const candidate = process.platform === 'win32'
+          ? String(item.file_path || '').toLowerCase()
+          : item.file_path
+        return candidate === matchPath
+      })
       if (existing) return { success: true, data: existing }
 
       const name = path.basename(filePath)
@@ -855,6 +890,7 @@ function buildNativeMenu() {
         { role: 'selectAll' },
         { type: 'separator' },
         { label: 'Presentation Settings…', click: () => sendCommand('edit:presentationSettings') },
+        { label: 'Output Settings…', click: () => sendCommand('view:outputSettings') },
       ],
     },
     {
@@ -863,7 +899,6 @@ function buildNativeMenu() {
         { role: 'reload' },
         { role: 'toggleDevTools' },
         { type: 'separator' },
-        { label: 'Output Settings…', click: () => sendCommand('view:outputSettings') },
         { label: 'Output Window', click: () => sendCommand('view:outputWindow') },
         { label: 'Stage Display Window', click: () => sendCommand('view:stageDisplayWindow') },
         { type: 'separator' },

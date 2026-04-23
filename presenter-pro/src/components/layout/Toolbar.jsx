@@ -58,6 +58,7 @@ import {
 import { uuid } from '@/utils/uuid'
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup'
 import {
+  deleteSelectedSlideFromCurrentPresentation,
   insertNewSectionIntoCurrentPresentation,
   insertNewSlideIntoCurrentPresentation,
 } from '@/utils/presentationCommands'
@@ -576,8 +577,19 @@ function PopoverShell({ popoverRef, triggerRef, width = 180, children }) {
   )
 }
 
-function PopoverMenuButton({ title, label, width = 138, children, popoverWidth = null }) {
+function PopoverMenuButton({
+  title,
+  label,
+  width = 138,
+  children,
+  popoverWidth = null,
+  icon: Icon = null,
+  active = false,
+  height = 30,
+  collapseLabel = false,
+}) {
   const { open, setOpen, triggerRef, popoverRef } = usePopoverOpen()
+  const showLabel = Boolean(label) && !collapseLabel
 
   return (
     <div data-editor-toolbar="true" className="shrink-0">
@@ -590,17 +602,21 @@ function PopoverMenuButton({ title, label, width = 138, children, popoverWidth =
         className="flex items-center justify-between gap-2 rounded-lg shrink-0"
         style={{
           width,
-          height: 30,
-          padding: '0 9px',
+          height,
+          minWidth: showLabel ? width : height,
+          padding: showLabel ? '0 10px' : '0 8px',
           border: '1px solid var(--border-default)',
-          background: open ? 'var(--bg-hover)' : 'var(--bg-app)',
-          color: 'var(--text-primary)',
+          background: open || active ? 'var(--accent-dim)' : 'var(--bg-app)',
+          color: open || active ? 'var(--accent)' : 'var(--text-primary)',
           fontSize: 12.5,
-          fontWeight: 500,
+          fontWeight: 600,
         }}
       >
-        <span className="truncate">{label}</span>
-        <ChevronDown size={14} style={{ flexShrink: 0, color: 'var(--text-secondary)' }} />
+        <span className="flex items-center min-w-0 gap-1.5">
+          {Icon ? <Icon size={14} style={{ flexShrink: 0 }} /> : null}
+          {showLabel ? <span className="truncate">{label}</span> : null}
+        </span>
+        <ChevronDown size={14} style={{ flexShrink: 0, color: open || active ? 'var(--accent)' : 'var(--text-secondary)' }} />
       </button>
       {open ? (
         <PopoverShell popoverRef={popoverRef} triggerRef={triggerRef} width={popoverWidth ?? (width + 54)}>
@@ -849,8 +865,10 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const toolbarRef = useRef(null)
   const presentClusterRef = useRef(null)
   const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
+  const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
   const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
+  const newSongEditorOpen = useAppStore((s) => s.newSongEditorOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
@@ -872,7 +890,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
 
   const hasPresentation = !!presentation
   const hasSlide = !!selectedSlideId
-  const panelOpen = songLibraryOpen || mediaLibraryOpen
+  const panelOpen = songLibraryOpen || mediaLibraryOpen || newSongEditorOpen
   const section = useMemo(
     () => presentation?.sections?.find((item) => item.id === selectedSectionId) || null,
     [presentation, selectedSectionId]
@@ -1254,27 +1272,25 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
 
   function handleDelete() {
     if (!presentation || !selectedSlideId) return
-    const state = useEditorStore.getState()
-    state.mutateSections((sections) =>
-      sections.map((sec) => ({
-        ...sec,
-        slides: sec.slides.filter((sl) => sl.id !== selectedSlideId),
-      }))
-    )
-    const nextPresentation = useEditorStore.getState().presentation
-    const nextSection = nextPresentation?.sections?.find((entry) => entry.slides?.length)
-    const nextSlide = nextSection?.slides?.[0]
-    state.setSelectedSlide(nextSection?.id ?? null, nextSlide?.id ?? null)
+    deleteSelectedSlideFromCurrentPresentation()
   }
 
-  function toggleSongLibrary() {
+  function openNewSongEditor() {
     setMediaLibraryOpen(false)
-    setSongLibraryOpen(!songLibraryOpen)
+    setSongLibraryOpen(false)
+    setNewSongEditorOpen(true)
   }
 
-  function toggleMediaLibrary() {
+  function openSongLibrary() {
+    setNewSongEditorOpen(false)
+    setMediaLibraryOpen(false)
+    setSongLibraryOpen(true)
+  }
+
+  function openMediaLibrary() {
+    setNewSongEditorOpen(false)
     setSongLibraryOpen(false)
-    setMediaLibraryOpen(!mediaLibraryOpen)
+    setMediaLibraryOpen(true)
   }
 
   return (
@@ -1427,8 +1443,51 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
             </Group>
 
             <Group title="Insert">
-              <CommandButton icon={Music} label="Song" title="Song Library" onClick={toggleSongLibrary} disabled={false} active={songLibraryOpen} collapseLabel={hideMostLabels} />
-              <CommandButton icon={Image} label="Media" title="Media Library" onClick={toggleMediaLibrary} disabled={false} active={mediaLibraryOpen} collapseLabel={hideMostLabels} />
+              <PopoverMenuButton
+                title="Song"
+                label="Song"
+                icon={Music}
+                width={hideMostLabels ? 42 : 88}
+                height={36}
+                active={songLibraryOpen || newSongEditorOpen}
+                collapseLabel={hideMostLabels}
+                popoverWidth={208}
+              >
+                {({ close }) => (
+                  <div className="flex flex-col gap-1">
+                    <MenuOption onClick={() => { openNewSongEditor(); close() }}>
+                      <span>New Song</span>
+                    </MenuOption>
+                    <MenuOption active={songLibraryOpen} onClick={() => { openSongLibrary(); close() }}>
+                      <span>Open Song Library</span>
+                    </MenuOption>
+                  </div>
+                )}
+              </PopoverMenuButton>
+              <PopoverMenuButton
+                title="Media"
+                label="Media"
+                icon={Image}
+                width={hideMostLabels ? 44 : 94}
+                height={36}
+                active={mediaLibraryOpen}
+                collapseLabel={hideMostLabels}
+                popoverWidth={214}
+              >
+                {({ close }) => (
+                  <div className="flex flex-col gap-1">
+                    <MenuOption onClick={() => { importMediaToSelectedSlide('image'); close() }}>
+                      <span>Insert Image</span>
+                    </MenuOption>
+                    <MenuOption onClick={() => { importMediaToSelectedSlide('video'); close() }}>
+                      <span>Insert Video</span>
+                    </MenuOption>
+                    <MenuOption active={mediaLibraryOpen} onClick={() => { openMediaLibrary(); close() }}>
+                      <span>Open Media Library</span>
+                    </MenuOption>
+                  </div>
+                )}
+              </PopoverMenuButton>
               <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} />
               <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} />
             </Group>

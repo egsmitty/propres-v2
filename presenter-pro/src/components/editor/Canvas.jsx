@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { useAppStore } from '@/store/appStore'
-import { getMedia } from '@/utils/ipc'
+import { GripVertical } from 'lucide-react'
+import { getMedia, getSongs, updateSong } from '@/utils/ipc'
 import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/backgrounds'
-import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
+import { getSectionColor, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
 import { clearEditorFormatting, runEditorCommand } from '@/utils/richTextEditor'
+import { flattenSongGroupsToSlides, getSongSectionGroupsAndArrangement } from '@/utils/songSections'
 import ContextMenu from '@/components/shared/ContextMenu'
 import {
   clearSelectedSlide,
@@ -53,6 +55,61 @@ function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
+}
+
+function getResizeHandleDirections(handle) {
+  return {
+    x: handle.includes('e') ? 1 : handle.includes('w') ? -1 : 0,
+    y: handle.includes('s') ? 1 : handle.includes('n') ? -1 : 0,
+  }
+}
+
+function resizeBoxFromCenter(box, handle, pointerX, pointerY, nativeW, nativeH, keepRatio = false) {
+  const centerX = box.x + box.width / 2
+  const centerY = box.y + box.height / 2
+  const maxWidth = 2 * Math.min(centerX, nativeW - centerX)
+  const maxHeight = 2 * Math.min(centerY, nativeH - centerY)
+  const halfWidth = box.width / 2
+  const halfHeight = box.height / 2
+  const direction = getResizeHandleDirections(handle)
+
+  let width = box.width
+  let height = box.height
+
+  if (keepRatio && direction.x && direction.y) {
+    const scaleX = halfWidth > 0 ? (halfWidth + direction.x * pointerX) / halfWidth : 1
+    const scaleY = halfHeight > 0 ? (halfHeight + direction.y * pointerY) / halfHeight : 1
+    let scale = Math.abs(scaleX - 1) >= Math.abs(scaleY - 1) ? scaleX : scaleY
+    const minScale = Math.max(
+      MIN_TEXT_BOX_WIDTH / Math.max(1, box.width),
+      MIN_TEXT_BOX_HEIGHT / Math.max(1, box.height)
+    )
+    const maxScale = Math.min(
+      maxWidth / Math.max(1, box.width),
+      maxHeight / Math.max(1, box.height)
+    )
+
+    scale = clamp(scale, minScale, maxScale)
+    width = clamp(box.width * scale, MIN_TEXT_BOX_WIDTH, maxWidth)
+    height = clamp(box.height * scale, MIN_TEXT_BOX_HEIGHT, maxHeight)
+  } else {
+    if (direction.x) {
+      const nextHalfWidth = halfWidth + direction.x * pointerX
+      width = clamp(nextHalfWidth * 2, MIN_TEXT_BOX_WIDTH, maxWidth)
+    }
+    if (direction.y) {
+      const nextHalfHeight = halfHeight + direction.y * pointerY
+      height = clamp(nextHalfHeight * 2, MIN_TEXT_BOX_HEIGHT, maxHeight)
+    }
+  }
+
+  return {
+    ...box,
+    x: centerX - width / 2,
+    y: centerY - height / 2,
+    width,
+    height,
+  }
 }
 
 function normalizeRect(startX, startY, endX, endY) {
@@ -232,6 +289,8 @@ export default function Canvas() {
   const duplicateSlideTextBoxes = useEditorStore((s) => s.duplicateSlideTextBoxes)
   const removeSlideTextBoxes = useEditorStore((s) => s.removeSlideTextBoxes)
   const reorderSlideTextBoxes = useEditorStore((s) => s.reorderSlideTextBoxes)
+  const mutateSections = useEditorStore((s) => s.mutateSections)
+  const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const slideClipboard = useAppStore((s) => s.slideClipboard)
@@ -248,15 +307,25 @@ export default function Canvas() {
   const [selectionRect, setSelectionRect] = useState(null)
   const [metric, setMetric] = useState(null)
   const [caseModeIndex, setCaseModeIndex] = useState(0)
+  const [songRecord, setSongRecord] = useState(null)
+  const [songOrderBusy, setSongOrderBusy] = useState(false)
+  const [songOrderDragState, setSongOrderDragState] = useState(null)
 
   const canvasRef = useRef(null)
   const interactionRef = useRef(null)
   const pendingOutsideBlurRef = useRef(false)
   const previousSlideIdRef = useRef(null)
+  const activeEditorCommitRef = useRef(null)
+  const suppressBlurCommitRef = useRef(false)
 
   const slide = getSelectedSlide(presentation, selectedSectionId, selectedSlideId)
   const section = presentation?.sections?.find((item) => item.id === selectedSectionId) || null
   const mediaOnlySlide = isMediaSlide(slide)
+  const resolvedSongId = section?.songId || slide?.songId || null
+  const songSectionData = useMemo(
+    () => (section?.type === 'song' && resolvedSongId ? getSongSectionGroupsAndArrangement(section) : null),
+    [resolvedSongId, section]
+  )
   const effectiveBackgroundId = getEffectiveBackgroundId(presentation, selectedSectionId, slide)
   const backgroundMedia = useMemo(() => media.find((item) => item.id === effectiveBackgroundId) || null, [media, effectiveBackgroundId])
   const slideMedia = useMemo(() => media.find((item) => item.id === slide?.mediaId) || null, [media, slide?.mediaId])
@@ -265,9 +334,115 @@ export default function Canvas() {
   const primaryTextBoxId = selectedTextBoxIds[selectedTextBoxIds.length - 1] || selectedTextBoxIds[0] || null
   const primaryTextBox = renderedBoxes.find((box) => box.id === primaryTextBoxId) || null
   const isEditing = editingSlideId === selectedSlideId && Boolean(editingTextBoxId)
+  const showSongOrderTray = Boolean(section?.type === 'song' && slide && resolvedSongId && songSectionData)
+  const songOrderDisabled = !showSongOrderTray || !songRecord || songOrderBusy || isEditing
+  const songOrderEntries = useMemo(
+    () => songSectionData?.arrangement?.map((groupId, index) => ({
+      index,
+      groupId,
+      group: songSectionData.groups.find((entry) => entry.id === groupId) || null,
+    })).filter((entry) => entry.group) || [],
+    [songSectionData]
+  )
 
   const { width: nativeW, height: nativeH } = getPresentationDimensions(presentation || slide || undefined)
   const scale = canvasWidth > 0 ? canvasWidth / nativeW : 1
+
+  function registerEditorCommitHandler(handler) {
+    activeEditorCommitRef.current = handler || null
+  }
+
+  function commitActiveEditor() {
+    activeEditorCommitRef.current?.()
+  }
+
+  function finishInlineEditing(nextSelectedIds = []) {
+    if (!editingTextBoxId) return
+    suppressBlurCommitRef.current = true
+    commitActiveEditor()
+    const active = document.activeElement
+    if (active?.isContentEditable) active.blur()
+    activeEditorCommitRef.current = null
+    setEditingTextBoxId(null)
+    setEditingSlide(null)
+    setSelectedTextBoxIds(nextSelectedIds)
+  }
+
+  async function applySongArrangement(nextArrangement) {
+    if (!songSectionData || !songRecord || !resolvedSongId || !selectedSectionId) return
+
+    const flattened = flattenSongGroupsToSlides(songSectionData.groups, nextArrangement, {
+      songId: resolvedSongId,
+    })
+    const currentGroupId = slide?.groupId || flattened.arrangement[0] || null
+    const nextSelected =
+      flattened.slides.find((entry) => entry.groupId === currentGroupId) ||
+      flattened.slides[0] ||
+      null
+
+    mutateSections((sections) =>
+      sections.map((entry) => (
+        entry.id === selectedSectionId
+          ? {
+              ...entry,
+              songId: resolvedSongId,
+              songOrder: flattened.arrangement,
+              slides: flattened.slides,
+            }
+          : entry
+      ))
+    )
+
+    if (nextSelected) {
+      setSelectedSlide(selectedSectionId, nextSelected.id)
+    }
+
+    setSongOrderBusy(true)
+    try {
+      await updateSong(songRecord.id, {
+        title: songRecord.title,
+        artist: songRecord.artist,
+        ccli: songRecord.ccli,
+        tags: songRecord.tags,
+        slides: JSON.stringify(flattened.slides),
+        songOrder: JSON.stringify(flattened.arrangement),
+      })
+      setSongRecord((current) => (
+        current
+          ? {
+              ...current,
+              slides: JSON.stringify(flattened.slides),
+              songOrder: JSON.stringify(flattened.arrangement),
+            }
+          : current
+      ))
+    } finally {
+      setSongOrderBusy(false)
+    }
+  }
+
+  function handleSongArrangementDrop(index) {
+    if (!songSectionData || !songOrderDragState || songOrderDisabled) return
+
+    if (songOrderDragState.kind === 'arrangement') {
+      const current = [...songSectionData.arrangement]
+      const fromIndex = songOrderDragState.index
+      if (fromIndex < 0 || fromIndex >= current.length) {
+        setSongOrderDragState(null)
+        return
+      }
+      const [moved] = current.splice(fromIndex, 1)
+      const insertIndex = fromIndex < index ? index - 1 : index
+      current.splice(insertIndex, 0, moved)
+      void applySongArrangement(current)
+    } else if (songOrderDragState.kind === 'available') {
+      const current = [...songSectionData.arrangement]
+      current.splice(index, 0, songOrderDragState.groupId)
+      void applySongArrangement(current)
+    }
+
+    setSongOrderDragState(null)
+  }
 
   useEffect(() => {
     if (!canvasRef.current) return undefined
@@ -302,6 +477,28 @@ export default function Canvas() {
   }, [mediaLibraryOpen])
 
   useEffect(() => {
+    let cancelled = false
+
+    async function loadSongRecord() {
+      if (!resolvedSongId || section?.type !== 'song') {
+        setSongRecord(null)
+        return
+      }
+
+      const result = await getSongs()
+      if (cancelled) return
+      const songs = result?.success ? result.data : []
+      setSongRecord(songs.find((item) => String(item.id) === String(resolvedSongId)) || null)
+    }
+
+    loadSongRecord()
+
+    return () => {
+      cancelled = true
+    }
+  }, [resolvedSongId, section?.type])
+
+  useEffect(() => {
     interactionRef.current = null
     setDraftBoxes(null)
     setSelectedTextBoxIds([])
@@ -311,6 +508,9 @@ export default function Canvas() {
     setSelectionRect(null)
     setMetric(null)
     setEditingSlide(null)
+    setSongOrderDragState(null)
+    activeEditorCommitRef.current = null
+    suppressBlurCommitRef.current = false
   }, [selectedSectionId, selectedSlideId, setEditingSlide, setSelectedTextBoxIdsInStore])
 
   useEffect(() => {
@@ -384,12 +584,22 @@ export default function Canvas() {
 
       if (state.type === 'resize') {
         const box = state.box
+        const modifierSymmetric = event.metaKey || event.ctrlKey
+        const keepRatio = state.corner && (event.shiftKey || modifierSymmetric)
+
+        if (modifierSymmetric) {
+          const updated = resizeBoxFromCenter(box, state.handle, pointerX, pointerY, nativeW, nativeH, keepRatio)
+          setDraftBoxes(renderedBoxes.map((item) => item.id === box.id ? updated : item))
+          setSnapGuides({ vertical: null, horizontal: null })
+          setMetric({ type: 'resize', width: Math.round(updated.width), height: Math.round(updated.height) })
+          return
+        }
+
         let x = box.x
         let y = box.y
         let width = box.width
         let height = box.height
         const ratio = box.width / Math.max(1, box.height)
-        const keepRatio = event.shiftKey && state.corner
 
         if (state.handle.includes('e')) width = clamp(box.width + pointerX, MIN_TEXT_BOX_WIDTH, nativeW - x)
         if (state.handle.includes('s')) height = clamp(box.height + pointerY, MIN_TEXT_BOX_HEIGHT, nativeH - y)
@@ -591,10 +801,11 @@ export default function Canvas() {
 
   useEffect(() => {
     function clearActiveSelection() {
-      const active = document.activeElement
-      if (active?.isContentEditable) active.blur()
+      if (editingTextBoxId) {
+        finishInlineEditing([])
+        return
+      }
       setSelectedTextBoxIds([])
-      setEditingTextBoxId(null)
       setEditingSlide(null)
     }
 
@@ -625,7 +836,7 @@ export default function Canvas() {
       window.removeEventListener('blur', onWindowBlur)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [selectedTextBoxIds, editingTextBoxId, setEditingSlide])
+  }, [editingTextBoxId, selectedTextBoxIds, setEditingSlide])
 
   function beginInteraction(event, type, options = {}) {
     event.preventDefault()
@@ -652,11 +863,7 @@ export default function Canvas() {
     pendingOutsideBlurRef.current = true
 
     if (isEditing) {
-      const active = document.activeElement
-      if (active?.isContentEditable) active.blur()
-      setEditingTextBoxId(null)
-      setEditingSlide(null)
-      setSelectedTextBoxIds([])
+      finishInlineEditing([])
       pendingOutsideBlurRef.current = false
       return
     }
@@ -672,7 +879,11 @@ export default function Canvas() {
   }
 
   function handleTextBoxMouseDown(event, textBox) {
-    if (event.button !== 0 || isEditing) return
+    if (event.button !== 0) return
+    if (isEditing && editingTextBoxId === textBox.id) return
+    if (isEditing) {
+      finishInlineEditing([textBox.id])
+    }
     const alreadySelected = selectedTextBoxIds.includes(textBox.id)
 
     if (event.shiftKey) {
@@ -692,8 +903,12 @@ export default function Canvas() {
   }
 
   function handleTextBoxDoubleClick(event, textBoxId) {
+    if (isEditing && editingTextBoxId === textBoxId) return
     event.preventDefault()
     event.stopPropagation()
+    if (isEditing && editingTextBoxId !== textBoxId) {
+      finishInlineEditing([textBoxId])
+    }
     setSelectedTextBoxIds([textBoxId])
     setEditingTextBoxId(textBoxId)
     setEditingSlide(slide.id)
@@ -785,6 +1000,10 @@ export default function Canvas() {
               textBox={box}
               onSave={(body) => handleSaveText(body, box.id)}
               onBlurCommit={() => {
+                if (suppressBlurCommitRef.current) {
+                  suppressBlurCommitRef.current = false
+                  return
+                }
                 setEditingTextBoxId(null)
                 setEditingSlide(null)
                 setSelectedTextBoxIds([])
@@ -795,6 +1014,7 @@ export default function Canvas() {
                 setSelectedTextBoxIds([box.id])
               }}
               onTabNext={handleTabDirection}
+              registerCommitHandler={registerEditorCommitHandler}
             />
           ) : placeholder ? (
             <span>{resolvePlaceholderText(box.placeholderText)}</span>
@@ -838,6 +1058,25 @@ export default function Canvas() {
 
   return (
     <div data-tour="canvas" className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
+      {showSongOrderTray ? (
+        <SongOrderTray
+          groups={songSectionData.groups}
+          entries={songOrderEntries}
+          disabled={songOrderDisabled}
+          loading={!songRecord}
+          onAddGroup={(groupId) => {
+            if (songOrderDisabled) return
+            void applySongArrangement([...(songSectionData?.arrangement || []), groupId])
+          }}
+          onRemoveEntry={(index) => {
+            if (songOrderDisabled) return
+            if ((songSectionData?.arrangement?.length || 0) <= 1) return
+            void applySongArrangement(songSectionData.arrangement.filter((_, entryIndex) => entryIndex !== index))
+          }}
+          onArrangementDrop={handleSongArrangementDrop}
+          setDragState={setSongOrderDragState}
+        />
+      ) : null}
 
       <div className="flex-1 flex items-center justify-center p-6" onContextMenu={(event) => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY, target: 'slide' }) }}>
         <div
@@ -931,6 +1170,121 @@ function EmptyState({ message }) {
   return (
     <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg-app)' }}>
       <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>{message}</p>
+    </div>
+  )
+}
+
+function SongOrderTray({
+  groups,
+  entries,
+  disabled,
+  loading,
+  onAddGroup,
+  onRemoveEntry,
+  onArrangementDrop,
+  setDragState,
+}) {
+  return (
+    <div
+      className="shrink-0 px-4 py-3"
+      style={{
+        background: 'var(--bg-toolbar)',
+        borderBottom: '1px solid var(--border-subtle)',
+        opacity: disabled ? 0.58 : 1,
+        pointerEvents: disabled ? 'none' : 'auto',
+      }}
+    >
+      <div className="flex items-center justify-between gap-4 mb-2">
+        <div>
+          <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+            Song Order
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {loading ? 'Loading linked song…' : 'Arrange section groups above the selected slide preview.'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <p className="text-[11px] uppercase mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
+          Available Sections
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {groups.map((group) => (
+            <button
+              key={group.id}
+              type="button"
+              draggable={!disabled}
+              onDragStart={() => setDragState({ kind: 'available', groupId: group.id })}
+              onDragEnd={() => setDragState(null)}
+              onClick={() => onAddGroup(group.id)}
+              className="text-xs px-2.5 py-1 rounded-full"
+              style={{
+                background: `${getSectionColor(group.type)}22`,
+                border: `1px solid ${getSectionColor(group.type)}55`,
+                color: 'var(--text-primary)',
+                cursor: disabled ? 'default' : 'grab',
+              }}
+            >
+              {group.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[11px] uppercase mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
+          Arrangement
+        </p>
+        <div
+          className="rounded-md p-2 min-h-14"
+          style={{ border: '1px dashed var(--border-default)', background: 'var(--bg-surface)' }}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={() => onArrangementDrop(entries.length)}
+        >
+          <div className="flex flex-wrap gap-2">
+            {entries.length ? entries.map((entry) => (
+              <div
+                key={`${entry.groupId}-${entry.index}`}
+                draggable={!disabled}
+                onDragStart={() => setDragState({ kind: 'arrangement', index: entry.index })}
+                onDragEnd={() => setDragState(null)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onArrangementDrop(entry.index)
+                }}
+                className="flex items-center gap-1 rounded-full px-2 py-1"
+                style={{
+                  background: `${getSectionColor(entry.group.type)}22`,
+                  border: `1px solid ${getSectionColor(entry.group.type)}55`,
+                  color: 'var(--text-primary)',
+                  cursor: disabled ? 'default' : 'grab',
+                }}
+              >
+                <GripVertical size={12} style={{ color: 'var(--text-tertiary)' }} />
+                <span className="text-xs">{entry.group.label}</span>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onRemoveEntry(entry.index)
+                  }}
+                  className="text-xs"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
+                  ×
+                </button>
+              </div>
+            )) : (
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                Add at least one section group to define an arrangement.
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

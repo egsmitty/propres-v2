@@ -5,6 +5,7 @@ import Filmstrip from '@/components/editor/Filmstrip'
 import Canvas from '@/components/editor/Canvas'
 import SongLibraryPanel from '@/components/library/SongLibraryPanel'
 import MediaLibraryPanel from '@/components/library/MediaLibraryPanel'
+import SongEditorModal from '@/components/library/SongEditorModal'
 import PresenterPanel from '@/components/presenter/PresenterPanel'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
 import PresentationSettingsModal from '@/components/editor/PresentationSettingsModal'
@@ -33,11 +34,13 @@ function getInitialFilmstripWidth() {
 export default function Editor() {
   const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
+  const newSongEditorOpen = useAppStore((s) => s.newSongEditorOpen)
   const presentationSettingsOpen = useAppStore((s) => s.presentationSettingsOpen)
   const outputSettingsOpen = useAppStore((s) => s.outputSettingsOpen)
   const filmstripVisible = useAppStore((s) => s.filmstripVisible)
   const allowWindowClose = useAppStore((s) => s.allowWindowClose)
   const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose)
+  const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
   const stopPresenting = usePresenterStore((s) => s.stopPresenting)
   const setLiveSlide = usePresenterStore((s) => s.setLiveSlide)
@@ -84,7 +87,7 @@ export default function Editor() {
   const setDirty = useEditorStore((s) => s.setDirty)
   const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave)
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
-  const panelOpen = songLibraryOpen || mediaLibraryOpen
+  const panelOpen = songLibraryOpen || mediaLibraryOpen || newSongEditorOpen
 
   // Listen for stop signal from output window (when presenter closes)
   useEffect(() => {
@@ -199,7 +202,7 @@ export default function Editor() {
   async function handlePresent() {
     if (!presentation) return
     if (panelOpen) {
-      await alertDialog('Close the Song Library or Media Library before presenting.', { title: 'Cannot Present' })
+      await alertDialog('Close any open library or editor panels before presenting.', { title: 'Cannot Present' })
       return
     }
     if (isPresenting) {
@@ -222,6 +225,13 @@ export default function Editor() {
     <div className="flex flex-col h-full overflow-hidden">
       {presentationSettingsOpen && <PresentationSettingsModal />}
       {outputSettingsOpen && <OutputSettingsModal />}
+      {newSongEditorOpen && (
+        <SongEditorModal
+          song={null}
+          onClose={() => setNewSongEditorOpen(false)}
+          onSave={() => {}}
+        />
+      )}
       {isPresenting && <LiveBanner />}
       <Toolbar
         onPresent={handlePresent}

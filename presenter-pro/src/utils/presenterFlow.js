@@ -37,6 +37,19 @@ export function flattenPresentationSlides(presentation) {
 
 const READY_TIMEOUT_MS = 5000
 
+function focusPresentationKeyboardTarget() {
+  if (typeof window === 'undefined') return
+
+  const activeElement = document.activeElement
+  if (activeElement && activeElement !== document.body && typeof activeElement.blur === 'function') {
+    activeElement.blur()
+  }
+
+  if (typeof window.focus === 'function') {
+    window.focus()
+  }
+}
+
 function waitWithTimeout(promise, label) {
   if (!promise) return Promise.resolve({ success: true })
   let timer
@@ -56,6 +69,8 @@ function waitWithTimeout(promise, label) {
 export async function startSidebarPresentationSession(presentation) {
   const slides = flattenPresentationSlides(presentation)
   if (!slides.length) return false
+
+  usePresenterStore.getState().setPresenterPanelOpen(true)
 
   await openOutputWindow()
   try {
@@ -86,6 +101,7 @@ export async function startSidebarPresentationSession(presentation) {
   const store = usePresenterStore.getState()
   store.startPresenting(startSlide.sectionId, startSlide.id)
   store.setAllSlides(slides)
+  focusPresentationKeyboardTarget()
 
   return true
 }

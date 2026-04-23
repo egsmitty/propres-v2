@@ -22,7 +22,9 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
   function handleContextMenu(e) {
     e.preventDefault()
     e.stopPropagation()
-    onSelect?.({ metaKey: false, ctrlKey: false, shiftKey: false })
+    if (!(selected || isMultiSelected)) {
+      onSelect?.({ metaKey: false, ctrlKey: false, shiftKey: false })
+    }
     setMenu({ x: e.clientX, y: e.clientY })
   }
 

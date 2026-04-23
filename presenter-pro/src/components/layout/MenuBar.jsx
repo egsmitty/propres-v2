@@ -31,6 +31,7 @@ const MENUS = [
     label: 'Edit',
     items: [
       { label: 'Presentation Settings…', action: 'edit:presentationSettings' },
+      { label: 'Output Settings…', action: 'view:outputSettings' },
     ]
   },
   {
@@ -41,7 +42,6 @@ const MENUS = [
       { divider: true },
       { label: 'Service Order', action: 'view:filmstrip' },
       { divider: true },
-      { label: 'Output Settings…', action: 'view:outputSettings' },
       { label: 'Presenter View', action: 'view:presenterView' },
       { label: 'Output Window', action: 'view:outputWindow' },
       { label: 'Stage Display Window', action: 'view:stageDisplayWindow' },
@@ -136,7 +136,7 @@ export default function MenuBar() {
       if (['file:save', 'file:saveAs', 'file:close', 'present:start'].includes(item.action)) {
         disabled = !presentation
       }
-      if (['edit:presentationSettings'].includes(item.action)) {
+      if (['edit:presentationSettings', 'view:outputSettings'].includes(item.action)) {
         disabled = !presentation
       }
       if (item.action === 'present:start') disabled = disabled || isPresenting
@@ -146,10 +146,6 @@ export default function MenuBar() {
       if (['view:zoomIn', 'view:zoomOut', 'view:filmstrip'].includes(item.action)) {
         disabled = !presentation
       }
-      if (item.action === 'view:outputSettings') {
-        disabled = !presentation
-      }
-
       if (item.action === 'view:filmstrip') {
         return {
           ...item,

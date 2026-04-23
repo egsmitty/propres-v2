@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup'
 import { DEFAULT_TEXT_STYLE, resolvePlaceholderText } from '@/utils/textBoxes'
 import { isRecentEditorToolbarInteraction } from '@/utils/richTextEditor'
@@ -29,6 +29,7 @@ export default function SlideTextEditor({
   onBlurCommit,
   onEscape,
   onTabNext,
+  registerCommitHandler,
 }) {
   const ref = useRef(null)
   const blurFrameRef = useRef(null)
@@ -41,10 +42,10 @@ export default function SlideTextEditor({
     setPlaceholderActive(false)
   }
 
-  function saveCurrentValue() {
+  const saveCurrentValue = useCallback(() => {
     if (!ref.current) return
     onSave(placeholderActive ? '' : normalizeEditorHtml(ref.current.innerHTML))
-  }
+  }, [onSave, placeholderActive])
 
   useEffect(() => {
     if (!ref.current) return
@@ -70,6 +71,12 @@ export default function SlideTextEditor({
       window.cancelAnimationFrame(blurFrameRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    if (!registerCommitHandler) return undefined
+    registerCommitHandler(saveCurrentValue)
+    return () => registerCommitHandler(null)
+  }, [registerCommitHandler, saveCurrentValue])
 
   function handleBeforeInput() {
     if (!ref.current || !placeholderActive) return

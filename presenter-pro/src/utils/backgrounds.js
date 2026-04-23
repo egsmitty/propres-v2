@@ -65,18 +65,23 @@ export function withEffectiveBackground(presentation, sectionId, slide) {
 
 export function fileUrlForPath(filePath) {
   if (!filePath) return ''
-  const normalized = String(filePath).replace(/\\/g, '/')
-  const encodePath = (value) => value.split('/').map((segment) => encodeURIComponent(segment)).join('/').replace(/%3A/g, ':')
+  const raw = String(filePath)
+  if (/^file:\/\//i.test(raw)) return raw
+
+  const normalized = raw.replace(/\\/g, '/')
+  const encoded = encodeURI(normalized).replace(/#/g, '%23').replace(/\?/g, '%3F')
 
   if (/^[A-Za-z]:\//.test(normalized)) {
-    return `file:///${encodePath(normalized)}`
+    return `file:///${encoded}`
   }
 
   if (normalized.startsWith('//')) {
-    return `file:${encodePath(normalized)}`
+    return `file:${encoded}`
   }
 
-  return `file://${encodePath(normalized)}`
+  return normalized.startsWith('/')
+    ? `file://${encoded}`
+    : `file:///${encoded}`
 }
 
 export function isVideoMedia(media) {
