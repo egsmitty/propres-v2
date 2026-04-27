@@ -89,15 +89,6 @@ export default function TitleBar() {
         position: 'relative',
       }}
     >
-      {/* macOS traffic lights — left side */}
-      {isMac && (
-        <div className="flex items-center gap-1.5 mr-3" style={{ WebkitAppRegion: 'no-drag' }}>
-          <MacButton onClick={handleClose} color="#ff5f57" hoverIcon="×" title="Close" />
-          <MacButton onClick={handleMinimize} color="#febc2e" hoverIcon="−" title="Minimize" />
-          <MacButton onClick={handleMaximize} color="#28c840" hoverIcon="+" title="Maximize" />
-        </div>
-      )}
-
       {/* Back button */}
       {currentView === 'editor' && (
         <button
@@ -112,11 +103,6 @@ export default function TitleBar() {
           Home
         </button>
       )}
-
-      {/* App name */}
-      <span className="text-xs font-medium mr-2" style={{ color: 'var(--text-secondary)' }}>
-        PresenterPro
-      </span>
 
       {/* Presentation title — double-click to rename */}
       {currentView === 'editor' && presentation && (
@@ -179,26 +165,6 @@ export default function TitleBar() {
         </div>
       )}
     </div>
-  )
-}
-
-function MacButton({ onClick, color, hoverIcon, title }) {
-  const [hovered, setHovered] = React.useState(false)
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className="w-3 h-3 rounded-full flex items-center justify-center"
-      style={{ background: color, flexShrink: 0 }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {hovered && (
-        <span style={{ fontSize: 8, lineHeight: 1, color: 'rgba(0,0,0,0.6)', fontWeight: 700, userSelect: 'none' }}>
-          {hoverIcon}
-        </span>
-      )}
-    </button>
   )
 }
 

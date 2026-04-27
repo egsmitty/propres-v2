@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Menu, dialog, shell, screen, nativeImage } 
 const os = require('os')
 const fs = require('fs')
 const path = require('path')
+const { pathToFileURL } = require('url')
 const { getDb } = require('../db/index')
 const { runMigrations } = require('../db/migrations')
 const songQueries = require('../db/queries/songs')
@@ -28,12 +29,76 @@ let allowPresenterWindowClose = false
 let presentationSessionSlides = []
 let currentStageSlide = null
 let currentStageBackground = null
+let allowMainWindowClose = false
+
+function emitWindowViewState(win) {
+  if (!win || win.isDestroyed()) return
+  win.webContents.send('window:viewState', {
+    isFullScreen: win.isFullScreen(),
+  })
+}
 
 function normalizeMediaFilePath(filePath) {
   const resolved = path.normalize(path.resolve(filePath))
   return process.platform === 'win32'
     ? resolved.replace(/\//g, '\\')
     : resolved
+}
+
+function canonicalizeMediaFilePath(filePath) {
+  const normalized = normalizeMediaFilePath(filePath)
+  const slashNormalized = normalized.replace(/\\/g, '/')
+  return process.platform === 'win32'
+    ? slashNormalized.toLowerCase()
+    : slashNormalized
+}
+
+function mediaPathExists(filePath) {
+  try {
+    return Boolean(filePath && fs.existsSync(filePath))
+  } catch {
+    return false
+  }
+}
+
+function toFileUrl(filePath) {
+  if (!filePath) return null
+  try {
+    return pathToFileURL(filePath).href
+  } catch {
+    return null
+  }
+}
+
+function serializeMediaRecord(item) {
+  if (!item) return item
+
+  const fileExists = mediaPathExists(item.file_path)
+  const thumbnailExists = mediaPathExists(item.thumbnail_path)
+
+  return {
+    ...item,
+    canonical_path: item.canonical_path || (item.file_path ? canonicalizeMediaFilePath(item.file_path) : null),
+    file_exists: fileExists,
+    thumbnail_exists: thumbnailExists,
+    file_url: fileExists ? toFileUrl(item.file_path) : null,
+    thumbnail_url: thumbnailExists ? toFileUrl(item.thumbnail_path) : null,
+    preview_url: thumbnailExists ? toFileUrl(item.thumbnail_path) : fileExists ? toFileUrl(item.file_path) : null,
+  }
+}
+
+function syncMediaCanonicalPaths(db) {
+  const items = mediaQueries.getMedia(db)
+  const updateCanonicalPath = db.prepare('UPDATE media SET canonical_path = ? WHERE id = ?')
+  const tx = db.transaction((records) => {
+    records.forEach((item) => {
+      const nextCanonicalPath = item.file_path ? canonicalizeMediaFilePath(item.file_path) : null
+      if (item.canonical_path !== nextCanonicalPath) {
+        updateCanonicalPath.run(nextCanonicalPath, item.id)
+      }
+    })
+  })
+  tx(items)
 }
 
 function resolveRuntimeAssetPath(...segments) {
@@ -110,6 +175,23 @@ function broadcast(channel, payload) {
   if (stageDisplayWindow) stageDisplayWindow.webContents.send(channel, payload)
   if (presenterWindow) presenterWindow.webContents.send(channel, payload)
   if (mainWindow) mainWindow.webContents.send(channel, payload)
+}
+
+function notifyMainWindow(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload)
+  }
+}
+
+function getPreviewWindowState() {
+  return {
+    outputOpen: Boolean(outputWindow && !outputWindow.isDestroyed()),
+    stageOpen: Boolean(stageDisplayWindow && !stageDisplayWindow.isDestroyed()),
+  }
+}
+
+function publishPreviewWindowState(kind, open) {
+  notifyMainWindow('preview:windowState', { kind, open })
 }
 
 function getSettingValue(db, key) {
@@ -285,13 +367,14 @@ function createMainWindow() {
   const preloadPath = isDev
     ? path.join(__dirname, '../../out/preload/index.js')
     : path.join(__dirname, '../preload/index.js')
+  const isMac = process.platform === 'darwin'
 
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 800,
     minWidth: 1200,
     minHeight: 700,
-    frame: false,
+    frame: !isMac ? false : true,
     icon: appWindowIcon,
     webPreferences: {
       preload: preloadPath,
@@ -306,8 +389,19 @@ function createMainWindow() {
     mainWindow.loadFile(path.join(__dirname, '../../out/renderer/index.html'))
   }
 
+  mainWindow.on('close', (event) => {
+    if (allowMainWindowClose) {
+      allowMainWindowClose = false
+      return
+    }
+
+    event.preventDefault()
+    mainWindow?.webContents.send('app:command', 'window:requestClose')
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
+    allowMainWindowClose = false
     // DISABLED (session 6): presenter moved to sidebar, no presenterWindow to close
     // if (presenterWindow) presenterWindow.close()
     if (outputWindow) outputWindow.close()
@@ -390,6 +484,8 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
     }
 
     if (!outputWindow.isVisible()) outputWindow.showInactive()
+    emitWindowViewState(outputWindow)
+    publishPreviewWindowState('output', true)
     if (presenterWindow && !presenterWindow.isDestroyed()) presenterWindow.focus()
     else mainWindow?.focus()
     return
@@ -426,6 +522,8 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
       setWindowedPreviewBounds(outputWindow)
     }
     outputWindow.showInactive()
+    emitWindowViewState(outputWindow)
+    publishPreviewWindowState('output', true)
     if (presenterWindow && !presenterWindow.isDestroyed()) {
       presenterWindow.focus()
     } else {
@@ -447,7 +545,12 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
     outputReadyResolvers = []
     resetOutputState()
     resetCountdownState()
+    publishPreviewWindowState('output', false)
+    notifyMainWindow('preview:windowClosed', { kind: 'output' })
   })
+
+  outputWindow.on('enter-full-screen', () => emitWindowViewState(outputWindow))
+  outputWindow.on('leave-full-screen', () => emitWindowViewState(outputWindow))
 }
 
 function createStageDisplayWindow(options = {}) {
@@ -470,6 +573,8 @@ function createStageDisplayWindow(options = {}) {
       stageDisplayWindow.setFullScreen(false)
     }
     if (!stageDisplayWindow.isVisible()) stageDisplayWindow.showInactive()
+    emitWindowViewState(stageDisplayWindow)
+    publishPreviewWindowState('stage', true)
     return { opened: true, assigned: Boolean(assignedDisplay) }
   }
 
@@ -501,6 +606,8 @@ function createStageDisplayWindow(options = {}) {
       stageDisplayWindow.setFullScreen(false)
     }
     stageDisplayWindow.showInactive()
+    emitWindowViewState(stageDisplayWindow)
+    publishPreviewWindowState('stage', true)
   })
 
   if (isDev) {
@@ -515,7 +622,12 @@ function createStageDisplayWindow(options = {}) {
     stageDisplayWindow = null
     stageDisplayReady = false
     stageDisplayReadyResolvers = []
+    publishPreviewWindowState('stage', false)
+    notifyMainWindow('preview:windowClosed', { kind: 'stage' })
   })
+
+  stageDisplayWindow.on('enter-full-screen', () => emitWindowViewState(stageDisplayWindow))
+  stageDisplayWindow.on('leave-full-screen', () => emitWindowViewState(stageDisplayWindow))
 
   return { opened: true, assigned: Boolean(assignedDisplay) }
 }
@@ -526,11 +638,31 @@ function registerIpcHandlers() {
   const db = getDb()
 
   // Window controls
-  ipcMain.handle('window:close', () => { if (mainWindow) mainWindow.close() })
+  ipcMain.handle('window:close', () => {
+    if (mainWindow) {
+      allowMainWindowClose = true
+      mainWindow.close()
+    }
+  })
   ipcMain.handle('window:minimize', () => { if (mainWindow) mainWindow.minimize() })
   ipcMain.handle('window:maximize', () => {
     if (mainWindow) {
       mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize()
+    }
+  })
+  ipcMain.handle('window:getViewState', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    return {
+      success: true,
+      data: {
+        isFullScreen: Boolean(win?.isFullScreen?.()),
+      },
+    }
+  })
+  ipcMain.handle('preview:getState', () => {
+    return {
+      success: true,
+      data: getPreviewWindowState(),
     }
   })
 
@@ -576,7 +708,7 @@ function registerIpcHandlers() {
 
   // Media
   ipcMain.handle('db:media:getAll', () => {
-    try { return { success: true, data: mediaQueries.getMedia(db) } }
+    try { return { success: true, data: mediaQueries.getMedia(db).map(serializeMediaRecord) } }
     catch (e) { return { success: false, error: e.message } }
   })
   ipcMain.handle('db:mediaFolders:getAll', () => {
@@ -588,7 +720,17 @@ function registerIpcHandlers() {
     catch (e) { return { success: false, error: e.message } }
   })
   ipcMain.handle('db:media:create', (_, data) => {
-    try { return { success: true, data: mediaQueries.createMedia(db, data) } }
+    try {
+      const normalized = data?.file_path ? normalizeMediaFilePath(data.file_path) : data?.file_path ?? null
+      const thumbnailPath = data?.thumbnail_path ? normalizeMediaFilePath(data.thumbnail_path) : data?.thumbnail_path ?? null
+      const created = mediaQueries.createMedia(db, {
+        ...data,
+        file_path: normalized,
+        canonical_path: normalized ? canonicalizeMediaFilePath(normalized) : null,
+        thumbnail_path: thumbnailPath,
+      })
+      return { success: true, data: serializeMediaRecord(created) }
+    }
     catch (e) { return { success: false, error: e.message } }
   })
   ipcMain.handle('db:mediaFolders:update', (_, id, data) => {
@@ -608,17 +750,23 @@ function registerIpcHandlers() {
         ],
       })
       if (result.canceled) return { success: true, data: [] }
-      const inserted = result.filePaths.map((filePath) => {
+      const inserted = result.filePaths.flatMap((filePath) => {
         const absPath = normalizeMediaFilePath(filePath)
+        if (!mediaPathExists(absPath)) return []
+        const canonicalPath = canonicalizeMediaFilePath(absPath)
+        const existing = mediaQueries.getMedia(db).find((item) => item.canonical_path === canonicalPath)
+        if (existing) return [serializeMediaRecord(existing)]
         const name = path.basename(absPath)
         const ext = path.extname(absPath).toLowerCase().slice(1)
         const type = ['mp4', 'mov', 'webm'].includes(ext) ? 'video' : 'image'
-        return mediaQueries.createMedia(db, {
+        const created = mediaQueries.createMedia(db, {
           name,
           type,
           file_path: absPath,
+          canonical_path: canonicalPath,
           folder_id: options?.folderId ?? null,
         })
+        return [serializeMediaRecord(created)]
       })
       return { success: true, data: inserted }
     } catch (e) { return { success: false, error: e.message } }
@@ -636,24 +784,39 @@ function registerIpcHandlers() {
       if (result.canceled || !result.filePaths?.length) return { success: true, data: null }
 
       const filePath = normalizeMediaFilePath(result.filePaths[0])
-      const matchPath = process.platform === 'win32' ? filePath.toLowerCase() : filePath
-      const existing = mediaQueries.getMedia(db).find((item) => {
-        const candidate = process.platform === 'win32'
-          ? String(item.file_path || '').toLowerCase()
-          : item.file_path
-        return candidate === matchPath
-      })
-      if (existing) return { success: true, data: existing }
+      if (!mediaPathExists(filePath)) {
+        return { success: false, error: 'The selected media file could not be found.' }
+      }
+      const canonicalPath = canonicalizeMediaFilePath(filePath)
+      const existing = mediaQueries.getMedia(db).find((item) => item.canonical_path === canonicalPath)
+      if (existing) return { success: true, data: serializeMediaRecord(existing) }
 
       const name = path.basename(filePath)
       const ext = path.extname(filePath).toLowerCase().slice(1)
       const type = ['mp4', 'mov', 'webm'].includes(ext) ? 'video' : 'image'
-      const inserted = mediaQueries.createMedia(db, { name, type, file_path: filePath })
-      return { success: true, data: inserted }
+      const inserted = mediaQueries.createMedia(db, {
+        name,
+        type,
+        file_path: filePath,
+        canonical_path: canonicalPath,
+      })
+      return { success: true, data: serializeMediaRecord(inserted) }
     } catch (e) { return { success: false, error: e.message } }
   })
   ipcMain.handle('db:media:update', (_, id, data) => {
-    try { return { success: true, data: mediaQueries.updateMedia(db, id, data) } }
+    try {
+      const normalized = data?.file_path ? normalizeMediaFilePath(data.file_path) : data?.file_path
+      const thumbnailPath = data?.thumbnail_path ? normalizeMediaFilePath(data.thumbnail_path) : data?.thumbnail_path
+      const updated = mediaQueries.updateMedia(db, id, {
+        ...data,
+        ...(normalized !== undefined ? {
+          file_path: normalized,
+          canonical_path: normalized ? canonicalizeMediaFilePath(normalized) : null,
+        } : {}),
+        ...(thumbnailPath !== undefined ? { thumbnail_path: thumbnailPath } : {}),
+      })
+      return { success: true, data: serializeMediaRecord(updated) }
+    }
     catch (e) { return { success: false, error: e.message } }
   })
   ipcMain.handle('db:media:delete', (_, id) => {
@@ -701,7 +864,14 @@ function registerIpcHandlers() {
     createOutputWindow(resolvedOptions)
     return { success: true }
   })
-  ipcMain.handle('output:close', () => { if (outputWindow) outputWindow.close(); return { success: true } })
+  ipcMain.handle('output:close', () => {
+    if (outputWindow) {
+      publishPreviewWindowState('output', false)
+      notifyMainWindow('preview:windowClosed', { kind: 'output' })
+      outputWindow.close()
+    }
+    return { success: true }
+  })
   ipcMain.handle('stage:open', (_, options) => {
     try {
       const data = createStageDisplayWindow(options)
@@ -710,7 +880,14 @@ function registerIpcHandlers() {
       return { success: false, error: e.message }
     }
   })
-  ipcMain.handle('stage:close', () => { if (stageDisplayWindow) stageDisplayWindow.close(); return { success: true } })
+  ipcMain.handle('stage:close', () => {
+    if (stageDisplayWindow) {
+      publishPreviewWindowState('stage', false)
+      notifyMainWindow('preview:windowClosed', { kind: 'stage' })
+      stageDisplayWindow.close()
+    }
+    return { success: true }
+  })
   ipcMain.handle('output:ready', () => {
     markOutputReady()
     return { success: true }
@@ -899,12 +1076,9 @@ function buildNativeMenu() {
         { role: 'reload' },
         { role: 'toggleDevTools' },
         { type: 'separator' },
-        { label: 'Output Window', click: () => sendCommand('view:outputWindow') },
-        { label: 'Stage Display Window', click: () => sendCommand('view:stageDisplayWindow') },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
+        { label: 'Song Library', click: () => sendCommand('view:songLibrary') },
+        { label: 'Media Library', click: () => sendCommand('view:mediaLibrary') },
+        { label: 'Show / Hide Presenter Panel', click: () => sendCommand('view:presenterPanel') },
         { type: 'separator' },
         { role: 'togglefullscreen' },
       ],
@@ -923,6 +1097,7 @@ app.whenReady().then(() => {
   }
   const db = getDb()
   runMigrations(db)
+  syncMediaCanonicalPaths(db)
   seed(db)
   registerIpcHandlers()
   buildNativeMenu()

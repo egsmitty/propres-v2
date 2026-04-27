@@ -9,7 +9,7 @@ import {
   getPresentation,
   updatePresentation,
 } from '@/utils/ipc'
-import { normalizePresentation } from '@/utils/backgrounds'
+import { mediaComparisonKey, normalizePresentation } from '@/utils/backgrounds'
 import { PRESENTATION_TEMPLATES, SAMPLE_MEDIA_LIBRARY } from '@/utils/presentationTemplates'
 import { uuid } from '@/utils/uuid'
 import {
@@ -108,7 +108,12 @@ export async function createPresentationFromTemplate(templateId) {
   async function ensureMedia(mediaDefinition) {
     const existing = await getMedia()
     const matches = existing?.success ? existing.data : []
-    const found = matches.find((item) => item.file_path === mediaDefinition.file_path)
+    const targetKey = mediaDefinition.canonical_path || mediaComparisonKey(mediaDefinition.file_path)
+    const found = matches.find((item) => (
+      item.canonical_path && targetKey
+        ? item.canonical_path === targetKey
+        : item.file_path === mediaDefinition.file_path
+    ))
     if (found) return found
 
     const created = await createMedia(mediaDefinition)
@@ -187,6 +192,9 @@ export async function insertNewSlideIntoCurrentPresentation() {
     sectionType
   )
 
+  const preserveCurrentEditing = state.editingSlideId === state.selectedSlideId && Boolean(state.selectedSlideId)
+  const preservedTextBoxIds = preserveCurrentEditing ? [...(state.selectedTextBoxIds || [])] : []
+
   state.setPresentation(
     normalizePresentation({
       ...presentation,
@@ -194,7 +202,14 @@ export async function insertNewSlideIntoCurrentPresentation() {
     })
   )
   state.setDirty(true)
-  state.setSelectedSlide(inserted.sectionId, newSlide.id)
+  if (preserveCurrentEditing) {
+    state.setSelectedSlide(state.selectedSectionId, state.selectedSlideId)
+    state.setSelectedTextBoxIds(preservedTextBoxIds)
+    state.setEditingSlide(state.selectedSlideId)
+  } else {
+    state.setSelectedSlide(inserted.sectionId, newSlide.id)
+    state.setSuppressAutoEditSlideId(newSlide.id)
+  }
 
   return newSlide
 }

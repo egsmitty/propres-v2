@@ -16,6 +16,7 @@ function runMigrations(db) {
       name TEXT NOT NULL,
       type TEXT NOT NULL,
       file_path TEXT NOT NULL,
+      canonical_path TEXT,
       thumbnail_path TEXT,
       duration INTEGER,
       tags TEXT,
@@ -49,6 +50,8 @@ function runMigrations(db) {
   try { db.exec('ALTER TABLE presentations ADD COLUMN custom_aspect_height INTEGER') } catch (_) {}
   try { db.exec('ALTER TABLE songs ADD COLUMN song_order TEXT') } catch (_) {}
   try { db.exec('ALTER TABLE media ADD COLUMN folder_id INTEGER') } catch (_) {}
+  try { db.exec('ALTER TABLE media ADD COLUMN canonical_path TEXT') } catch (_) {}
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_media_canonical_path ON media(canonical_path)') } catch (_) {}
 }
 
 module.exports = { runMigrations }

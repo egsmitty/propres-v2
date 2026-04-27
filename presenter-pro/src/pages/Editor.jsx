@@ -41,6 +41,8 @@ export default function Editor() {
   const allowWindowClose = useAppStore((s) => s.allowWindowClose)
   const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose)
   const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen)
+  const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
+  const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
   const stopPresenting = usePresenterStore((s) => s.stopPresenting)
   const setLiveSlide = usePresenterStore((s) => s.setLiveSlide)
@@ -88,6 +90,7 @@ export default function Editor() {
   const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave)
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
   const panelOpen = songLibraryOpen || mediaLibraryOpen || newSongEditorOpen
+  const libraryPanelOpen = songLibraryOpen || mediaLibraryOpen
 
   // Listen for stop signal from output window (when presenter closes)
   useEffect(() => {
@@ -221,6 +224,11 @@ export default function Editor() {
       .catch(() => stopPresenting())
   }
 
+  function closeLibraryPanels() {
+    setSongLibraryOpen(false)
+    setMediaLibraryOpen(false)
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {presentationSettingsOpen && <PresentationSettingsModal />}
@@ -241,6 +249,18 @@ export default function Editor() {
       <div className="flex flex-1 overflow-hidden relative">
         {songLibraryOpen && <SongLibraryPanel />}
         {mediaLibraryOpen && <MediaLibraryPanel />}
+        {libraryPanelOpen ? (
+          <button
+            type="button"
+            aria-label="Close library panel"
+            onMouseDown={(event) => {
+              event.preventDefault()
+              closeLibraryPanels()
+            }}
+            className="absolute inset-0 z-20 cursor-default"
+            style={{ background: 'transparent', left: 320 }}
+          />
+        ) : null}
         <div
           className="flex flex-1 overflow-hidden"
           style={{ pointerEvents: panelOpen ? 'none' : 'auto' }}

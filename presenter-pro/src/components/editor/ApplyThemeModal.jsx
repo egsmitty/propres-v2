@@ -9,7 +9,7 @@ const FONT_OPTIONS = [
   'Courier New, monospace',
 ]
 
-export default function ApplyThemeModal({ count, onClose, onApply }) {
+export default function ApplyThemeModal({ count, initialTheme = null, onClose, onApply }) {
   const [media, setMedia] = useState([])
   const [fontFamily, setFontFamily] = useState('Arial, sans-serif')
   const [size, setSize] = useState(48)
@@ -32,6 +32,23 @@ export default function ApplyThemeModal({ count, onClose, onApply }) {
     }
     loadMedia()
   }, [])
+
+  useEffect(() => {
+    if (!initialTheme) return
+    setFontFamily(initialTheme.fontFamily || 'Arial, sans-serif')
+    setSize(initialTheme.size ?? 48)
+    setColor(initialTheme.color || '#ffffff')
+    setAlign(initialTheme.align || 'center')
+    setLineHeight(initialTheme.lineHeight ?? 1.2)
+    setHighlightColor(initialTheme.highlightColor || 'transparent')
+    setTextBoxFillColor(initialTheme.textBoxFillColor || 'transparent')
+    setBold(Boolean(initialTheme.bold))
+    setItalic(Boolean(initialTheme.italic))
+    setUnderline(Boolean(initialTheme.underline))
+    setStrikethrough(Boolean(initialTheme.strikethrough))
+    setBackgroundMode(initialTheme.backgroundMode || 'keep')
+    setBackgroundId(initialTheme.backgroundId != null ? String(initialTheme.backgroundId) : '')
+  }, [initialTheme])
 
   function handleApply() {
     onApply({
@@ -77,10 +94,10 @@ export default function ApplyThemeModal({ count, onClose, onApply }) {
         }}
       >
         <h2 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-          Apply Theme
+          Style Selected Slides
         </h2>
         <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>
-          Apply slide styling to {count} selected slides.
+          Start from the current slide's look, then apply it across {count} selected slides.
         </p>
 
         <div className="flex flex-col gap-3">

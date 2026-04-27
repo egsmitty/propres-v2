@@ -84,6 +84,23 @@ export function fileUrlForPath(filePath) {
     : `file:///${encoded}`
 }
 
+export function mediaComparisonKey(filePath) {
+  if (!filePath) return null
+  const normalized = String(filePath).replace(/\\/g, '/')
+  const isWindowsPath = /^[A-Za-z]:\//.test(normalized)
+  return isWindowsPath ? normalized.toLowerCase() : normalized
+}
+
+export function getMediaAssetUrl(media, { preferThumbnail = false } = {}) {
+  if (!media) return ''
+
+  if (preferThumbnail) {
+    return media.thumbnail_url || media.preview_url || media.file_url || fileUrlForPath(media.thumbnail_path || media.file_path)
+  }
+
+  return media.file_url || media.preview_url || fileUrlForPath(media.file_path)
+}
+
 export function isVideoMedia(media) {
   return media?.type === 'video'
 }

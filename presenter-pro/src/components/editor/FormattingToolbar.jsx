@@ -20,6 +20,10 @@ import {
   displayToInternalFontSize,
   internalToDisplayFontSize,
 } from '@/utils/textBoxes'
+import {
+  clearPendingNumericFieldCommit,
+  registerPendingNumericFieldCommit,
+} from '@/utils/pendingNumericCommit'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -57,6 +61,26 @@ const CASE_OPTIONS = [
 const TOOLBAR_H = 38
 const TOOLBAR_GAP = 8
 const TOOLBAR_MAX_W = 680
+
+function getRenderedBodyFontSize(body, fallback) {
+  if (typeof window === 'undefined' || typeof DOMParser === 'undefined' || !body) return fallback
+
+  try {
+    const doc = new DOMParser().parseFromString(`<div>${body}</div>`, 'text/html')
+    const sizes = new Set()
+
+    doc.body.querySelectorAll('*').forEach((node) => {
+      const fontSize = node.style?.fontSize
+      if (!fontSize || !fontSize.endsWith('px')) return
+      const numeric = Number.parseFloat(fontSize)
+      if (Number.isFinite(numeric) && numeric > 0) sizes.add(Math.round(numeric))
+    })
+
+    return sizes.size === 1 ? [...sizes][0] : fallback
+  } catch {
+    return fallback
+  }
+}
 
 function useInlineEditingScope() {
   const editor = getActiveSlideTextEditor()
@@ -139,24 +163,53 @@ function Btn({ active = false, title, onClick, children, danger = false }) {
   )
 }
 
-function NumberField({ value, onCommit, min, max, step = 1, width = 50 }) {
+function NumberField({ value, onCommit, min, max, step = 1, width = 50, registerPendingCommit = false }) {
   const [draft, setDraft] = useState(String(value ?? ''))
   const [focused, setFocused] = useState(false)
+  const inputRef = useRef(null)
 
   useEffect(() => {
     if (!focused) setDraft(String(value ?? ''))
   }, [value, focused])
 
   function commit() {
-    const n = Number(draft)
+    const n = Number(inputRef.current?.value ?? draft)
     if (Number.isFinite(n)) onCommit(Math.min(max, Math.max(min, n)))
     else setDraft(String(value ?? ''))
     setFocused(false)
   }
 
+  useEffect(() => {
+    if (!focused || !registerPendingCommit) return undefined
+
+    function flushPendingCommit() {
+      commit()
+    }
+
+    registerPendingNumericFieldCommit(flushPendingCommit)
+    return () => {
+      clearPendingNumericFieldCommit(flushPendingCommit)
+    }
+  }, [draft, focused, max, min, onCommit, registerPendingCommit, value])
+
+  useEffect(() => {
+    if (!focused) return undefined
+
+    function commitOnOutsidePointerDown(event) {
+      if (inputRef.current?.contains(event.target)) return
+      commit()
+    }
+
+    document.addEventListener('mousedown', commitOnOutsidePointerDown, true)
+    return () => {
+      document.removeEventListener('mousedown', commitOnOutsidePointerDown, true)
+    }
+  }, [focused, draft, value, min, max])
+
   return (
     <input
       data-editor-toolbar="true"
+      ref={inputRef}
       type="number"
       value={draft}
       min={min}
@@ -167,9 +220,15 @@ function NumberField({ value, onCommit, min, max, step = 1, width = 50 }) {
         const n = Number(e.target.value)
         if (Number.isFinite(n) && n >= min && n <= max) onCommit(n)
       }}
-      onFocus={() => setFocused(true)}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit() } }}
+      onFocus={() => {
+        setFocused(true)
+      }}
+      onBlur={() => {
+        commit()
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit() }
+      }}
       style={{
         width, height: 26,
         textAlign: 'center',
@@ -721,7 +780,7 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
 
       {/* Font size */}
       <NumberField
-        value={internalToDisplayFontSize(style.size || DEFAULT_TEXT_STYLE.size)}
+        value={internalToDisplayFontSize(getRenderedBodyFontSize(box.body, style.size || DEFAULT_TEXT_STYLE.size))}
         onCommit={(v) => {
           const internalValue = displayToInternalFontSize(v, style.size || DEFAULT_TEXT_STYLE.size)
           if (inline.inlineActive && applyEditorFontSize(internalValue, inline.editor)) return
@@ -730,6 +789,7 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
         min={MIN_FONT_SIZE_DISPLAY}
         max={MAX_FONT_SIZE_DISPLAY}
         width={50}
+        registerPendingCommit
       />
 
       <Sep />

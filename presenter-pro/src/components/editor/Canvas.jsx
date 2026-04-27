@@ -3,7 +3,7 @@ import { useEditorStore } from '@/store/editorStore'
 import { useAppStore } from '@/store/appStore'
 import { GripVertical } from 'lucide-react'
 import { getMedia, getSongs, updateSong } from '@/utils/ipc'
-import { fileUrlForPath, getEffectiveBackgroundId, isVideoMedia } from '@/utils/backgrounds'
+import { getEffectiveBackgroundId, getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds'
 import { getSectionColor, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { slideBodyToHtml } from '@/utils/slideMarkup'
@@ -22,6 +22,7 @@ import {
   getSlideTextBoxes,
   resolvePlaceholderText,
 } from '@/utils/textBoxes'
+import { flushPendingNumericFieldCommit } from '@/utils/pendingNumericCommit'
 import SlideTextEditor from './SlideTextEditor'
 
 const SNAP_THRESHOLD = 8
@@ -57,10 +58,15 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
+function getResizeHandleCode(handle) {
+  return String(handle || '').replace(/^resize_/, '')
+}
+
 function getResizeHandleDirections(handle) {
+  const code = getResizeHandleCode(handle)
   return {
-    x: handle.includes('e') ? 1 : handle.includes('w') ? -1 : 0,
-    y: handle.includes('s') ? 1 : handle.includes('n') ? -1 : 0,
+    x: code.includes('e') ? 1 : code.includes('w') ? -1 : 0,
+    y: code.includes('s') ? 1 : code.includes('n') ? -1 : 0,
   }
 }
 
@@ -281,8 +287,10 @@ export default function Canvas() {
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const editingSlideId = useEditorStore((s) => s.editingSlideId)
   const lastAddedTextBoxId = useEditorStore((s) => s.lastAddedTextBoxId)
+  const suppressAutoEditSlideId = useEditorStore((s) => s.suppressAutoEditSlideId)
   const clearLastAddedTextBoxId = useEditorStore((s) => s.clearLastAddedTextBoxId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
+  const setSuppressAutoEditSlideId = useEditorStore((s) => s.setSuppressAutoEditSlideId)
   const setSelectedTextBoxIdsInStore = useEditorStore((s) => s.setSelectedTextBoxIds)
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody)
   const updateSlideTextBoxes = useEditorStore((s) => s.updateSlideTextBoxes)
@@ -357,6 +365,7 @@ export default function Canvas() {
   }
 
   function finishInlineEditing(nextSelectedIds = []) {
+    flushPendingNumericFieldCommit()
     if (!editingTextBoxId) return
     suppressBlurCommitRef.current = true
     commitActiveEditor()
@@ -522,15 +531,22 @@ export default function Canvas() {
     const slideChanged = previousSlideIdRef.current !== currentSlideId
     previousSlideIdRef.current = currentSlideId
 
-    if (!slideChanged || !slide || mediaOnlySlide || editingTextBoxId || selectedTextBoxIds.length) return
+    if (!slideChanged || !slide || mediaOnlySlide) return
     if (textBoxes.length !== 1) return
 
     const [box] = textBoxes
     if ((box.body || '').trim()) return
 
+    if (suppressAutoEditSlideId === slide.id) {
+      setSelectedTextBoxIds([box.id])
+      setEditingSlide(null)
+      setSuppressAutoEditSlideId(null)
+      return
+    }
+
     setSelectedTextBoxIds([box.id])
     setEditingSlide(slide.id)
-  }, [editingTextBoxId, mediaOnlySlide, selectedTextBoxIds.length, slide?.id, textBoxes])
+  }, [mediaOnlySlide, setEditingSlide, setSuppressAutoEditSlideId, slide?.id, suppressAutoEditSlideId, textBoxes])
 
   useEffect(() => {
     if (!lastAddedTextBoxId || !slide || mediaOnlySlide) return
@@ -586,6 +602,7 @@ export default function Canvas() {
         const box = state.box
         const modifierSymmetric = event.metaKey || event.ctrlKey
         const keepRatio = state.corner && (event.shiftKey || modifierSymmetric)
+        const handleCode = getResizeHandleCode(state.handle)
 
         if (modifierSymmetric) {
           const updated = resizeBoxFromCenter(box, state.handle, pointerX, pointerY, nativeW, nativeH, keepRatio)
@@ -601,14 +618,14 @@ export default function Canvas() {
         let height = box.height
         const ratio = box.width / Math.max(1, box.height)
 
-        if (state.handle.includes('e')) width = clamp(box.width + pointerX, MIN_TEXT_BOX_WIDTH, nativeW - x)
-        if (state.handle.includes('s')) height = clamp(box.height + pointerY, MIN_TEXT_BOX_HEIGHT, nativeH - y)
-        if (state.handle.includes('w')) {
+        if (handleCode.includes('e')) width = clamp(box.width + pointerX, MIN_TEXT_BOX_WIDTH, nativeW - x)
+        if (handleCode.includes('s')) height = clamp(box.height + pointerY, MIN_TEXT_BOX_HEIGHT, nativeH - y)
+        if (handleCode.includes('w')) {
           const nextWidth = clamp(box.width - pointerX, MIN_TEXT_BOX_WIDTH, box.x + box.width)
           x = box.x + box.width - nextWidth
           width = nextWidth
         }
-        if (state.handle.includes('n')) {
+        if (handleCode.includes('n')) {
           const nextHeight = clamp(box.height - pointerY, MIN_TEXT_BOX_HEIGHT, box.y + box.height)
           y = box.y + box.height - nextHeight
           height = nextHeight
@@ -620,8 +637,8 @@ export default function Canvas() {
           } else {
             width = clamp(height * ratio, MIN_TEXT_BOX_WIDTH, nativeW - x)
           }
-          if (state.handle.includes('w')) x = box.x + box.width - width
-          if (state.handle.includes('n')) y = box.y + box.height - height
+          if (handleCode.includes('w')) x = box.x + box.width - width
+          if (handleCode.includes('n')) y = box.y + box.height - height
         }
 
         const updated = { ...box, x, y, width, height }
@@ -801,6 +818,7 @@ export default function Canvas() {
 
   useEffect(() => {
     function clearActiveSelection() {
+      flushPendingNumericFieldCommit()
       if (editingTextBoxId) {
         finishInlineEditing([])
         return
@@ -861,6 +879,7 @@ export default function Canvas() {
     if (event.button !== 0) return
     if (event.target.closest?.('[data-textbox-root="true"]')) return
     pendingOutsideBlurRef.current = true
+    flushPendingNumericFieldCommit()
 
     if (isEditing) {
       finishInlineEditing([])
@@ -880,6 +899,7 @@ export default function Canvas() {
 
   function handleTextBoxMouseDown(event, textBox) {
     if (event.button !== 0) return
+    flushPendingNumericFieldCommit()
     if (isEditing && editingTextBoxId === textBox.id) return
     if (isEditing) {
       finishInlineEditing([textBox.id])
@@ -903,6 +923,7 @@ export default function Canvas() {
   }
 
   function handleTextBoxDoubleClick(event, textBoxId) {
+    flushPendingNumericFieldCommit()
     if (isEditing && editingTextBoxId === textBoxId) return
     event.preventDefault()
     event.stopPropagation()
@@ -1373,11 +1394,29 @@ function SelectionRect({ rect }) {
 
 function CanvasBackground({ media }) {
   if (!media?.file_path) return null
+  const src = getMediaAssetUrl(media)
+
+  if (!src || media.file_exists === false) {
+    return (
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          background: 'rgba(10, 10, 10, 0.92)',
+          color: 'rgba(255,255,255,0.76)',
+          fontSize: 20,
+          fontWeight: 600,
+          letterSpacing: '0.02em',
+        }}
+      >
+        Missing media file
+      </div>
+    )
+  }
 
   if (isVideoMedia(media)) {
     return (
       <video
-        src={fileUrlForPath(media.file_path)}
+        src={src}
         className="absolute inset-0 w-full h-full object-cover"
         autoPlay
         muted
@@ -1387,5 +1426,5 @@ function CanvasBackground({ media }) {
     )
   }
 
-  return <img src={fileUrlForPath(media.file_path)} alt={media.name} className="absolute inset-0 w-full h-full object-cover" />
+  return <img src={src} alt={media.name} className="absolute inset-0 w-full h-full object-cover" />
 }

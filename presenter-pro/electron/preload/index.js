@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowClose: () => ipcRenderer.invoke('window:close'),
   windowMinimize: () => ipcRenderer.invoke('window:minimize'),
   windowMaximize: () => ipcRenderer.invoke('window:maximize'),
+  getWindowViewState: () => ipcRenderer.invoke('window:getViewState'),
+  getPreviewWindowState: () => ipcRenderer.invoke('preview:getState'),
 
   // System
   platform: process.platform,
@@ -85,4 +87,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onPresenterSlidesUpdate: (cb) => subscribe('presenter:updateSlides', cb),
   onAppCommand: (cb) => subscribe('app:command', cb),
   onSettingsUpdated: (cb) => subscribe('settings:updated', cb),
+  onWindowViewState: (cb) => subscribe('window:viewState', cb),
+  onPreviewWindowClosed: (cb) => subscribe('preview:windowClosed', cb),
+  onPreviewWindowState: (cb) => subscribe('preview:windowState', cb),
 })

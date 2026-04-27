@@ -6,13 +6,14 @@ import SectionHeader from './SectionHeader'
 import FilmstripSlide from './FilmstripSlide'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
 import SongEditorModal from '@/components/library/SongEditorModal'
-import ApplyThemeModal from '@/components/editor/ApplyThemeModal'
 import { createTextSlide, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { getSongs } from '@/utils/ipc'
-import { withUpdatedSlideTextBoxes } from '@/utils/textBoxes'
+import { flushPendingNumericFieldCommit } from '@/utils/pendingNumericCommit'
+import { getSlideTextBoxes, withUpdatedSlideTextBoxes } from '@/utils/textBoxes'
 import { uuid } from '@/utils/uuid'
 import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentationCommands'
+import { getEffectiveBackgroundId } from '@/utils/backgrounds'
 
 const AUTO_SCROLL_EDGE = 72
 const AUTO_SCROLL_MAX_STEP = 26
@@ -116,7 +117,125 @@ function getEffectiveSelectedSlideIds(selectedSlideIds = [], selectedSlideId = n
   return ids
 }
 
+function isGenericSlideLabel(label) {
+  const normalized = String(label || '').trim().toLowerCase()
+  return normalized === 'text' || normalized === 'lyrics' || normalized === 'notes'
+}
+
+function getDisplaySlideLabel(slide) {
+  if (!slide?.label || isGenericSlideLabel(slide.label)) return ''
+  return slide.label
+}
+
+function copyTextBoxAppearance(sourceBox, targetBox) {
+  return {
+    ...targetBox,
+    textStyle: {
+      ...targetBox.textStyle,
+      ...sourceBox.textStyle,
+    },
+    fillType: sourceBox.fillType,
+    backgroundColor: sourceBox.backgroundColor,
+    fillOpacity: sourceBox.fillOpacity,
+    outlineColor: sourceBox.outlineColor,
+    outlineWidth: sourceBox.outlineWidth,
+    outlineStyle: sourceBox.outlineStyle,
+    outlineOpacity: sourceBox.outlineOpacity,
+    shadowEnabled: sourceBox.shadowEnabled,
+    shadowColor: sourceBox.shadowColor,
+    shadowBlur: sourceBox.shadowBlur,
+    shadowOffsetX: sourceBox.shadowOffsetX,
+    shadowOffsetY: sourceBox.shadowOffsetY,
+    cornerRadius: sourceBox.cornerRadius,
+    paddingTop: sourceBox.paddingTop,
+    paddingRight: sourceBox.paddingRight,
+    paddingBottom: sourceBox.paddingBottom,
+    paddingLeft: sourceBox.paddingLeft,
+    wrapText: sourceBox.wrapText,
+    autoFit: sourceBox.autoFit,
+    textDirection: sourceBox.textDirection,
+    opacity: sourceBox.opacity,
+  }
+}
+
+function buildSlideAppearanceSnapshot(presentation, sectionId, slide) {
+  if (!slide || isMediaSlide(slide)) return null
+
+  const sourceBoxes = getSlideTextBoxes(slide)
+  const primarySourceBox = sourceBoxes[0]
+  if (!primarySourceBox) return null
+
+  return {
+    backgroundId: getEffectiveBackgroundId(presentation, sectionId, slide),
+    textBoxes: sourceBoxes.map((box) => ({
+      textStyle: { ...box.textStyle },
+      fillType: box.fillType,
+      backgroundColor: box.backgroundColor,
+      fillOpacity: box.fillOpacity,
+      outlineColor: box.outlineColor,
+      outlineWidth: box.outlineWidth,
+      outlineStyle: box.outlineStyle,
+      outlineOpacity: box.outlineOpacity,
+      shadowEnabled: box.shadowEnabled,
+      shadowColor: box.shadowColor,
+      shadowBlur: box.shadowBlur,
+      shadowOffsetX: box.shadowOffsetX,
+      shadowOffsetY: box.shadowOffsetY,
+      cornerRadius: box.cornerRadius,
+      paddingTop: box.paddingTop,
+      paddingRight: box.paddingRight,
+      paddingBottom: box.paddingBottom,
+      paddingLeft: box.paddingLeft,
+      wrapText: box.wrapText,
+      autoFit: box.autoFit,
+      textDirection: box.textDirection,
+      opacity: box.opacity,
+    })),
+    primaryTextBox: {
+      textStyle: { ...primarySourceBox.textStyle },
+      fillType: primarySourceBox.fillType,
+      backgroundColor: primarySourceBox.backgroundColor,
+      fillOpacity: primarySourceBox.fillOpacity,
+      outlineColor: primarySourceBox.outlineColor,
+      outlineWidth: primarySourceBox.outlineWidth,
+      outlineStyle: primarySourceBox.outlineStyle,
+      outlineOpacity: primarySourceBox.outlineOpacity,
+      shadowEnabled: primarySourceBox.shadowEnabled,
+      shadowColor: primarySourceBox.shadowColor,
+      shadowBlur: primarySourceBox.shadowBlur,
+      shadowOffsetX: primarySourceBox.shadowOffsetX,
+      shadowOffsetY: primarySourceBox.shadowOffsetY,
+      cornerRadius: primarySourceBox.cornerRadius,
+      paddingTop: primarySourceBox.paddingTop,
+      paddingRight: primarySourceBox.paddingRight,
+      paddingBottom: primarySourceBox.paddingBottom,
+      paddingLeft: primarySourceBox.paddingLeft,
+      wrapText: primarySourceBox.wrapText,
+      autoFit: primarySourceBox.autoFit,
+      textDirection: primarySourceBox.textDirection,
+      opacity: primarySourceBox.opacity,
+    },
+  }
+}
+
+function applySlideAppearanceSnapshot(slide, snapshot) {
+  if (!snapshot || isMediaSlide(slide)) return slide
+
+  return withUpdatedSlideTextBoxes(
+    {
+      ...slide,
+      backgroundId: snapshot.backgroundId,
+    },
+    (boxes) =>
+      boxes.map((box, index) =>
+        copyTextBoxAppearance(snapshot.textBoxes[index] || snapshot.primaryTextBox, box)
+      )
+  )
+}
+
 function GhostSlide({ slide, width, presentation, floating = false, compact = false, showLabel = true }) {
+  const displayLabel = isMediaSlide(slide) ? (slide.label || 'Media') : getDisplaySlideLabel(slide)
+
   return (
     <div
       style={{
@@ -160,7 +279,7 @@ function GhostSlide({ slide, width, presentation, floating = false, compact = fa
           )}
         </div>
       </div>
-      {showLabel && (
+      {showLabel && displayLabel ? (
         <div
           className="text-center mt-1 truncate"
           style={{
@@ -170,9 +289,9 @@ function GhostSlide({ slide, width, presentation, floating = false, compact = fa
             opacity: compact ? 0.82 : 1,
           }}
         >
-          {slide.label || slide.type}
+          {displayLabel}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
@@ -223,11 +342,12 @@ export default function Filmstrip({ width = 224 }) {
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const selectedSlideIds = useEditorStore((s) => s.selectedSlideIds)
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
+  const setSlideSelection = useEditorStore((s) => s.setSlideSelection)
   const setSelectedSlideIds = useEditorStore((s) => s.setSelectedSlideIds)
+  const setSuppressAutoEditSlideId = useEditorStore((s) => s.setSuppressAutoEditSlideId)
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const [collapsed, setCollapsed] = useState({})
   const [editSong, setEditSong] = useState(null)
-  const [showApplyTheme, setShowApplyTheme] = useState(false)
   const [dragCandidate, setDragCandidate] = useState(null)
   const anchorSlideRef = useRef(null)
   const [activeSlideDrag, setActiveSlideDrag] = useState(null)
@@ -490,23 +610,26 @@ export default function Filmstrip({ width = 224 }) {
         return { ...sec, slides }
       })
     )
-    setSelectedSlide(section.id, newSlide.id)
+    setSlideSelection(section.id, newSlide.id, [newSlide.id])
+    setSuppressAutoEditSlideId(newSlide.id)
+    anchorSlideRef.current = newSlide.id
   }
 
   function deleteSlide(section, slide) {
+    flushPendingNumericFieldCommit()
     const selection = getEffectiveSelectedSlideIds(
       useEditorStore.getState().selectedSlideIds,
       useEditorStore.getState().selectedSlideId
     )
     if (!selection.includes(slide.id)) {
-      setSelectedSlide(section.id, slide.id)
-      setSelectedSlideIds([slide.id])
+      setSlideSelection(section.id, slide.id, [slide.id])
       anchorSlideRef.current = slide.id
     }
     deleteSelectedSlideFromCurrentPresentation()
   }
 
   function removeSection(sectionId) {
+    flushPendingNumericFieldCommit()
     mutate((sections) => sections.filter((sec) => sec.id !== sectionId))
     const selectedSectionId = useEditorStore.getState().selectedSectionId
     if (selectedSectionId === sectionId) selectFirstAvailableSlide()
@@ -515,7 +638,19 @@ export default function Filmstrip({ width = 224 }) {
   function onSlideMouseDown(e, sectionId, slide) {
     if (e.button !== 0) return
     e.stopPropagation()
+    flushPendingNumericFieldCommit()
     containerRef.current?.focus()
+
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      handleSelectSlide(e, sectionId, slide)
+      setDragCandidate(null)
+      return
+    }
+
+    const nextIds = [slide.id]
+    setSlideSelection(sectionId, slide.id, nextIds)
+    anchorSlideRef.current = slide.id
+
     const rect = e.currentTarget.getBoundingClientRect()
     const anchor = {
       x: rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0.5,
@@ -535,12 +670,14 @@ export default function Filmstrip({ width = 224 }) {
   }
 
   function onSectionDragOver(e, sectionId) {
+    flushPendingNumericFieldCommit()
     if (dragCandidate || activeSlideDrag) return
     e.preventDefault()
     setDragOverSection(sectionId)
   }
 
   function onSectionDrop(targetSectionId) {
+    flushPendingNumericFieldCommit()
     if (dragCandidate || activeSlideDrag) return
     const srcId = dragSection.current
     if (!srcId || srcId === targetSectionId) {
@@ -569,34 +706,18 @@ export default function Filmstrip({ width = 224 }) {
     if (song) setEditSong(song)
   }
 
-  function handleApplyTheme(theme) {
+  function handleApplyTheme(sourceSectionId, sourceSlide) {
+    flushPendingNumericFieldCommit()
+    const appearance = buildSlideAppearanceSnapshot(presentation, sourceSectionId, sourceSlide)
+    if (!appearance) return
+
     const ids = new Set(effectiveSelectedSlideIds)
     mutate((sections) =>
       sections.map((sec) => ({
         ...sec,
         slides: sec.slides.map((sl) =>
           ids.has(sl.id) && !isMediaSlide(sl)
-            ? withUpdatedSlideTextBoxes(
-                {
-                  ...sl,
-                  backgroundId:
-                    theme.backgroundMode === 'set'
-                      ? theme.backgroundId
-                      : theme.backgroundMode === 'clear'
-                        ? null
-                        : sl.backgroundId ?? null,
-                },
-                (boxes) =>
-                  boxes.map((box) => ({
-                    ...box,
-                    backgroundColor: theme.textBoxFillColor ?? box.backgroundColor,
-                    fillType: 'solid',
-                    textStyle: {
-                      ...box.textStyle,
-                      ...theme.textStyle,
-                    },
-                  }))
-              )
+            ? applySlideAppearanceSnapshot(sl, appearance)
             : sl
         ),
       }))
@@ -606,6 +727,7 @@ export default function Filmstrip({ width = 224 }) {
   let slideIndex = 0
 
   function handleSelectSlide(e, sectionId, slide) {
+    flushPendingNumericFieldCommit()
     containerRef.current?.focus()
     const allSlides = getAllSlides(presentation)
     const metaToggle = Boolean(e?.metaKey || e?.ctrlKey)
@@ -618,8 +740,7 @@ export default function Filmstrip({ width = 224 }) {
     if (metaToggle) {
       const alreadyIn = currentSelection.includes(slide.id)
       if (alreadyIn && currentSelection.length === 1) {
-        setSelectedSlide(sectionId, slide.id)
-        setSelectedSlideIds([slide.id])
+        setSlideSelection(sectionId, slide.id, [slide.id])
         anchorSlideRef.current = slide.id
         return
       }
@@ -634,18 +755,20 @@ export default function Filmstrip({ width = 224 }) {
           const fallbackSlide = fallbackId
             ? allSlides.find((item) => item.id === fallbackId)
             : null
-          setSelectedSlide(fallbackSlide?.sectionId ?? null, fallbackId)
+          setSlideSelection(fallbackSlide?.sectionId ?? null, fallbackId, next)
         }
 
         if (anchorSlideRef.current === slide.id) {
           anchorSlideRef.current = next[next.length - 1] || null
         }
       } else {
-        setSelectedSlide(sectionId, slide.id)
+        setSlideSelection(sectionId, slide.id, next)
         anchorSlideRef.current = slide.id
       }
 
-      setSelectedSlideIds(next)
+      if (alreadyIn && selectedSlideId !== slide.id) {
+        setSelectedSlideIds(next)
+      }
     } else if (rangeSelect) {
       const anchorId = anchorSlideRef.current || selectedSlideId || slide.id
       anchorSlideRef.current = anchorId
@@ -653,21 +776,29 @@ export default function Filmstrip({ width = 224 }) {
       const thisIdx = allSlides.findIndex((sl) => sl.id === slide.id)
       if (anchorIdx >= 0 && thisIdx >= 0) {
         const [start, end] = [Math.min(anchorIdx, thisIdx), Math.max(anchorIdx, thisIdx)]
-        setSelectedSlide(sectionId, slide.id)
-        setSelectedSlideIds(allSlides.slice(start, end + 1).map((sl) => sl.id))
+        setSlideSelection(sectionId, slide.id, allSlides.slice(start, end + 1).map((sl) => sl.id))
       } else {
-        setSelectedSlideIds([])
-        setSelectedSlide(sectionId, slide.id)
+        setSlideSelection(sectionId, slide.id, [slide.id])
         anchorSlideRef.current = slide.id
       }
     } else {
-      setSelectedSlide(sectionId, slide.id)
-      setSelectedSlideIds([slide.id])
+      setSlideSelection(sectionId, slide.id, [slide.id])
       anchorSlideRef.current = slide.id
     }
   }
 
   function handleFilmstripKeyDown(event) {
+    flushPendingNumericFieldCommit()
+    if (event.key === 'Escape') {
+      if (effectiveSelectedSlideIds.length > 1 && selectedSlideId) {
+        event.preventDefault()
+        const primary = getAllSlides(presentation).find((entry) => entry.id === selectedSlideId)
+        setSlideSelection(primary?.sectionId ?? null, selectedSlideId, [selectedSlideId])
+        anchorSlideRef.current = selectedSlideId
+      }
+      return
+    }
+
     const meta = event.metaKey || event.ctrlKey
     if (!meta || event.key.toLowerCase() !== 'a') return
 
@@ -678,8 +809,7 @@ export default function Filmstrip({ width = 224 }) {
     const primary =
       allSlides.find((entry) => entry.id === selectedSlideId) ||
       allSlides[0]
-    setSelectedSlide(primary.sectionId, primary.id)
-    setSelectedSlideIds(allSlides.map((slide) => slide.id))
+    setSlideSelection(primary.sectionId, primary.id, allSlides.map((slide) => slide.id))
     anchorSlideRef.current = primary.id
   }
 
@@ -687,10 +817,17 @@ export default function Filmstrip({ width = 224 }) {
     <div
       ref={containerRef}
       tabIndex={0}
+      onMouseDownCapture={() => flushPendingNumericFieldCommit()}
       onKeyDown={handleFilmstripKeyDown}
       data-tour="filmstrip"
       className="h-full overflow-hidden shrink-0 flex flex-col"
-      style={{ width, background: 'var(--bg-filmstrip)', borderRight: '1px solid var(--border-default)' }}
+      style={{
+        width,
+        background: 'var(--bg-filmstrip)',
+        borderRight: '1px solid var(--border-default)',
+        outline: 'none',
+        boxShadow: 'none',
+      }}
     >
       <div
         className="shrink-0 flex items-center justify-between px-3 py-2"
@@ -751,7 +888,9 @@ export default function Filmstrip({ width = 224 }) {
                 onEditSong={originalSection.type === 'song' ? () => handleEditSong(originalSection) : undefined}
               />
 
-              {!isCollapsed && (() => {
+              {!isCollapsed && (
+                <div className="pt-2">
+                  {(() => {
                 let lastLabel = null
                 return section.slides.map((slide) => {
                   slideIndex++
@@ -761,8 +900,9 @@ export default function Filmstrip({ width = 224 }) {
                     slideDropTarget?.sectionId === section.id &&
                     slideDropTarget?.targetSlideId === slide.id
 
-                  const showSubHeader = Boolean(slide.label && slide.label !== lastLabel)
-                  if (showSubHeader) lastLabel = slide.label
+                  const displayLabel = getDisplaySlideLabel(slide)
+                  const showSubHeader = Boolean(displayLabel && displayLabel !== lastLabel)
+                  if (showSubHeader) lastLabel = displayLabel
 
                   return (
                     <React.Fragment key={slide.id}>
@@ -771,7 +911,7 @@ export default function Filmstrip({ width = 224 }) {
                           className="mx-2 mt-1 mb-0.5 truncate"
                           style={{ fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', paddingLeft: 2 }}
                         >
-                          {slide.label}
+                          {displayLabel}
                         </div>
                       )}
                       {showPreviewBefore && activeSlideDrag?.slide ? (
@@ -797,8 +937,8 @@ export default function Filmstrip({ width = 224 }) {
                           onSelect={(e) => handleSelectSlide(e, originalSection.id, slide)}
                           onNewSlide={() => insertSlideAfter(originalSection, slide)}
                           onDoubleClick={() => {
-                            setSelectedSlide(originalSection.id, slide.id)
-                            setSelectedSlideIds([slide.id])
+                            flushPendingNumericFieldCommit()
+                            setSlideSelection(originalSection.id, slide.id, [slide.id])
                             setEditingSlide(slide.id)
                           }}
                           onDuplicate={() => duplicateSlide(originalSection, slide)}
@@ -806,7 +946,7 @@ export default function Filmstrip({ width = 224 }) {
                           onEditSong={originalSection.type === 'song' ? () => handleEditSong(originalSection) : undefined}
                           onApplyTheme={
                             effectiveSelectedSlideIds.includes(slide.id) && effectiveSelectedSlideIds.length > 1
-                              ? () => setShowApplyTheme(true)
+                              ? () => handleApplyTheme(originalSection.id, slide)
                               : undefined
                           }
                         />
@@ -815,6 +955,8 @@ export default function Filmstrip({ width = 224 }) {
                   )
                 })
               })()}
+                </div>
+              )}
 
               {!isCollapsed && showPreviewAtEnd && activeSlideDrag?.slide ? (
                 <PreviewInsert
@@ -860,14 +1002,6 @@ export default function Filmstrip({ width = 224 }) {
           song={editSong}
           onClose={() => setEditSong(null)}
           onSave={() => setEditSong(null)}
-        />
-      )}
-
-      {showApplyTheme && (
-        <ApplyThemeModal
-          count={effectiveSelectedSlideIds.length}
-          onClose={() => setShowApplyTheme(false)}
-          onApply={(theme) => { handleApplyTheme(theme); setShowApplyTheme(false) }}
         />
       )}
     </div>
