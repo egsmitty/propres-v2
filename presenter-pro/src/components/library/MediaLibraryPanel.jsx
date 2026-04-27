@@ -23,7 +23,7 @@ import {
   updateMedia,
   updateMediaFolder,
 } from '@/utils/ipc'
-import { fileUrlForPath, isVideoMedia } from '@/utils/backgrounds'
+import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds'
 import { getSectionTypeLabel } from '@/utils/sectionTypes'
 import { insertMediaSlideIntoCurrentPresentation } from '@/utils/presentationCommands'
 import { confirmDialog, promptDialog, showDialog } from '@/utils/dialog'
@@ -577,12 +577,15 @@ export default function MediaLibraryPanel() {
 }
 
 function MediaPreview({ item }) {
-  const src = fileUrlForPath(item.thumbnail_path || item.file_path)
+  const src = getMediaAssetUrl(item, { preferThumbnail: true })
 
-  if (!src) {
+  if (!src || item.file_exists === false) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center">
         <Image size={20} style={{ color: '#555' }} />
+        <span style={{ color: '#9ca3af', fontSize: 10, fontWeight: 600 }}>
+          Missing File
+        </span>
       </div>
     )
   }

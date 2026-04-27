@@ -22,6 +22,32 @@ function getDisplayLabel(display) {
   return display.primary ? `${baseLabel} (${size}, Primary)` : `${baseLabel} (${size})`
 }
 
+function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhenClosed = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-xs rounded"
+      style={{
+        height: 42,
+        width: '100%',
+        padding: '0 14px',
+        background: open
+          ? 'var(--bg-hover)'
+          : primaryWhenClosed
+            ? 'var(--accent)'
+            : 'var(--bg-surface)',
+        color: open || !primaryWhenClosed ? 'var(--text-primary)' : '#fff',
+        border: open || !primaryWhenClosed ? '1px solid var(--border-default)' : 'none',
+        fontWeight: 650,
+        letterSpacing: '0.015em',
+      }}
+    >
+      {open ? closeLabel : openLabel}
+    </button>
+  )
+}
+
 export default function OutputSettingsModal() {
   const setOutputSettingsOpen = useAppStore((s) => s.setOutputSettingsOpen)
   const [loading, setLoading] = useState(true)
@@ -36,6 +62,13 @@ export default function OutputSettingsModal() {
   useEffect(() => {
     let cancelled = false
 
+    async function syncPreviewState() {
+      const result = await window.electronAPI?.getPreviewWindowState?.()
+      if (cancelled || !result?.success) return
+      setMainPreviewOpen(Boolean(result.data?.outputOpen))
+      setStagePreviewOpen(Boolean(result.data?.stageOpen))
+    }
+
     async function load() {
       setLoading(true)
       const [settingsResult, displaysResult] = await Promise.all([getSettings(), getSystemDisplays()])
@@ -47,11 +80,28 @@ export default function OutputSettingsModal() {
       setTheme(parseTheme(settings['stageDisplay.theme']))
       setDisplays(displaysResult?.success ? displaysResult.data || [] : [])
       setLoading(false)
+      await syncPreviewState()
     }
 
     load()
+
+    const offPreviewClosed = window.electronAPI?.onPreviewWindowClosed?.(({ kind }) => {
+      if (kind === 'output') setMainPreviewOpen(false)
+      if (kind === 'stage') setStagePreviewOpen(false)
+    })
+    const offPreviewState = window.electronAPI?.onPreviewWindowState?.(({ kind, open }) => {
+      if (kind === 'output') setMainPreviewOpen(Boolean(open))
+      if (kind === 'stage') setStagePreviewOpen(Boolean(open))
+    })
+    const interval = window.setInterval(() => {
+      syncPreviewState().catch(() => {})
+    }, 500)
+
     return () => {
       cancelled = true
+      window.clearInterval(interval)
+      offPreviewClosed?.()
+      offPreviewState?.()
     }
   }, [])
 
@@ -185,32 +235,35 @@ export default function OutputSettingsModal() {
                     ))}
                   </select>
                 </label>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-tertiary)' }}>
+                    Preview Window
+                  </span>
+                  <PreviewToggleButton
+                    open={mainPreviewOpen}
+                    openLabel="Open Main Output Preview"
+                    closeLabel="Close Main Preview"
+                    onClick={toggleMainPreview}
+                    primaryWhenClosed
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-tertiary)' }}>
+                    Preview Window
+                  </span>
+                  <PreviewToggleButton
+                    open={stagePreviewOpen}
+                    openLabel="Open Stage Display Preview"
+                    closeLabel="Close Stage Preview"
+                    onClick={toggleStagePreview}
+                  />
+                </div>
               </div>
-
-              <div className="flex items-center gap-2 mt-3">
-                <button
-                  type="button"
-                  onClick={toggleMainPreview}
-                  className="text-xs px-3 py-1.5 rounded"
-                  style={{ background: mainPreviewOpen ? 'var(--bg-hover)' : 'var(--accent)', color: mainPreviewOpen ? 'var(--text-primary)' : '#fff', border: mainPreviewOpen ? '1px solid var(--border-default)' : 'none' }}
-                >
-                  {mainPreviewOpen ? 'Close Main Preview' : 'Open Main Output Preview'}
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleStagePreview}
-                  className="text-xs px-3 py-1.5 rounded"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                >
-                  {stagePreviewOpen ? 'Close Stage Preview' : 'Open Stage Display Preview'}
-                </button>
-              </div>
-
-              <p className="text-xs mt-2" style={{ color: hasDisplayConflict ? 'var(--danger, #ef4444)' : 'var(--text-tertiary)' }}>
-                {hasDisplayConflict
-                  ? 'Main Output and Stage Display should be assigned to different displays.'
-                  : 'PresenterPro uses Electron display APIs so these assignments work on both macOS and Windows.'}
-              </p>
+              {hasDisplayConflict ? (
+                <p className="text-xs mt-2" style={{ color: 'var(--danger, #ef4444)' }}>
+                  Main Output and Stage Display should be assigned to different displays.
+                </p>
+              ) : null}
             </section>
 
             <section

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { X } from 'lucide-react'
 import { getMedia } from '@/utils/ipc'
-import { fileUrlForPath, isVideoMedia } from '@/utils/backgrounds'
+import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds'
 import { isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationScale } from '@/utils/presentationSizing'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
@@ -13,6 +14,37 @@ function formatRemaining(endAt) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+function PreviewCloseButton() {
+  return (
+    <button
+      type="button"
+      onClick={() => window.electronAPI?.closeOutputWindow?.()}
+      style={{
+        position: 'absolute',
+        top: 22,
+        right: 22,
+        zIndex: 10,
+        height: 42,
+        padding: '0 14px 0 12px',
+        borderRadius: 999,
+        border: '1px solid rgba(255,255,255,0.18)',
+        background: 'rgba(18,18,18,0.82)',
+        color: 'rgba(255,255,255,0.92)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 15,
+        fontWeight: 700,
+        cursor: 'pointer',
+        boxShadow: '0 10px 24px rgba(0,0,0,0.32)',
+      }}
+    >
+      <X size={16} />
+      <span>Close Preview</span>
+    </button>
+  )
+}
+
 export default function OutputRenderer() {
   const [slide, setSlide] = useState(null)
   const [background, setBackground] = useState(null)
@@ -20,6 +52,7 @@ export default function OutputRenderer() {
   const [media, setMedia] = useState([])
   const [isBlack, setIsBlack] = useState(false)
   const [isLogo, setIsLogo] = useState(false)
+  const [isPreviewWindow, setIsPreviewWindow] = useState(true)
   const [countdown, setCountdown] = useState({ active: false, endAt: null, durationSeconds: 0 })
   const [remaining, setRemaining] = useState('00:00')
   const mediaRef = useRef([])
@@ -74,6 +107,9 @@ export default function OutputRenderer() {
     if (!api) return
 
     api.notifyOutputReady?.()
+    api.getWindowViewState?.().then((result) => {
+      if (result?.success) setIsPreviewWindow(!result.data?.isFullScreen)
+    }).catch(() => {})
 
     const offUpdate = api.onOutputUpdate(async ({ slide: s, background: bg }) => {
       setSlide(s)
@@ -120,12 +156,16 @@ export default function OutputRenderer() {
     const offCountdown = api.onOutputCountdown((state) => {
       setCountdown(state || { active: false, endAt: null, durationSeconds: 0 })
     })
+    const offViewState = api.onWindowViewState?.(({ isFullScreen }) => {
+      setIsPreviewWindow(!isFullScreen)
+    })
 
     return () => {
       offUpdate?.()
       offBlack?.()
       offLogo?.()
       offCountdown?.()
+      offViewState?.()
     }
   }, [])
 
@@ -141,12 +181,17 @@ export default function OutputRenderer() {
   }
 
   if (isBlack) {
-    return <div style={{ width: '100vw', height: '100vh', background: '#000' }} />
+    return (
+      <div style={{ width: '100vw', height: '100vh', background: '#000', position: 'relative' }}>
+        {isPreviewWindow ? <PreviewCloseButton /> : null}
+      </div>
+    )
   }
 
   if (isLogo) {
     return (
-      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+        {isPreviewWindow ? <PreviewCloseButton /> : null}
         <div
           style={{
             width: 120, height: 120, background: '#4a7cff', borderRadius: 24,
@@ -162,8 +207,18 @@ export default function OutputRenderer() {
 
   if (!slide) {
     return (
-      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: '#444', fontSize: 18, fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '0.04em' }}>
+      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6vw', position: 'relative' }}>
+        {isPreviewWindow ? <PreviewCloseButton /> : null}
+        <span
+          style={{
+            color: 'rgba(255,255,255,0.24)',
+            fontSize: 'clamp(30px, 2.8vw, 52px)',
+            fontWeight: 500,
+            fontFamily: 'Inter, system-ui, sans-serif',
+            letterSpacing: '0.02em',
+            textAlign: 'center',
+          }}
+        >
           Main Output Display
         </span>
       </div>
@@ -185,6 +240,8 @@ export default function OutputRenderer() {
         position: 'relative',
       }}
     >
+      {isPreviewWindow ? <PreviewCloseButton /> : null}
+
       <div
         style={{
           position: 'absolute',
@@ -252,8 +309,27 @@ export default function OutputRenderer() {
 }
 
 function OutputBackground({ media }) {
-  const src = fileUrlForPath(media.file_path)
-  if (!src) return null
+  const src = getMediaAssetUrl(media)
+  if (!src || media.file_exists === false) {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#000000',
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: '2vw',
+          fontWeight: 600,
+          letterSpacing: '0.02em',
+        }}
+      >
+        Missing media file
+      </div>
+    )
+  }
 
   if (isVideoMedia(media)) {
     return (

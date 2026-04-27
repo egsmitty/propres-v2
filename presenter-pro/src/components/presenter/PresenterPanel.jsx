@@ -262,6 +262,8 @@ export default function PresenterPanel() {
                   {section.slides.map((slide) => {
                     const isLive = slide.id === liveSlideId
                     const isSelected = !isPresenting && slide.id === selectedSlideId
+                    const isActive = isLive || isSelected
+                    const songSectionColor = slide.groupId ? getSectionColor(slide.type) : null
                     // Use the enriched slide (with sectionId + effectiveBackgroundId) from allSlides when available
                     const enriched = allSlides.find((s) => s.id === slide.id) || { ...slide, sectionId: section.id }
                     return (
@@ -270,28 +272,51 @@ export default function PresenterPanel() {
                         onClick={() => goToSlide(enriched)}
                         style={{
                           aspectRatio: getPresentationAspectRatio(presentation),
-                          background: isLive ? 'rgba(22,163,74,0.12)' : '#111',
-                          border: isLive
-                            ? '2px solid #16a34a'
-                            : isSelected
-                            ? '2px solid var(--accent)'
-                            : '1px solid var(--border-subtle)',
-                          boxShadow: isLive ? '0 0 0 2px rgba(22,163,74,0.25)' : 'none',
+                          background: '#111',
+                          border: isActive ? '3px solid var(--accent)' : '1px solid var(--border-subtle)',
+                          boxShadow: isActive ? '0 0 0 2px rgba(74,124,255,0.22)' : 'none',
                           borderRadius: 4,
                           overflow: 'hidden',
                           position: 'relative',
                           cursor: 'pointer',
+                          outline: 'none',
                         }}
                       >
                         {/* Section color strip */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: 0, top: 0, bottom: 0,
-                            width: 3,
-                            background: section.color || getSectionColor(slide.type),
-                          }}
-                        />
+                        {songSectionColor ? (
+                          <>
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: 6,
+                                background: songSectionColor,
+                              }}
+                            />
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: 10,
+                                top: 8,
+                                padding: '2px 6px',
+                                borderRadius: 999,
+                                background: `${songSectionColor}22`,
+                                border: `1px solid ${songSectionColor}66`,
+                                color: '#ffffff',
+                                fontSize: 9,
+                                fontWeight: 700,
+                                letterSpacing: '0.06em',
+                                textTransform: 'uppercase',
+                                lineHeight: 1.1,
+                                pointerEvents: 'none',
+                              }}
+                            >
+                              {slide.label || slide.type}
+                            </div>
+                          </>
+                        ) : null}
                         <div style={{ position: 'absolute', inset: 0 }}>
                           <ScaledSlideText
                             presentation={presentation}

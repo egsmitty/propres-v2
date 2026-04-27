@@ -31,6 +31,7 @@ import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import {
+  getActiveSlideTextEditor,
   applyEditorBoxStyle,
   applyEditorWholeTextStyle,
   applyEditorInlineStyle,
@@ -38,10 +39,12 @@ import {
   getCurrentOrSavedTextBoxId,
   clearSavedEditorSelection,
   getCurrentOrSavedSlideTextEditor,
+  getSavedSlideTextEditor,
   getEditorSelectionSnapshot,
   hasSelectionInEditor,
   getSelectedTextInEditor,
   markEditorToolbarInteraction,
+  isRecentEditorToolbarInteraction,
   getEditorCommandState,
   restoreEditorSelection,
   runEditorCommand,
@@ -55,6 +58,10 @@ import {
   getSlideTextBoxes,
   internalToDisplayFontSize,
 } from '@/utils/textBoxes'
+import {
+  clearPendingNumericFieldCommit,
+  registerPendingNumericFieldCommit,
+} from '@/utils/pendingNumericCommit'
 import { uuid } from '@/utils/uuid'
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup'
 import {
@@ -111,6 +118,26 @@ function normalizeAlignValue(value, fallback = 'center') {
   if (next.includes('left')) return 'left'
   if (next.includes('center')) return 'center'
   return fallback
+}
+
+function getRenderedBodyFontSize(body, fallback) {
+  if (typeof window === 'undefined' || typeof DOMParser === 'undefined' || !body) return fallback
+
+  try {
+    const doc = new DOMParser().parseFromString(`<div>${body}</div>`, 'text/html')
+    const sizes = new Set()
+
+    doc.body.querySelectorAll('*').forEach((node) => {
+      const fontSize = node.style?.fontSize
+      if (!fontSize || !fontSize.endsWith('px')) return
+      const numeric = Number.parseFloat(fontSize)
+      if (Number.isFinite(numeric) && numeric > 0) sizes.add(Math.round(numeric))
+    })
+
+    return sizes.size === 1 ? [...sizes][0] : fallback
+  } catch {
+    return fallback
+  }
 }
 
 function Group({ title, children, grow = false, noDivider = false }) {
@@ -389,6 +416,40 @@ function LiveNumberField({ value, min, max, onChange, width = 72, integrated = f
     return true
   }
 
+  function commitCurrentValue() {
+    const liveValue = inputRef.current?.value ?? draft
+    return commitDraft(liveValue)
+  }
+
+  useEffect(() => {
+    if (!focused) return undefined
+
+    function flushPendingCommit() {
+      commitCurrentValue()
+      setFocused(false)
+    }
+
+    registerPendingNumericFieldCommit(flushPendingCommit)
+    return () => {
+      clearPendingNumericFieldCommit(flushPendingCommit)
+    }
+  }, [draft, focused, min, max, onChange, value])
+
+  useEffect(() => {
+    if (!focused) return undefined
+
+    function commitOnOutsidePointerDown(event) {
+      if (inputRef.current?.contains(event.target)) return
+      commitCurrentValue()
+      setFocused(false)
+    }
+
+    document.addEventListener('mousedown', commitOnOutsidePointerDown, true)
+    return () => {
+      document.removeEventListener('mousedown', commitOnOutsidePointerDown, true)
+    }
+  }, [draft, focused])
+
   return (
     <input
       data-editor-toolbar="true"
@@ -414,7 +475,7 @@ function LiveNumberField({ value, min, max, onChange, width = 72, integrated = f
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === 'Tab') {
           event.preventDefault()
-          commitDraft(draft)
+          commitCurrentValue()
           if (event.key === 'Enter') {
             event.currentTarget.select()
           }
@@ -426,7 +487,7 @@ function LiveNumberField({ value, min, max, onChange, width = 72, integrated = f
       }}
       onBlur={() => {
         if (!lastCommittedRef.current || lastCommittedRef.current !== String(draft ?? '')) {
-          commitDraft(draft)
+          commitCurrentValue()
         }
         setFocused(false)
       }}
@@ -581,15 +642,18 @@ function PopoverMenuButton({
   title,
   label,
   width = 138,
+  minButtonWidth = null,
   children,
   popoverWidth = null,
   icon: Icon = null,
   active = false,
   height = 30,
   collapseLabel = false,
+  buttonVariant = 'field',
 }) {
   const { open, setOpen, triggerRef, popoverRef } = usePopoverOpen()
   const showLabel = Boolean(label) && !collapseLabel
+  const isCommandVariant = buttonVariant === 'command'
 
   return (
     <div data-editor-toolbar="true" className="shrink-0">
@@ -599,24 +663,56 @@ function PopoverMenuButton({
         ref={triggerRef}
         title={title}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between gap-2 rounded-lg shrink-0"
+        className={`flex items-center shrink-0 transition-colors ${isCommandVariant ? 'rounded-xl gap-1.5' : 'justify-between gap-2 rounded-lg'}`}
         style={{
-          width,
+          width: isCommandVariant ? undefined : showLabel ? width : undefined,
           height,
-          minWidth: showLabel ? width : height,
-          padding: showLabel ? '0 10px' : '0 8px',
-          border: '1px solid var(--border-default)',
-          background: open || active ? 'var(--accent-dim)' : 'var(--bg-app)',
+          minWidth: showLabel
+            ? isCommandVariant
+              ? (minButtonWidth ?? width)
+              : 0
+            : isCommandVariant
+              ? 36
+              : height,
+          padding: showLabel
+            ? isCommandVariant
+              ? '0 12px'
+              : '0 10px'
+            : isCommandVariant
+              ? '0 10px'
+              : '0 8px',
+          border: isCommandVariant ? '1px solid transparent' : '1px solid var(--border-default)',
+          background: open || active ? 'var(--accent-dim)' : isCommandVariant ? 'transparent' : 'var(--bg-app)',
           color: open || active ? 'var(--accent)' : 'var(--text-primary)',
           fontSize: 12.5,
-          fontWeight: 600,
+          fontWeight: showLabel ? (isCommandVariant ? 650 : 600) : 600,
+          cursor: 'pointer',
+        }}
+        onMouseEnter={(event) => {
+          event.currentTarget.style.background = open || active ? 'var(--accent-dim)' : 'var(--bg-hover)'
+        }}
+        onMouseLeave={(event) => {
+          event.currentTarget.style.background = open || active
+            ? 'var(--accent-dim)'
+            : isCommandVariant
+              ? 'transparent'
+              : 'var(--bg-app)'
         }}
       >
         <span className="flex items-center min-w-0 gap-1.5">
-          {Icon ? <Icon size={14} style={{ flexShrink: 0 }} /> : null}
-          {showLabel ? <span className="truncate">{label}</span> : null}
+          {Icon ? <Icon size={isCommandVariant ? 15 : 14} style={{ flexShrink: 0 }} /> : null}
+          {showLabel ? (
+            <span
+              className={isCommandVariant ? 'whitespace-nowrap' : 'truncate whitespace-nowrap'}
+              style={{ lineHeight: 1.15 }}
+            >
+              {label}
+            </span>
+          ) : null}
         </span>
-        <ChevronDown size={14} style={{ flexShrink: 0, color: open || active ? 'var(--accent)' : 'var(--text-secondary)' }} />
+        {!isCommandVariant ? (
+          <ChevronDown size={14} style={{ flexShrink: 0, color: open || active ? 'var(--accent)' : 'var(--text-secondary)' }} />
+        ) : null}
       </button>
       {open ? (
         <PopoverShell popoverRef={popoverRef} triggerRef={triggerRef} width={popoverWidth ?? (width + 54)}>
@@ -965,14 +1061,23 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
     }
   }, [isTextEditing])
 
-  const activeEditor = isTextEditing ? getCurrentOrSavedSlideTextEditor() : null
+  const liveEditor = isTextEditing ? getActiveSlideTextEditor() : null
+  const savedEditor = isTextEditing ? getSavedSlideTextEditor() : null
+  const canUseSavedEditor = Boolean(savedEditor)
+    && savedEditor?.dataset?.textBoxId === activeTextBoxId
+    && isRecentEditorToolbarInteraction()
+  const activeEditor = liveEditor || (canUseSavedEditor ? savedEditor : null)
   const editorSnapshot = activeEditor ? getEditorSelectionSnapshot(activeEditor) : null
   const editorFontFamily = activeEditor
     ? normalizeFontFamilyValue(editorSnapshot?.fontFamily, style.fontFamily || FONT_OPTIONS[0])
     : (style.fontFamily || FONT_OPTIONS[0])
+  const bodyFontSizeInternal = getRenderedBodyFontSize(activeTextBox?.body, style.size || DEFAULT_TEXT_STYLE.size)
+  const hasSelectedEditorText = Boolean(editorSnapshot?.selectedText?.trim?.().length)
   const editorFontSizeInternal = activeEditor
-    ? (Number.isFinite(editorSnapshot?.fontSize) && editorSnapshot.fontSize > 0 ? Math.round(editorSnapshot.fontSize) : (style.size || DEFAULT_TEXT_STYLE.size))
-    : (style.size || DEFAULT_TEXT_STYLE.size)
+    ? (hasSelectedEditorText && Number.isFinite(editorSnapshot?.fontSize) && editorSnapshot.fontSize > 0
+        ? Math.round(editorSnapshot.fontSize)
+        : bodyFontSizeInternal)
+    : bodyFontSizeInternal
   const editorFontSize = internalToDisplayFontSize(editorFontSizeInternal)
   const editorTextColor = activeEditor
     ? normalizeColorValue(editorSnapshot?.color, style.color || '#ffffff')
@@ -1008,6 +1113,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const hideEditSecondaryLabels = isTextEditing && compactLevel >= 1
   const hideEditColorLabels = isTextEditing && compactLevel >= 4
   const collapseEditColorsToPalette = isTextEditing && effectiveWidth < 900
+  const isWindowsPlatform = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows')
 
   const activeAlign = isTextEditing
     ? normalizeAlignValue(editorSnapshot?.textAlign, style.align || 'center')
@@ -1447,11 +1553,13 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 title="Song"
                 label="Song"
                 icon={Music}
-                width={hideMostLabels ? 42 : 88}
+                width={88}
+                minButtonWidth={isWindowsPlatform ? 114 : 88}
                 height={36}
                 active={songLibraryOpen || newSongEditorOpen}
                 collapseLabel={hideMostLabels}
                 popoverWidth={208}
+                buttonVariant="command"
               >
                 {({ close }) => (
                   <div className="flex flex-col gap-1">
@@ -1468,11 +1576,13 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 title="Media"
                 label="Media"
                 icon={Image}
-                width={hideMostLabels ? 44 : 94}
+                width={94}
+                minButtonWidth={isWindowsPlatform ? 122 : 94}
                 height={36}
                 active={mediaLibraryOpen}
                 collapseLabel={hideMostLabels}
                 popoverWidth={214}
+                buttonVariant="command"
               >
                 {({ close }) => (
                   <div className="flex flex-col gap-1">

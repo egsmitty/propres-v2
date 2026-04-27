@@ -57,6 +57,21 @@ export async function runAppCommand(command) {
       }
       return canClose
     }
+    case 'window:requestClose': {
+      const canClose = await resolveUnsavedChanges({
+        presentation: editorState.presentation,
+        isDirty: editorState.isDirty,
+        requiresInitialSave: editorState.requiresInitialSave,
+        setDirty: editorState.setDirty,
+        setRequiresInitialSave: editorState.setRequiresInitialSave,
+        actionLabel: 'close the window',
+      })
+      if (canClose) {
+        appState.setAllowWindowClose(true)
+        window.electronAPI?.windowClose?.()
+      }
+      return canClose
+    }
     case 'edit:presentationSettings':
       if (appState.currentView === 'editor') {
         appState.setPresentationSettingsOpen(true)
@@ -109,6 +124,21 @@ export async function runAppCommand(command) {
     case 'view:filmstrip':
       appState.setFilmstripVisible(!appState.filmstripVisible)
       return true
+    case 'view:songLibrary':
+      appState.setMediaLibraryOpen(false)
+      appState.setNewSongEditorOpen(false)
+      appState.setSongLibraryOpen(true)
+      return true
+    case 'view:mediaLibrary':
+      appState.setSongLibraryOpen(false)
+      appState.setNewSongEditorOpen(false)
+      appState.setMediaLibraryOpen(true)
+      return true
+    case 'view:presenterPanel': {
+      const open = usePresenterStore.getState().presenterPanelOpen
+      usePresenterStore.getState().setPresenterPanelOpen(!open)
+      return true
+    }
     case 'view:presenterView': {
       // Presenter view is now the sidebar panel — toggle it
       const open = usePresenterStore.getState().presenterPanelOpen

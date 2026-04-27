@@ -37,14 +37,10 @@ const MENUS = [
   {
     label: 'View',
     items: [
-      { label: 'Zoom In', shortcut: '⌘+', action: 'view:zoomIn' },
-      { label: 'Zoom Out', shortcut: '⌘-', action: 'view:zoomOut' },
-      { divider: true },
       { label: 'Service Order', action: 'view:filmstrip' },
-      { divider: true },
-      { label: 'Presenter View', action: 'view:presenterView' },
-      { label: 'Output Window', action: 'view:outputWindow' },
-      { label: 'Stage Display Window', action: 'view:stageDisplayWindow' },
+      { label: 'Song Library', action: 'view:songLibrary' },
+      { label: 'Media Library', action: 'view:mediaLibrary' },
+      { label: 'Show Presenter Panel', action: 'view:presenterPanel' },
     ]
   },
   {
@@ -111,6 +107,7 @@ export default function MenuBar() {
   const filmstripVisible = useAppStore((s) => s.filmstripVisible)
   const presentation = useEditorStore((s) => s.presentation)
   const isPresenting = usePresenterStore((s) => s.isPresenting)
+  const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -143,13 +140,20 @@ export default function MenuBar() {
       if (['present:stop', 'present:black', 'present:logo'].includes(item.action)) {
         disabled = !isPresenting
       }
-      if (['view:zoomIn', 'view:zoomOut', 'view:filmstrip'].includes(item.action)) {
+      if (['view:filmstrip', 'view:songLibrary', 'view:mediaLibrary', 'view:presenterPanel'].includes(item.action)) {
         disabled = !presentation
       }
       if (item.action === 'view:filmstrip') {
         return {
           ...item,
           label: filmstripVisible ? 'Hide Service Order' : 'Show Service Order',
+          disabled,
+        }
+      }
+      if (item.action === 'view:presenterPanel') {
+        return {
+          ...item,
+          label: presenterPanelOpen ? 'Hide Presenter Panel' : 'Show Presenter Panel',
           disabled,
         }
       }

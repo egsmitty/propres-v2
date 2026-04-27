@@ -115,6 +115,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   const [saving, setSaving] = useState(false)
   const [lyricsFocusCount, setLyricsFocusCount] = useState(0)
   const [rawLyricsFocused, setRawLyricsFocused] = useState(false)
+  const [rawLyricsDirty, setRawLyricsDirty] = useState(false)
 
   const editingLyrics = lyricsFocusCount > 0
 
@@ -123,15 +124,16 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     setGroups(nextGroups)
     setArrangement(nextArrangement)
     setLyrics(groupsToLyrics(nextGroups))
+    setRawLyricsDirty(false)
     const selection = getGroupSlideSelection(nextGroups, nextArrangement, null, null)
     setSelectedGroupId(selection.groupId)
     setSelectedSlideId(selection.slideId)
   }, [song])
 
   useEffect(() => {
-    if (rawLyricsFocused) return
+    if (rawLyricsFocused || rawLyricsDirty) return
     setLyrics(groupsToLyrics(groups))
-  }, [groups, rawLyricsFocused])
+  }, [groups, rawLyricsDirty, rawLyricsFocused])
 
   useEffect(() => {
     const selection = getGroupSlideSelection(groups, arrangement, selectedGroupId, selectedSlideId)
@@ -173,6 +175,8 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     const nextArrangement = nextGroups.map((group) => group.id)
     setGroups(nextGroups)
     setArrangement(nextArrangement)
+    setLyrics(groupsToLyrics(nextGroups))
+    setRawLyricsDirty(false)
     const nextSelection = getGroupSlideSelection(nextGroups, nextArrangement, null, null)
     setSelectedGroupId(nextSelection.groupId)
     setSelectedSlideId(nextSelection.slideId)
@@ -421,7 +425,10 @@ export default function SongEditorModal({ song, onClose, onSave }) {
               </div>
               <textarea
                 value={lyrics}
-                onChange={(event) => setLyrics(event.target.value)}
+                onChange={(event) => {
+                  setLyrics(event.target.value)
+                  setRawLyricsDirty(true)
+                }}
                 onFocus={() => {
                   setRawLyricsFocused(true)
                   beginLyricsEditing()
