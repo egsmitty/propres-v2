@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { useAppStore } from '@/store/appStore'
-import { GripVertical } from 'lucide-react'
-import { getMedia, getSongs, updateSong } from '@/utils/ipc'
+import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react'
+import { getMedia } from '@/utils/ipc'
 import { getEffectiveBackgroundId, getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds'
 import { getSectionColor, getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing'
@@ -315,9 +315,9 @@ export default function Canvas() {
   const [selectionRect, setSelectionRect] = useState(null)
   const [metric, setMetric] = useState(null)
   const [caseModeIndex, setCaseModeIndex] = useState(0)
-  const [songRecord, setSongRecord] = useState(null)
-  const [songOrderBusy, setSongOrderBusy] = useState(false)
   const [songOrderDragState, setSongOrderDragState] = useState(null)
+  const [songOrderTrayCollapsed, setSongOrderTrayCollapsed] = useState(false)
+  const [songSectionsCollapsed, setSongSectionsCollapsed] = useState(false)
 
   const canvasRef = useRef(null)
   const interactionRef = useRef(null)
@@ -342,8 +342,8 @@ export default function Canvas() {
   const primaryTextBoxId = selectedTextBoxIds[selectedTextBoxIds.length - 1] || selectedTextBoxIds[0] || null
   const primaryTextBox = renderedBoxes.find((box) => box.id === primaryTextBoxId) || null
   const isEditing = editingSlideId === selectedSlideId && Boolean(editingTextBoxId)
-  const showSongOrderTray = Boolean(section?.type === 'song' && slide && resolvedSongId && songSectionData)
-  const songOrderDisabled = !showSongOrderTray || !songRecord || songOrderBusy || isEditing
+  const showSongOrderTray = Boolean(section?.type === 'song' && resolvedSongId && songSectionData)
+  const songOrderDisabled = !showSongOrderTray || isEditing
   const songOrderEntries = useMemo(
     () => songSectionData?.arrangement?.map((groupId, index) => ({
       index,
@@ -377,10 +377,11 @@ export default function Canvas() {
     setSelectedTextBoxIds(nextSelectedIds)
   }
 
-  async function applySongArrangement(nextArrangement) {
-    if (!songSectionData || !songRecord || !resolvedSongId || !selectedSectionId) return
+  function applySongArrangement(nextArrangement) {
+    if (!songSectionData || !resolvedSongId || !selectedSectionId) return
 
     const flattened = flattenSongGroupsToSlides(songSectionData.groups, nextArrangement, {
+      preserveEmptyArrangement: true,
       songId: resolvedSongId,
     })
     const currentGroupId = slide?.groupId || flattened.arrangement[0] || null
@@ -395,6 +396,7 @@ export default function Canvas() {
           ? {
               ...entry,
               songId: resolvedSongId,
+              songGroups: flattened.groups,
               songOrder: flattened.arrangement,
               slides: flattened.slides,
             }
@@ -404,29 +406,8 @@ export default function Canvas() {
 
     if (nextSelected) {
       setSelectedSlide(selectedSectionId, nextSelected.id)
-    }
-
-    setSongOrderBusy(true)
-    try {
-      await updateSong(songRecord.id, {
-        title: songRecord.title,
-        artist: songRecord.artist,
-        ccli: songRecord.ccli,
-        tags: songRecord.tags,
-        slides: JSON.stringify(flattened.slides),
-        songOrder: JSON.stringify(flattened.arrangement),
-      })
-      setSongRecord((current) => (
-        current
-          ? {
-              ...current,
-              slides: JSON.stringify(flattened.slides),
-              songOrder: JSON.stringify(flattened.arrangement),
-            }
-          : current
-      ))
-    } finally {
-      setSongOrderBusy(false)
+    } else {
+      setSelectedSlide(selectedSectionId, null)
     }
   }
 
@@ -443,11 +424,11 @@ export default function Canvas() {
       const [moved] = current.splice(fromIndex, 1)
       const insertIndex = fromIndex < index ? index - 1 : index
       current.splice(insertIndex, 0, moved)
-      void applySongArrangement(current)
+      applySongArrangement(current)
     } else if (songOrderDragState.kind === 'available') {
       const current = [...songSectionData.arrangement]
       current.splice(index, 0, songOrderDragState.groupId)
-      void applySongArrangement(current)
+      applySongArrangement(current)
     }
 
     setSongOrderDragState(null)
@@ -486,28 +467,6 @@ export default function Canvas() {
   }, [mediaLibraryOpen])
 
   useEffect(() => {
-    let cancelled = false
-
-    async function loadSongRecord() {
-      if (!resolvedSongId || section?.type !== 'song') {
-        setSongRecord(null)
-        return
-      }
-
-      const result = await getSongs()
-      if (cancelled) return
-      const songs = result?.success ? result.data : []
-      setSongRecord(songs.find((item) => String(item.id) === String(resolvedSongId)) || null)
-    }
-
-    loadSongRecord()
-
-    return () => {
-      cancelled = true
-    }
-  }, [resolvedSongId, section?.type])
-
-  useEffect(() => {
     interactionRef.current = null
     setDraftBoxes(null)
     setSelectedTextBoxIds([])
@@ -521,6 +480,11 @@ export default function Canvas() {
     activeEditorCommitRef.current = null
     suppressBlurCommitRef.current = false
   }, [selectedSectionId, selectedSlideId, setEditingSlide, setSelectedTextBoxIdsInStore])
+
+  useEffect(() => {
+    setSongOrderTrayCollapsed(false)
+    setSongSectionsCollapsed(false)
+  }, [selectedSectionId])
 
   useEffect(() => {
     setSelectedTextBoxIdsInStore(selectedTextBoxIds)
@@ -1073,114 +1037,142 @@ export default function Canvas() {
     return <EmptyState message="Open a presentation to get started" />
   }
 
-  if (!slide) {
+  if (!slide && !showSongOrderTray) {
     return <EmptyState message="Select a slide from the service order" />
   }
 
   return (
-    <div data-tour="canvas" className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
-      {showSongOrderTray ? (
-        <SongOrderTray
-          groups={songSectionData.groups}
-          entries={songOrderEntries}
-          disabled={songOrderDisabled}
-          loading={!songRecord}
-          onAddGroup={(groupId) => {
-            if (songOrderDisabled) return
-            void applySongArrangement([...(songSectionData?.arrangement || []), groupId])
-          }}
-          onRemoveEntry={(index) => {
-            if (songOrderDisabled) return
-            if ((songSectionData?.arrangement?.length || 0) <= 1) return
-            void applySongArrangement(songSectionData.arrangement.filter((_, entryIndex) => entryIndex !== index))
-          }}
-          onArrangementDrop={handleSongArrangementDrop}
-          setDragState={setSongOrderDragState}
-        />
-      ) : null}
+    <div data-tour="canvas" className="flex-1 min-w-0 min-h-0 overflow-y-auto" style={{ background: 'var(--bg-app)' }}>
+      <div className="min-h-full flex flex-col">
+        {showSongOrderTray ? (
+          <SongOrderTray
+            groups={songSectionData.groups}
+            entries={songOrderEntries}
+            disabled={songOrderDisabled}
+            collapsed={songOrderTrayCollapsed}
+            onToggleCollapsed={() => setSongOrderTrayCollapsed((current) => !current)}
+            sectionsCollapsed={songSectionsCollapsed}
+            onToggleSections={() => setSongSectionsCollapsed((current) => !current)}
+            onAddGroup={(groupId) => {
+              if (songOrderDisabled) return
+              applySongArrangement([...(songSectionData?.arrangement || []), groupId])
+            }}
+            onRemoveEntry={(index) => {
+              if (songOrderDisabled) return
+              applySongArrangement(songSectionData.arrangement.filter((_, entryIndex) => entryIndex !== index))
+            }}
+            onArrangementDrop={handleSongArrangementDrop}
+            setDragState={setSongOrderDragState}
+          />
+        ) : null}
 
-      <div className="flex-1 flex items-center justify-center p-6" onContextMenu={(event) => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY, target: 'slide' }) }}>
         <div
-          ref={canvasRef}
-          className="relative rounded shadow-2xl overflow-hidden"
-          style={{ width: '100%', maxHeight: '100%', aspectRatio: getPresentationAspectRatio(presentation), background: '#1a1a1a' }}
+          className="flex-1 flex items-center justify-center p-6 min-h-[420px]"
+          onContextMenu={(event) => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY, target: 'slide' }) }}
         >
-          <div
-            onMouseDown={handleBlankMouseDown}
-            style={{ position: 'absolute', top: 0, left: 0, width: nativeW, height: nativeH, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-          >
-            {!mediaOnlySlide && backgroundMedia && <CanvasBackground media={backgroundMedia} />}
-            {!mediaOnlySlide && <div style={{ position: 'absolute', inset: 0, background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent' }} />}
+          {slide ? (
+            <div
+              ref={canvasRef}
+              className="relative rounded shadow-2xl overflow-hidden"
+              style={{ width: '100%', maxHeight: '100%', aspectRatio: getPresentationAspectRatio(presentation), background: '#1a1a1a' }}
+            >
+              <div
+                onMouseDown={handleBlankMouseDown}
+                style={{ position: 'absolute', top: 0, left: 0, width: nativeW, height: nativeH, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+              >
+                {!mediaOnlySlide && backgroundMedia && <CanvasBackground media={backgroundMedia} />}
+                {!mediaOnlySlide && <div style={{ position: 'absolute', inset: 0, background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent' }} />}
 
-            {mediaOnlySlide ? (
-              slideMedia ? <CanvasBackground media={slideMedia} /> : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#777' }}>Media slide</div>
-            ) : (
-              <>
-                {snapGuides.vertical !== null && <GuideLine direction="vertical" position={snapGuides.vertical} />}
-                {snapGuides.horizontal !== null && <GuideLine direction="horizontal" position={snapGuides.horizontal} />}
-                {selectionRect && <SelectionRect rect={selectionRect} />}
-                {renderedBoxes.map(renderTextBox)}
-                {metric && primaryTextBox && (
-                  <div style={{ ...INDICATOR_STYLE, left: primaryTextBox.x + 8, top: primaryTextBox.y - 72 }}>
-                    {metric.type === 'move' && `X ${metric.x} · Y ${metric.y}`}
-                    {metric.type === 'resize' && `${metric.width} × ${metric.height}`}
-                    {metric.type === 'rotate' && `${metric.rotation}°`}
-                  </div>
+                {mediaOnlySlide ? (
+                  slideMedia ? <CanvasBackground media={slideMedia} /> : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#777' }}>Media slide</div>
+                ) : (
+                  <>
+                    {snapGuides.vertical !== null && <GuideLine direction="vertical" position={snapGuides.vertical} />}
+                    {snapGuides.horizontal !== null && <GuideLine direction="horizontal" position={snapGuides.horizontal} />}
+                    {selectionRect && <SelectionRect rect={selectionRect} />}
+                    {renderedBoxes.map(renderTextBox)}
+                    {metric && primaryTextBox && (
+                      <div style={{ ...INDICATOR_STYLE, left: primaryTextBox.x + 8, top: primaryTextBox.y - 72 }}>
+                        {metric.type === 'move' && `X ${metric.x} · Y ${metric.y}`}
+                        {metric.type === 'resize' && `${metric.width} × ${metric.height}`}
+                        {metric.type === 'rotate' && `${metric.rotation}°`}
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="w-full max-w-[980px] rounded-2xl border border-dashed flex items-center justify-center px-8 py-16 text-center"
+              style={{
+                minHeight: 300,
+                background: 'var(--bg-surface)',
+                borderColor: 'var(--border-default)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <div>
+                <p className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                  Arrangement is empty
+                </p>
+                <p className="text-sm leading-6">
+                  Add sections from the available list above to build this presentation&apos;s version of the song.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          items={menu.target === 'textbox'
-            ? [
-                { label: 'Bring to Front', onClick: () => reorderSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds, 'front') },
-                { label: 'Bring Forward', onClick: () => reorderSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds, 'forward') },
-                { label: 'Send Backward', onClick: () => reorderSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds, 'backward') },
-                { label: 'Send to Back', onClick: () => reorderSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds, 'back') },
-                { divider: true },
-                { label: 'Duplicate Text Box', onClick: () => duplicateSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds) },
-                { label: 'Delete Text Box', onClick: () => { removeSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds); setSelectedTextBoxIds([]) }, danger: true },
-              ]
-            : [
-                { label: 'Set Background', onClick: () => setMediaLibraryOpen(true) },
-                { divider: true },
-                { label: 'Copy Slide', onClick: () => copySelectedSlideToClipboard() },
-                { label: 'Paste Slide', onClick: () => pasteSlideAfterSelected(), disabled: !slideClipboard },
-                { label: 'Clear Slide', onClick: () => clearSelectedSlide() },
-                { label: 'Delete Slide', onClick: () => deleteSelectedSlideFromCurrentPresentation(), danger: true },
-              ]}
-          onClose={() => setMenu(null)}
-        />
-      )}
+        {menu && (
+          <ContextMenu
+            x={menu.x}
+            y={menu.y}
+            items={menu.target === 'textbox'
+              ? [
+                  { label: 'Bring to Front', onClick: () => reorderSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds, 'front') },
+                  { label: 'Bring Forward', onClick: () => reorderSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds, 'forward') },
+                  { label: 'Send Backward', onClick: () => reorderSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds, 'backward') },
+                  { label: 'Send to Back', onClick: () => reorderSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds, 'back') },
+                  { divider: true },
+                  { label: 'Duplicate Text Box', onClick: () => duplicateSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds) },
+                  { label: 'Delete Text Box', onClick: () => { removeSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds); setSelectedTextBoxIds([]) }, danger: true },
+                ]
+              : [
+                  { label: 'Set Background', onClick: () => setMediaLibraryOpen(true) },
+                  { divider: true },
+                  { label: 'Copy Slide', onClick: () => copySelectedSlideToClipboard() },
+                  { label: 'Paste Slide', onClick: () => pasteSlideAfterSelected(), disabled: !slideClipboard },
+                  { label: 'Clear Slide', onClick: () => clearSelectedSlide() },
+                  { label: 'Delete Slide', onClick: () => deleteSelectedSlideFromCurrentPresentation(), danger: true },
+                ]}
+            onClose={() => setMenu(null)}
+          />
+        )}
 
-      <div
-        className="shrink-0 px-4 py-2"
-        style={{ background: 'var(--bg-toolbar)', borderTop: '1px solid var(--border-subtle)' }}
-      >
-        <div className="flex items-center gap-3 justify-between flex-wrap">
-          <div className="min-w-[220px] flex-1">
-            <div className="text-[11px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>
-              {section ? `${getSectionTypeLabel(section.type)} Background` : 'Section Background'}
+        <div
+          className="shrink-0 px-4 py-2"
+          style={{ background: 'var(--bg-toolbar)', borderTop: '1px solid var(--border-subtle)' }}
+        >
+          <div className="flex items-center gap-3 justify-between flex-wrap">
+            <div className="min-w-[220px] flex-1">
+              <div className="text-[11px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--text-secondary)' }}>
+                {section ? `${getSectionTypeLabel(section.type)} Background` : 'Section Background'}
+              </div>
+              <div className="text-xs mt-0.5 break-words" style={{ color: 'var(--text-tertiary)' }}>
+                {mediaOnlySlide ? slideMedia?.name || 'Media slide' : backgroundMedia ? backgroundMedia.name : 'No background'}
+              </div>
             </div>
-            <div className="text-xs mt-0.5 break-words" style={{ color: 'var(--text-tertiary)' }}>
-              {mediaOnlySlide ? slideMedia?.name || 'Media slide' : backgroundMedia ? backgroundMedia.name : 'No background'}
-            </div>
+            <button
+              className="shrink-0 text-xs px-3 py-1.5 rounded-md font-medium"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+              onMouseEnter={(event) => (event.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={(event) => (event.currentTarget.style.background = 'var(--bg-surface)')}
+              onClick={() => setMediaLibraryOpen(true)}
+            >
+              {mediaOnlySlide ? 'Change Media' : 'Set Background'}
+            </button>
           </div>
-          <button
-            className="shrink-0 text-xs px-3 py-1.5 rounded-md font-medium"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            onMouseEnter={(event) => (event.currentTarget.style.background = 'var(--bg-hover)')}
-            onMouseLeave={(event) => (event.currentTarget.style.background = 'var(--bg-surface)')}
-            onClick={() => setMediaLibraryOpen(true)}
-          >
-            {mediaOnlySlide ? 'Change Media' : 'Set Background'}
-          </button>
         </div>
       </div>
     </div>
@@ -1199,7 +1191,10 @@ function SongOrderTray({
   groups,
   entries,
   disabled,
-  loading,
+  collapsed,
+  onToggleCollapsed,
+  sectionsCollapsed,
+  onToggleSections,
   onAddGroup,
   onRemoveEntry,
   onArrangementDrop,
@@ -1210,101 +1205,166 @@ function SongOrderTray({
       className="shrink-0 px-4 py-3"
       style={{
         background: 'var(--bg-toolbar)',
-        borderBottom: '1px solid var(--border-subtle)',
         opacity: disabled ? 0.58 : 1,
         pointerEvents: disabled ? 'none' : 'auto',
       }}
     >
-      <div className="flex items-center justify-between gap-4 mb-2">
-        <div>
-          <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-            Song Order
-          </p>
-          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            {loading ? 'Loading linked song…' : 'Arrange section groups above the selected slide preview.'}
-          </p>
-        </div>
-      </div>
-
-      <div className="mb-3">
-        <p className="text-[11px] uppercase mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
-          Available Sections
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {groups.map((group) => (
-            <button
-              key={group.id}
-              type="button"
-              draggable={!disabled}
-              onDragStart={() => setDragState({ kind: 'available', groupId: group.id })}
-              onDragEnd={() => setDragState(null)}
-              onClick={() => onAddGroup(group.id)}
-              className="text-xs px-2.5 py-1 rounded-full"
-              style={{
-                background: `${getSectionColor(group.type)}22`,
-                border: `1px solid ${getSectionColor(group.type)}55`,
-                color: 'var(--text-primary)',
-                cursor: disabled ? 'default' : 'grab',
-              }}
-            >
-              {group.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className="text-[11px] uppercase mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
-          Arrangement
-        </p>
-        <div
-          className="rounded-md p-2 min-h-14"
-          style={{ border: '1px dashed var(--border-default)', background: 'var(--bg-surface)' }}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={() => onArrangementDrop(entries.length)}
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
+          style={{
+            color: 'var(--text-primary)',
+          }}
         >
-          <div className="flex flex-wrap gap-2">
-            {entries.length ? entries.map((entry) => (
+          <div className="flex items-center gap-3 min-w-0">
+            {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+            <div className="min-w-0">
+              <p className="text-xs font-medium whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+                Song Order
+              </p>
+              <p className="text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+                {entries.length} arranged · {groups.length} available
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
+            {collapsed ? 'Show' : 'Hide'}
+          </span>
+        </button>
+
+        {!collapsed ? (
+          <div
+            className="px-4 pb-4"
+            style={{ borderTop: '1px solid var(--border-subtle)' }}
+          >
+            <div className="max-h-[320px] overflow-y-auto pt-3 pr-1">
+              <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>
+                Drag to arrange section groups above the selected slide preview.
+              </p>
+
               <div
-                key={`${entry.groupId}-${entry.index}`}
-                draggable={!disabled}
-                onDragStart={() => setDragState({ kind: 'arrangement', index: entry.index })}
-                onDragEnd={() => setDragState(null)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  onArrangementDrop(entry.index)
-                }}
-                className="flex items-center gap-1 rounded-full px-2 py-1"
+                className="mb-4 rounded-xl"
                 style={{
-                  background: `${getSectionColor(entry.group.type)}22`,
-                  border: `1px solid ${getSectionColor(entry.group.type)}55`,
-                  color: 'var(--text-primary)',
-                  cursor: disabled ? 'default' : 'grab',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-surface)',
                 }}
               >
-                <GripVertical size={12} style={{ color: 'var(--text-tertiary)' }} />
-                <span className="text-xs">{entry.group.label}</span>
                 <button
                   type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onRemoveEntry(entry.index)
-                  }}
-                  className="text-xs"
-                  style={{ color: 'var(--text-tertiary)' }}
+                  onClick={onToggleSections}
+                  className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-left transition-colors"
+                  style={{ color: 'var(--text-primary)' }}
                 >
-                  ×
+                  <div className="flex items-center gap-2">
+                    {sectionsCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                    <span className="text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
+                      Available Sections
+                    </span>
+                  </div>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {groups.length} section{groups.length === 1 ? '' : 's'}
+                  </span>
                 </button>
+
+                {!sectionsCollapsed ? (
+                  <div
+                    className="flex flex-wrap gap-2 border-t px-3 py-3"
+                    style={{ borderColor: 'var(--border-subtle)' }}
+                  >
+                    {groups.map((group) => (
+                      <button
+                        key={group.id}
+                        type="button"
+                        draggable={!disabled}
+                        onDragStart={() => setDragState({ kind: 'available', groupId: group.id })}
+                        onDragEnd={() => setDragState(null)}
+                        onClick={() => onAddGroup(group.id)}
+                        className="text-sm px-3 py-1.5 rounded-full"
+                        style={{
+                          background: `${getSectionColor(group.type)}22`,
+                          border: `1px solid ${getSectionColor(group.type)}55`,
+                          color: 'var(--text-primary)',
+                          cursor: disabled ? 'default' : 'grab',
+                        }}
+                      >
+                        {group.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            )) : (
-              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                Add at least one section group to define an arrangement.
-              </span>
-            )}
+
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <p className="text-[11px] uppercase" style={{ color: 'var(--text-tertiary)' }}>
+                    Arrangement
+                  </p>
+                  <span className="text-xs whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+                    {entries.length} item{entries.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div
+                  className="rounded-xl p-3.5"
+                  style={{
+                    border: '1px dashed var(--border-default)',
+                    background: 'var(--bg-surface)',
+                    minHeight: 112,
+                    maxHeight: 112,
+                    overflowY: 'auto',
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => onArrangementDrop(entries.length)}
+                >
+                  <div className="flex flex-wrap content-start gap-2 min-h-[28px]">
+                    {entries.map((entry) => (
+                      <div
+                        key={`${entry.groupId}-${entry.index}`}
+                        draggable={!disabled}
+                        onDragStart={() => setDragState({ kind: 'arrangement', index: entry.index })}
+                        onDragEnd={() => setDragState(null)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onArrangementDrop(entry.index)
+                        }}
+                        className="flex items-center gap-1 rounded-full px-2.5 py-1.5"
+                        style={{
+                          background: `${getSectionColor(entry.group.type)}22`,
+                          border: `1px solid ${getSectionColor(entry.group.type)}55`,
+                          color: 'var(--text-primary)',
+                          cursor: disabled ? 'default' : 'grab',
+                        }}
+                      >
+                        <GripVertical size={12} style={{ color: 'var(--text-tertiary)' }} />
+                        <span className="text-sm">{entry.group.label}</span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onRemoveEntry(entry.index)
+                          }}
+                          className="text-sm"
+                          style={{ color: 'var(--text-tertiary)' }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
     </div>
   )
