@@ -14,6 +14,7 @@ import { uuid } from '@/utils/uuid'
 
 const CUSTOM_GROUP_NAME_LIMIT = 24
 const CUSTOM_GROUP_DEFAULT_LABEL = 'Custom'
+const DEFAULT_UNTITLED_SONG_TITLE = 'Untitled Song'
 const SONG_EDITOR_SECTION_TYPES = SECTION_TYPES.filter((type) => type.id !== 'blank')
 
 function normalizeSongEditorGroupType(type = 'verse') {
@@ -24,13 +25,25 @@ function isCustomSongEditorGroupType(type = 'verse') {
   return normalizeSongEditorGroupType(type) === 'custom'
 }
 
-function normalizeCustomGroupLabel(label = '') {
-  const normalized = String(label || '')
+function sanitizeCustomGroupLabel(label = '') {
+  return String(label || '').slice(0, CUSTOM_GROUP_NAME_LIMIT)
+}
+
+function finalizeCustomGroupLabel(label = '') {
+  const normalized = sanitizeCustomGroupLabel(label)
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, CUSTOM_GROUP_NAME_LIMIT)
 
   return normalized || CUSTOM_GROUP_DEFAULT_LABEL
+}
+
+function resolveSongEditorGroupLabel(group) {
+  if (!group) return ''
+  if (isCustomSongEditorGroupType(group.type)) {
+    return finalizeCustomGroupLabel(group.label)
+  }
+
+  return group.label || makeSongGroupLabel(group.type)
 }
 
 function nextGroupLabel(type, groups) {
@@ -55,7 +68,7 @@ function normalizeSongEditorGroups(groups = []) {
       return {
         ...group,
         type,
-        label: normalizeCustomGroupLabel(group?.label),
+        label: sanitizeCustomGroupLabel(group?.label),
         slides,
       }
     }
@@ -75,11 +88,19 @@ function normalizeSongEditorGroups(groups = []) {
 function groupsToLyrics(groups) {
   return groups
     .map((group) => {
-      const header = group.label || makeSongGroupLabel(group.type)
+      const header = resolveSongEditorGroupLabel(group)
       const slides = (group.slides || []).map((slide) => slide.body || '')
       return [header, ...slides].join('\n\n')
     })
     .join('\n\n')
+}
+
+function finalizeSongEditorGroups(groups = []) {
+  return normalizeSongEditorGroups(groups.map((group) => (
+    isCustomSongEditorGroupType(group?.type)
+      ? { ...group, label: finalizeCustomGroupLabel(group?.label) }
+      : group
+  )))
 }
 
 function createSongEditorSnapshot({ title, artist, ccli, lyrics, groups, arrangement }) {
@@ -123,18 +144,12 @@ function updateGroupCollection(groups, groupId, updater) {
   return groups.map((group) => (group.id === groupId ? updater(group) : group))
 }
 
-function ArrangementChip({ label, color, onRemove, onDragStart, onDragEnd, onDrop, index }) {
+function ArrangementChip({ label, color, onRemove, onDragStart, onDragEnd }) {
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        onDrop(index)
-      }}
       className="flex items-center gap-1 rounded-full px-2 py-1"
       style={{
         background: `${color}22`,
@@ -262,9 +277,10 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   )
 
   const availableSections = useMemo(
-    () => groups.map((group) => ({ id: group.id, label: group.label, color: getSectionColor(group.type) })),
+    () => groups.map((group) => ({ id: group.id, label: resolveSongEditorGroupLabel(group), color: getSectionColor(group.type) })),
     [groups]
   )
+  const allGroupsCollapsed = groups.length > 0 && groups.every((group) => collapsedGroupIds.includes(group.id))
 
   const arrangementEntries = useMemo(
     () => arrangement.map((groupId, index) => {
@@ -309,6 +325,12 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     ))
   }
 
+  function collapseAllGroups() {
+    setCollapsedGroupIds((current) => (
+      current.length === groups.length ? [] : groups.map((group) => group.id)
+    ))
+  }
+
   function updateGroup(groupId, updater) {
     commitGroups((current) => updateGroupCollection(current, groupId, updater))
   }
@@ -342,8 +364,22 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   function updateCustomGroupLabel(groupId, label) {
     updateGroup(groupId, (group) => ({
       ...group,
-      label: String(label || '').slice(0, CUSTOM_GROUP_NAME_LIMIT),
+      label: sanitizeCustomGroupLabel(label),
     }))
+  }
+
+  function finalizeCustomGroup(groupId) {
+    updateGroup(groupId, (group) => {
+      if (!isCustomSongEditorGroupType(group.type)) return group
+
+      const nextLabel = finalizeCustomGroupLabel(group.label)
+      if (nextLabel === group.label) return group
+
+      return {
+        ...group,
+        label: nextLabel,
+      }
+    })
   }
 
   function updateSlideBody(groupId, slideId, body) {
@@ -467,26 +503,38 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   }
 
   async function handleSave() {
-    if (!title.trim()) return
     setSaving(true)
-    const flattened = flattenSongGroupsToSlides(groups, arrangement)
-    const data = {
-      title,
-      artist,
-      ccli,
-      slides: JSON.stringify(flattened.slides),
-      songOrder: JSON.stringify(flattened.arrangement),
-    }
 
-    if (song?.id) {
-      await updateSong(song.id, data)
-    } else {
-      await createSong(data)
-    }
+    try {
+      const resolvedTitle = title.trim() || DEFAULT_UNTITLED_SONG_TITLE
+      if (resolvedTitle !== title) {
+        setTitle(resolvedTitle)
+      }
 
-    setSaving(false)
-    onSave()
-    onClose()
+      const finalizedGroups = finalizeSongEditorGroups(groups)
+      setGroups(finalizedGroups)
+      const flattened = flattenSongGroupsToSlides(finalizedGroups, arrangement)
+      const data = {
+        title: resolvedTitle,
+        artist,
+        ccli,
+        slides: JSON.stringify(flattened.slides),
+        songOrder: JSON.stringify(flattened.arrangement),
+      }
+
+      if (song?.id) {
+        await updateSong(song.id, data)
+      } else {
+        await createSong(data)
+      }
+
+      onSave()
+      onClose()
+    } catch (error) {
+      console.error('Failed to save song', error)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -673,7 +721,9 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                         type="button"
                         draggable
                         onDragStart={() => setDragState({ kind: 'available', groupId: group.id })}
-                        onDragEnd={() => setDragState(null)}
+                        onDragEnd={() => {
+                          setDragState(null)
+                        }}
                         onClick={() => setArrangement((current) => [...current, group.id])}
                         className="text-xs px-2.5 py-1 rounded-full"
                         style={{
@@ -696,25 +746,88 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   <div
                     className="rounded-md p-2 min-h-16"
                     style={{ border: '1px dashed var(--border-default)', background: 'var(--bg-surface)' }}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => handleArrangementDrop(arrangementEntries.length)}
                   >
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {arrangementEntries.length ? arrangementEntries.map((entry) => (
-                        <ArrangementChip
+                        <div
                           key={`${entry.groupId}-${entry.index}`}
-                          index={entry.index}
-                          label={entry.group.label}
-                          color={getSectionColor(entry.group.type)}
-                          onDragStart={() => setDragState({ kind: 'arrangement', index: entry.index })}
-                          onDragEnd={() => setDragState(null)}
-                          onDrop={handleArrangementDrop}
-                          onRemove={() => removeArrangementEntry(entry.index)}
-                        />
+                          className="relative shrink-0"
+                        >
+                          <div
+                            aria-hidden="true"
+                            onDragOver={(event) => {
+                              event.preventDefault()
+                              if (!dragState) return
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              handleArrangementDrop(entry.index)
+                            }}
+                            style={{
+                              position: 'absolute',
+                              left: -7,
+                              top: 0,
+                              bottom: 0,
+                              width: 14,
+                              zIndex: 1,
+                            }}
+                          />
+                          <div
+                            aria-hidden="true"
+                            onDragOver={(event) => {
+                              event.preventDefault()
+                              if (!dragState) return
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              handleArrangementDrop(entry.index + 1)
+                            }}
+                            style={{
+                              position: 'absolute',
+                              right: -7,
+                              top: 0,
+                              bottom: 0,
+                              width: 14,
+                              zIndex: 1,
+                            }}
+                          />
+                          <ArrangementChip
+                            label={resolveSongEditorGroupLabel(entry.group)}
+                            color={getSectionColor(entry.group.type)}
+                            onDragStart={() => setDragState({ kind: 'arrangement', index: entry.index })}
+                            onDragEnd={() => {
+                              setDragState(null)
+                            }}
+                            onRemove={() => removeArrangementEntry(entry.index)}
+                          />
+                        </div>
                       )) : (
-                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                          Add at least one section group to define an arrangement.
-                        </span>
+                        <button
+                          type="button"
+                          aria-label="Insert at beginning"
+                          onDragOver={(event) => {
+                            event.preventDefault()
+                            if (!dragState) return
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            handleArrangementDrop(0)
+                          }}
+                          className="w-full rounded-md px-3 py-3 text-left transition-all"
+                          style={{
+                            background: 'transparent',
+                            border: '1px dashed transparent',
+                            color: 'var(--text-tertiary)',
+                            cursor: dragState ? 'copy' : 'default',
+                          }}
+                        >
+                          <span className="text-xs">
+                            Drag or add section groups here to define an arrangement.
+                          </span>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -759,7 +872,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <div>
                         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          {selectedGroup.label}
+                          {resolveSongEditorGroupLabel(selectedGroup)}
                         </p>
                         <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                           Slide {selectedGroup.slides.findIndex((slide) => slide.id === selectedSlide.id) + 1}
@@ -812,8 +925,19 @@ export default function SongEditorModal({ song, onClose, onSave }) {
               </div>
               <button
                 type="button"
+                onClick={collapseAllGroups}
+                className="px-2.5 py-1 rounded text-[11px] font-medium"
+                style={{ color: 'var(--text-primary)', background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
+              >
+                {allGroupsCollapsed ? 'Expand All' : 'Collapse All'}
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
+              <button
+                type="button"
                 onClick={() => addGroup('verse')}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs"
+                className="self-end flex items-center gap-1 px-2 py-1 rounded text-xs"
                 style={{
                   background: 'var(--bg-hover)',
                   border: '1px solid var(--border-default)',
@@ -823,12 +947,10 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                 <Plus size={12} />
                 Group
               </button>
-            </div>
-
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
               {groups.map((group) => {
                 const collapsed = collapsedGroupIds.includes(group.id)
                 const customGroup = isCustomSongEditorGroupType(group.type)
+                const groupDisplayLabel = resolveSongEditorGroupLabel(group)
 
                 return (
                   <div
@@ -857,30 +979,51 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                       >
                         {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                       </button>
-                      <select
-                        value={group.type}
-                        onChange={(event) => updateGroupType(group.id, event.target.value)}
-                        className="text-xs px-2 py-1 rounded outline-none shrink-0"
-                        style={{
-                          background: 'var(--bg-surface)',
-                          border: '1px solid var(--border-default)',
-                          color: 'var(--text-primary)',
-                        }}
-                      >
-                        {SONG_EDITOR_SECTION_TYPES.map((type) => (
-                          <option key={type.id} value={type.id}>{type.label}</option>
-                        ))}
-                      </select>
                       <div className="flex-1 min-w-0">
+                        <select
+                          value={group.type}
+                          onChange={(event) => updateGroupType(group.id, event.target.value)}
+                          className="text-xs px-2 py-1 rounded outline-none min-w-0 w-full"
+                          style={{
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-default)',
+                            color: 'var(--text-primary)',
+                            minWidth: 156,
+                          }}
+                        >
+                          {SONG_EDITOR_SECTION_TYPES.map((type) => (
+                            <option key={type.id} value={type.id}>{type.label}</option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }} title={groupDisplayLabel}>
+                          {groupDisplayLabel}
+                        </p>
+                      </div>
+                      <span className="text-[11px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>
+                        {group.slides.length} slide{group.slides.length === 1 ? '' : 's'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeGroup(group.id)}
+                        className="flex items-center justify-center w-7 h-7 rounded shrink-0"
+                        style={{ color: 'var(--text-tertiary)' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    {!collapsed ? (
+                      <div className="px-3 py-3 flex flex-col gap-2">
                         {customGroup ? (
-                          <>
+                          <div>
                             <input
                               value={group.label}
                               onChange={(event) => updateCustomGroupLabel(group.id, event.target.value)}
+                              onBlur={() => finalizeCustomGroup(group.id)}
                               maxLength={CUSTOM_GROUP_NAME_LIMIT}
                               autoFocus={pendingCustomFocusGroupId === group.id}
                               placeholder="Custom section name"
-                              className="w-full px-2 py-1 rounded text-xs outline-none"
+                              className="w-full px-2.5 py-2 rounded text-xs outline-none"
                               style={{
                                 background: 'var(--bg-surface)',
                                 border: '1px solid var(--border-default)',
@@ -890,36 +1033,8 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                             <p className="mt-1 text-[11px] leading-4" style={{ color: 'var(--text-tertiary)' }}>
                               Custom names are limited to {CUSTOM_GROUP_NAME_LIMIT} characters.
                             </p>
-                          </>
-                        ) : (
-                          <div
-                            className="px-2 py-1 rounded text-xs truncate"
-                            style={{
-                              background: 'var(--bg-surface)',
-                              border: '1px solid var(--border-default)',
-                              color: 'var(--text-primary)',
-                            }}
-                            title={group.label}
-                          >
-                            {group.label}
                           </div>
-                        )}
-                      </div>
-                      <span className="text-[11px] shrink-0 mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                        {group.slides.length} slide{group.slides.length === 1 ? '' : 's'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeGroup(group.id)}
-                        className="flex items-center justify-center w-7 h-7 rounded shrink-0 mt-0.5"
-                        style={{ color: 'var(--text-tertiary)' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-
-                    {!collapsed ? (
-                      <div className="px-3 py-3 flex flex-col gap-2">
+                        ) : null}
                         {group.slides.map((slide, index) => {
                           const selected = group.id === selectedGroupId && slide.id === selectedSlideId
                           return (
@@ -994,32 +1109,38 @@ export default function SongEditorModal({ song, onClose, onSave }) {
         </div>
 
         <div
-          className="flex items-center justify-end gap-2 px-4 py-3 shrink-0"
+          className="flex items-center justify-between gap-3 px-4 py-3 shrink-0"
           style={{ borderTop: '1px solid var(--border-subtle)' }}
         >
-          <button
-            onClick={handleRequestClose}
-            disabled={saving}
-            className="px-3 py-1.5 rounded text-xs"
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!title.trim() || saving}
-            className="px-3 py-1.5 rounded text-xs font-medium"
-            style={{
-              background: title.trim() ? 'var(--accent)' : 'var(--bg-hover)',
-              color: title.trim() ? '#fff' : 'var(--text-tertiary)',
-            }}
-          >
-            {saving ? 'Saving…' : 'Save to Library'}
-          </button>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {title.trim() ? 'Songs save to the library with the current arrangement and section groups.' : 'Leave the title blank to save it as Untitled Song.'}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRequestClose}
+              disabled={saving}
+              className="px-3 py-1.5 rounded text-xs"
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              title={title.trim() ? 'Save this song to the library' : 'Save this song as Untitled Song'}
+              className="px-3 py-1.5 rounded text-xs font-medium"
+              style={{
+                background: saving ? 'var(--bg-hover)' : 'var(--accent)',
+                color: saving ? 'var(--text-tertiary)' : '#fff',
+              }}
+            >
+              {saving ? 'Saving…' : 'Save to Library'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -145,7 +145,14 @@ function Dialog({ dialog }) {
           </div>
         ))}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: actions.length <= 2 ? 'center' : 'flex-end',
+            gap: 12,
+            marginTop: 8,
+          }}
+        >
           {actions.map((action, idx) => (
             <button
               key={idx}
