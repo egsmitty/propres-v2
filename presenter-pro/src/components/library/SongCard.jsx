@@ -33,6 +33,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       const newSection = createSection('song', presentation.sections.length, {
         title: song.title,
         songId: song.id,
+        songGroups: flattened.groups,
         songOrder: flattened.arrangement,
         slides: flattened.slides,
       })

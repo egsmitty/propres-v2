@@ -15,6 +15,10 @@ function isGenericLabel(label) {
   return normalized === 'text' || normalized === 'lyrics' || normalized === 'notes'
 }
 
+function isSongGroupLabel(slide) {
+  return Boolean(slide?.groupId)
+}
+
 export default function FilmstripSlide({ slide, index, selected, isMultiSelected, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete, onEditSong, onApplyTheme }) {
   const presentation = useEditorStore((s) => s.presentation)
   const moveSlideToSection = useEditorStore((s) => s.moveSlideToSection)
@@ -24,7 +28,11 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
   const [menu, setMenu] = useState(null)
   const mediaOnly = isMediaSlide(slide)
   const multiOnly = isMultiSelected && !selected
-  const footerLabel = mediaOnly ? (slide.label || 'Media') : (isGenericLabel(slide.label) ? '' : (slide.label || ''))
+  const footerLabel = mediaOnly
+    ? (slide.label || 'Media')
+    : isSongGroupLabel(slide)
+      ? ''
+      : (isGenericLabel(slide.label) ? '' : (slide.label || ''))
 
   function handleContextMenu(e) {
     e.preventDefault()
@@ -84,9 +92,8 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
       <div
         onDoubleClick={onDoubleClick}
         onContextMenu={handleContextMenu}
-        className="mx-2 mb-1.5 rounded cursor-pointer relative overflow-visible"
+        className="mx-2 mb-2 rounded cursor-pointer relative overflow-visible"
         style={{
-          aspectRatio: getPresentationAspectRatio(presentation),
           padding: 2.5,
           background: selected
             ? 'rgba(74,124,255,0.22)'
@@ -101,8 +108,9 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
         }}
       >
         <div
-          className="w-full h-full rounded flex items-center justify-center relative overflow-hidden"
+          className="w-full rounded flex items-center justify-center relative overflow-hidden"
           style={{
+            aspectRatio: getPresentationAspectRatio(presentation),
             background: '#1a1a1a',
             border: isLive
               ? '2px solid var(--live)'
@@ -154,10 +162,6 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
                 slide={slide}
                 empty="Click to edit"
                 shadow="none"
-                basePaddingX={96}
-                basePaddingY={80}
-                minPaddingX={6}
-                minPaddingY={6}
               />
             )}
           </div>
