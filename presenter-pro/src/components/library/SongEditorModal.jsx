@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, GripVertical, Plus, Trash2, X } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowRight, ChevronDown, ChevronRight, GripVertical, Plus, Trash2, X } from 'lucide-react'
 import { createSong, updateSong } from '@/utils/ipc'
+import { confirmDialog } from '@/utils/dialog'
 import { SECTION_TYPES, getSectionColor } from '@/utils/sectionTypes'
 import {
   createSongSectionGroup,
@@ -11,9 +12,64 @@ import {
 } from '@/utils/songSections'
 import { uuid } from '@/utils/uuid'
 
+const CUSTOM_GROUP_NAME_LIMIT = 24
+const CUSTOM_GROUP_DEFAULT_LABEL = 'Custom'
+const SONG_EDITOR_SECTION_TYPES = SECTION_TYPES.filter((type) => type.id !== 'blank')
+
+function normalizeSongEditorGroupType(type = 'verse') {
+  return type === 'blank' ? 'custom' : type
+}
+
+function isCustomSongEditorGroupType(type = 'verse') {
+  return normalizeSongEditorGroupType(type) === 'custom'
+}
+
+function normalizeCustomGroupLabel(label = '') {
+  const normalized = String(label || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, CUSTOM_GROUP_NAME_LIMIT)
+
+  return normalized || CUSTOM_GROUP_DEFAULT_LABEL
+}
+
 function nextGroupLabel(type, groups) {
-  const count = groups.filter((group) => group.type === type).length + 1
-  return makeSongGroupLabel(type, '', count > 1 ? String(count) : '')
+  const normalizedType = normalizeSongEditorGroupType(type)
+  const count = groups.filter((group) => normalizeSongEditorGroupType(group.type) === normalizedType).length + 1
+  return makeSongGroupLabel(normalizedType, '', count > 1 ? String(count) : '')
+}
+
+function normalizeSongEditorGroups(groups = []) {
+  const counts = new Map()
+
+  return groups.map((group) => {
+    const type = normalizeSongEditorGroupType(group?.type || 'verse')
+    const slides = Array.isArray(group?.slides)
+      ? group.slides.map((slide) => ({
+          id: slide.id || uuid(),
+          body: slide.body || '',
+        }))
+      : []
+
+    if (isCustomSongEditorGroupType(type)) {
+      return {
+        ...group,
+        type,
+        label: normalizeCustomGroupLabel(group?.label),
+        slides,
+      }
+    }
+
+    const occurrence = (counts.get(type) || 0) + 1
+    counts.set(type, occurrence)
+
+    return {
+      ...group,
+      type,
+      label: makeSongGroupLabel(type, '', occurrence > 1 ? String(occurrence) : ''),
+      slides,
+    }
+  })
 }
 
 function groupsToLyrics(groups) {
@@ -24,6 +80,25 @@ function groupsToLyrics(groups) {
       return [header, ...slides].join('\n\n')
     })
     .join('\n\n')
+}
+
+function createSongEditorSnapshot({ title, artist, ccli, lyrics, groups, arrangement }) {
+  return JSON.stringify({
+    title: title || '',
+    artist: artist || '',
+    ccli: ccli || '',
+    lyrics: lyrics || '',
+    arrangement: Array.isArray(arrangement) ? arrangement : [],
+    groups: (groups || []).map((group) => ({
+      id: group.id,
+      type: normalizeSongEditorGroupType(group.type),
+      label: group.label || '',
+      slides: (group.slides || []).map((slide) => ({
+        id: slide.id,
+        body: slide.body || '',
+      })),
+    })),
+  })
 }
 
 function clampFocusCount(count) {
@@ -46,23 +121,6 @@ function getGroupSlideSelection(groups, arrangement, selectedGroupId, selectedSl
 
 function updateGroupCollection(groups, groupId, updater) {
   return groups.map((group) => (group.id === groupId ? updater(group) : group))
-}
-
-function GroupChip({ label, color, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="text-xs px-2.5 py-1 rounded-full"
-      style={{
-        background: `${color}22`,
-        border: `1px solid ${color}55`,
-        color: 'var(--text-primary)',
-      }}
-    >
-      {label}
-    </button>
-  )
 }
 
 function ArrangementChip({ label, color, onRemove, onDragStart, onDragEnd, onDrop, index }) {
@@ -116,19 +174,56 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   const [lyricsFocusCount, setLyricsFocusCount] = useState(0)
   const [rawLyricsFocused, setRawLyricsFocused] = useState(false)
   const [rawLyricsDirty, setRawLyricsDirty] = useState(false)
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState([])
+  const [pendingCustomFocusGroupId, setPendingCustomFocusGroupId] = useState(null)
 
+  const initialSnapshotRef = useRef('')
   const editingLyrics = lyricsFocusCount > 0
 
+  function commitGroups(nextGroupsOrUpdater) {
+    setGroups((current) => normalizeSongEditorGroups(
+      typeof nextGroupsOrUpdater === 'function'
+        ? nextGroupsOrUpdater(current)
+        : nextGroupsOrUpdater
+    ))
+  }
+
   useEffect(() => {
-    const { groups: nextGroups, arrangement: nextArrangement } = getSongGroupsAndArrangement(song)
+    const nextTitle = song?.title || ''
+    const nextArtist = song?.artist || ''
+    const nextCcli = song?.ccli || ''
+    const { groups: loadedGroups, arrangement: nextArrangement } = getSongGroupsAndArrangement(song)
+    const nextGroups = normalizeSongEditorGroups(loadedGroups)
+    const nextLyrics = groupsToLyrics(nextGroups)
+
+    setTitle(nextTitle)
+    setArtist(nextArtist)
+    setCcli(nextCcli)
     setGroups(nextGroups)
     setArrangement(nextArrangement)
-    setLyrics(groupsToLyrics(nextGroups))
+    setLyrics(nextLyrics)
+    setRawLyricsFocused(false)
     setRawLyricsDirty(false)
+    setCollapsedGroupIds([])
+    setPendingCustomFocusGroupId(null)
+
     const selection = getGroupSlideSelection(nextGroups, nextArrangement, null, null)
     setSelectedGroupId(selection.groupId)
     setSelectedSlideId(selection.slideId)
+
+    initialSnapshotRef.current = createSongEditorSnapshot({
+      title: nextTitle,
+      artist: nextArtist,
+      ccli: nextCcli,
+      lyrics: nextLyrics,
+      groups: nextGroups,
+      arrangement: nextArrangement,
+    })
   }, [song])
+
+  useEffect(() => {
+    setCollapsedGroupIds((current) => current.filter((groupId) => groups.some((group) => group.id === groupId)))
+  }, [groups])
 
   useEffect(() => {
     if (rawLyricsFocused || rawLyricsDirty) return
@@ -141,12 +236,30 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     if (selection.slideId !== selectedSlideId) setSelectedSlideId(selection.slideId)
   }, [arrangement, groups, selectedGroupId, selectedSlideId])
 
+  useEffect(() => {
+    if (!pendingCustomFocusGroupId) return undefined
+
+    const hasFocusedCustomGroup = groups.some((group) => (
+      group.id === pendingCustomFocusGroupId && isCustomSongEditorGroupType(group.type)
+    ))
+
+    if (!hasFocusedCustomGroup) return undefined
+
+    const frame = window.requestAnimationFrame(() => setPendingCustomFocusGroupId(null))
+    return () => window.cancelAnimationFrame(frame)
+  }, [groups, pendingCustomFocusGroupId])
+
   const selection = useMemo(
     () => getGroupSlideSelection(groups, arrangement, selectedGroupId, selectedSlideId),
     [arrangement, groups, selectedGroupId, selectedSlideId]
   )
   const selectedGroup = selection.group
   const selectedSlide = selection.slide
+
+  const isDirty = useMemo(
+    () => createSongEditorSnapshot({ title, artist, ccli, lyrics, groups, arrangement }) !== initialSnapshotRef.current,
+    [arrangement, artist, ccli, groups, lyrics, title]
+  )
 
   const availableSections = useMemo(
     () => groups.map((group) => ({ id: group.id, label: group.label, color: getSectionColor(group.type) })),
@@ -171,33 +284,65 @@ export default function SongEditorModal({ song, onClose, onSave }) {
 
   function handleParse() {
     if (!lyrics.trim()) return
-    const nextGroups = parseSongGroupsFromLyrics(lyrics)
-    const nextArrangement = nextGroups.map((group) => group.id)
-    setGroups(nextGroups)
+    const parsedGroups = normalizeSongEditorGroups(parseSongGroupsFromLyrics(lyrics))
+    const nextArrangement = parsedGroups.map((group) => group.id)
+    setGroups(parsedGroups)
     setArrangement(nextArrangement)
-    setLyrics(groupsToLyrics(nextGroups))
+    setLyrics(groupsToLyrics(parsedGroups))
     setRawLyricsDirty(false)
-    const nextSelection = getGroupSlideSelection(nextGroups, nextArrangement, null, null)
+    const nextSelection = getGroupSlideSelection(parsedGroups, nextArrangement, null, null)
     setSelectedGroupId(nextSelection.groupId)
     setSelectedSlideId(nextSelection.slideId)
   }
 
   function selectSlide(groupId, slideId) {
+    setCollapsedGroupIds((current) => current.filter((id) => id !== groupId))
     setSelectedGroupId(groupId)
     setSelectedSlideId(slideId)
   }
 
+  function toggleGroupCollapsed(groupId) {
+    setCollapsedGroupIds((current) => (
+      current.includes(groupId)
+        ? current.filter((id) => id !== groupId)
+        : [...current, groupId]
+    ))
+  }
+
   function updateGroup(groupId, updater) {
-    setGroups((current) => updateGroupCollection(current, groupId, updater))
+    commitGroups((current) => updateGroupCollection(current, groupId, updater))
   }
 
   function updateGroupType(groupId, type) {
-    setGroups((current) => current.map((group) => {
+    const normalizedType = normalizeSongEditorGroupType(type)
+
+    if (isCustomSongEditorGroupType(normalizedType)) {
+      setPendingCustomFocusGroupId(groupId)
+    }
+
+    commitGroups((current) => current.map((group) => {
       if (group.id !== groupId) return group
-      const nextLabel = group.label === group.type || group.label === makeSongGroupLabel(group.type)
-        ? nextGroupLabel(type, current.filter((entry) => entry.id !== groupId))
-        : group.label
-      return { ...group, type, label: nextLabel }
+
+      if (isCustomSongEditorGroupType(normalizedType)) {
+        return {
+          ...group,
+          type: normalizedType,
+          label: isCustomSongEditorGroupType(group.type) ? group.label : CUSTOM_GROUP_DEFAULT_LABEL,
+        }
+      }
+
+      return {
+        ...group,
+        type: normalizedType,
+        label: '',
+      }
+    }))
+  }
+
+  function updateCustomGroupLabel(groupId, label) {
+    updateGroup(groupId, (group) => ({
+      ...group,
+      label: String(label || '').slice(0, CUSTOM_GROUP_NAME_LIMIT),
     }))
   }
 
@@ -209,12 +354,23 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   }
 
   function addGroup(type = 'verse') {
-    const label = nextGroupLabel(type, groups)
-    const group = createSongSectionGroup(type, label, [{ id: uuid(), body: '' }], uuid())
-    setGroups((current) => [...current, group])
+    const normalizedType = normalizeSongEditorGroupType(type)
+    const group = createSongSectionGroup(
+      normalizedType,
+      isCustomSongEditorGroupType(normalizedType) ? CUSTOM_GROUP_DEFAULT_LABEL : '',
+      [{ id: uuid(), body: '' }],
+      uuid()
+    )
+
+    commitGroups((current) => [...current, group])
     setArrangement((current) => [...current, group.id])
+    setCollapsedGroupIds((current) => current.filter((id) => id !== group.id))
     setSelectedGroupId(group.id)
     setSelectedSlideId(group.slides[0].id)
+
+    if (isCustomSongEditorGroupType(normalizedType)) {
+      setPendingCustomFocusGroupId(group.id)
+    }
   }
 
   function removeGroup(groupId) {
@@ -222,6 +378,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     const remainingArrangement = arrangement.filter((entry) => entry !== groupId)
     setGroups(remainingGroups)
     setArrangement(remainingArrangement)
+    setCollapsedGroupIds((current) => current.filter((id) => id !== groupId))
     const nextSelection = getGroupSlideSelection(remainingGroups, remainingArrangement, null, null)
     setSelectedGroupId(nextSelection.groupId)
     setSelectedSlideId(nextSelection.slideId)
@@ -292,6 +449,23 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     setArrangement((current) => current.filter((_, entryIndex) => entryIndex !== index))
   }
 
+  async function handleRequestClose() {
+    if (saving) return
+    if (!isDirty) {
+      onClose()
+      return
+    }
+
+    const ok = await confirmDialog('Close song editor without saving your changes?', {
+      title: 'Unsaved Changes',
+      confirmLabel: 'Discard',
+      danger: true,
+    })
+
+    if (!ok) return
+    onClose()
+  }
+
   async function handleSave() {
     if (!title.trim()) return
     setSaving(true)
@@ -337,7 +511,8 @@ export default function SongEditorModal({ song, onClose, onSave }) {
             {song ? 'Edit Song' : 'New Song'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleRequestClose}
+            disabled={saving}
             className="flex items-center justify-center w-6 h-6 rounded"
             style={{ color: 'var(--text-tertiary)' }}
             onMouseEnter={(event) => { event.currentTarget.style.background = 'var(--bg-hover)' }}
@@ -651,122 +826,169 @@ export default function SongEditorModal({ song, onClose, onSave }) {
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
-              {groups.map((group) => (
-                <div
-                  key={group.id}
-                  className="rounded-lg overflow-hidden shrink-0"
-                  style={{
-                    background: 'var(--bg-app)',
-                    border: group.id === selectedGroupId ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
-                    boxShadow: group.id === selectedGroupId ? '0 0 0 2px rgba(74,124,255,0.12)' : 'none',
-                  }}
-                >
-                  <div
-                    className="px-3 py-3 flex items-center gap-2"
-                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
-                  >
-                    <select
-                      value={group.type}
-                      onChange={(event) => updateGroupType(group.id, event.target.value)}
-                      className="text-xs px-2 py-1 rounded outline-none"
-                      style={{
-                        background: 'var(--bg-surface)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-primary)',
-                      }}
-                    >
-                      {SECTION_TYPES.map((type) => (
-                        <option key={type.id} value={type.id}>{type.label}</option>
-                      ))}
-                    </select>
-                    <input
-                      value={group.label}
-                      onChange={(event) => updateGroup(group.id, (current) => ({ ...current, label: event.target.value }))}
-                      className="flex-1 px-2 py-1 rounded text-xs outline-none"
-                      style={{
-                        background: 'var(--bg-surface)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-primary)',
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeGroup(group.id)}
-                      className="flex items-center justify-center w-7 h-7 rounded"
-                      style={{ color: 'var(--text-tertiary)' }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+              {groups.map((group) => {
+                const collapsed = collapsedGroupIds.includes(group.id)
+                const customGroup = isCustomSongEditorGroupType(group.type)
 
-                  <div className="px-3 py-3 flex flex-col gap-2">
-                    {group.slides.map((slide, index) => {
-                      const selected = group.id === selectedGroupId && slide.id === selectedSlideId
-                      return (
-                        <div
-                          key={slide.id}
-                          className="rounded-md p-2"
-                          style={{
-                            background: selected ? 'rgba(74,124,255,0.08)' : 'var(--bg-surface)',
-                            border: selected ? '1px solid rgba(74,124,255,0.42)' : '1px solid var(--border-default)',
-                          }}
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <button
-                              type="button"
-                              onClick={() => selectSlide(group.id, slide.id)}
-                              className="text-xs font-semibold"
-                              style={{ color: 'var(--text-primary)' }}
-                            >
-                              Slide {index + 1}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeSlideFromGroup(group.id, slide.id)}
-                              className="text-xs"
-                              style={{ color: 'var(--text-tertiary)' }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                          <textarea
-                            value={slide.body}
-                            onFocus={() => {
-                              beginLyricsEditing()
-                              selectSlide(group.id, slide.id)
-                            }}
-                            onBlur={endLyricsEditing}
-                            onChange={(event) => updateSlideBody(group.id, slide.id, event.target.value)}
-                            className="w-full rounded text-xs outline-none resize-none"
+                return (
+                  <div
+                    key={group.id}
+                    className="rounded-lg overflow-hidden shrink-0"
+                    style={{
+                      background: 'var(--bg-app)',
+                      border: group.id === selectedGroupId ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
+                      boxShadow: group.id === selectedGroupId ? '0 0 0 2px rgba(74,124,255,0.12)' : 'none',
+                    }}
+                  >
+                    <div
+                      className="px-3 py-3 flex items-start gap-2"
+                      style={{ borderBottom: collapsed ? 'none' : '1px solid var(--border-subtle)' }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleGroupCollapsed(group.id)}
+                        className="flex items-center justify-center w-7 h-7 rounded shrink-0"
+                        style={{
+                          color: 'var(--text-secondary)',
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-default)',
+                        }}
+                        title={collapsed ? 'Expand group' : 'Collapse group'}
+                      >
+                        {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                      <select
+                        value={group.type}
+                        onChange={(event) => updateGroupType(group.id, event.target.value)}
+                        className="text-xs px-2 py-1 rounded outline-none shrink-0"
+                        style={{
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-default)',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {SONG_EDITOR_SECTION_TYPES.map((type) => (
+                          <option key={type.id} value={type.id}>{type.label}</option>
+                        ))}
+                      </select>
+                      <div className="flex-1 min-w-0">
+                        {customGroup ? (
+                          <>
+                            <input
+                              value={group.label}
+                              onChange={(event) => updateCustomGroupLabel(group.id, event.target.value)}
+                              maxLength={CUSTOM_GROUP_NAME_LIMIT}
+                              autoFocus={pendingCustomFocusGroupId === group.id}
+                              placeholder="Custom section name"
+                              className="w-full px-2 py-1 rounded text-xs outline-none"
+                              style={{
+                                background: 'var(--bg-surface)',
+                                border: '1px solid var(--border-default)',
+                                color: 'var(--text-primary)',
+                              }}
+                            />
+                            <p className="mt-1 text-[11px] leading-4" style={{ color: 'var(--text-tertiary)' }}>
+                              Custom names are limited to {CUSTOM_GROUP_NAME_LIMIT} characters.
+                            </p>
+                          </>
+                        ) : (
+                          <div
+                            className="px-2 py-1 rounded text-xs truncate"
                             style={{
-                              minHeight: 72,
-                              background: 'var(--bg-app)',
+                              background: 'var(--bg-surface)',
                               border: '1px solid var(--border-default)',
                               color: 'var(--text-primary)',
-                              fontFamily: 'monospace',
-                              padding: 8,
                             }}
-                          />
-                        </div>
-                      )
-                    })}
+                            title={group.label}
+                          >
+                            {group.label}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[11px] shrink-0 mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                        {group.slides.length} slide{group.slides.length === 1 ? '' : 's'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeGroup(group.id)}
+                        className="flex items-center justify-center w-7 h-7 rounded shrink-0 mt-0.5"
+                        style={{ color: 'var(--text-tertiary)' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => addSlideToGroup(group.id)}
-                      className="self-start flex items-center gap-1 px-2.5 py-1 rounded text-xs"
-                      style={{
-                        background: 'var(--bg-hover)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-primary)',
-                      }}
-                    >
-                      <Plus size={12} />
-                      Add Slide
-                    </button>
+                    {!collapsed ? (
+                      <div className="px-3 py-3 flex flex-col gap-2">
+                        {group.slides.map((slide, index) => {
+                          const selected = group.id === selectedGroupId && slide.id === selectedSlideId
+                          return (
+                            <div
+                              key={slide.id}
+                              className="rounded-md p-2"
+                              style={{
+                                background: selected ? 'rgba(74,124,255,0.08)' : 'var(--bg-surface)',
+                                border: selected ? '1px solid rgba(74,124,255,0.42)' : '1px solid var(--border-default)',
+                              }}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => selectSlide(group.id, slide.id)}
+                                  className="text-xs font-semibold"
+                                  style={{ color: 'var(--text-primary)' }}
+                                >
+                                  Slide {index + 1}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeSlideFromGroup(group.id, slide.id)}
+                                  className="text-xs"
+                                  style={{ color: 'var(--text-tertiary)' }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <textarea
+                                value={slide.body}
+                                onFocus={() => {
+                                  beginLyricsEditing()
+                                  selectSlide(group.id, slide.id)
+                                }}
+                                onBlur={endLyricsEditing}
+                                onChange={(event) => updateSlideBody(group.id, slide.id, event.target.value)}
+                                className="w-full rounded text-xs outline-none resize-none"
+                                style={{
+                                  minHeight: 72,
+                                  background: 'var(--bg-app)',
+                                  border: '1px solid var(--border-default)',
+                                  color: 'var(--text-primary)',
+                                  fontFamily: 'monospace',
+                                  padding: 8,
+                                }}
+                              />
+                            </div>
+                          )
+                        })}
+
+                        <button
+                          type="button"
+                          onClick={() => addSlideToGroup(group.id)}
+                          className="self-start flex items-center gap-1 px-2.5 py-1 rounded text-xs"
+                          style={{
+                            background: 'var(--bg-hover)',
+                            border: '1px solid var(--border-default)',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          <Plus size={12} />
+                          Add Slide
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
@@ -776,7 +998,8 @@ export default function SongEditorModal({ song, onClose, onSave }) {
           style={{ borderTop: '1px solid var(--border-subtle)' }}
         >
           <button
-            onClick={onClose}
+            onClick={handleRequestClose}
+            disabled={saving}
             className="px-3 py-1.5 rounded text-xs"
             style={{
               background: 'var(--bg-surface)',

@@ -161,6 +161,13 @@ function normalizeSectionSongOrder(section) {
   return toArray(section?.songOrder)
 }
 
+function normalizeSectionSongGroups(section) {
+  const rawGroups = toArray(section?.songGroups)
+  return rawGroups.map((group) =>
+    createSongSectionGroup(group?.type || 'verse', group?.label || '', group?.slides || [], group?.id || uuid())
+  )
+}
+
 function getSlideGroupId(slide) {
   return slide?.groupId || slide?.sectionGroupId || null
 }
@@ -169,7 +176,8 @@ function getSlideGroupSignature(slide) {
   return `${resolveSongSectionType(slide?.type || 'verse')}::${String(slide?.label || '').trim()}`
 }
 
-export function normalizeSongArrangement(order = [], groups = []) {
+export function normalizeSongArrangement(order = [], groups = [], options = {}) {
+  const { fallbackToAllGroups = true } = options
   const groupIds = groups.map((group) => group.id)
   const knownGroupIds = new Set(groupIds)
   const slideToGroup = new Map()
@@ -186,7 +194,7 @@ export function normalizeSongArrangement(order = [], groups = []) {
     arrangement.push(groupId)
   }
 
-  if (!arrangement.length) {
+  if (!arrangement.length && fallbackToAllGroups) {
     return groupIds
   }
 
@@ -201,8 +209,25 @@ export function getSongGroupsAndArrangement(song) {
 }
 
 export function getSongSectionGroupsAndArrangement(section) {
-  const slides = Array.isArray(section?.slides) ? section.slides : []
+  const persistedGroups = normalizeSectionSongGroups(section)
   const storedArrangement = normalizeSectionSongOrder(section)
+  const hasStoredArrangement =
+    Array.isArray(section?.songOrder) ||
+    typeof section?.songOrder === 'string'
+
+  if (persistedGroups.length) {
+    const knownGroupIds = new Set(persistedGroups.map((group) => group.id))
+    const arrangement = hasStoredArrangement
+      ? storedArrangement.filter((groupId) => knownGroupIds.has(groupId))
+      : normalizeSongArrangement(storedArrangement, persistedGroups)
+
+    return {
+      groups: persistedGroups,
+      arrangement,
+    }
+  }
+
+  const slides = Array.isArray(section?.slides) ? section.slides : []
   const groups = []
   const groupLookup = new Map()
   const signatureLookup = new Map()
@@ -277,6 +302,7 @@ export function flattenSongGroupsToSlides(groups = [], arrangement = [], options
     regenerateSlideIds = false,
     regenerateGroupIds = false,
     songId = null,
+    preserveEmptyArrangement = false,
   } = options
 
   const normalizedGroups = groups.map((group) => ({
@@ -287,7 +313,9 @@ export function flattenSongGroupsToSlides(groups = [], arrangement = [], options
       body: slide.body || '',
     })),
   }))
-  const normalizedArrangement = normalizeSongArrangement(arrangement, normalizedGroups)
+  const normalizedArrangement = normalizeSongArrangement(arrangement, normalizedGroups, {
+    fallbackToAllGroups: !preserveEmptyArrangement,
+  })
   const groupLookup = new Map(normalizedGroups.map((group) => [group.id, group]))
   const slides = []
 

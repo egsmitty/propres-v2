@@ -262,7 +262,7 @@ export default function Editor() {
           />
         ) : null}
         <div
-          className="flex flex-1 overflow-hidden"
+          className="flex flex-1 min-w-0 min-h-0 overflow-hidden"
           style={{ pointerEvents: panelOpen ? 'none' : 'auto' }}
         >
           {filmstripVisible ? (

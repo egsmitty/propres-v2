@@ -83,7 +83,7 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
       <div
         onDoubleClick={onDoubleClick}
         onContextMenu={handleContextMenu}
-        className="mx-2 mb-1.5 rounded cursor-pointer relative overflow-visible"
+        className="mx-2 mb-2 rounded cursor-pointer relative overflow-visible"
         style={{
           aspectRatio: getPresentationAspectRatio(presentation),
           padding: 0,
@@ -92,8 +92,9 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
         }}
       >
         <div
-          className="w-full h-full rounded flex items-center justify-center relative overflow-hidden"
+          className="w-full rounded flex items-center justify-center relative overflow-hidden"
           style={{
+            aspectRatio: getPresentationAspectRatio(presentation),
             background: '#1a1a1a',
             border: isLive
               ? '2px solid var(--live)'
@@ -130,10 +131,6 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
                 slide={slide}
                 empty="Click to edit"
                 shadow="none"
-                basePaddingX={96}
-                basePaddingY={80}
-                minPaddingX={6}
-                minPaddingY={6}
               />
             )}
           </div>
