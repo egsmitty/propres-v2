@@ -746,6 +746,13 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   <div
                     className="rounded-md p-2 min-h-16"
                     style={{ border: '1px dashed var(--border-default)', background: 'var(--bg-surface)' }}
+                    onDragOver={(event) => {
+                      event.preventDefault()
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault()
+                      handleArrangementDrop(arrangementEntries.length)
+                    }}
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       {arrangementEntries.length ? arrangementEntries.map((entry) => (
