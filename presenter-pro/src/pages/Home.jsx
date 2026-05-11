@@ -22,6 +22,8 @@ const NAV = [
   { id: 'open', label: 'Open', icon: FolderOpen },
 ]
 
+const PRESENTATION_SELECTION_TABS = ['home', 'recent', 'open']
+
 const PINNED_PRESENTATIONS_KEY = 'presenterpro.home.pinnedPresentations'
 
 function loadPinnedPresentationIds() {
@@ -178,7 +180,12 @@ export default function Home() {
   const [presentations, setPresentations] = useState([])
   const [menu, setMenu] = useState(null)
   const [query, setQuery] = useState('')
-  const [selectedPresentationId, setSelectedPresentationId] = useState(null)
+  const [selectedPresentationIds, setSelectedPresentationIds] = useState({
+    home: null,
+    recent: null,
+    open: null,
+  })
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null)
   const [pinnedIds, setPinnedIds] = useState(() => loadPinnedPresentationIds())
   const [profile, setProfile] = useState({
     displayName: 'PresenterPro User',
@@ -217,6 +224,18 @@ export default function Home() {
     await createPresentationFromTemplate(templateId)
   }
 
+  async function handleCreateSelectedTemplate() {
+    if (!selectedTemplateId) return
+
+    if (selectedTemplateId === 'blank') {
+      await handleNew()
+    } else {
+      await handleTemplate(selectedTemplateId)
+    }
+
+    setSelectedTemplateId(null)
+  }
+
   async function handleOpen(pres) {
     await openPresentationInEditor(pres.id)
   }
@@ -248,9 +267,22 @@ export default function Home() {
     })
   }
 
+  const activePresentationTab = PRESENTATION_SELECTION_TABS.includes(homeTab) ? homeTab : null
+  const selectedPresentationId = activePresentationTab ? selectedPresentationIds[activePresentationTab] : null
+
+  function setSelectedPresentationIdForTab(tab, id) {
+    if (!PRESENTATION_SELECTION_TABS.includes(tab)) return
+
+    setSelectedPresentationIds((current) => (
+      current[tab] === id
+        ? current
+        : { ...current, [tab]: id }
+    ))
+  }
+
   function openPresentationMenu(eventLike, pres, source = 'context') {
     const pinned = pinnedIds.includes(pres.id)
-    setSelectedPresentationId(pres.id)
+    setSelectedPresentationIdForTab(activePresentationTab, pres.id)
     setMenu((current) => {
       if (source === 'actions' && current?.source === 'actions' && current?.pres?.id === pres.id) {
         return null
@@ -285,12 +317,19 @@ export default function Home() {
           : []
 
   useEffect(() => {
+    if (!activePresentationTab) return
     if (!selectedPresentationId) return
     if (!visiblePresentations.some((pres) => pres.id === selectedPresentationId)) {
-      setSelectedPresentationId(null)
+      setSelectedPresentationIdForTab(activePresentationTab, null)
       setMenu((current) => (current?.pres?.id === selectedPresentationId ? null : current))
     }
-  }, [visiblePresentations, selectedPresentationId])
+  }, [activePresentationTab, visiblePresentations, selectedPresentationId])
+
+  useEffect(() => {
+    if (homeTab !== 'new' && selectedTemplateId) {
+      setSelectedTemplateId(null)
+    }
+  }, [homeTab, selectedTemplateId])
 
   const selectedPresentation =
     visiblePresentations.find((pres) => pres.id === selectedPresentationId) || null
@@ -378,12 +417,6 @@ export default function Home() {
         <div className="flex-1 overflow-auto px-8 pt-7 pb-24 min-h-0">
           <div className="flex items-start justify-between gap-6 mb-8">
             <div>
-              <p
-                className="text-xs font-semibold uppercase tracking-[0.18em] mb-3"
-                style={{ color: 'var(--accent)' }}
-              >
-                PresenterPro
-              </p>
               <h1
                 className="text-[2rem] font-semibold"
                 style={{ color: 'var(--text-primary)' }}
@@ -441,8 +474,8 @@ export default function Home() {
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
-              selectedPresentationId={selectedPresentationId}
-              onSelectPresentation={setSelectedPresentationId}
+              selectedPresentationId={selectedPresentationIds.home}
+              onSelectPresentation={(id) => setSelectedPresentationIdForTab('home', id)}
               menu={menu}
               onActionMenuToggle={openPresentationMenu}
             />
@@ -451,8 +484,8 @@ export default function Home() {
           {homeTab === 'new' && (
             <NewLibrary
               templates={PRESENTATION_TEMPLATES}
-              onNew={handleNew}
-              onTemplate={handleTemplate}
+              selectedTemplateId={selectedTemplateId}
+              onSelectTemplate={setSelectedTemplateId}
             />
           )}
 
@@ -466,8 +499,8 @@ export default function Home() {
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
-              selectedPresentationId={selectedPresentationId}
-              onSelectPresentation={setSelectedPresentationId}
+              selectedPresentationId={selectedPresentationIds.recent}
+              onSelectPresentation={(id) => setSelectedPresentationIdForTab('recent', id)}
               menu={menu}
               onActionMenuToggle={openPresentationMenu}
             />
@@ -485,15 +518,15 @@ export default function Home() {
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
-              selectedPresentationId={selectedPresentationId}
-              onSelectPresentation={setSelectedPresentationId}
+              selectedPresentationId={selectedPresentationIds.open}
+              onSelectPresentation={(id) => setSelectedPresentationIdForTab('open', id)}
               menu={menu}
               onActionMenuToggle={openPresentationMenu}
             />
           )}
         </div>
 
-        {(homeTab === 'home' || homeTab === 'recent' || homeTab === 'open') && (
+        {(homeTab === 'home' || homeTab === 'recent' || homeTab === 'open' || homeTab === 'new') && (
           <div
             className="shrink-0 px-8 py-2 flex items-center justify-between gap-3"
             style={{
@@ -503,42 +536,84 @@ export default function Home() {
             }}
           >
             <p className="text-[13px] truncate" style={{ color: 'var(--text-secondary)' }}>
-              {selectedPresentation
-                ? `Selected: ${selectedPresentation.title}`
-                : 'Select a presentation to open it.'}
+              {homeTab === 'new'
+                ? selectedTemplateId === 'blank'
+                  ? 'Selected: Blank Presentation'
+                  : selectedTemplateId
+                    ? `Selected: ${PRESENTATION_TEMPLATES.find((template) => template.id === selectedTemplateId)?.title || 'Template'}`
+                    : 'Select a template to create it.'
+                : selectedPresentation
+                  ? `Selected: ${selectedPresentation.title}`
+                  : 'Select a presentation to open it.'}
             </p>
             <div className="flex items-center justify-end gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedPresentationId(null)
+                  if (homeTab === 'new') {
+                    setSelectedTemplateId(null)
+                    setHomeTab('home')
+                    return
+                  }
+
+                  setSelectedPresentationIdForTab(activePresentationTab, null)
                   setMenu(null)
                 }}
-                disabled={!selectedPresentation}
+                disabled={homeTab === 'new' ? !selectedTemplateId : !selectedPresentation}
                 className="px-4 py-1.5 rounded-full text-sm font-medium"
                 style={{
-                  background: selectedPresentation ? 'var(--bg-hover)' : 'transparent',
-                  color: selectedPresentation ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  background:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'var(--bg-hover)' : 'transparent'
+                      : selectedPresentation ? 'var(--bg-hover)' : 'transparent',
+                  color:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'var(--text-primary)' : 'var(--text-tertiary)'
+                      : selectedPresentation ? 'var(--text-primary)' : 'var(--text-tertiary)',
                   border: '1px solid var(--border-default)',
-                  cursor: selectedPresentation ? 'pointer' : 'default',
-                  opacity: selectedPresentation ? 1 : 0.55,
+                  cursor:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'pointer' : 'default'
+                      : selectedPresentation ? 'pointer' : 'default',
+                  opacity:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 1 : 0.55
+                      : selectedPresentation ? 1 : 0.55,
                 }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => selectedPresentation && handleOpen(selectedPresentation)}
-                disabled={!selectedPresentation}
+                onClick={() => {
+                  if (homeTab === 'new') {
+                    void handleCreateSelectedTemplate()
+                    return
+                  }
+
+                  if (selectedPresentation) {
+                    void handleOpen(selectedPresentation)
+                  }
+                }}
+                disabled={homeTab === 'new' ? !selectedTemplateId : !selectedPresentation}
                 className="px-5 py-1.5 rounded-full text-sm font-medium"
                 style={{
-                  background: selectedPresentation ? 'var(--accent)' : 'rgba(74,124,255,0.32)',
+                  background:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'var(--accent)' : 'rgba(74,124,255,0.32)'
+                      : selectedPresentation ? 'var(--accent)' : 'rgba(74,124,255,0.32)',
                   color: '#fff',
-                  cursor: selectedPresentation ? 'pointer' : 'default',
-                  opacity: selectedPresentation ? 1 : 0.72,
+                  cursor:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'pointer' : 'default'
+                      : selectedPresentation ? 'pointer' : 'default',
+                  opacity:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 1 : 0.72
+                      : selectedPresentation ? 1 : 0.72,
                 }}
               >
-                Open
+                {homeTab === 'new' ? 'Create' : 'Open'}
               </button>
             </div>
           </div>
@@ -638,20 +713,26 @@ function HomeLibrary({
   )
 }
 
-function NewLibrary({ templates, onNew, onTemplate }) {
+function NewLibrary({ templates, selectedTemplateId, onSelectTemplate }) {
   return (
     <section>
       <div
         className="grid gap-5"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
       >
-        <TemplateCard blank variant="hero" onSelect={onNew} />
+        <TemplateCard
+          blank
+          variant="hero"
+          selected={selectedTemplateId === 'blank'}
+          onSelect={() => onSelectTemplate('blank')}
+        />
         {templates.map((template) => (
           <TemplateCard
             key={template.id}
             template={template}
             variant="hero"
-            onSelect={() => onTemplate(template.id)}
+            selected={selectedTemplateId === template.id}
+            onSelect={() => onSelectTemplate(template.id)}
           />
         ))}
       </div>
@@ -723,7 +804,7 @@ function OpenLibrary({ presentations, query, setQuery, onOpen, onContextMenu, pi
   )
 }
 
-function TemplateCard({ template, onSelect, variant = 'compact', blank = false }) {
+function TemplateCard({ template, onSelect, variant = 'compact', blank = false, selected = false }) {
   const visual = TEMPLATE_VISUALS[blank ? 'blank' : template.id]
   const title = blank ? 'Blank Presentation' : template.title
 
@@ -733,8 +814,8 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false }
       className={variant === 'hero' ? 'text-left rounded-[30px] p-4' : 'text-left rounded-[24px] p-3.5'}
       style={{
         background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: '0 14px 34px rgba(8, 14, 30, 0.07)',
+        border: selected ? '1px solid rgba(74,124,255,0.5)' : '1px solid var(--border-subtle)',
+        boxShadow: selected ? '0 0 0 3px rgba(74,124,255,0.14), 0 14px 34px rgba(8, 14, 30, 0.07)' : '0 14px 34px rgba(8, 14, 30, 0.07)',
         transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
       }}
       onMouseEnter={(e) => {
