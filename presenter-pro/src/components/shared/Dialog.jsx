@@ -74,20 +74,20 @@ function Dialog({ dialog }) {
           border: '1px solid var(--border-default)',
           minWidth: 360,
           maxWidth: 520,
-          padding: 26,
+          padding: 28,
         }}
       >
-        <h2 style={{ fontSize: 17, fontWeight: 650, color: 'var(--text-primary)', marginBottom: description ? 10 : 18 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 650, color: 'var(--text-primary)', marginBottom: description ? 8 : 14 }}>
           {title}
         </h2>
         {description && (
-          <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.45 }}>
+          <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.45 }}>
             {description}
           </p>
         )}
 
         {fields.map((field, idx) => (
-          <div key={field.name} style={{ marginBottom: 12 }}>
+          <div key={field.name} style={{ marginBottom: 14 }}>
             {field.label && (
               <label
                 style={{
@@ -110,9 +110,9 @@ function Dialog({ dialog }) {
                 onChange={(e) => setField(field.name, e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px 10px',
-                  fontSize: 13,
-                  borderRadius: 6,
+                  padding: '10px 12px',
+                  fontSize: 14,
+                  borderRadius: 10,
                   border: '1px solid var(--border-default)',
                   background: 'var(--bg-app)',
                   color: 'var(--text-primary)',
@@ -132,9 +132,9 @@ function Dialog({ dialog }) {
                 onChange={(e) => setField(field.name, e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px 10px',
-                  fontSize: 13,
-                  borderRadius: 6,
+                  padding: '10px 12px',
+                  fontSize: 14,
+                  borderRadius: 10,
                   border: '1px solid var(--border-default)',
                   background: 'var(--bg-app)',
                   color: 'var(--text-primary)',
@@ -150,7 +150,7 @@ function Dialog({ dialog }) {
             display: 'flex',
             justifyContent: actions.length <= 2 ? 'center' : 'flex-end',
             gap: 12,
-            marginTop: 8,
+            marginTop: 6,
           }}
         >
           {actions.map((action, idx) => (

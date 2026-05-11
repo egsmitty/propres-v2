@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPresentation: (id) => ipcRenderer.invoke('db:presentations:get', id),
   createPresentation: (data) => ipcRenderer.invoke('db:presentations:create', data),
   updatePresentation: (id, data) => ipcRenderer.invoke('db:presentations:update', id, data),
+  touchPresentation: (id) => ipcRenderer.invoke('db:presentations:touch', id),
   deletePresentation: (id) => ipcRenderer.invoke('db:presentations:delete', id),
 
   // Songs

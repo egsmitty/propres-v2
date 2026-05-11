@@ -93,25 +93,14 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
         onDoubleClick={onDoubleClick}
         onContextMenu={handleContextMenu}
         className="mx-2 mb-2 rounded cursor-pointer relative overflow-visible"
-        style={{
-          padding: 2.5,
-          background: selected
-            ? 'rgba(74,124,255,0.22)'
-            : multiOnly
-              ? 'rgba(74,124,255,0.14)'
-              : 'transparent',
-          boxShadow: selected
-            ? '0 0 0 1.5px rgba(74,124,255,0.34)'
-            : multiOnly
-              ? '0 0 0 1.5px rgba(74,124,255,0.2)'
-              : 'none',
-        }}
+        style={{ padding: 0 }}
       >
         <div
           className="w-full rounded flex items-center justify-center relative overflow-hidden"
           style={{
             aspectRatio: getPresentationAspectRatio(presentation),
             background: '#1a1a1a',
+            padding: 2.5,
             border: isLive
               ? '2px solid var(--live)'
               : selected
@@ -186,12 +175,13 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
 
         {footerLabel ? (
           <div
-            className="text-center mt-0.5 truncate"
+            className="text-center mt-1 truncate"
             style={{
               fontSize: 9,
-              color: selected || multiOnly ? 'rgba(74,124,255,0.96)' : 'var(--text-tertiary)',
+              color: selected || multiOnly ? 'var(--text-secondary)' : 'var(--text-tertiary)',
               fontFamily: 'monospace',
-              fontWeight: selected ? 700 : multiOnly ? 650 : 400,
+              fontWeight: selected || multiOnly ? 500 : 400,
+              letterSpacing: '0.02em',
             }}
           >
             {footerLabel}

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { useAppStore } from '@/store/appStore'
+import { touchPresentation } from '@/utils/ipc'
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges'
 
 export default function TitleBar() {
@@ -54,6 +55,9 @@ export default function TitleBar() {
     })
     if (!canLeave) return
 
+    if (presentation?.id) {
+      await touchPresentation(presentation.id)
+    }
     setHomeTab('home')
     setCurrentView('home')
   }
@@ -76,6 +80,10 @@ export default function TitleBar() {
   }
 
   const isMac = window.electronAPI?.platform === 'darwin'
+
+  if (isMac && currentView === 'home') {
+    return null
+  }
 
   return (
     <div

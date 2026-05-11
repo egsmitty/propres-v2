@@ -70,6 +70,14 @@ function parseNodeKey(key) {
   return { sectionId, slideId }
 }
 
+function findSlideNodeById(slideNodeRefs, slideId) {
+  for (const [key, node] of slideNodeRefs.current.entries()) {
+    if (!node) continue
+    if (parseNodeKey(key).slideId === slideId) return node
+  }
+  return null
+}
+
 function findSlideDropTarget(x, y, sectionId, slideNodeRefs, endNodeRefs) {
   for (const [key, node] of slideNodeRefs.current.entries()) {
     if (!node) continue
@@ -341,6 +349,8 @@ export default function Filmstrip({ width = 224 }) {
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const selectedSlideIds = useEditorStore((s) => s.selectedSlideIds)
+  const isPresenting = usePresenterStore((s) => s.isPresenting)
+  const liveSlideId = usePresenterStore((s) => s.liveSlideId)
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
   const setSlideSelection = useEditorStore((s) => s.setSlideSelection)
   const setSelectedSlideIds = useEditorStore((s) => s.setSelectedSlideIds)
@@ -395,6 +405,30 @@ export default function Filmstrip({ width = 224 }) {
   useEffect(() => {
     activeSlideDragRef.current = activeSlideDrag
   }, [activeSlideDrag])
+
+  useEffect(() => {
+    if (!isPresenting || !liveSlideId || activeSlideDrag) return
+
+    const container = containerRef.current
+    const node = findSlideNodeById(slideNodeRefs, liveSlideId)
+
+    if (!container || !node) return
+
+    const containerRect = container.getBoundingClientRect()
+    const nodeRect = node.getBoundingClientRect()
+    const topPadding = 12
+    const bottomPadding = 20
+    const isAbove = nodeRect.top < containerRect.top + topPadding
+    const isBelow = nodeRect.bottom > containerRect.bottom - bottomPadding
+
+    if (!isAbove && !isBelow) return
+
+    node.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: 'smooth',
+    })
+  }, [activeSlideDrag, isPresenting, liveSlideId])
 
   useEffect(() => {
     slideDropTargetRef.current = slideDropTarget
@@ -891,7 +925,6 @@ export default function Filmstrip({ width = 224 }) {
               {!isCollapsed && (
                 <div className="pt-2">
                   {(() => {
-                let lastLabel = null
                 return section.slides.map((slide) => {
                   slideIndex++
                   const idx = slideIndex
@@ -900,20 +933,8 @@ export default function Filmstrip({ width = 224 }) {
                     slideDropTarget?.sectionId === section.id &&
                     slideDropTarget?.targetSlideId === slide.id
 
-                  const displayLabel = getDisplaySlideLabel(slide)
-                  const showSubHeader = Boolean(displayLabel && displayLabel !== lastLabel)
-                  if (showSubHeader) lastLabel = displayLabel
-
                   return (
                     <React.Fragment key={slide.id}>
-                      {showSubHeader && (
-                        <div
-                          className="mx-2 mt-1 mb-0.5 truncate"
-                          style={{ fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', paddingLeft: 2 }}
-                        >
-                          {displayLabel}
-                        </div>
-                      )}
                       {showPreviewBefore && activeSlideDrag?.slide ? (
                         <PreviewInsert
                           slide={activeSlideDrag.slide}
