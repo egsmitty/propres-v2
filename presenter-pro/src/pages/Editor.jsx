@@ -19,16 +19,51 @@ import { startSidebarPresentationSession, stopPresentationSession, syncPresentat
 import { alertDialog } from '@/utils/dialog'
 
 const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth'
-const FILMSTRIP_MIN_WIDTH = 160
-const FILMSTRIP_MAX_WIDTH = 280
+const FILMSTRIP_MIN_WIDTH = 280
+const FILMSTRIP_MAX_WIDTH = 360
+const CENTER_COLUMN_MIN_WIDTH = 520
+const PRESENTER_PANEL_MIN_WIDTH = 240
+const PRESENTER_PANEL_ABSOLUTE_MAX_WIDTH = 420
+const PRESENTER_RAIL_WIDTH = 48
+const RESIZE_HANDLE_WIDTH = 4
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function getFilmstripWidthBounds(viewportWidth) {
+  const width = Number.isFinite(viewportWidth) ? viewportWidth : 1440
+  const max = Math.max(
+    FILMSTRIP_MIN_WIDTH,
+    Math.min(FILMSTRIP_MAX_WIDTH, Math.floor(width * 0.26))
+  )
+  return { min: FILMSTRIP_MIN_WIDTH, max }
+}
+
+function getPresenterPanelWidthBounds(viewportWidth) {
+  const width = Number.isFinite(viewportWidth) ? viewportWidth : 1440
+  const filmstripBounds = getFilmstripWidthBounds(width)
+  const maxByCenterSpace =
+    width - filmstripBounds.min - CENTER_COLUMN_MIN_WIDTH - PRESENTER_RAIL_WIDTH - RESIZE_HANDLE_WIDTH * 2
+  const max = Math.max(
+    PRESENTER_PANEL_MIN_WIDTH,
+    Math.min(
+      PRESENTER_PANEL_ABSOLUTE_MAX_WIDTH,
+      Math.floor(width * 0.36),
+      maxByCenterSpace
+    )
+  )
+  return { min: PRESENTER_PANEL_MIN_WIDTH, max }
+}
 
 function getInitialFilmstripWidth() {
   if (typeof window === 'undefined') return 224
+  const bounds = getFilmstripWidthBounds(window.innerWidth)
   const saved = Number(window.localStorage.getItem(FILMSTRIP_WIDTH_KEY))
-  if (Number.isFinite(saved) && saved >= FILMSTRIP_MIN_WIDTH && saved <= FILMSTRIP_MAX_WIDTH) {
-    return saved
+  if (Number.isFinite(saved)) {
+    return clamp(saved, bounds.min, bounds.max)
   }
-  return 224
+  return clamp(280, bounds.min, bounds.max)
 }
 
 export default function Editor() {
@@ -54,6 +89,22 @@ export default function Editor() {
   const setPresenterPanelWidth = usePresenterStore((s) => s.setPresenterPanelWidth)
   const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth)
 
+  function setPresenterPanelVisible(nextOpen) {
+    if (isPresenting) {
+      setPresenterPanelOpen(true)
+      return
+    }
+    setPresenterPanelOpen(nextOpen)
+  }
+
+  function togglePresenterPanel() {
+    if (isPresenting) {
+      setPresenterPanelOpen(true)
+      return
+    }
+    setPresenterPanelOpen(!presenterPanelOpen)
+  }
+
   const [filmstripWidth, setFilmstripWidth] = useState(getInitialFilmstripWidth)
   const dragRef = useRef(null) // { side: 'filmstrip'|'panel', startX, startWidth }
 
@@ -62,17 +113,48 @@ export default function Editor() {
   }, [filmstripWidth])
 
   useEffect(() => {
+    if (isPresenting && !presenterPanelOpen) {
+      setPresenterPanelOpen(true)
+    }
+  }, [isPresenting, presenterPanelOpen, setPresenterPanelOpen])
+
+  useEffect(() => {
+    function clampEditorSideWidths() {
+      const filmstripBounds = getFilmstripWidthBounds(window.innerWidth)
+      const presenterBounds = getPresenterPanelWidthBounds(window.innerWidth)
+
+      setFilmstripWidth((current) => clamp(current, filmstripBounds.min, filmstripBounds.max))
+
+      const presenterState = usePresenterStore.getState()
+      const clampedPresenterWidth = clamp(
+        presenterState.presenterPanelWidth,
+        presenterBounds.min,
+        presenterBounds.max
+      )
+
+      if (clampedPresenterWidth !== presenterState.presenterPanelWidth) {
+        presenterState.setPresenterPanelWidth(clampedPresenterWidth)
+      }
+    }
+
+    clampEditorSideWidths()
+    window.addEventListener('resize', clampEditorSideWidths)
+    return () => window.removeEventListener('resize', clampEditorSideWidths)
+  }, [setPresenterPanelWidth])
+
+  useEffect(() => {
     function onMove(e) {
       if (!dragRef.current) return
       const { side, startX, startWidth } = dragRef.current
       const dx = e.clientX - startX
       if (side === 'filmstrip') {
+        const bounds = getFilmstripWidthBounds(window.innerWidth)
         setFilmstripWidth(
-          Math.max(FILMSTRIP_MIN_WIDTH, Math.min(FILMSTRIP_MAX_WIDTH, startWidth + dx))
+          clamp(startWidth + dx, bounds.min, bounds.max)
         )
       } else {
-        const maxPanel = Math.floor(window.innerWidth * 0.5)
-        setPresenterPanelWidth(Math.max(240, Math.min(maxPanel, startWidth - dx)))
+        const bounds = getPresenterPanelWidthBounds(window.innerWidth)
+        setPresenterPanelWidth(clamp(startWidth - dx, bounds.min, bounds.max))
       }
     }
     function onUp() { dragRef.current = null; document.body.style.cursor = '' }
@@ -243,7 +325,7 @@ export default function Editor() {
       {isPresenting && <LiveBanner />}
       <Toolbar
         onPresent={handlePresent}
-        onTogglePanel={() => setPresenterPanelOpen(!presenterPanelOpen)}
+        onTogglePanel={togglePresenterPanel}
         presenterPanelOpen={presenterPanelOpen}
       />
       <div className="flex flex-1 overflow-hidden relative">
@@ -265,30 +347,36 @@ export default function Editor() {
           className="flex flex-1 min-w-0 min-h-0 overflow-hidden"
           style={{ pointerEvents: panelOpen ? 'none' : 'auto' }}
         >
-          {filmstripVisible ? (
-            <>
-              <ErrorBoundary label="Filmstrip error"><Filmstrip width={filmstripWidth} /></ErrorBoundary>
+          <div className="shrink-0 flex h-full overflow-hidden">
+            {filmstripVisible ? (
+              <>
+                <ErrorBoundary label="Filmstrip error"><Filmstrip width={filmstripWidth} /></ErrorBoundary>
+                <ResizeHandle onMouseDown={(e) => {
+                  e.preventDefault()
+                  dragRef.current = { side: 'filmstrip', startX: e.clientX, startWidth: filmstripWidth }
+                  document.body.style.cursor = 'col-resize'
+                }} />
+              </>
+            ) : (
+              <CollapseSliver
+                direction="right"
+                onClick={() => useAppStore.getState().setFilmstripVisible(true)}
+              />
+            )}
+          </div>
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+            <ErrorBoundary label="Canvas error"><Canvas onSave={handleSave} /></ErrorBoundary>
+          </div>
+          <div className="shrink-0 flex h-full overflow-hidden">
+            {presenterPanelOpen ? (
               <ResizeHandle onMouseDown={(e) => {
                 e.preventDefault()
-                dragRef.current = { side: 'filmstrip', startX: e.clientX, startWidth: filmstripWidth }
+                dragRef.current = { side: 'panel', startX: e.clientX, startWidth: presenterPanelWidth }
                 document.body.style.cursor = 'col-resize'
               }} />
-            </>
-          ) : (
-            <CollapseSliver
-              direction="right"
-              onClick={() => useAppStore.getState().setFilmstripVisible(true)}
-            />
-          )}
-          <ErrorBoundary label="Canvas error"><Canvas onSave={handleSave} /></ErrorBoundary>
-          {presenterPanelOpen ? (
-            <ResizeHandle onMouseDown={(e) => {
-              e.preventDefault()
-              dragRef.current = { side: 'panel', startX: e.clientX, startWidth: presenterPanelWidth }
-              document.body.style.cursor = 'col-resize'
-            }} />
-          ) : null}
-          <PresenterPanel />
+            ) : null}
+            <PresenterPanel onSetOpen={setPresenterPanelVisible} />
+          </div>
         </div>
       </div>
       <StatusBar />

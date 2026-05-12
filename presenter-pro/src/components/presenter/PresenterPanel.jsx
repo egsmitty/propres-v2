@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import { ChevronLeft, LayoutPanelTop } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
@@ -7,7 +8,7 @@ import { getSectionColor } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
 
-export default function PresenterPanel() {
+export default function PresenterPanel({ onSetOpen }) {
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
@@ -22,6 +23,7 @@ export default function PresenterPanel() {
   const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
   const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth)
   const setPresenterPanelOpen = usePresenterStore((s) => s.setPresenterPanelOpen)
+  const setOpen = onSetOpen || setPresenterPanelOpen
 
   const liveIdx = allSlides.findIndex((sl) => sl.id === liveSlideId)
   const liveSlide = liveIdx >= 0 ? allSlides[liveIdx] : null
@@ -117,46 +119,66 @@ export default function PresenterPanel() {
 
   if (!presenterPanelOpen) {
     return (
-      <div
-        className="shrink-0 flex flex-col items-center justify-center cursor-pointer"
-        onClick={() => setPresenterPanelOpen(true)}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group shrink-0 h-full flex items-center justify-center relative overflow-visible"
         style={{
-          width: 56,
-          background: 'linear-gradient(180deg, #f1f3f6 0%, #e6e9ee 100%)',
-          borderLeft: '1px solid rgba(15, 23, 42, 0.12)',
-          boxShadow: 'inset 1px 0 0 rgba(255,255,255,0.72), inset 8px 0 14px rgba(15, 23, 42, 0.1)',
-          color: 'var(--text-secondary)',
-          fontSize: 12,
-          userSelect: 'none',
-          zIndex: 5,
+          width: 48,
+          borderLeft: '1px solid var(--border-subtle)',
+          background: 'var(--bg-surface)',
+          cursor: 'pointer',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(180deg, #f6f7f9 0%, #e9edf2 100%)'
-          e.currentTarget.style.color = 'var(--text-primary)'
+          e.currentTarget.style.background = 'var(--bg-hover)'
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(180deg, #f1f3f6 0%, #e6e9ee 100%)'
-          e.currentTarget.style.color = 'var(--text-secondary)'
+          e.currentTarget.style.background = 'var(--bg-surface)'
         }}
         title="Show presenter panel"
+        aria-label="Show presenter panel"
       >
         <div
-          className="flex items-center justify-center rounded-full"
+          className="flex flex-col items-center justify-center gap-1 rounded-md"
           style={{
-            width: 26,
-            height: 26,
-            background: '#ffffff',
-            border: '1px solid rgba(15, 23, 42, 0.12)',
-            boxShadow: '-4px 0 10px rgba(15, 23, 42, 0.12)',
-            color: 'var(--text-primary)',
-            fontSize: 16,
-            fontWeight: 700,
-            lineHeight: 1,
+            width: 32,
+            height: 42,
+            color: 'var(--text-secondary)',
           }}
         >
-          ‹
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: 30,
+              height: 30,
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 999,
+            }}
+          >
+            <LayoutPanelTop size={16} />
+          </div>
+          <ChevronLeft
+            size={11}
+            style={{
+              color: 'var(--text-tertiary)',
+              marginTop: 5,
+            }}
+          />
         </div>
-      </div>
+        <div
+          className="pointer-events-none absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full px-2.5 py-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          style={{
+            background: 'rgba(255,255,255,0.98)',
+            border: '1px solid var(--border-default)',
+            boxShadow: '0 10px 24px rgba(8,14,30,0.12)',
+            color: 'var(--text-primary)',
+          }}
+        >
+          <ChevronLeft size={13} style={{ color: 'var(--text-secondary)' }} />
+          <span className="text-[11px] font-medium whitespace-nowrap">Show presenter</span>
+        </div>
+      </button>
     )
   }
 
