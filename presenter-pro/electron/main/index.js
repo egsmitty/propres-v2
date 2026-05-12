@@ -683,6 +683,10 @@ function registerIpcHandlers() {
     try { return { success: true, data: presentationQueries.updatePresentation(db, id, data) } }
     catch (e) { return { success: false, error: e.message } }
   })
+  ipcMain.handle('db:presentations:touch', (_, id) => {
+    try { return { success: true, data: presentationQueries.touchPresentation(db, id) } }
+    catch (e) { return { success: false, error: e.message } }
+  })
   ipcMain.handle('db:presentations:delete', (_, id) => {
     try { presentationQueries.deletePresentation(db, id); return { success: true } }
     catch (e) { return { success: false, error: e.message } }

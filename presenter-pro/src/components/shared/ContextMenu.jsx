@@ -19,8 +19,8 @@ export default function ContextMenu({ x, y, items, onClose }) {
   }, [onClose])
 
   // Keep menu on screen
-  const menuWidth = 180
-  const menuHeight = items.length * 28 + 8
+  const menuWidth = 220
+  const menuHeight = items.reduce((total, item) => total + (item.divider ? 12 : 42), 10)
   const adjustedX = Math.min(x, window.innerWidth - menuWidth - 8)
   const adjustedY = Math.min(y, window.innerHeight - menuHeight - 8)
 
@@ -28,13 +28,14 @@ export default function ContextMenu({ x, y, items, onClose }) {
     <div
       ref={ref}
       data-context-menu="true"
-      className="fixed z-50 py-1 rounded shadow-xl"
+      className="fixed z-50 py-1.5 rounded-2xl shadow-xl"
       style={{
         top: adjustedY,
         left: adjustedX,
         width: menuWidth,
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-default)',
+        boxShadow: '0 18px 42px rgba(8,14,30,0.16)',
       }}
     >
       {items.map((item, i) => {
@@ -42,22 +43,25 @@ export default function ContextMenu({ x, y, items, onClose }) {
           return (
             <div
               key={i}
-              style={{ height: 1, background: 'var(--border-subtle)', margin: '3px 0' }}
+              style={{ height: 1, background: 'var(--border-subtle)', margin: '6px 10px' }}
             />
           )
         }
+        const Icon = item.icon
         return (
           <button
             key={i}
-            className="w-full text-left px-3 py-1 text-xs"
+            className="w-full text-left px-3.5 py-2.5 text-sm rounded-xl mx-1"
             style={{
               color: item.disabled
                 ? 'var(--text-tertiary)'
                 : item.danger
                 ? 'var(--danger)'
                 : 'var(--text-primary)',
-              display: 'block',
               cursor: item.disabled ? 'default' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
             }}
             onMouseEnter={(e) => {
               if (item.disabled) return
@@ -75,7 +79,8 @@ export default function ContextMenu({ x, y, items, onClose }) {
             }}
             disabled={item.disabled}
           >
-            {item.label}
+            {Icon ? <Icon size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : null}
+            <span>{item.label}</span>
           </button>
         )
       })}

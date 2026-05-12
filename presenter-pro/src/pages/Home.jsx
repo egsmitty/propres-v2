@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Home as HomeIcon, PlusCircle, FolderOpen, Clock3, BookOpen, Search, FileText, Plus, MoreHorizontal, Pin } from 'lucide-react'
+import { Home as HomeIcon, PlusCircle, FolderOpen, Clock3, BookOpen, Search, FileText, Plus, MoreHorizontal, Pencil, Pin, Trash2, XCircle } from 'lucide-react'
 import { getPresentations, getProfile } from '@/utils/ipc'
 import ContextMenu from '@/components/shared/ContextMenu'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
 import { useAppStore } from '@/store/appStore'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
-import { slideBodyToPlainText } from '@/utils/slideMarkup'
 import {
   createNewPresentation,
   createPresentationFromTemplate,
@@ -22,7 +21,11 @@ const NAV = [
   { id: 'open', label: 'Open', icon: FolderOpen },
 ]
 
+const PRESENTATION_SELECTION_TABS = ['homeRecent', 'homePinned', 'recent', 'open']
+
 const PINNED_PRESENTATIONS_KEY = 'presenterpro.home.pinnedPresentations'
+const HIDDEN_RECENT_PRESENTATIONS_KEY = 'presenterpro.home.hiddenRecentPresentations'
+const HOME_LIBRARY_TAB_OPTIONS = ['recent', 'pinned']
 
 function loadPinnedPresentationIds() {
   if (typeof window === 'undefined') return []
@@ -41,14 +44,37 @@ function savePinnedPresentationIds(ids) {
   window.localStorage.setItem(PINNED_PRESENTATIONS_KEY, JSON.stringify(ids))
 }
 
-function sortPresentations(presentations, pinnedIds) {
-  const pinnedSet = new Set(pinnedIds)
+function loadHiddenRecentPresentationIds() {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const raw = window.localStorage.getItem(HIDDEN_RECENT_PRESENTATIONS_KEY)
+    const parsed = JSON.parse(raw || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function saveHiddenRecentPresentationIds(ids) {
+  if (typeof window === 'undefined') return
+  if (!ids.length) {
+    window.localStorage.removeItem(HIDDEN_RECENT_PRESENTATIONS_KEY)
+    return
+  }
+  window.localStorage.setItem(HIDDEN_RECENT_PRESENTATIONS_KEY, JSON.stringify(ids))
+}
+
+function sortPresentationsByRecent(presentations) {
   return [...presentations].sort((a, b) => {
-    const aPinned = pinnedSet.has(a.id)
-    const bPinned = pinnedSet.has(b.id)
-    if (aPinned !== bPinned) return aPinned ? -1 : 1
     return (b.updated_at || 0) - (a.updated_at || 0)
   })
+}
+
+function getPinnedPresentations(presentations, pinnedIds) {
+  return pinnedIds
+    .map((id) => presentations.find((presentation) => presentation.id === id) || null)
+    .filter(Boolean)
 }
 
 const TEMPLATE_VISUALS = {
@@ -128,6 +154,18 @@ function firstSlideOf(presentation) {
   return presentation?.sections?.find((section) => section.slides?.length)?.slides?.[0] || null
 }
 
+function describePresentation(presentation) {
+  const sections = Array.isArray(presentation?.sections) ? presentation.sections : []
+  const sectionCount = sections.length
+  const slideCount = sections.reduce((total, section) => total + (section.slides?.length || 0), 0)
+
+  if (!slideCount) return 'No slides yet'
+  if (sectionCount > 1) {
+    return `${slideCount} slide${slideCount === 1 ? '' : 's'} • ${sectionCount} section${sectionCount === 1 ? '' : 's'}`
+  }
+  return `${slideCount} slide${slideCount === 1 ? '' : 's'}`
+}
+
 function matchesPresentationQuery(presentation, query) {
   if (!query.trim()) return true
 
@@ -178,8 +216,16 @@ export default function Home() {
   const [presentations, setPresentations] = useState([])
   const [menu, setMenu] = useState(null)
   const [query, setQuery] = useState('')
-  const [selectedPresentationId, setSelectedPresentationId] = useState(null)
+  const [selectedPresentationIds, setSelectedPresentationIds] = useState({
+    homeRecent: null,
+    homePinned: null,
+    recent: null,
+    open: null,
+  })
+  const [homeLibraryTab, setHomeLibraryTab] = useState('recent')
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null)
   const [pinnedIds, setPinnedIds] = useState(() => loadPinnedPresentationIds())
+  const [hiddenRecentIds, setHiddenRecentIds] = useState(() => loadHiddenRecentPresentationIds())
   const [profile, setProfile] = useState({
     displayName: 'PresenterPro User',
     initials: 'PP',
@@ -217,7 +263,25 @@ export default function Home() {
     await createPresentationFromTemplate(templateId)
   }
 
+  async function handleCreateSelectedTemplate() {
+    if (!selectedTemplateId) return
+
+    if (selectedTemplateId === 'blank') {
+      await handleNew()
+    } else {
+      await handleTemplate(selectedTemplateId)
+    }
+
+    setSelectedTemplateId(null)
+  }
+
   async function handleOpen(pres) {
+    setHiddenRecentIds((current) => {
+      if (!current.includes(pres.id)) return current
+      const next = current.filter((id) => id !== pres.id)
+      saveHiddenRecentPresentationIds(next)
+      return next
+    })
     await openPresentationInEditor(pres.id)
   }
 
@@ -234,6 +298,18 @@ export default function Home() {
         savePinnedPresentationIds(next)
         return next
       })
+      setHiddenRecentIds((current) => {
+        if (!current.includes(pres.id)) return current
+        const next = current.filter((id) => id !== pres.id)
+        saveHiddenRecentPresentationIds(next)
+        return next
+      })
+      setSelectedPresentationIds((current) => ({
+        homeRecent: current.homeRecent === pres.id ? null : current.homeRecent,
+        homePinned: current.homePinned === pres.id ? null : current.homePinned,
+        recent: current.recent === pres.id ? null : current.recent,
+        open: current.open === pres.id ? null : current.open,
+      }))
       await loadPresentations()
     }
   }
@@ -248,14 +324,49 @@ export default function Home() {
     })
   }
 
-  function openPresentationMenu(eventLike, pres, source = 'context') {
+  function handleRemoveFromRecent(pres) {
+    setHiddenRecentIds((current) => {
+      if (current.includes(pres.id)) return current
+      const next = [pres.id, ...current]
+      saveHiddenRecentPresentationIds(next)
+      return next
+    })
+    setSelectedPresentationIds((current) => ({
+      ...current,
+      homeRecent: current.homeRecent === pres.id ? null : current.homeRecent,
+      recent: current.recent === pres.id ? null : current.recent,
+    }))
+  }
+
+  const activePresentationTab =
+    homeTab === 'home'
+      ? homeLibraryTab === 'pinned'
+        ? 'homePinned'
+        : 'homeRecent'
+      : homeTab === 'recent'
+        ? 'recent'
+        : homeTab === 'open'
+          ? 'open'
+          : null
+  const selectedPresentationId = activePresentationTab ? selectedPresentationIds[activePresentationTab] : null
+
+  function setSelectedPresentationIdForTab(tab, id) {
+    if (!PRESENTATION_SELECTION_TABS.includes(tab)) return
+
+    setSelectedPresentationIds((current) => (
+      current[tab] === id
+        ? current
+        : { ...current, [tab]: id }
+    ))
+  }
+
+  function openPresentationMenu(eventLike, pres, source = 'context', listContext = activePresentationTab) {
     const pinned = pinnedIds.includes(pres.id)
-    setSelectedPresentationId(pres.id)
     setMenu((current) => {
       if (source === 'actions' && current?.source === 'actions' && current?.pres?.id === pres.id) {
         return null
       }
-      return { x: eventLike.clientX, y: eventLike.clientY, pres, pinned, source }
+      return { x: eventLike.clientX, y: eventLike.clientY, pres, pinned, source, listContext }
     })
   }
 
@@ -266,18 +377,29 @@ export default function Home() {
   }
 
   const sortedPresentations = useMemo(
-    () => sortPresentations(presentations, pinnedIds),
+    () => sortPresentationsByRecent(presentations),
+    [presentations]
+  )
+  const hiddenRecentSet = useMemo(() => new Set(hiddenRecentIds), [hiddenRecentIds])
+  const visibleRecentPresentations = useMemo(
+    () => sortedPresentations.filter((presentation) => !hiddenRecentSet.has(presentation.id)),
+    [sortedPresentations, hiddenRecentSet]
+  )
+  const homeRecentPresentations = visibleRecentPresentations.slice(0, 10)
+  const recentPresentations = visibleRecentPresentations.slice(0, 25)
+  const homePinnedPresentations = useMemo(
+    () => getPinnedPresentations(presentations, pinnedIds),
     [presentations, pinnedIds]
   )
-  const homeRecentPresentations = sortedPresentations.slice(0, 10)
-  const recentPresentations = sortedPresentations.slice(0, 25)
   const filteredPresentations = sortedPresentations.filter((pres) =>
     matchesPresentationQuery(pres, query)
   )
 
   const visiblePresentations =
     homeTab === 'home'
-      ? homeRecentPresentations
+      ? homeLibraryTab === 'pinned'
+        ? homePinnedPresentations
+        : homeRecentPresentations
       : homeTab === 'recent'
         ? recentPresentations
         : homeTab === 'open'
@@ -285,27 +407,50 @@ export default function Home() {
           : []
 
   useEffect(() => {
+    if (!activePresentationTab) return
     if (!selectedPresentationId) return
     if (!visiblePresentations.some((pres) => pres.id === selectedPresentationId)) {
-      setSelectedPresentationId(null)
+      setSelectedPresentationIdForTab(activePresentationTab, null)
       setMenu((current) => (current?.pres?.id === selectedPresentationId ? null : current))
     }
-  }, [visiblePresentations, selectedPresentationId])
+  }, [activePresentationTab, visiblePresentations, selectedPresentationId])
+
+  useEffect(() => {
+    if (homeTab !== 'new' && selectedTemplateId) {
+      setSelectedTemplateId(null)
+    }
+  }, [homeTab, selectedTemplateId])
 
   const selectedPresentation =
     visiblePresentations.find((pres) => pres.id === selectedPresentationId) || null
+  const pageTitle =
+    homeTab === 'home'
+      ? 'Home'
+      : homeTab === 'new'
+        ? 'New Presentation'
+        : homeTab === 'recent'
+          ? 'Recent Presentations'
+          : 'Open Presentation'
+  const pageDescription =
+    homeTab === 'home'
+      ? 'Start from a polished template, then jump back into the presentations you worked on most recently.'
+      : homeTab === 'new'
+        ? 'Choose a blank presentation or start with a worship-ready structure that already has sections in place.'
+        : homeTab === 'recent'
+          ? 'Your expanded recent history for quickly reopening work from the last few services, events, and edits.'
+          : 'Search your presentation library by title or by date when you need to find something specific fast.'
 
   return (
     <div className="flex h-full" style={{ background: 'var(--bg-app)' }}>
       <div
         data-tour="home-sidebar"
-        className="w-[184px] flex flex-col py-5 px-3 shrink-0"
+        className="w-[184px] flex flex-col pt-4 pb-5 px-3 shrink-0"
         style={{
           background: 'var(--bg-surface)',
           borderRight: '1px solid var(--border-subtle)',
         }}
       >
-        <div className="px-1 mb-7">
+        <div className="px-1 mb-6">
           <div
             className="rounded-[28px] p-4 text-center"
             style={{
@@ -374,39 +519,27 @@ export default function Home() {
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-auto px-8 pt-7 pb-24 min-h-0">
-          <div className="flex items-start justify-between gap-6 mb-8">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        <div
+          className="shrink-0 px-8 pt-6 pb-5"
+          style={{
+            borderBottom: '1px solid var(--border-subtle)',
+            background: 'var(--bg-app)',
+          }}
+        >
+          <div className="flex items-start justify-between gap-6">
             <div>
-              <p
-                className="text-xs font-semibold uppercase tracking-[0.18em] mb-3"
-                style={{ color: 'var(--accent)' }}
-              >
-                PresenterPro
-              </p>
               <h1
                 className="text-[2rem] font-semibold"
                 style={{ color: 'var(--text-primary)' }}
               >
-                {homeTab === 'home'
-                  ? 'Home'
-                  : homeTab === 'new'
-                    ? 'New Presentation'
-                    : homeTab === 'recent'
-                      ? 'Recent Presentations'
-                      : 'Open Presentation'}
+                {pageTitle}
               </h1>
               <p
                 className="text-sm mt-2 max-w-2xl"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                {homeTab === 'home'
-                  ? 'Start from a polished template, then jump back into the presentations you worked on most recently.'
-                  : homeTab === 'new'
-                    ? 'Choose a blank presentation or start with a worship-ready structure that already has sections in place.'
-                    : homeTab === 'recent'
-                      ? 'Your expanded recent history for quickly reopening work from the last few services, events, and edits.'
-                      : 'Search your presentation library by title or by date when you need to find something specific fast.'}
+                {pageDescription}
               </p>
             </div>
 
@@ -426,23 +559,37 @@ export default function Home() {
                 Show Tutorial
               </button>
             )}
-          </div>
 
+            {homeTab === 'open' && (
+              <div className="shrink-0 pt-1">
+                <LibrarySearchField query={query} setQuery={setQuery} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto px-8 pt-6 pb-24 min-h-0">
           {homeTab === 'home' && (
             <HomeLibrary
               templates={PRESENTATION_TEMPLATES}
               onTemplate={handleTemplate}
               onViewAllTemplates={() => setHomeTab('new')}
-              presentations={homeRecentPresentations}
+              homeLibraryTab={homeLibraryTab}
+              onSetHomeLibraryTab={setHomeLibraryTab}
+              recentPresentations={homeRecentPresentations}
+              pinnedPresentations={homePinnedPresentations}
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
                 e.preventDefault()
-                openPresentationMenu(e, pres)
+                openPresentationMenu(e, pres, 'context', homeLibraryTab === 'pinned' ? 'homePinned' : 'homeRecent')
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
-              selectedPresentationId={selectedPresentationId}
-              onSelectPresentation={setSelectedPresentationId}
+              selectedRecentPresentationId={selectedPresentationIds.homeRecent}
+              selectedPinnedPresentationId={selectedPresentationIds.homePinned}
+              onSelectRecentPresentation={(id) => setSelectedPresentationIdForTab('homeRecent', id)}
+              onSelectPinnedPresentation={(id) => setSelectedPresentationIdForTab('homePinned', id)}
+              onRemoveFromRecent={handleRemoveFromRecent}
               menu={menu}
               onActionMenuToggle={openPresentationMenu}
             />
@@ -451,8 +598,8 @@ export default function Home() {
           {homeTab === 'new' && (
             <NewLibrary
               templates={PRESENTATION_TEMPLATES}
-              onNew={handleNew}
-              onTemplate={handleTemplate}
+              selectedTemplateId={selectedTemplateId}
+              onSelectTemplate={setSelectedTemplateId}
             />
           )}
 
@@ -462,12 +609,13 @@ export default function Home() {
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
                 e.preventDefault()
-                openPresentationMenu(e, pres)
+                openPresentationMenu(e, pres, 'context', 'recent')
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
-              selectedPresentationId={selectedPresentationId}
-              onSelectPresentation={setSelectedPresentationId}
+              selectedPresentationId={selectedPresentationIds.recent}
+              onSelectPresentation={(id) => setSelectedPresentationIdForTab('recent', id)}
+              onRemoveFromRecent={handleRemoveFromRecent}
               menu={menu}
               onActionMenuToggle={openPresentationMenu}
             />
@@ -477,23 +625,22 @@ export default function Home() {
             <OpenLibrary
               presentations={filteredPresentations}
               query={query}
-              setQuery={setQuery}
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
                 e.preventDefault()
-                openPresentationMenu(e, pres)
+                openPresentationMenu(e, pres, 'context', 'open')
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
-              selectedPresentationId={selectedPresentationId}
-              onSelectPresentation={setSelectedPresentationId}
+              selectedPresentationId={selectedPresentationIds.open}
+              onSelectPresentation={(id) => setSelectedPresentationIdForTab('open', id)}
               menu={menu}
               onActionMenuToggle={openPresentationMenu}
             />
           )}
         </div>
 
-        {(homeTab === 'home' || homeTab === 'recent' || homeTab === 'open') && (
+        {(homeTab === 'home' || homeTab === 'recent' || homeTab === 'open' || homeTab === 'new') && (
           <div
             className="shrink-0 px-8 py-2 flex items-center justify-between gap-3"
             style={{
@@ -503,42 +650,84 @@ export default function Home() {
             }}
           >
             <p className="text-[13px] truncate" style={{ color: 'var(--text-secondary)' }}>
-              {selectedPresentation
-                ? `Selected: ${selectedPresentation.title}`
-                : 'Select a presentation to open it.'}
+              {homeTab === 'new'
+                ? selectedTemplateId === 'blank'
+                  ? 'Selected: Blank Presentation'
+                  : selectedTemplateId
+                    ? `Selected: ${PRESENTATION_TEMPLATES.find((template) => template.id === selectedTemplateId)?.title || 'Template'}`
+                    : 'Select a template to create a new presentation.'
+                : selectedPresentation
+                  ? `Selected: ${selectedPresentation.title}`
+                  : 'Select a presentation to open it.'}
             </p>
             <div className="flex items-center justify-end gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedPresentationId(null)
+                  if (homeTab === 'new') {
+                    setSelectedTemplateId(null)
+                    setHomeTab('home')
+                    return
+                  }
+
+                  setSelectedPresentationIdForTab(activePresentationTab, null)
                   setMenu(null)
                 }}
-                disabled={!selectedPresentation}
+                disabled={homeTab === 'new' ? !selectedTemplateId : !selectedPresentation}
                 className="px-4 py-1.5 rounded-full text-sm font-medium"
                 style={{
-                  background: selectedPresentation ? 'var(--bg-hover)' : 'transparent',
-                  color: selectedPresentation ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  background:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'var(--bg-hover)' : 'transparent'
+                      : selectedPresentation ? 'var(--bg-hover)' : 'transparent',
+                  color:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'var(--text-primary)' : 'var(--text-tertiary)'
+                      : selectedPresentation ? 'var(--text-primary)' : 'var(--text-tertiary)',
                   border: '1px solid var(--border-default)',
-                  cursor: selectedPresentation ? 'pointer' : 'default',
-                  opacity: selectedPresentation ? 1 : 0.55,
+                  cursor:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'pointer' : 'default'
+                      : selectedPresentation ? 'pointer' : 'default',
+                  opacity:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 1 : 0.55
+                      : selectedPresentation ? 1 : 0.55,
                 }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => selectedPresentation && handleOpen(selectedPresentation)}
-                disabled={!selectedPresentation}
+                onClick={() => {
+                  if (homeTab === 'new') {
+                    void handleCreateSelectedTemplate()
+                    return
+                  }
+
+                  if (selectedPresentation) {
+                    void handleOpen(selectedPresentation)
+                  }
+                }}
+                disabled={homeTab === 'new' ? !selectedTemplateId : !selectedPresentation}
                 className="px-5 py-1.5 rounded-full text-sm font-medium"
                 style={{
-                  background: selectedPresentation ? 'var(--accent)' : 'rgba(74,124,255,0.32)',
+                  background:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'var(--accent)' : 'rgba(74,124,255,0.32)'
+                      : selectedPresentation ? 'var(--accent)' : 'rgba(74,124,255,0.32)',
                   color: '#fff',
-                  cursor: selectedPresentation ? 'pointer' : 'default',
-                  opacity: selectedPresentation ? 1 : 0.72,
+                  cursor:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 'pointer' : 'default'
+                      : selectedPresentation ? 'pointer' : 'default',
+                  opacity:
+                    homeTab === 'new'
+                      ? selectedTemplateId ? 1 : 0.72
+                      : selectedPresentation ? 1 : 0.72,
                 }}
               >
-                Open
+                {homeTab === 'new' ? 'Create' : 'Open'}
               </button>
             </div>
           </div>
@@ -550,11 +739,20 @@ export default function Home() {
           x={menu.x}
           y={menu.y}
           items={[
-            { label: 'Open', onClick: () => handleOpen(menu.pres) },
-            { label: menu.pinned ? 'Unpin' : 'Pin', onClick: () => handleTogglePinned(menu.pres) },
-            { label: 'Rename', onClick: () => handleRename(menu.pres) },
+            { label: 'Open', icon: FolderOpen, onClick: () => handleOpen(menu.pres) },
+            { label: 'Rename', icon: Pencil, onClick: () => handleRename(menu.pres) },
+            { label: menu.pinned ? 'Unpin' : 'Pin', icon: Pin, onClick: () => handleTogglePinned(menu.pres) },
+            ...(menu.listContext === 'homeRecent' || menu.listContext === 'recent'
+              ? [
+                  {
+                    label: 'Remove from Recent',
+                    icon: XCircle,
+                    onClick: () => handleRemoveFromRecent(menu.pres),
+                  },
+                ]
+              : []),
             { divider: true },
-            { label: 'Delete', danger: true, onClick: () => handleDelete(menu.pres) },
+            { label: 'Delete', icon: Trash2, danger: true, onClick: () => handleDelete(menu.pres) },
           ]}
           onClose={() => setMenu(null)}
         />
@@ -567,17 +765,25 @@ function HomeLibrary({
   templates,
   onTemplate,
   onViewAllTemplates,
-  presentations,
+  homeLibraryTab,
+  onSetHomeLibraryTab,
+  recentPresentations,
+  pinnedPresentations,
   onOpen,
   onContextMenu,
   pinnedIds,
   onTogglePinned,
-  selectedPresentationId,
-  onSelectPresentation,
+  selectedRecentPresentationId,
+  selectedPinnedPresentationId,
+  onSelectRecentPresentation,
+  onSelectPinnedPresentation,
+  onRemoveFromRecent,
   menu,
   onActionMenuToggle,
 }) {
   const homeTemplates = templates.slice(0, 4)
+  const showingPinned = homeLibraryTab === 'pinned'
+  const presentations = showingPinned ? pinnedPresentations : recentPresentations
 
   return (
     <>
@@ -612,11 +818,38 @@ function HomeLibrary({
 
       <section>
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Recent
-          </h2>
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            Latest 10 presentations
+          <div
+            className="inline-flex items-center gap-1.5 rounded-full p-1.5"
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-default)',
+              boxShadow: '0 8px 20px rgba(8,14,30,0.06)',
+            }}
+          >
+            {HOME_LIBRARY_TAB_OPTIONS.map((tab) => {
+              const active = homeLibraryTab === tab
+              const label = tab === 'recent' ? 'Recent' : 'Pinned'
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => onSetHomeLibraryTab(tab)}
+                  className="min-w-[118px] px-6 py-2.5 rounded-full text-base font-medium transition-colors"
+                  style={{
+                    background: active ? 'var(--accent)' : 'transparent',
+                    color: active ? '#fff' : 'var(--text-secondary)',
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-sm mr-4" style={{ color: 'var(--text-tertiary)' }}>
+            {showingPinned
+              ? `${pinnedPresentations.length} pinned presentation${pinnedPresentations.length === 1 ? '' : 's'}`
+              : 'Latest 10 presentations'}
           </p>
         </div>
 
@@ -626,32 +859,40 @@ function HomeLibrary({
           onContextMenu={onContextMenu}
           pinnedIds={pinnedIds}
           onTogglePinned={onTogglePinned}
-          selectedPresentationId={selectedPresentationId}
-          onSelectPresentation={onSelectPresentation}
+          selectedPresentationId={showingPinned ? selectedPinnedPresentationId : selectedRecentPresentationId}
+          onSelectPresentation={showingPinned ? onSelectPinnedPresentation : onSelectRecentPresentation}
+          onRemoveFromRecent={showingPinned ? undefined : onRemoveFromRecent}
+          listContext={showingPinned ? 'homePinned' : 'homeRecent'}
           menu={menu}
           onActionMenuToggle={onActionMenuToggle}
-          emptyTitle="No recent presentations yet"
-          emptyBody="Open or create a presentation and it will show up here for quick access."
+          emptyTitle={showingPinned ? 'No Pinned Presentations' : 'No recent presentations yet'}
+          emptyBody={showingPinned ? 'Pin a presentation to make it easy to find.' : 'Open or create a presentation and it will show up here for quick access.'}
         />
       </section>
     </>
   )
 }
 
-function NewLibrary({ templates, onNew, onTemplate }) {
+function NewLibrary({ templates, selectedTemplateId, onSelectTemplate }) {
   return (
     <section>
       <div
         className="grid gap-5"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
       >
-        <TemplateCard blank variant="hero" onSelect={onNew} />
+        <TemplateCard
+          blank
+          variant="hero"
+          selected={selectedTemplateId === 'blank'}
+          onSelect={() => onSelectTemplate('blank')}
+        />
         {templates.map((template) => (
           <TemplateCard
             key={template.id}
             template={template}
             variant="hero"
-            onSelect={() => onTemplate(template.id)}
+            selected={selectedTemplateId === template.id}
+            onSelect={() => onSelectTemplate(template.id)}
           />
         ))}
       </div>
@@ -659,7 +900,7 @@ function NewLibrary({ templates, onNew, onTemplate }) {
   )
 }
 
-function RecentLibrary({ presentations, onOpen, onContextMenu, pinnedIds, onTogglePinned, selectedPresentationId, onSelectPresentation, menu, onActionMenuToggle }) {
+function RecentLibrary({ presentations, onOpen, onContextMenu, pinnedIds, onTogglePinned, selectedPresentationId, onSelectPresentation, onRemoveFromRecent, menu, onActionMenuToggle }) {
   return (
     <PresentationList
       presentations={presentations}
@@ -669,6 +910,8 @@ function RecentLibrary({ presentations, onOpen, onContextMenu, pinnedIds, onTogg
       onTogglePinned={onTogglePinned}
       selectedPresentationId={selectedPresentationId}
       onSelectPresentation={onSelectPresentation}
+      onRemoveFromRecent={onRemoveFromRecent}
+      listContext="recent"
       menu={menu}
       onActionMenuToggle={onActionMenuToggle}
       emptyTitle="No recent presentations yet"
@@ -677,53 +920,51 @@ function RecentLibrary({ presentations, onOpen, onContextMenu, pinnedIds, onTogg
   )
 }
 
-function OpenLibrary({ presentations, query, setQuery, onOpen, onContextMenu, pinnedIds, onTogglePinned, selectedPresentationId, onSelectPresentation, menu, onActionMenuToggle }) {
+function OpenLibrary({ presentations, query, onOpen, onContextMenu, pinnedIds, onTogglePinned, selectedPresentationId, onSelectPresentation, menu, onActionMenuToggle }) {
   return (
-    <>
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Search Library
-        </h2>
-        <div
-          className="flex items-center gap-2 px-4 h-11 rounded-full w-[24rem] max-w-full"
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-          }}
-        >
-          <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search presentations by name or date..."
-            className="flex-1 bg-transparent text-sm outline-none"
-            style={{
-              color: 'var(--text-primary)',
-            }}
-          />
-        </div>
-      </div>
-
-      <PresentationList
-        presentations={presentations}
-        query={query}
-        onOpen={onOpen}
-        onContextMenu={onContextMenu}
-        pinnedIds={pinnedIds}
-        onTogglePinned={onTogglePinned}
-        selectedPresentationId={selectedPresentationId}
-        onSelectPresentation={onSelectPresentation}
-        menu={menu}
-        onActionMenuToggle={onActionMenuToggle}
-        emptyTitle="No presentations match that search"
-        emptyBody="Try a different title, month, or full date."
-      />
-    </>
+    <PresentationList
+      presentations={presentations}
+      query={query}
+      onOpen={onOpen}
+      onContextMenu={onContextMenu}
+      pinnedIds={pinnedIds}
+      onTogglePinned={onTogglePinned}
+      selectedPresentationId={selectedPresentationId}
+      onSelectPresentation={onSelectPresentation}
+      listContext="open"
+      menu={menu}
+      onActionMenuToggle={onActionMenuToggle}
+      emptyTitle="No presentations match that search"
+      emptyBody="Try a different title, month, or full date."
+    />
   )
 }
 
-function TemplateCard({ template, onSelect, variant = 'compact', blank = false }) {
+function LibrarySearchField({ query, setQuery }) {
+  return (
+    <div
+      className="flex items-center gap-2 px-4 h-11 rounded-full w-[24rem] max-w-full"
+      style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-default)',
+        boxShadow: '0 10px 26px rgba(8,14,30,0.08)',
+      }}
+    >
+      <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search presentations by name or date..."
+        className="flex-1 bg-transparent text-sm outline-none"
+        style={{
+          color: 'var(--text-primary)',
+        }}
+      />
+    </div>
+  )
+}
+
+function TemplateCard({ template, onSelect, variant = 'compact', blank = false, selected = false }) {
   const visual = TEMPLATE_VISUALS[blank ? 'blank' : template.id]
   const title = blank ? 'Blank Presentation' : template.title
 
@@ -733,8 +974,8 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false }
       className={variant === 'hero' ? 'text-left rounded-[30px] p-4' : 'text-left rounded-[24px] p-3.5'}
       style={{
         background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: '0 14px 34px rgba(8, 14, 30, 0.07)',
+        border: selected ? '1px solid rgba(74,124,255,0.5)' : '1px solid var(--border-subtle)',
+        boxShadow: selected ? '0 0 0 3px rgba(74,124,255,0.14), 0 14px 34px rgba(8, 14, 30, 0.07)' : '0 14px 34px rgba(8, 14, 30, 0.07)',
         transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
       }}
       onMouseEnter={(e) => {
@@ -852,6 +1093,7 @@ function PresentationList({
   onTogglePinned,
   selectedPresentationId,
   onSelectPresentation,
+  listContext,
   menu,
   onActionMenuToggle,
   query = '',
@@ -867,17 +1109,19 @@ function PresentationList({
         boxShadow: '0 16px 40px rgba(8, 14, 30, 0.06)',
       }}
     >
-      <div
-        className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em]"
-        style={{
-          color: 'var(--text-tertiary)',
-          borderBottom: '1px solid var(--border-subtle)',
-        }}
-      >
-        <span>Presentation</span>
-        <span>Updated</span>
-        <span />
-      </div>
+      {presentations.length > 0 && (
+        <div
+          className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em]"
+          style={{
+            color: 'var(--text-tertiary)',
+            borderBottom: '1px solid var(--border-subtle)',
+          }}
+        >
+          <span>Presentation</span>
+          <span>Updated</span>
+          <span />
+        </div>
+      )}
 
       {presentations.length === 0 ? (
         <div className="px-6 py-12 text-center">
@@ -906,6 +1150,7 @@ function PresentationList({
             onTogglePinned={onTogglePinned}
             selected={selectedPresentationId === pres.id}
             onSelect={() => onSelectPresentation?.(pres.id)}
+            listContext={listContext}
             menu={menu}
             onActionMenuToggle={onActionMenuToggle}
           />
@@ -924,14 +1169,13 @@ function PresentationRow({
   onTogglePinned,
   selected = false,
   onSelect,
+  listContext,
   menu,
   onActionMenuToggle,
 }) {
   const [hovered, setHovered] = useState(false)
-  const slide = firstSlideOf(presentation)
-  const previewText =
-    slideBodyToPlainText(slide?.body).split('\n').map((line) => line.trim()).filter(Boolean)[0] || 'No slide content yet'
-  const menuOpen = menu?.source === 'actions' && menu?.pres?.id === presentation.id
+  const metadataText = describePresentation(presentation)
+  const menuOpen = menu?.pres?.id === presentation.id
   const showActions = hovered || selected || menuOpen
 
   return (
@@ -939,13 +1183,12 @@ function PresentationRow({
       className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-4 items-center cursor-pointer"
       style={{
         borderBottom: '1px solid var(--border-subtle)',
-        background: selected ? 'rgba(74,124,255,0.12)' : hovered ? 'var(--bg-hover)' : 'transparent',
+        background: selected ? 'rgba(74,124,255,0.12)' : menuOpen ? 'rgba(74,124,255,0.08)' : hovered ? 'var(--bg-hover)' : 'transparent',
       }}
       onClick={() => onSelect?.()}
       onDoubleClick={() => onOpen(presentation)}
       onContextMenu={(e) => {
-        onSelect?.()
-        onContextMenu(e, presentation)
+        onContextMenu(e, presentation, listContext)
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -962,7 +1205,7 @@ function PresentationRow({
             </p>
           </div>
           <p className="text-sm truncate mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {query ? <HighlightText text={previewText} query={query} /> : previewText}
+            {metadataText}
           </p>
         </div>
       </div>
@@ -978,7 +1221,6 @@ function PresentationRow({
               title={pinned ? 'Unpin' : 'Pin'}
               onClick={(e) => {
                 e.stopPropagation()
-                onSelect?.()
                 onTogglePinned?.(presentation)
               }}
               className="w-11 h-11 rounded-full flex items-center justify-center"
@@ -999,12 +1241,12 @@ function PresentationRow({
               }}
               onClick={(e) => {
                 e.stopPropagation()
-                onSelect?.()
                 const rect = e.currentTarget.getBoundingClientRect()
                 onActionMenuToggle?.(
                   { preventDefault() {}, clientX: rect.right - 8, clientY: rect.bottom + 6 },
                   presentation,
-                  'actions'
+                  'actions',
+                  listContext
                 )
               }}
               className="w-11 h-11 rounded-full flex items-center justify-center"
