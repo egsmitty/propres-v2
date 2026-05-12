@@ -82,6 +82,15 @@ function updatePresentation(
   return getPresentation(db, id)
 }
 
+function touchPresentation(db, id) {
+  db.prepare(`
+    UPDATE presentations
+    SET updated_at = unixepoch()
+    WHERE id = ?
+  `).run(id)
+  return getPresentation(db, id)
+}
+
 function deletePresentation(db, id) {
   db.prepare('DELETE FROM presentations WHERE id = ?').run(id)
 }
@@ -101,4 +110,4 @@ function parse(row) {
   }
 }
 
-module.exports = { getPresentations, getPresentation, createPresentation, updatePresentation, deletePresentation }
+module.exports = { getPresentations, getPresentation, createPresentation, updatePresentation, touchPresentation, deletePresentation }

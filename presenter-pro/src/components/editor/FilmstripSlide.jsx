@@ -24,7 +24,6 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
   const [menu, setMenu] = useState(null)
   const mediaOnly = isMediaSlide(slide)
   const multiOnly = isMultiSelected && !selected
-  const footerLabel = mediaOnly ? (slide.label || 'Media') : (isGenericLabel(slide.label) ? '' : (slide.label || ''))
 
   function handleContextMenu(e) {
     e.preventDefault()
@@ -87,17 +86,9 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
         className="mx-2 mb-1.5 rounded cursor-pointer relative overflow-visible"
         style={{
           aspectRatio: getPresentationAspectRatio(presentation),
-          padding: 2.5,
-          background: selected
-            ? 'rgba(74,124,255,0.22)'
-            : multiOnly
-              ? 'rgba(74,124,255,0.14)'
-              : 'transparent',
-          boxShadow: selected
-            ? '0 0 0 1.5px rgba(74,124,255,0.34)'
-            : multiOnly
-              ? '0 0 0 1.5px rgba(74,124,255,0.2)'
-              : 'none',
+          padding: 0,
+          background: 'transparent',
+          boxShadow: 'none',
         }}
       >
         <div
@@ -112,27 +103,12 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
               ? '2px solid rgba(74,124,255,0.82)'
               : '1px solid #333',
             boxShadow: selected
-              ? '0 0 0 1px rgba(255,255,255,0.14), 0 0 0 5px rgba(74,124,255,0.2)'
+              ? '0 0 0 1px rgba(255,255,255,0.14), 0 0 0 3px rgba(74,124,255,0.16)'
               : multiOnly
-                ? '0 0 0 1px rgba(255,255,255,0.1), 0 0 0 4px rgba(74,124,255,0.14)'
+                ? '0 0 0 1px rgba(255,255,255,0.1), 0 0 0 2px rgba(74,124,255,0.12)'
                 : 'none',
           }}
         >
-          {(selected || multiOnly) && (
-            <div
-              className="absolute top-1 bottom-1"
-              style={{
-                left: selected ? -8 : -7,
-                width: selected ? 5 : 4,
-                borderRadius: 999,
-                background: selected ? 'rgba(74,124,255,1)' : 'rgba(74,124,255,0.8)',
-                boxShadow: selected
-                  ? '0 0 0 1px rgba(255,255,255,0.1)'
-                  : '0 0 0 1px rgba(255,255,255,0.08)',
-              }}
-            />
-          )}
-
           <span
             className="absolute top-0.5 left-1 leading-none"
             style={{ color: 'var(--text-tertiary)', fontSize: 8, fontFamily: 'monospace' }}
@@ -179,20 +155,6 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
           )}
 
         </div>
-
-        {footerLabel ? (
-          <div
-            className="text-center mt-0.5 truncate"
-            style={{
-              fontSize: 9,
-              color: selected || multiOnly ? 'rgba(74,124,255,0.96)' : 'var(--text-tertiary)',
-              fontFamily: 'monospace',
-              fontWeight: selected ? 700 : multiOnly ? 650 : 400,
-            }}
-          >
-            {footerLabel}
-          </div>
-        ) : null}
       </div>
 
       {menu && (

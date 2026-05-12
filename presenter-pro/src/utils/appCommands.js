@@ -8,7 +8,7 @@ function isTextFieldFocused() {
   const tag = el.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true
 }
-import { openOutputWindow, openStageDisplayWindow } from '@/utils/ipc'
+import { openOutputWindow, openStageDisplayWindow, touchPresentation } from '@/utils/ipc'
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
 import {
   copySelectedSlideToClipboard,
@@ -52,6 +52,9 @@ export async function runAppCommand(command) {
         }
       )
       if (canClose) {
+        if (editorState.presentation?.id) {
+          await touchPresentation(editorState.presentation.id)
+        }
         appState.setHomeTab('home')
         appState.setCurrentView('home')
       }

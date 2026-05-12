@@ -7,6 +7,7 @@ import {
   getMedia,
   pickMedia,
   getPresentation,
+  touchPresentation,
   updatePresentation,
 } from '@/utils/ipc'
 import { mediaComparisonKey, normalizePresentation } from '@/utils/backgrounds'
@@ -73,6 +74,7 @@ export function loadPresentationIntoEditor(presentation) {
 }
 
 export async function openPresentationInEditor(id) {
+  await touchPresentation(id)
   const loaded = await getPresentation(id)
   if (!loaded?.success || !loaded.data) return null
   return loadPresentationIntoEditor(loaded.data)
@@ -403,7 +405,11 @@ export async function deleteSelectedSlideFromCurrentPresentation() {
 }
 
 export async function renamePresentationById(id, currentTitle) {
-  const title = await promptDialog('Rename presentation:', currentTitle || 'Untitled Presentation', { title: 'Rename', confirmLabel: 'Rename' })
+  const title = await promptDialog('', currentTitle || 'Untitled Presentation', {
+    title: 'Rename Presentation',
+    confirmLabel: 'Rename',
+    placeholder: 'Presentation title',
+  })
   if (!title) return null
 
   const loaded = await getPresentation(id)

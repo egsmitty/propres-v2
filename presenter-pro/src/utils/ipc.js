@@ -16,6 +16,9 @@ export async function createPresentation(data) {
 export async function updatePresentation(id, data) {
   return api().updatePresentation(id, data)
 }
+export async function touchPresentation(id) {
+  return api().touchPresentation(id)
+}
 export async function deletePresentation(id) {
   return api().deletePresentation(id)
 }
