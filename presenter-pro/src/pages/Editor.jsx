@@ -19,8 +19,8 @@ import { startSidebarPresentationSession, stopPresentationSession, syncPresentat
 import { alertDialog } from '@/utils/dialog'
 
 const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth'
-const FILMSTRIP_MIN_WIDTH = 280
-const FILMSTRIP_MAX_WIDTH = 360
+const FILMSTRIP_MIN_WIDTH = 276
+const FILMSTRIP_MAX_WIDTH = 352
 const CENTER_COLUMN_MIN_WIDTH = 520
 const PRESENTER_PANEL_MIN_WIDTH = 240
 const PRESENTER_PANEL_ABSOLUTE_MAX_WIDTH = 420
@@ -63,7 +63,7 @@ function getInitialFilmstripWidth() {
   if (Number.isFinite(saved)) {
     return clamp(saved, bounds.min, bounds.max)
   }
-  return clamp(280, bounds.min, bounds.max)
+  return clamp(276, bounds.min, bounds.max)
 }
 
 export default function Editor() {

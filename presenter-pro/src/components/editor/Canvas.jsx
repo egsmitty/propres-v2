@@ -306,7 +306,7 @@ export default function Canvas() {
   const setTextBoxClipboard = useAppStore((s) => s.setTextBoxClipboard)
 
   const [media, setMedia] = useState([])
-  const [canvasWidth, setCanvasWidth] = useState(0)
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const [menu, setMenu] = useState(null)
   const [selectedTextBoxIds, setSelectedTextBoxIds] = useState([])
   const [editingTextBoxId, setEditingTextBoxId] = useState(null)
@@ -320,6 +320,7 @@ export default function Canvas() {
   const [songSectionsCollapsed, setSongSectionsCollapsed] = useState(false)
 
   const canvasRef = useRef(null)
+  const viewportRef = useRef(null)
   const interactionRef = useRef(null)
   const pendingOutsideBlurRef = useRef(false)
   const previousSlideIdRef = useRef(null)
@@ -354,7 +355,22 @@ export default function Canvas() {
   )
 
   const { width: nativeW, height: nativeH } = getPresentationDimensions(presentation || slide || undefined)
-  const scale = canvasWidth > 0 ? canvasWidth / nativeW : 1
+  const fittedCanvasSize = useMemo(() => {
+    if (!viewportSize.width || !viewportSize.height || !nativeW || !nativeH) {
+      return { width: nativeW, height: nativeH, scale: 1 }
+    }
+
+    const widthScale = viewportSize.width / nativeW
+    const heightScale = viewportSize.height / nativeH
+    const nextScale = Math.min(widthScale, heightScale)
+
+    return {
+      width: nativeW * nextScale,
+      height: nativeH * nextScale,
+      scale: nextScale,
+    }
+  }, [nativeH, nativeW, viewportSize.height, viewportSize.width])
+  const scale = fittedCanvasSize.scale || 1
 
   function registerEditorCommitHandler(handler) {
     activeEditorCommitRef.current = handler || null
@@ -435,12 +451,14 @@ export default function Canvas() {
   }
 
   useEffect(() => {
-    if (!canvasRef.current) return undefined
+    if (!viewportRef.current) return undefined
 
-    const node = canvasRef.current
+    const node = viewportRef.current
     const measure = () => {
       const rect = node.getBoundingClientRect()
-      if (rect.width > 0) setCanvasWidth(rect.width)
+      if (rect.width > 0 && rect.height > 0) {
+        setViewportSize({ width: rect.width, height: rect.height })
+      }
     }
 
     measure()
@@ -1066,61 +1084,69 @@ export default function Canvas() {
       ) : null}
 
         <div
-          className="flex-1 min-h-0 overflow-hidden flex items-center justify-center p-6"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6"
           onContextMenu={(event) => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY, target: 'slide' }) }}
         >
-          {slide ? (
-            <div
-              ref={canvasRef}
-              className="relative rounded shadow-2xl overflow-hidden"
-              style={{ width: '100%', maxHeight: '100%', aspectRatio: getPresentationAspectRatio(presentation), background: '#1a1a1a' }}
-            >
+          <div ref={viewportRef} className="min-h-full w-full flex items-center justify-center">
+            {slide ? (
               <div
-                onMouseDown={handleBlankMouseDown}
-                style={{ position: 'absolute', top: 0, left: 0, width: nativeW, height: nativeH, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+                ref={canvasRef}
+                className="relative rounded shadow-2xl overflow-hidden"
+                style={{
+                  width: fittedCanvasSize.width,
+                  height: fittedCanvasSize.height,
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  background: '#1a1a1a',
+                }}
               >
-                {!mediaOnlySlide && backgroundMedia && <CanvasBackground media={backgroundMedia} />}
-                {!mediaOnlySlide && <div style={{ position: 'absolute', inset: 0, background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent' }} />}
+                <div
+                  onMouseDown={handleBlankMouseDown}
+                  style={{ position: 'absolute', top: 0, left: 0, width: nativeW, height: nativeH, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+                >
+                  {!mediaOnlySlide && backgroundMedia && <CanvasBackground media={backgroundMedia} />}
+                  {!mediaOnlySlide && <div style={{ position: 'absolute', inset: 0, background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent' }} />}
 
-                {mediaOnlySlide ? (
-                  slideMedia ? <CanvasBackground media={slideMedia} /> : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#777' }}>Media slide</div>
-                ) : (
-                  <>
-                    {snapGuides.vertical !== null && <GuideLine direction="vertical" position={snapGuides.vertical} />}
-                    {snapGuides.horizontal !== null && <GuideLine direction="horizontal" position={snapGuides.horizontal} />}
-                    {selectionRect && <SelectionRect rect={selectionRect} />}
-                    {renderedBoxes.map(renderTextBox)}
-                    {metric && primaryTextBox && (
-                      <div style={{ ...INDICATOR_STYLE, left: primaryTextBox.x + 8, top: primaryTextBox.y - 72 }}>
-                        {metric.type === 'move' && `X ${metric.x} · Y ${metric.y}`}
-                        {metric.type === 'resize' && `${metric.width} × ${metric.height}`}
-                        {metric.type === 'rotate' && `${metric.rotation}°`}
-                      </div>
-                    )}
-                  </>
-                )}
+                  {mediaOnlySlide ? (
+                    slideMedia ? <CanvasBackground media={slideMedia} /> : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#777' }}>Media slide</div>
+                  ) : (
+                    <>
+                      {snapGuides.vertical !== null && <GuideLine direction="vertical" position={snapGuides.vertical} />}
+                      {snapGuides.horizontal !== null && <GuideLine direction="horizontal" position={snapGuides.horizontal} />}
+                      {selectionRect && <SelectionRect rect={selectionRect} />}
+                      {renderedBoxes.map(renderTextBox)}
+                      {metric && primaryTextBox && (
+                        <div style={{ ...INDICATOR_STYLE, left: primaryTextBox.x + 8, top: primaryTextBox.y - 72 }}>
+                          {metric.type === 'move' && `X ${metric.x} · Y ${metric.y}`}
+                          {metric.type === 'resize' && `${metric.width} × ${metric.height}`}
+                          {metric.type === 'rotate' && `${metric.rotation}°`}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div
-              className="w-full max-w-[980px] rounded-2xl border border-dashed flex items-center justify-center px-8 py-16 text-center"
-              style={{
-                minHeight: 300,
-                background: 'var(--bg-surface)',
-                borderColor: 'var(--border-default)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <div>
-                <p className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                  Arrangement is empty
-                </p>
-                <p className="text-sm leading-6">
-                  Add sections from the available list above to build this presentation&apos;s version of the song.
-                </p>
+            ) : (
+              <div
+                className="w-full max-w-[980px] rounded-2xl border border-dashed flex items-center justify-center px-8 py-16 text-center"
+                style={{
+                  minHeight: 300,
+                  background: 'var(--bg-surface)',
+                  borderColor: 'var(--border-default)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <div>
+                  <p className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                    Arrangement is empty
+                  </p>
+                  <p className="text-sm leading-6">
+                    Add sections from the available list above to build this presentation&apos;s version of the song.
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {menu && (
