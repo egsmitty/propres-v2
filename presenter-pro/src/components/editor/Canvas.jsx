@@ -1042,32 +1042,31 @@ export default function Canvas() {
   }
 
   return (
-    <div data-tour="canvas" className="flex-1 min-w-0 min-h-0 overflow-y-auto" style={{ background: 'var(--bg-app)' }}>
-      <div className="min-h-full flex flex-col">
-        {showSongOrderTray ? (
-          <SongOrderTray
-            groups={songSectionData.groups}
-            entries={songOrderEntries}
-            disabled={songOrderDisabled}
-            collapsed={songOrderTrayCollapsed}
-            onToggleCollapsed={() => setSongOrderTrayCollapsed((current) => !current)}
-            sectionsCollapsed={songSectionsCollapsed}
-            onToggleSections={() => setSongSectionsCollapsed((current) => !current)}
-            onAddGroup={(groupId) => {
-              if (songOrderDisabled) return
-              applySongArrangement([...(songSectionData?.arrangement || []), groupId])
-            }}
-            onRemoveEntry={(index) => {
-              if (songOrderDisabled) return
-              applySongArrangement(songSectionData.arrangement.filter((_, entryIndex) => entryIndex !== index))
-            }}
-            onArrangementDrop={handleSongArrangementDrop}
-            setDragState={setSongOrderDragState}
-          />
-        ) : null}
+    <div data-tour="canvas" className="flex-1 min-h-0 flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
+      {showSongOrderTray ? (
+        <SongOrderTray
+          groups={songSectionData.groups}
+          entries={songOrderEntries}
+          disabled={songOrderDisabled}
+          collapsed={songOrderTrayCollapsed}
+          onToggleCollapsed={() => setSongOrderTrayCollapsed((current) => !current)}
+          sectionsCollapsed={songSectionsCollapsed}
+          onToggleSections={() => setSongSectionsCollapsed((current) => !current)}
+          onAddGroup={(groupId) => {
+            if (songOrderDisabled) return
+            applySongArrangement([...(songSectionData?.arrangement || []), groupId])
+          }}
+          onRemoveEntry={(index) => {
+            if (songOrderDisabled) return
+            applySongArrangement(songSectionData.arrangement.filter((_, entryIndex) => entryIndex !== index))
+          }}
+          onArrangementDrop={handleSongArrangementDrop}
+          setDragState={setSongOrderDragState}
+        />
+      ) : null}
 
         <div
-          className="flex-1 flex items-center justify-center p-6 min-h-[420px]"
+          className="flex-1 min-h-0 overflow-hidden flex items-center justify-center p-6"
           onContextMenu={(event) => { event.preventDefault(); setMenu({ x: event.clientX, y: event.clientY, target: 'slide' }) }}
         >
           {slide ? (
@@ -1174,7 +1173,6 @@ export default function Canvas() {
             </button>
           </div>
         </div>
-      </div>
     </div>
   )
 }

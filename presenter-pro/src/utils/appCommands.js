@@ -138,14 +138,21 @@ export async function runAppCommand(command) {
       appState.setMediaLibraryOpen(true)
       return true
     case 'view:presenterPanel': {
-      const open = usePresenterStore.getState().presenterPanelOpen
-      usePresenterStore.getState().setPresenterPanelOpen(!open)
+      const presenter = usePresenterStore.getState()
+      if (presenter.isPresenting) {
+        presenter.setPresenterPanelOpen(true)
+        return true
+      }
+      presenter.setPresenterPanelOpen(!presenter.presenterPanelOpen)
       return true
     }
     case 'view:presenterView': {
-      // Presenter view is now the sidebar panel — toggle it
-      const open = usePresenterStore.getState().presenterPanelOpen
-      usePresenterStore.getState().setPresenterPanelOpen(!open)
+      const presenter = usePresenterStore.getState()
+      if (presenter.isPresenting) {
+        presenter.setPresenterPanelOpen(true)
+        return true
+      }
+      presenter.setPresenterPanelOpen(!presenter.presenterPanelOpen)
       return true
     }
     case 'view:outputWindow':
