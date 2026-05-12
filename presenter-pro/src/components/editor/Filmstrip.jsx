@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Film } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
-import { usePresenterStore } from '@/store/presenterStore'
 import SectionHeader from './SectionHeader'
 import FilmstripSlide from './FilmstripSlide'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
