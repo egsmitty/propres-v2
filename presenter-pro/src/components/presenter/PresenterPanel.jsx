@@ -34,8 +34,33 @@ export default function PresenterPanel() {
   // Keep refs current so keyboard handler always has the latest values
   const liveIdxRef = useRef(liveIdx)
   const allSlidesRef = useRef(allSlides)
+  const slideGridRef = useRef(null)
+  const slideButtonRefs = useRef(new Map())
   useEffect(() => { liveIdxRef.current = liveIdx }, [liveIdx])
   useEffect(() => { allSlidesRef.current = allSlides }, [allSlides])
+
+  useEffect(() => {
+    if (!isPresenting || !liveSlideId) return
+
+    const container = slideGridRef.current
+    const node = slideButtonRefs.current.get(liveSlideId)
+    if (!container || !node) return
+
+    const containerRect = container.getBoundingClientRect()
+    const nodeRect = node.getBoundingClientRect()
+    const topPadding = 12
+    const bottomPadding = 20
+    const isAbove = nodeRect.top < containerRect.top + topPadding
+    const isBelow = nodeRect.bottom > containerRect.bottom - bottomPadding
+
+    if (!isAbove && !isBelow) return
+
+    node.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: 'smooth',
+    })
+  }, [isPresenting, liveSlideId])
 
   // Arrow key navigation when presenting
   useEffect(() => {
@@ -240,7 +265,7 @@ export default function PresenterPanel() {
         </div>
 
         {/* ── Section 3: Slide Grid ───────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-3 pb-2">
+        <div ref={slideGridRef} className="flex-1 overflow-y-auto px-3 pb-2">
           {!presentation ? (
             <div className="flex items-center justify-center h-full">
               <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No presentation open</span>
@@ -270,6 +295,10 @@ export default function PresenterPanel() {
                       <button
                         key={slide.id}
                         onClick={() => goToSlide(enriched)}
+                        ref={(node) => {
+                          if (node) slideButtonRefs.current.set(slide.id, node)
+                          else slideButtonRefs.current.delete(slide.id)
+                        }}
                         style={{
                           aspectRatio: getPresentationAspectRatio(presentation),
                           background: '#111',
