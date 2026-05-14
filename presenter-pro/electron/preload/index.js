@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Window controls
   windowClose: () => ipcRenderer.invoke('window:close'),
+  resolveWindowCloseRequest: () => ipcRenderer.send('window:closeRequestResolved'),
   windowMinimize: () => ipcRenderer.invoke('window:minimize'),
   windowMaximize: () => ipcRenderer.invoke('window:maximize'),
   getWindowViewState: () => ipcRenderer.invoke('window:getViewState'),

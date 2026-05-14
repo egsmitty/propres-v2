@@ -1,8 +1,8 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, shell, screen, nativeImage } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell, screen, nativeImage, protocol } = require('electron')
 const os = require('os')
 const fs = require('fs')
 const path = require('path')
-const { pathToFileURL } = require('url')
+const { Readable } = require('stream')
 const { getDb } = require('../db/index')
 const { runMigrations } = require('../db/migrations')
 const songQueries = require('../db/queries/songs')
@@ -10,6 +10,19 @@ const presentationQueries = require('../db/queries/presentations')
 const mediaQueries = require('../db/queries/media')
 
 const isDev = !app.isPackaged
+const MEDIA_PROTOCOL_SCHEME = 'presenterpro-media'
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: MEDIA_PROTOCOL_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
+])
 
 let mainWindow = null
 let presenterWindow = null
@@ -30,6 +43,9 @@ let presentationSessionSlides = []
 let currentStageSlide = null
 let currentStageBackground = null
 let allowMainWindowClose = false
+let appIsQuitting = false
+let mainWindowCloseRequestPending = false
+let mainWindowResponsive = true
 
 function emitWindowViewState(win) {
   if (!win || win.isDestroyed()) return
@@ -61,13 +77,150 @@ function mediaPathExists(filePath) {
   }
 }
 
-function toFileUrl(filePath) {
+function toMediaProtocolUrl(filePath) {
   if (!filePath) return null
   try {
-    return pathToFileURL(filePath).href
+    const normalized = normalizeMediaFilePath(filePath)
+    return `${MEDIA_PROTOCOL_SCHEME}://asset?path=${encodeURIComponent(normalized)}`
   } catch {
     return null
   }
+}
+
+function getMediaContentType(filePath) {
+  const ext = path.extname(filePath || '').toLowerCase()
+  const contentTypes = {
+    '.apng': 'image/apng',
+    '.avif': 'image/avif',
+    '.gif': 'image/gif',
+    '.jpeg': 'image/jpeg',
+    '.jpg': 'image/jpeg',
+    '.m4v': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.mp4': 'video/mp4',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.webm': 'video/webm',
+    '.webp': 'image/webp',
+  }
+  return contentTypes[ext] || 'application/octet-stream'
+}
+
+function invalidRangeResponse(fileSize) {
+  return new Response(null, {
+    status: 416,
+    headers: {
+      'accept-ranges': 'bytes',
+      'content-range': `bytes */${fileSize}`,
+    },
+  })
+}
+
+function parseMediaByteRange(rangeHeader, fileSize) {
+  if (!rangeHeader) return null
+
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(String(rangeHeader).trim())
+  if (!match) return { valid: false }
+
+  const hasStart = match[1] !== ''
+  const hasEnd = match[2] !== ''
+  if (!hasStart && !hasEnd) return { valid: false }
+
+  let start = hasStart ? Number(match[1]) : null
+  let end = hasEnd ? Number(match[2]) : null
+
+  if ((hasStart && !Number.isFinite(start)) || (hasEnd && !Number.isFinite(end))) {
+    return { valid: false }
+  }
+
+  if (!hasStart) {
+    const suffixLength = end
+    if (!Number.isInteger(suffixLength) || suffixLength <= 0) return { valid: false }
+    start = Math.max(fileSize - suffixLength, 0)
+    end = fileSize - 1
+  } else {
+    if (!Number.isInteger(start) || start < 0 || start >= fileSize) return { valid: false }
+    if (!hasEnd || end >= fileSize) end = fileSize - 1
+    if (!Number.isInteger(end) || end < start) return { valid: false }
+  }
+
+  return { valid: true, start, end }
+}
+
+function createMediaProtocolResponse(filePath, request) {
+  const stats = fs.statSync(filePath)
+  const fileSize = stats.size
+  const contentType = getMediaContentType(filePath)
+  const rangeHeader = request.headers.get('range')
+  const method = String(request.method || 'GET').toUpperCase()
+  const isHead = method === 'HEAD'
+
+  if (rangeHeader) {
+    const parsedRange = parseMediaByteRange(rangeHeader, fileSize)
+    if (!parsedRange?.valid) return invalidRangeResponse(fileSize)
+
+    const { start, end } = parsedRange
+    const contentLength = end - start + 1
+    const headers = {
+      'accept-ranges': 'bytes',
+      'content-type': contentType,
+      'content-length': String(contentLength),
+      'content-range': `bytes ${start}-${end}/${fileSize}`,
+    }
+
+    if (isHead) {
+      return new Response(null, { status: 206, headers })
+    }
+
+    const stream = Readable.toWeb(fs.createReadStream(filePath, { start, end }))
+    return new Response(stream, { status: 206, headers })
+  }
+
+  const headers = {
+    'accept-ranges': 'bytes',
+    'content-type': contentType,
+    'content-length': String(fileSize),
+  }
+
+  if (isHead) {
+    return new Response(null, { status: 200, headers })
+  }
+
+  const stream = Readable.toWeb(fs.createReadStream(filePath))
+  return new Response(stream, { status: 200, headers })
+}
+
+function resolveMediaProtocolPath(requestUrl) {
+  try {
+    const parsed = new URL(requestUrl)
+    if (parsed.hostname !== 'asset') return null
+
+    const requestedPath = parsed.searchParams.get('path')
+    if (!requestedPath || !path.isAbsolute(requestedPath)) return null
+
+    const normalized = normalizeMediaFilePath(requestedPath)
+    if (!mediaPathExists(normalized)) return null
+
+    const stats = fs.statSync(normalized)
+    return stats.isFile() ? normalized : null
+  } catch {
+    return null
+  }
+}
+
+function registerMediaProtocol() {
+  protocol.handle(MEDIA_PROTOCOL_SCHEME, async (request) => {
+    const resolvedPath = resolveMediaProtocolPath(request.url)
+    if (!resolvedPath) {
+      return new Response('Media not found.', { status: 404 })
+    }
+
+    try {
+      return createMediaProtocolResponse(resolvedPath, request)
+    } catch {
+      return new Response('Failed to read media.', { status: 500 })
+    }
+  })
 }
 
 function serializeMediaRecord(item) {
@@ -81,9 +234,9 @@ function serializeMediaRecord(item) {
     canonical_path: item.canonical_path || (item.file_path ? canonicalizeMediaFilePath(item.file_path) : null),
     file_exists: fileExists,
     thumbnail_exists: thumbnailExists,
-    file_url: fileExists ? toFileUrl(item.file_path) : null,
-    thumbnail_url: thumbnailExists ? toFileUrl(item.thumbnail_path) : null,
-    preview_url: thumbnailExists ? toFileUrl(item.thumbnail_path) : fileExists ? toFileUrl(item.file_path) : null,
+    file_url: fileExists ? toMediaProtocolUrl(item.file_path) : null,
+    thumbnail_url: thumbnailExists ? toMediaProtocolUrl(item.thumbnail_path) : null,
+    preview_url: thumbnailExists ? toMediaProtocolUrl(item.thumbnail_path) : fileExists ? toMediaProtocolUrl(item.file_path) : null,
   }
 }
 
@@ -254,6 +407,27 @@ function resetCountdownState() {
   countdownState = { active: false, endAt: null, durationSeconds: 0 }
 }
 
+function resetMainWindowCloseRequestState() {
+  mainWindowCloseRequestPending = false
+}
+
+function closePreviewWindows() {
+  if (outputWindow && !outputWindow.isDestroyed()) {
+    outputWindow.close()
+  }
+  if (stageDisplayWindow && !stageDisplayWindow.isDestroyed()) {
+    stageDisplayWindow.close()
+  }
+}
+
+function prepareForAppShutdown() {
+  appIsQuitting = true
+  allowMainWindowClose = true
+  resetMainWindowCloseRequestState()
+  clearCountdownInterval()
+  closePreviewWindows()
+}
+
 function startCountdown(durationSeconds) {
   const sanitized = Math.max(1, Number(durationSeconds) || 0)
   resetCountdownState()
@@ -391,21 +565,58 @@ function createMainWindow() {
   }
 
   mainWindow.on('close', (event) => {
-    if (allowMainWindowClose) {
+    if (allowMainWindowClose || appIsQuitting) {
       allowMainWindowClose = false
+      resetMainWindowCloseRequestState()
+      return
+    }
+
+    if (!mainWindowResponsive || mainWindow.webContents.isCrashed()) {
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+        type: 'warning',
+        buttons: ['Cancel', 'Force Close'],
+        defaultId: 0,
+        cancelId: 0,
+        title: 'PresenterPro Is Not Responding',
+        message: 'PresenterPro is not responding.',
+        detail: 'Force closing may discard unsaved changes.',
+      })
+      if (choice === 1) {
+        event.preventDefault()
+        prepareForAppShutdown()
+        app.quit()
+      } else {
+        event.preventDefault()
+      }
+      return
+    }
+
+    if (mainWindowCloseRequestPending) {
+      event.preventDefault()
       return
     }
 
     event.preventDefault()
+    mainWindowCloseRequestPending = true
     mainWindow?.webContents.send('app:command', 'window:requestClose')
   })
 
   mainWindow.on('closed', () => {
     mainWindow = null
     allowMainWindowClose = false
+    resetMainWindowCloseRequestState()
+    mainWindowResponsive = true
     // DISABLED (session 6): presenter moved to sidebar, no presenterWindow to close
     // if (presenterWindow) presenterWindow.close()
-    if (outputWindow) outputWindow.close()
+    closePreviewWindows()
+  })
+
+  mainWindow.on('unresponsive', () => {
+    mainWindowResponsive = false
+  })
+
+  mainWindow.on('responsive', () => {
+    mainWindowResponsive = true
   })
 }
 
@@ -641,9 +852,13 @@ function registerIpcHandlers() {
   // Window controls
   ipcMain.handle('window:close', () => {
     if (mainWindow) {
+      resetMainWindowCloseRequestState()
       allowMainWindowClose = true
       mainWindow.close()
     }
+  })
+  ipcMain.on('window:closeRequestResolved', () => {
+    resetMainWindowCloseRequestState()
   })
   ipcMain.handle('window:minimize', () => { if (mainWindow) mainWindow.minimize() })
   ipcMain.handle('window:maximize', () => {
@@ -1100,6 +1315,7 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && dockIconPath && app.dock?.setIcon) {
     app.dock.setIcon(dockIconPath)
   }
+  registerMediaProtocol()
   const db = getDb()
   runMigrations(db)
   syncMediaCanonicalPaths(db)

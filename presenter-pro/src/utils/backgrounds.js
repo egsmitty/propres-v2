@@ -5,6 +5,7 @@ export const SECTION_COLORS = [
   'var(--section-4)',
   'var(--section-5)',
 ]
+const MEDIA_PROTOCOL_SCHEME = 'presenterpro-media'
 
 import { isMediaSlide, normalizeSectionType } from '@/utils/sectionTypes'
 import { syncLegacyTextFields } from '@/utils/textBoxes'
@@ -66,22 +67,23 @@ export function withEffectiveBackground(presentation, sectionId, slide) {
 export function fileUrlForPath(filePath) {
   if (!filePath) return ''
   const raw = String(filePath)
-  if (/^file:\/\//i.test(raw)) return raw
+  if (new RegExp(`^${MEDIA_PROTOCOL_SCHEME}:\\/\\/`, 'i').test(raw)) return raw
 
-  const normalized = raw.replace(/\\/g, '/')
-  const encoded = encodeURI(normalized).replace(/#/g, '%23').replace(/\?/g, '%3F')
+  let normalized = raw
 
-  if (/^[A-Za-z]:\//.test(normalized)) {
-    return `file:///${encoded}`
+  if (/^file:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw)
+      normalized = decodeURIComponent(parsed.pathname)
+      if (/^\/[A-Za-z]:/.test(normalized)) {
+        normalized = normalized.slice(1)
+      }
+    } catch {
+      normalized = raw
+    }
   }
 
-  if (normalized.startsWith('//')) {
-    return `file:${encoded}`
-  }
-
-  return normalized.startsWith('/')
-    ? `file://${encoded}`
-    : `file:///${encoded}`
+  return `${MEDIA_PROTOCOL_SCHEME}://asset?path=${encodeURIComponent(normalized)}`
 }
 
 export function mediaComparisonKey(filePath) {
