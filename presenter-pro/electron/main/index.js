@@ -374,7 +374,8 @@ function createMainWindow() {
     height: 800,
     minWidth: 1200,
     minHeight: 700,
-    frame: !isMac ? false : true,
+    frame: true,
+    autoHideMenuBar: !isMac,
     icon: appWindowIcon,
     webPreferences: {
       preload: preloadPath,

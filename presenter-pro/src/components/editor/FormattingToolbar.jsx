@@ -24,6 +24,7 @@ import {
   clearPendingNumericFieldCommit,
   registerPendingNumericFieldCommit,
 } from '@/utils/pendingNumericCommit'
+import { formatShortcutLabel, getPlatform } from '@/utils/platformShortcuts'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -683,6 +684,13 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
   const updateSlideStyle = useEditorStore((s) => s.updateSlideStyle)
   const updateSlideTextBox = useEditorStore((s) => s.updateSlideTextBox)
   const inline = useInlineEditingScope()
+  const platform = getPlatform()
+  const boldShortcut = formatShortcutLabel(['mod', 'b'], platform)
+  const italicShortcut = formatShortcutLabel(['mod', 'i'], platform)
+  const underlineShortcut = formatShortcutLabel(['mod', 'u'], platform)
+  const alignLeftShortcut = formatShortcutLabel(['mod', 'l'], platform)
+  const alignCenterShortcut = formatShortcutLabel(['mod', 'e'], platform)
+  const alignRightShortcut = formatShortcutLabel(['mod', 'r'], platform)
 
   const [moreOpen, setMoreOpen] = useState(false)
   const moreTriggerRef = useRef(null)
@@ -795,9 +803,9 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
       <Sep />
 
       {/* B I U S */}
-      <Btn title="Bold (⌘B)" active={activeStyle.bold} onClick={() => applyTextCommand('bold', { bold: !style.bold })}><Bold size={13} /></Btn>
-      <Btn title="Italic (⌘I)" active={activeStyle.italic} onClick={() => applyTextCommand('italic', { italic: !style.italic })}><Italic size={13} /></Btn>
-      <Btn title="Underline (⌘U)" active={activeStyle.underline} onClick={() => applyTextCommand('underline', { underline: !style.underline })}><Underline size={13} /></Btn>
+      <Btn title={`Bold (${boldShortcut})`} active={activeStyle.bold} onClick={() => applyTextCommand('bold', { bold: !style.bold })}><Bold size={13} /></Btn>
+      <Btn title={`Italic (${italicShortcut})`} active={activeStyle.italic} onClick={() => applyTextCommand('italic', { italic: !style.italic })}><Italic size={13} /></Btn>
+      <Btn title={`Underline (${underlineShortcut})`} active={activeStyle.underline} onClick={() => applyTextCommand('underline', { underline: !style.underline })}><Underline size={13} /></Btn>
       <Btn title="Strikethrough" active={activeStyle.strikethrough} onClick={() => applyTextCommand('strikeThrough', { strikethrough: !style.strikethrough })}><Strikethrough size={13} /></Btn>
 
       <Sep />
@@ -820,9 +828,9 @@ export default function FormattingToolbar({ sectionId, slideId, selectedTextBoxI
       <Sep />
 
       {/* Alignment */}
-      <Btn title="Align Left (⌘L)" active={activeStyle.align === 'left'} onClick={() => applyTextCommand('justifyLeft', { align: 'left' })}><AlignLeft size={13} /></Btn>
-      <Btn title="Align Center (⌘E)" active={activeStyle.align === 'center'} onClick={() => applyTextCommand('justifyCenter', { align: 'center' })}><AlignCenter size={13} /></Btn>
-      <Btn title="Align Right (⌘R)" active={activeStyle.align === 'right'} onClick={() => applyTextCommand('justifyRight', { align: 'right' })}><AlignRight size={13} /></Btn>
+      <Btn title={`Align Left (${alignLeftShortcut})`} active={activeStyle.align === 'left'} onClick={() => applyTextCommand('justifyLeft', { align: 'left' })}><AlignLeft size={13} /></Btn>
+      <Btn title={`Align Center (${alignCenterShortcut})`} active={activeStyle.align === 'center'} onClick={() => applyTextCommand('justifyCenter', { align: 'center' })}><AlignCenter size={13} /></Btn>
+      <Btn title={`Align Right (${alignRightShortcut})`} active={activeStyle.align === 'right'} onClick={() => applyTextCommand('justifyRight', { align: 'right' })}><AlignRight size={13} /></Btn>
 
       <Sep />
 

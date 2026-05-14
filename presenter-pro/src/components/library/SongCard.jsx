@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { MoreHorizontal, Pencil } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { deleteSong } from '@/utils/ipc'
 import { createSection } from '@/utils/sectionTypes'
@@ -64,7 +65,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
   return (
     <>
     <div
-      className="flex items-center px-3 py-2 group"
+      className="flex items-center gap-2 px-3 py-2"
       style={{ borderBottom: '1px solid var(--border-subtle)' }}
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -90,22 +91,64 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         onClick={handleInsert}
         disabled={isInserting || !presentation}
-        className="opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded text-xs font-medium shrink-0"
+        className="px-2.5 py-1 rounded text-xs font-medium shrink-0"
         style={{
-          background: isInserting || !presentation ? 'var(--border-default)' : 'var(--accent)',
-          color: '#fff',
+          background: isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.12)',
+          color: isInserting || !presentation ? 'var(--text-tertiary)' : 'var(--accent)',
+          border: `1px solid ${isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.16)'}`,
           cursor: isInserting || !presentation ? 'default' : 'pointer',
         }}
         onMouseEnter={(e) => {
-          if (!isInserting && presentation) e.currentTarget.style.background = 'var(--accent-hover)'
+          if (!isInserting && presentation) {
+            e.currentTarget.style.background = 'var(--accent)'
+            e.currentTarget.style.color = '#fff'
+          }
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = isInserting || !presentation
             ? 'var(--border-default)'
+            : 'rgba(74,124,255,0.12)'
+          e.currentTarget.style.color = isInserting || !presentation
+            ? 'var(--text-tertiary)'
             : 'var(--accent)'
         }}
       >
         {isInserting ? 'Inserted' : 'Insert'}
+      </button>
+
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex items-center justify-center w-7 h-7 rounded shrink-0"
+        style={{
+          color: 'var(--text-tertiary)',
+          border: '1px solid var(--border-subtle)',
+          background: 'transparent',
+        }}
+        title="Edit Song"
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        <Pencil size={13} />
+      </button>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          setMenu({ x: rect.right - 8, y: rect.bottom + 6 })
+        }}
+        className="flex items-center justify-center w-7 h-7 rounded shrink-0"
+        style={{
+          color: 'var(--text-tertiary)',
+          border: '1px solid var(--border-subtle)',
+          background: 'transparent',
+        }}
+        title="More actions"
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        <MoreHorizontal size={13} />
       </button>
     </div>
     {menu && (

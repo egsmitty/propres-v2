@@ -790,7 +790,7 @@ function HomeLibrary({
       <section className="mb-10" data-tour="home-templates">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="text-[1.6rem] font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Templates
+            Popular Templates
           </h2>
           <button
             onClick={onViewAllTemplates}

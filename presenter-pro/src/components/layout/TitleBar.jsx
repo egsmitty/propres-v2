@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { ChevronLeft } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, Pencil } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { useAppStore } from '@/store/appStore'
 import { touchPresentation } from '@/utils/ipc'
@@ -15,7 +15,6 @@ export default function TitleBar() {
   const currentView = useAppStore((s) => s.currentView)
   const setCurrentView = useAppStore((s) => s.setCurrentView)
   const setHomeTab = useAppStore((s) => s.setHomeTab)
-  const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
   const renameRef = useRef(null)
@@ -26,23 +25,6 @@ export default function TitleBar() {
       renameRef.current.select()
     }
   }, [renaming])
-
-  async function handleClose() {
-    const canClose = await resolveUnsavedChanges({
-      presentation,
-      isDirty,
-      requiresInitialSave,
-      setDirty,
-      setRequiresInitialSave,
-      actionLabel: 'close the window',
-    })
-    if (!canClose) return
-
-    setAllowWindowClose(true)
-    window.electronAPI?.windowClose()
-  }
-  function handleMinimize() { window.electronAPI?.windowMinimize() }
-  function handleMaximize() { window.electronAPI?.windowMaximize() }
 
   async function handleBack() {
     const canLeave = await resolveUnsavedChanges({
@@ -69,8 +51,10 @@ export default function TitleBar() {
 
   function commitRename() {
     const title = renameVal.trim() || presentation.title
-    setPresentation({ ...presentation, title })
-    setDirty(true)
+    if (title !== presentation.title) {
+      setPresentation({ ...presentation, title })
+      setDirty(true)
+    }
     setRenaming(false)
   }
 
@@ -79,43 +63,59 @@ export default function TitleBar() {
     if (e.key === 'Escape') setRenaming(false)
   }
 
-  const isMac = window.electronAPI?.platform === 'darwin'
-
-  if (isMac && currentView === 'home') {
+  if (currentView !== 'editor' || !presentation) {
     return null
   }
 
   return (
     <div
-      className="flex items-center h-9 shrink-0"
+      className="flex items-center justify-between gap-4 px-4 py-2.5 shrink-0"
       style={{
         background: 'var(--bg-toolbar)',
         borderBottom: '1px solid var(--border-subtle)',
-        WebkitAppRegion: 'drag',
-        paddingLeft: 12,
-        paddingRight: isMac ? 12 : 0,
-        position: 'relative',
       }}
     >
-      {/* Back button */}
-      {currentView === 'editor' && (
+      <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={handleBack}
-          className="flex items-center gap-0.5 mr-2 px-1 py-0.5 rounded text-xs"
-          style={{ color: 'var(--text-secondary)', WebkitAppRegion: 'no-drag' }}
+          className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium shrink-0"
+          style={{
+            color: 'var(--text-primary)',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-default)',
+          }}
           title="Back to Home"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface)' }}
         >
           <ChevronLeft size={13} />
           Home
         </button>
-      )}
-
-      {/* Presentation title — double-click to rename */}
-      {currentView === 'editor' && presentation && (
-        <>
-          <span style={{ color: 'var(--text-tertiary)' }} className="mr-2 text-xs">—</span>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            {!renaming ? (
+              <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                {presentation.title}
+              </p>
+            ) : null}
+            {!renaming && (
+              <button
+                type="button"
+                onClick={startRename}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium shrink-0"
+                style={{
+                  color: 'var(--text-primary)',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface)' }}
+              >
+                <Pencil size={12} />
+                Rename
+              </button>
+            )}
+          </div>
           {renaming ? (
             <input
               ref={renameRef}
@@ -123,76 +123,37 @@ export default function TitleBar() {
               onChange={(e) => setRenameVal(e.target.value)}
               onBlur={commitRename}
               onKeyDown={handleRenameKey}
-              className="text-xs px-1 rounded outline-none"
+              className="mt-1 text-sm px-2 py-1 rounded outline-none w-full max-w-[22rem]"
               style={{
                 color: 'var(--text-primary)',
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-focus)',
-                WebkitAppRegion: 'no-drag',
-                minWidth: 120,
               }}
             />
           ) : (
-            <span
-              className="text-xs cursor-default"
-              style={{ color: isDirty || requiresInitialSave ? 'var(--text-primary)' : 'var(--text-secondary)', WebkitAppRegion: 'no-drag' }}
-              onDoubleClick={startRename}
-              title="Double-click to rename"
-            >
-              {presentation.title}
-            </span>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              Presentation title
+            </p>
           )}
-          {(isDirty || requiresInitialSave) && !renaming && (
-            <span
-              className="ml-1.5 inline-block w-2 h-2 rounded-full"
-              style={{ background: '#f97316' }}
-              title="Unsaved changes"
-            />
-          )}
-        </>
-      )}
-
-      {/* Windows controls — flush right */}
-      {!isMac && (
-        <div
-          className="flex items-center"
-          style={{ WebkitAppRegion: 'no-drag', position: 'absolute', top: 0, right: 0, height: '100%' }}
-        >
-          <WinButton onClick={handleMinimize} title="Minimize">
-            {/* Minimize — horizontal bar */}
-            <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
-          </WinButton>
-          <WinButton onClick={handleMaximize} title="Maximize">
-            {/* Maximize — hollow square */}
-            <svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1"/></svg>
-          </WinButton>
-          <WinButton onClick={handleClose} title="Close" danger>
-            {/* Close — × */}
-            <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.2"/><line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.2"/></svg>
-          </WinButton>
         </div>
-      )}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span
+          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
+          style={{
+            color: isDirty || requiresInitialSave ? '#9a3412' : 'var(--text-secondary)',
+            background: isDirty || requiresInitialSave ? 'rgba(249,115,22,0.12)' : 'var(--bg-surface)',
+            border: `1px solid ${isDirty || requiresInitialSave ? 'rgba(249,115,22,0.22)' : 'var(--border-default)'}`,
+          }}
+          title={isDirty || requiresInitialSave ? 'Unsaved changes' : 'Saved'}
+        >
+          <span
+            className="inline-block w-2 h-2 rounded-full"
+            style={{ background: isDirty || requiresInitialSave ? '#f97316' : '#10b981' }}
+          />
+          {isDirty || requiresInitialSave ? 'Unsaved changes' : 'Saved'}
+        </span>
+      </div>
     </div>
-  )
-}
-
-function WinButton({ onClick, title, danger, children }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className="flex items-center justify-center"
-      style={{ width: 46, height: '100%', color: 'var(--text-secondary)', background: 'transparent', border: 'none' }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = danger ? '#c42b1c' : 'var(--bg-hover)'
-        e.currentTarget.style.color = danger ? '#fff' : 'var(--text-primary)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent'
-        e.currentTarget.style.color = 'var(--text-secondary)'
-      }}
-    >
-      {children}
-    </button>
   )
 }
