@@ -72,6 +72,8 @@ export async function runAppCommand(command) {
       if (canClose) {
         appState.setAllowWindowClose(true)
         window.electronAPI?.windowClose?.()
+      } else {
+        window.electronAPI?.resolveWindowCloseRequest?.()
       }
       return canClose
     }

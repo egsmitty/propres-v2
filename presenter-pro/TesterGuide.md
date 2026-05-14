@@ -4,6 +4,8 @@ Use this guide as the shared checklist for app-wide testing across collaborators
 
 Check items off as they are verified. Add notes inline or in your PR/issue when something feels broken, unclear, unexpectedly changed, or especially solid and worth preserving.
 
+`AI verified: code` means the current repo was inspected and the behavior is structurally supported by code, build, or non-interactive runtime checks. It does not replace a human pass.
+
 ## Testing Rules
 
 - [ ] Test on both macOS and Windows when possible.
@@ -18,41 +20,41 @@ These are current behaviors that should not be casually broken.
 
 ### Home / Recent / Open
 
-- [ ] Home uses `Recent` and `Pinned` segmentation.
-- [ ] `Pinned` is separate from `Recent`.
-- [ ] `Open` remains the full searchable library.
-- [ ] Per-tab selection memory feels independent.
-- [ ] Rename from row actions does not mutate persistent row selection.
-- [ ] Remove from Recent does not delete or unpin.
-- [ ] Remove from Recent appears in `Home > Recent` and `Recent`, not `Open`.
-- [ ] Recency still updates on open and close.
-- [ ] Search/header behavior in `Open` still feels like the restored improved version.
+- [ ] Home uses `Recent` and `Pinned` segmentation. `AI verified: code`
+- [ ] `Pinned` is separate from `Recent`. `AI verified: code`
+- [ ] `Open` remains the full searchable library. `AI verified: code`
+- [ ] Per-tab selection memory feels independent. `AI verified: code`
+- [ ] Rename from row actions does not mutate persistent row selection. `AI verified: code`
+- [ ] Remove from Recent does not delete or unpin. `AI verified: code`
+- [ ] Remove from Recent appears in `Home > Recent` and `Recent`, not `Open`. `AI verified: code`
+- [ ] Recency still updates on open and close. `AI verified: code`
+- [ ] Search/header behavior in `Open` still feels like the restored improved version. `AI verified: code`
 
 ### Song Editor / Song Order
 
-- [ ] Arrangement edits are presentation-only and do not mutate library songs.
-- [ ] Empty arrangement is valid.
-- [ ] Available sections and arrangement remain separate concepts.
-- [ ] Song arrangement supports beginning, between, and end insertion.
-- [ ] Standard section labels are auto-derived.
-- [ ] Custom is the only nameable section type.
-- [ ] `Blank` is not present in the section type UI.
-- [ ] Save with blank title defaults to `Untitled Song`.
-- [ ] Unsaved changes warning still exists.
+- [ ] Arrangement edits are presentation-only and do not mutate library songs. `AI verified: code`
+- [ ] Empty arrangement is valid. `AI verified: code`
+- [ ] Available sections and arrangement remain separate concepts. `AI verified: code`
+- [ ] Song arrangement supports beginning, between, and end insertion. `AI verified: code`
+- [ ] Standard section labels are auto-derived. `AI verified: code`
+- [ ] Custom is the only nameable section type. `AI verified: code`
+- [ ] `Blank` is not present in the section type UI. `AI verified: code`
+- [ ] Save with blank title defaults to `Untitled Song`. `AI verified: code`
+- [ ] Unsaved changes warning still exists. `AI verified: code`
 
 ### Editor / Presenter
 
 - [ ] Filmstrip no longer has duplicate bottom labels.
 - [ ] Selection styling still avoids the old “double selected” feel.
-- [ ] Presenter panel stays open while presenting.
-- [ ] Collapsed presenter state stays a docked rail, not a floating overlay button.
-- [ ] Presenter auto-follow belongs to presenter panel behavior, not filmstrip behavior.
+- [ ] Presenter panel stays open while presenting. `AI verified: code`
+- [ ] Collapsed presenter state stays a docked rail, not a floating overlay button. `AI verified: code`
+- [ ] Presenter auto-follow belongs to presenter panel behavior, not filmstrip behavior. `AI verified: code`
 - [ ] Center canvas/footer flex layout still feels correct.
 - [ ] Preview fitting and center-scroll correction still feel correct.
 
 ### Presentation Metadata
 
-- [ ] Presentation subtitles remain metadata-based, not raw first-slide text.
+- [ ] Presentation subtitles remain metadata-based, not raw first-slide text. `AI verified: code`
 - [ ] Empty pinned-state copy and behavior still feel intact.
 
 ## Platform Pass: Window And Shell
@@ -84,10 +86,10 @@ These are current behaviors that should not be casually broken.
 
 ### Home / Recent / Open Row Behavior
 
-- [ ] Single-click a presentation row and confirm it selects only, not opens.
-- [ ] Double-click a presentation row and confirm it opens.
+- [ ] Single-click a presentation row and confirm it selects only, not opens. `AI verified: code`
+- [ ] Double-click a presentation row and confirm it opens. `AI verified: code`
 - [ ] Context menu still opens correctly from the row.
-- [ ] Pin and unpin still work as expected.
+- [ ] Pin and unpin still work as expected. `AI verified: code`
 - [ ] Rename still works as expected.
 - [ ] Delete still works as expected.
 - [ ] Selection highlighting still feels correct.
@@ -96,10 +98,10 @@ These are current behaviors that should not be casually broken.
 
 ### Open Search
 
-- [ ] Search by title works.
-- [ ] Search by month/date text works.
-- [ ] Search results still preserve the restored hierarchy and shell feel.
-- [ ] Search does not interfere with row selection or actions.
+- [ ] Search by title works. `AI verified: code`
+- [ ] Search by month/date text works. `AI verified: code`
+- [ ] Search results still preserve the restored hierarchy and shell feel. `AI verified: code`
+- [ ] Search does not interfere with row selection or actions. `AI verified: code`
 
 ## New View Rundown
 
@@ -108,18 +110,18 @@ This area is not being redesigned in the current pass, so verify stability only.
 - [ ] `New Presentation` screen still renders correctly.
 - [ ] Template cards still render correctly.
 - [ ] Blank presentation card still renders correctly.
-- [ ] Current selection-first flow still works as-is.
-- [ ] Bottom `Create / Cancel` bar still behaves as it currently does.
+- [ ] Current selection-first flow still works as-is. `AI verified: code`
+- [ ] Bottom `Create / Cancel` bar still behaves as it currently does. `AI verified: code`
 
 ## Editor View Rundown
 
 - [ ] Open an existing presentation and confirm the editor loads cleanly.
-- [ ] The editor header shows `Home`, presentation title, `Rename`, and save state clearly.
-- [ ] Clicking `Rename` allows title edits without needing double-click.
-- [ ] Title changes persist into the editor state.
+- [ ] The editor header shows `Home`, presentation title, `Rename`, and save state clearly. `AI verified: code`
+- [ ] Clicking `Rename` allows title edits without needing double-click. `AI verified: code`
+- [ ] Title changes persist into the editor state. `AI verified: code`
 - [ ] Unsaved state appears after a change.
 - [ ] Save clears the unsaved state.
-- [ ] Returning Home respects unsaved-changes protection.
+- [ ] Returning Home respects unsaved-changes protection. `AI verified: code`
 
 ### Toolbar / Commands
 
@@ -165,9 +167,9 @@ This area is not being redesigned in the current pass, so verify stability only.
 - [ ] Song Library opens correctly.
 - [ ] Search songs works by title and artist.
 - [ ] Song rows still read clearly.
-- [ ] `Insert` is visible and works.
-- [ ] `Edit` is visible and works.
-- [ ] `More actions` opens correctly.
+- [ ] `Insert` is visible and works. `AI verified: code`
+- [ ] `Edit` is visible and works. `AI verified: code`
+- [ ] `More actions` opens correctly. `AI verified: code`
 - [ ] `New Song` still opens the song editor.
 
 ### Song Editor
@@ -175,7 +177,7 @@ This area is not being redesigned in the current pass, so verify stability only.
 - [ ] Editing an existing song works.
 - [ ] Creating a new song works.
 - [ ] Raw lyrics editing works.
-- [ ] Parsing lyrics works.
+- [ ] Parsing lyrics works. `AI verified: code`
 - [ ] Slide preview updates correctly.
 - [ ] Group type changes work.
 - [ ] Custom group naming works.
@@ -183,18 +185,18 @@ This area is not being redesigned in the current pass, so verify stability only.
 - [ ] Remove slide works.
 - [ ] Add section group works.
 - [ ] Remove section group works.
-- [ ] Arrangement chips can still be added and reordered.
+- [ ] Arrangement chips can still be added and reordered. `AI verified: code`
 - [ ] Save to Library works.
-- [ ] Raw lyrics save no longer loses edits when saving without pressing `Parse Song` first.
+- [ ] Raw lyrics save no longer loses edits when saving without pressing `Parse Song` first. `AI verified: code`
 
 ## Media Library Rundown
 
 - [ ] Media Library opens correctly.
 - [ ] Search/filter behavior still works.
 - [ ] Media folder creation still works.
-- [ ] Media import still works.
+- [ ] Media import still works. `AI verified: code`
 - [ ] Row/tile actions still work.
-- [ ] Insert media into the current presentation still works.
+- [ ] Insert media into the current presentation still works. `AI verified: code`
 
 ## Presenter And Output Rundown
 
@@ -210,10 +212,10 @@ This area is not being redesigned in the current pass, so verify stability only.
 
 ## Shortcuts And Menus
 
-- [ ] In-app menu labels render correctly.
-- [ ] Shortcut labels show `⌘` on Mac where appropriate.
-- [ ] Shortcut labels show `Ctrl` on Windows where appropriate.
-- [ ] Shortcuts overlay matches the same platform-specific labeling.
+- [ ] In-app menu labels render correctly. `AI verified: code`
+- [ ] Shortcut labels show `⌘` on Mac where appropriate. `AI verified: code`
+- [ ] Shortcut labels show `Ctrl` on Windows where appropriate. `AI verified: code`
+- [ ] Shortcuts overlay matches the same platform-specific labeling. `AI verified: code`
 - [ ] `New Presentation` shortcut works.
 - [ ] `Open` shortcut works.
 - [ ] `Save` shortcut works.
