@@ -1,31 +1,34 @@
 import React, { useEffect } from 'react'
 import { X } from 'lucide-react'
+import { getPlatform, getShortcutKeys } from '@/utils/platformShortcuts'
 
 const SHORTCUTS = [
   { group: 'File', items: [
-    { keys: ['⌘', 'N'], label: 'New Presentation' },
-    { keys: ['⌘', 'O'], label: 'Open Presentation' },
-    { keys: ['⌘', 'S'], label: 'Save' },
-    { keys: ['⌘', '⇧', 'S'], label: 'Save As' },
+    { shortcutTokens: ['mod', 'n'], label: 'New Presentation' },
+    { shortcutTokens: ['mod', 'o'], label: 'Open Presentation' },
+    { shortcutTokens: ['mod', 's'], label: 'Save' },
+    { shortcutTokens: ['mod', 'shift', 's'], label: 'Save As' },
   ]},
   { group: 'Edit', items: [
-    { keys: ['⌘', 'M'], label: 'New Slide' },
-    { keys: ['Double-click'], label: 'Edit slide text' },
-    { keys: ['Esc'], label: 'Exit text editing / stop presenting' },
+    { shortcutTokens: ['mod', 'm'], label: 'New Slide' },
+    { shortcutTokens: ['Double-click'], label: 'Edit slide text' },
+    { shortcutTokens: ['esc'], label: 'Exit text editing / stop presenting' },
   ]},
   { group: 'Present', items: [
-    { keys: ['F5'], label: 'Start Presenting' },
-    { keys: ['Esc'], label: 'Stop Presenting' },
-    { keys: ['←', '→'], label: 'Previous / Next slide' },
-    { keys: ['B'], label: 'Black screen' },
-    { keys: ['L'], label: 'Logo screen' },
+    { shortcutTokens: ['F5'], label: 'Start Presenting' },
+    { shortcutTokens: ['esc'], label: 'Stop Presenting' },
+    { shortcutTokens: ['left', 'right'], label: 'Previous / Next slide' },
+    { shortcutTokens: ['b'], label: 'Black screen' },
+    { shortcutTokens: ['l'], label: 'Logo screen' },
   ]},
   { group: 'Navigation', items: [
-    { keys: ['?'], label: 'Show this overlay' },
+    { shortcutTokens: ['?'], label: 'Show this overlay' },
   ]},
 ]
 
 export default function ShortcutsOverlay({ onClose }) {
+  const platform = getPlatform()
+
   useEffect(() => {
     function handleKey(e) {
       if (e.key === 'Escape' || e.key === '?') onClose()
@@ -84,7 +87,7 @@ export default function ShortcutsOverlay({ onClose }) {
                       {item.label}
                     </span>
                     <div className="flex items-center gap-0.5 ml-3">
-                      {item.keys.map((k, ki) => (
+                      {getShortcutKeys(item.shortcutTokens, platform).map((key, ki) => (
                         <kbd
                           key={ki}
                           className="px-1.5 py-0.5 rounded text-xs font-medium"
@@ -96,7 +99,7 @@ export default function ShortcutsOverlay({ onClose }) {
                             fontSize: 11,
                           }}
                         >
-                          {k}
+                          {key}
                         </kbd>
                       ))}
                     </div>

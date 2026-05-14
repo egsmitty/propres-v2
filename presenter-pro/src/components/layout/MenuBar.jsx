@@ -3,15 +3,16 @@ import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { useAppStore } from '@/store/appStore'
 import { runAppCommand } from '@/utils/appCommands'
+import { formatShortcutLabel, getPlatform } from '@/utils/platformShortcuts'
 
 const MENUS = [
   {
     label: 'File',
     items: [
-      { label: 'New Presentation', shortcut: '⌘N', action: 'file:new' },
-      { label: 'Open…', shortcut: '⌘O', action: 'file:open' },
-      { label: 'Save', shortcut: '⌘S', action: 'file:save' },
-      { label: 'Save As…', shortcut: '⌘⇧S', action: 'file:saveAs' },
+      { label: 'New Presentation', shortcutTokens: ['mod', 'n'], action: 'file:new' },
+      { label: 'Open…', shortcutTokens: ['mod', 'o'], action: 'file:open' },
+      { label: 'Save', shortcutTokens: ['mod', 's'], action: 'file:save' },
+      { label: 'Save As…', shortcutTokens: ['mod', 'shift', 's'], action: 'file:saveAs' },
       { divider: true },
       { label: 'Close', action: 'file:close' },
     ]
@@ -19,7 +20,7 @@ const MENUS = [
   {
     label: 'Insert',
     items: [
-      { label: 'New Slide', shortcut: '⌘M', action: 'insert:newSlide' },
+      { label: 'New Slide', shortcutTokens: ['mod', 'm'], action: 'insert:newSlide' },
       { divider: true },
       { label: 'Song', action: 'insert:song' },
       { label: 'Media', action: 'insert:media' },
@@ -103,6 +104,7 @@ function MenuItem({ item, onAction, onClose }) {
 export default function MenuBar() {
   const [openMenu, setOpenMenu] = useState(null)
   const menuRef = useRef(null)
+  const platform = getPlatform()
 
   const filmstripVisible = useAppStore((s) => s.filmstripVisible)
   const presentation = useEditorStore((s) => s.presentation)
@@ -158,7 +160,11 @@ export default function MenuBar() {
         }
       }
 
-      return { ...item, disabled }
+      return {
+        ...item,
+        disabled,
+        shortcut: item.shortcutTokens ? formatShortcutLabel(item.shortcutTokens, platform) : item.shortcut,
+      }
     }),
   }))
 

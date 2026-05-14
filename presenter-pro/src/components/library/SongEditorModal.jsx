@@ -103,6 +103,15 @@ function finalizeSongEditorGroups(groups = []) {
   )))
 }
 
+function buildSongEditorStateFromLyrics(lyrics = '') {
+  const parsedGroups = normalizeSongEditorGroups(parseSongGroupsFromLyrics(lyrics))
+  return {
+    groups: parsedGroups,
+    arrangement: parsedGroups.map((group) => group.id),
+    lyrics: parsedGroups.length ? groupsToLyrics(parsedGroups) : '',
+  }
+}
+
 function createSongEditorSnapshot({ title, artist, ccli, lyrics, groups, arrangement }) {
   return JSON.stringify({
     title: title || '',
@@ -300,13 +309,12 @@ export default function SongEditorModal({ song, onClose, onSave }) {
 
   function handleParse() {
     if (!lyrics.trim()) return
-    const parsedGroups = normalizeSongEditorGroups(parseSongGroupsFromLyrics(lyrics))
-    const nextArrangement = parsedGroups.map((group) => group.id)
-    setGroups(parsedGroups)
-    setArrangement(nextArrangement)
-    setLyrics(groupsToLyrics(parsedGroups))
+    const nextSongState = buildSongEditorStateFromLyrics(lyrics)
+    setGroups(nextSongState.groups)
+    setArrangement(nextSongState.arrangement)
+    setLyrics(nextSongState.lyrics)
     setRawLyricsDirty(false)
-    const nextSelection = getGroupSlideSelection(parsedGroups, nextArrangement, null, null)
+    const nextSelection = getGroupSlideSelection(nextSongState.groups, nextSongState.arrangement, null, null)
     setSelectedGroupId(nextSelection.groupId)
     setSelectedSlideId(nextSelection.slideId)
   }
@@ -511,9 +519,11 @@ export default function SongEditorModal({ song, onClose, onSave }) {
         setTitle(resolvedTitle)
       }
 
-      const finalizedGroups = finalizeSongEditorGroups(groups)
-      setGroups(finalizedGroups)
-      const flattened = flattenSongGroupsToSlides(finalizedGroups, arrangement)
+      const nextSongState = rawLyricsDirty
+        ? buildSongEditorStateFromLyrics(lyrics)
+        : { groups, arrangement, lyrics }
+      const finalizedGroups = finalizeSongEditorGroups(nextSongState.groups)
+      const flattened = flattenSongGroupsToSlides(finalizedGroups, nextSongState.arrangement)
       const data = {
         title: resolvedTitle,
         artist,

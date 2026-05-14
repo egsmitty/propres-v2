@@ -62,6 +62,7 @@ import {
   clearPendingNumericFieldCommit,
   registerPendingNumericFieldCommit,
 } from '@/utils/pendingNumericCommit'
+import { formatShortcutLabel, getPlatform } from '@/utils/platformShortcuts'
 import { uuid } from '@/utils/uuid'
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup'
 import {
@@ -1113,7 +1114,9 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const hideEditSecondaryLabels = isTextEditing && compactLevel >= 1
   const hideEditColorLabels = isTextEditing && compactLevel >= 4
   const collapseEditColorsToPalette = isTextEditing && effectiveWidth < 900
-  const isWindowsPlatform = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows')
+  const platform = getPlatform()
+  const isWindowsPlatform = platform === 'win32'
+  const newSlideShortcut = formatShortcutLabel(['mod', 'm'], platform)
 
   const activeAlign = isTextEditing
     ? normalizeAlignValue(editorSnapshot?.textAlign, style.align || 'center')
@@ -1542,7 +1545,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
         ) : (
           <>
             <Group title="Slides">
-              <CommandButton icon={Plus} label="New" title="New Slide (Cmd+M)" onClick={handleNewSlide} disabled={!hasPresentation || panelOpen} primary collapseLabel={hidePrimaryLabels} />
+              <CommandButton icon={Plus} label="New" title={`New Slide (${newSlideShortcut})`} onClick={handleNewSlide} disabled={!hasPresentation || panelOpen} primary collapseLabel={hidePrimaryLabels} />
               <CommandButton icon={Type} label="Text Box" title="Add Text Box" onClick={() => addSlideTextBox(selectedSectionId, selectedSlideId)} disabled={!canAddTextBox} collapseLabel={hidePrimaryLabels} />
               <CommandButton icon={Copy} title="Duplicate Slide" onClick={handleDuplicate} disabled={!hasSlide || panelOpen} compact />
               <CommandButton icon={Trash2} title="Delete Slide" onClick={handleDelete} disabled={!hasSlide || panelOpen} danger compact />
