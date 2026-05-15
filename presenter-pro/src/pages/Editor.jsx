@@ -23,7 +23,7 @@ const FILMSTRIP_MIN_WIDTH = 276
 const FILMSTRIP_MAX_WIDTH = 352
 const CENTER_COLUMN_MIN_WIDTH = 520
 const PRESENTER_PANEL_MIN_WIDTH = 240
-const PRESENTER_PANEL_ABSOLUTE_MAX_WIDTH = 420
+const PRESENTER_PANEL_MAX_WIDTH_RATIO = 0.75
 const PRESENTER_RAIL_WIDTH = 48
 const RESIZE_HANDLE_WIDTH = 4
 
@@ -48,8 +48,7 @@ function getPresenterPanelWidthBounds(viewportWidth) {
   const max = Math.max(
     PRESENTER_PANEL_MIN_WIDTH,
     Math.min(
-      PRESENTER_PANEL_ABSOLUTE_MAX_WIDTH,
-      Math.floor(width * 0.36),
+      Math.floor(width * PRESENTER_PANEL_MAX_WIDTH_RATIO),
       maxByCenterSpace
     )
   )
@@ -331,22 +330,7 @@ export default function Editor() {
       <div className="flex flex-1 overflow-hidden relative">
         {songLibraryOpen && <SongLibraryPanel />}
         {mediaLibraryOpen && <MediaLibraryPanel />}
-        {libraryPanelOpen ? (
-          <button
-            type="button"
-            aria-label="Close library panel"
-            onMouseDown={(event) => {
-              event.preventDefault()
-              closeLibraryPanels()
-            }}
-            className="absolute inset-0 z-20 cursor-default"
-            style={{ background: 'transparent', left: 320 }}
-          />
-        ) : null}
-        <div
-          className="flex flex-1 min-w-0 min-h-0 overflow-hidden"
-          style={{ pointerEvents: panelOpen ? 'none' : 'auto' }}
-        >
+        <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
           <div className="shrink-0 flex h-full overflow-hidden">
             {filmstripVisible ? (
               <>

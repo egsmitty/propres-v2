@@ -1,0 +1,146 @@
+{
+  "$schema_note": "Source-of-truth for built-in public-domain hymns. See hymns.README.md (sibling file) for how the app should consume this. Codex: do NOT pre-split lyrics here. Splitting into slides (every 2 lines, per B2) happens at template-build / library-seed time using existing app utilities.",
+  "hymns": [
+    {
+      "id": "amazing-grace",
+      "title": "Amazing Grace",
+      "author": "John Newton",
+      "year": 1779,
+      "publicDomain": true,
+      "sections": [
+        { "type": "blank", "name": "Blank", "lyrics": "" },
+        {
+          "type": "verse",
+          "name": "Verse 1",
+          "lyrics": "Amazing grace! How sweet the sound\nThat saved a wretch like me!\nI once was lost, but now am found,\nWas blind, but now I see."
+        },
+        {
+          "type": "verse",
+          "name": "Verse 2",
+          "lyrics": "'Twas grace that taught my heart to fear,\nAnd grace my fears relieved;\nHow precious did that grace appear\nThe hour I first believed!"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 3",
+          "lyrics": "Through many dangers, toils and snares\nI have already come;\n'Tis grace hath brought me safe thus far,\nAnd grace will lead me home."
+        },
+        {
+          "type": "verse",
+          "name": "Verse 4",
+          "lyrics": "The Lord has promised good to me,\nHis word my hope secures;\nHe will my shield and portion be\nAs long as life endures."
+        },
+        {
+          "type": "verse",
+          "name": "Verse 5",
+          "lyrics": "When we've been there ten thousand years,\nBright shining as the sun,\nWe've no less days to sing God's praise\nThan when we'd first begun."
+        },
+        { "type": "blank", "name": "Blank", "lyrics": "" }
+      ]
+    },
+    {
+      "id": "all-creatures-of-our-god-and-king",
+      "title": "All Creatures of Our God and King",
+      "author": "Francis of Assisi (trans. William H. Draper)",
+      "year": 1225,
+      "publicDomain": true,
+      "sections": [
+        { "type": "blank", "name": "Blank", "lyrics": "" },
+        {
+          "type": "verse",
+          "name": "Verse 1",
+          "lyrics": "All creatures of our God and King,\nLift up your voice and with us sing\nAlleluia, alleluia!\nThou burning sun with golden beam,\nThou silver moon with softer gleam,\nO praise Him, O praise Him,\nAlleluia, alleluia, alleluia!"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 2",
+          "lyrics": "Thou rushing wind that art so strong,\nYe clouds that sail in heaven along,\nO praise Him, alleluia!\nThou rising morn, in praise rejoice,\nYe lights of evening, find a voice,\nO praise Him, O praise Him,\nAlleluia, alleluia, alleluia!"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 3",
+          "lyrics": "Thou flowing water, pure and clear,\nMake music for thy Lord to hear,\nAlleluia, alleluia!\nThou fire so masterful and bright,\nThat givest man both warmth and light,\nO praise Him, O praise Him,\nAlleluia, alleluia, alleluia!"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 4",
+          "lyrics": "And all ye men of tender heart,\nForgiving others, take your part,\nO sing ye, alleluia!\nYe who long pain and sorrow bear,\nPraise God and on Him cast your care,\nO praise Him, O praise Him,\nAlleluia, alleluia, alleluia!"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 5",
+          "lyrics": "Let all things their Creator bless,\nAnd worship Him in humbleness,\nO praise Him, alleluia!\nPraise, praise the Father, praise the Son,\nAnd praise the Spirit, Three in One,\nO praise Him, O praise Him,\nAlleluia, alleluia, alleluia!"
+        },
+        { "type": "blank", "name": "Blank", "lyrics": "" }
+      ]
+    },
+    {
+      "id": "how-great-thou-art",
+      "title": "How Great Thou Art",
+      "author": "Carl Boberg (trans. Stuart K. Hine)",
+      "year": 1885,
+      "publicDomain": true,
+      "publicDomainNote": "Carl Boberg's original 1885 Swedish text 'O Store Gud' is public domain. The widely-sung English translation by Stuart K. Hine is under copyright in some jurisdictions; if licensing concerns arise, swap this hymn for another PD selection or use only Boberg's verses translated literally.",
+      "sections": [
+        { "type": "blank", "name": "Blank", "lyrics": "" },
+        {
+          "type": "verse",
+          "name": "Verse 1",
+          "lyrics": "O Lord my God, when I in awesome wonder\nConsider all the worlds Thy hands have made,\nI see the stars, I hear the rolling thunder,\nThy power throughout the universe displayed."
+        },
+        {
+          "type": "chorus",
+          "name": "Chorus",
+          "lyrics": "Then sings my soul, my Savior God, to Thee;\nHow great Thou art, how great Thou art!\nThen sings my soul, my Savior God, to Thee;\nHow great Thou art, how great Thou art!"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 2",
+          "lyrics": "When through the woods and forest glades I wander\nAnd hear the birds sing sweetly in the trees;\nWhen I look down from lofty mountain grandeur\nAnd hear the brook and feel the gentle breeze:"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 3",
+          "lyrics": "And when I think that God, His Son not sparing,\nSent Him to die, I scarce can take it in;\nThat on the cross, my burden gladly bearing,\nHe bled and died to take away my sin:"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 4",
+          "lyrics": "When Christ shall come with shout of acclamation\nAnd take me home, what joy shall fill my heart!\nThen I shall bow in humble adoration,\nAnd there proclaim, my God, how great Thou art!"
+        },
+        { "type": "blank", "name": "Blank", "lyrics": "" }
+      ]
+    },
+    {
+      "id": "great-is-thy-faithfulness",
+      "title": "Great Is Thy Faithfulness",
+      "author": "Thomas O. Chisholm",
+      "year": 1923,
+      "publicDomain": true,
+      "publicDomainNote": "Lyrics published 1923; entered the U.S. public domain on January 1, 2019. Verify per-jurisdiction if shipping outside the U.S.",
+      "sections": [
+        { "type": "blank", "name": "Blank", "lyrics": "" },
+        {
+          "type": "verse",
+          "name": "Verse 1",
+          "lyrics": "Great is Thy faithfulness, O God my Father;\nThere is no shadow of turning with Thee;\nThou changest not, Thy compassions, they fail not;\nAs Thou hast been, Thou forever wilt be."
+        },
+        {
+          "type": "chorus",
+          "name": "Chorus",
+          "lyrics": "Great is Thy faithfulness! Great is Thy faithfulness!\nMorning by morning new mercies I see;\nAll I have needed Thy hand hath provided;\nGreat is Thy faithfulness, Lord, unto me!"
+        },
+        {
+          "type": "verse",
+          "name": "Verse 2",
+          "lyrics": "Summer and winter and springtime and harvest,\nSun, moon, and stars in their courses above\nJoin with all nature in manifold witness\nTo Thy great faithfulness, mercy, and love."
+        },
+        {
+          "type": "verse",
+          "name": "Verse 3",
+          "lyrics": "Pardon for sin and a peace that endureth,\nThine own dear presence to cheer and to guide;\nStrength for today and bright hope for tomorrow,\nBlessings all mine, with ten thousand beside!"
+        },
+        { "type": "blank", "name": "Blank", "lyrics": "" }
+      ]
+    }
+  ]
+}

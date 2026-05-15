@@ -5,7 +5,7 @@ import SectionHeader from './SectionHeader'
 import FilmstripSlide from './FilmstripSlide'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
 import SongEditorModal from '@/components/library/SongEditorModal'
-import { createTextSlide, isMediaSlide } from '@/utils/sectionTypes'
+import { createSection, createTextSlide, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { getSongs } from '@/utils/ipc'
 import { flushPendingNumericFieldCommit } from '@/utils/pendingNumericCommit'
@@ -13,6 +13,8 @@ import { getSlideTextBoxes, withUpdatedSlideTextBoxes } from '@/utils/textBoxes'
 import { uuid } from '@/utils/uuid'
 import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentationCommands'
 import { getEffectiveBackgroundId } from '@/utils/backgrounds'
+import { flattenSongGroupsToSlides, getSongGroupsAndArrangement } from '@/utils/songSections'
+import { applyDroppedMediaToTargets, isMediaLibraryDrag } from '@/utils/mediaDropActions'
 
 const AUTO_SCROLL_EDGE = 72
 const AUTO_SCROLL_MAX_STEP = 26
@@ -114,6 +116,10 @@ function getEffectiveSelectedSlideIds(selectedSlideIds = [], selectedSlideId = n
   const ids = [...selectedSlideIds]
   if (selectedSlideId && !ids.includes(selectedSlideId)) ids.push(selectedSlideId)
   return ids
+}
+
+function isSongLibraryDrag(event) {
+  return Array.from(event.dataTransfer?.types || []).includes('application/presenterpro-song-id')
 }
 
 function isGenericSlideLabel(label) {
@@ -359,6 +365,8 @@ export default function Filmstrip({ width = 224 }) {
   const autoScrollFrameRef = useRef(null)
   const dragSection = useRef(null)
   const [dragOverSection, setDragOverSection] = useState(null)
+  const [externalSongDropIndex, setExternalSongDropIndex] = useState(null)
+  const [mediaDropTargetSlideId, setMediaDropTargetSlideId] = useState(null)
   const slideNodeRefs = useRef(new Map())
   const endNodeRefs = useRef(new Map())
   const effectiveSelectedSlideIds = useMemo(
@@ -392,8 +400,36 @@ export default function Filmstrip({ width = 224 }) {
   }
 
   useEffect(() => {
+    const sections = presentation?.sections || []
+    if (!sections.length) {
+      setCollapsed({})
+      return
+    }
+
+    const next = {}
+    sections.forEach((section) => {
+      next[section.id] = true
+    })
+    setCollapsed(next)
+  }, [presentation?.id])
+
+  useEffect(() => {
     activeSlideDragRef.current = activeSlideDrag
   }, [activeSlideDrag])
+
+  useEffect(() => {
+    function handleDragEnd() {
+      setExternalSongDropIndex(null)
+      setMediaDropTargetSlideId(null)
+    }
+
+    window.addEventListener('dragend', handleDragEnd)
+    window.addEventListener('drop', handleDragEnd)
+    return () => {
+      window.removeEventListener('dragend', handleDragEnd)
+      window.removeEventListener('drop', handleDragEnd)
+    }
+  }, [])
 
   useEffect(() => {
     slideDropTargetRef.current = slideDropTarget
@@ -557,6 +593,14 @@ export default function Filmstrip({ width = 224 }) {
     setCollapsed((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }))
   }
 
+  function collapseAllSectionsNow() {
+    const next = {}
+    ;(presentation?.sections || []).forEach((section) => {
+      next[section.id] = true
+    })
+    setCollapsed(next)
+  }
+
   function collapseAllSections() {
     const next = {}
     ;(presentation?.sections || []).forEach((section) => {
@@ -567,6 +611,86 @@ export default function Filmstrip({ width = 224 }) {
 
   function mutate(fn) {
     useEditorStore.getState().mutateSections(fn)
+  }
+
+  function buildSongSectionFromLibrarySong(song) {
+    const { groups, arrangement } = getSongGroupsAndArrangement(song)
+    const flattened = flattenSongGroupsToSlides(groups, arrangement, {
+      regenerateSlideIds: true,
+      regenerateGroupIds: true,
+      songId: song.id,
+    })
+
+    return createSection('song', presentation.sections.length, {
+      title: song.title,
+      songId: song.id,
+      songGroups: flattened.groups,
+      songOrder: flattened.arrangement,
+      slides: flattened.slides,
+    })
+  }
+
+  async function insertSongAtIndex(songId, index) {
+    const result = await getSongs()
+    const songs = result?.success ? result.data : []
+    const song = songs.find((entry) => String(entry.id) === String(songId)) || null
+    if (!song) return
+
+    const newSection = buildSongSectionFromLibrarySong(song)
+    mutate((sections) => {
+      const next = [...sections]
+      next.splice(index, 0, newSection)
+      return next
+    })
+    setCollapsed((current) => ({ ...current, [newSection.id]: true }))
+    setSlideSelection(newSection.id, newSection.slides[0]?.id ?? null, newSection.slides[0]?.id ? [newSection.slides[0].id] : [])
+  }
+
+  function handleSongDropZoneDragOver(event, index) {
+    if (!isSongLibraryDrag(event)) return
+    event.preventDefault()
+    event.stopPropagation()
+    collapseAllSectionsNow()
+    setExternalSongDropIndex(index)
+  }
+
+  async function handleSongDropZoneDrop(event, index) {
+    if (!isSongLibraryDrag(event)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const songId = event.dataTransfer.getData('application/presenterpro-song-id')
+    setExternalSongDropIndex(null)
+    if (!songId) return
+    await insertSongAtIndex(songId, index)
+  }
+
+  function getMediaDropTargets(sectionId, slideId) {
+    if (effectiveSelectedSlideIds.length > 1 && effectiveSelectedSlideIds.includes(slideId)) {
+      return (presentation?.sections || []).flatMap((section) =>
+        section.slides
+          .filter((slide) => effectiveSelectedSlideIds.includes(slide.id))
+          .map((slide) => ({ sectionId: section.id, slideId: slide.id }))
+      )
+    }
+
+    return [{ sectionId, slideId }]
+  }
+
+  function handleMediaSlideDragOver(event, sectionId, slideId) {
+    if (!isMediaLibraryDrag(event)) return
+    event.preventDefault()
+    event.stopPropagation()
+    setMediaDropTargetSlideId(slideId)
+  }
+
+  async function handleMediaSlideDrop(event, sectionId, slideId) {
+    if (!isMediaLibraryDrag(event)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const mediaId = Number(event.dataTransfer.getData('application/presenterpro-media-id'))
+    setMediaDropTargetSlideId(null)
+    if (!Number.isFinite(mediaId)) return
+    await applyDroppedMediaToTargets(mediaId, getMediaDropTargets(sectionId, slideId))
   }
 
   function selectFirstAvailableSlide() {
@@ -812,6 +936,32 @@ export default function Filmstrip({ width = 224 }) {
     anchorSlideRef.current = primary.id
   }
 
+  function renderSongDropZone(index) {
+    const active = externalSongDropIndex === index
+    return (
+      <div
+        key={`song-drop-zone-${index}`}
+        onDragOver={(event) => handleSongDropZoneDragOver(event, index)}
+        onDrop={(event) => { void handleSongDropZoneDrop(event, index) }}
+        style={{
+          height: active ? 18 : 10,
+          padding: '0 10px',
+          transition: 'height 120ms ease',
+        }}
+      >
+        <div
+          style={{
+            height: 3,
+            width: '100%',
+            borderRadius: 999,
+            background: active ? 'var(--accent)' : 'transparent',
+            boxShadow: active ? '0 0 0 1px rgba(74,124,255,0.2)' : 'none',
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div
       ref={containerRef}
@@ -851,8 +1001,17 @@ export default function Filmstrip({ width = 224 }) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-1">
-        {sectionsForPreview.map((section) => {
+      <div
+        className="flex-1 overflow-y-auto py-1"
+        onDragOver={(event) => {
+          if (!isSongLibraryDrag(event)) return
+          event.preventDefault()
+          collapseAllSectionsNow()
+          if (!sectionsForPreview.length) setExternalSongDropIndex(0)
+        }}
+      >
+        {sectionsForPreview.length === 0 ? renderSongDropZone(0) : null}
+        {sectionsForPreview.map((section, sectionIndex) => {
           const isCollapsed = collapsed[section.id]
           const originalSection = sectionsById.get(section.id) || section
           const showPreviewAtEnd =
@@ -861,23 +1020,24 @@ export default function Filmstrip({ width = 224 }) {
             slideDropTarget?.targetSlideId === null
 
           return (
-            <div
-              key={section.id}
-              draggable={!dragCandidate && !activeSlideDrag}
-              onDragStart={() => onSectionDragStart(section.id)}
-              onDragOver={(e) => onSectionDragOver(e, section.id)}
-              onDrop={() => onSectionDrop(section.id)}
-              onDragEnd={() => {
-                dragSection.current = null
-                setDragOverSection(null)
-              }}
-              style={{
-                opacity: dragOverSection === section.id && dragSection.current !== section.id ? 0.6 : 1,
-                outline: dragOverSection === section.id && dragSection.current !== section.id
-                  ? '2px solid var(--accent)'
-                  : 'none',
-              }}
-            >
+            <React.Fragment key={section.id}>
+              {renderSongDropZone(sectionIndex)}
+              <div
+                draggable={!dragCandidate && !activeSlideDrag}
+                onDragStart={() => onSectionDragStart(section.id)}
+                onDragOver={(e) => onSectionDragOver(e, section.id)}
+                onDrop={() => onSectionDrop(section.id)}
+                onDragEnd={() => {
+                  dragSection.current = null
+                  setDragOverSection(null)
+                }}
+                style={{
+                  opacity: dragOverSection === section.id && dragSection.current !== section.id ? 0.6 : 1,
+                  outline: dragOverSection === section.id && dragSection.current !== section.id
+                    ? '2px solid var(--accent)'
+                    : 'none',
+                }}
+              >
               <SectionHeader
                 section={originalSection}
                 collapsed={isCollapsed}
@@ -930,9 +1090,16 @@ export default function Filmstrip({ width = 224 }) {
                       >
                         <FilmstripSlide
                           slide={slide}
+                          sectionType={originalSection.type}
                           index={idx}
                           selected={selectedSlideId === slide.id}
                           isMultiSelected={effectiveSelectedSlideIds.includes(slide.id)}
+                          mediaDropHighlighted={
+                            mediaDropTargetSlideId === slide.id ||
+                            (mediaDropTargetSlideId && effectiveSelectedSlideIds.length > 1 && effectiveSelectedSlideIds.includes(slide.id))
+                          }
+                          onMediaDragOver={(event) => handleMediaSlideDragOver(event, originalSection.id, slide.id)}
+                          onMediaDrop={(event) => { void handleMediaSlideDrop(event, originalSection.id, slide.id) }}
                           onSelect={(e) => handleSelectSlide(e, originalSection.id, slide)}
                           onNewSlide={() => insertSlideAfter(originalSection, slide)}
                           onDoubleClick={() => {
@@ -977,9 +1144,11 @@ export default function Filmstrip({ width = 224 }) {
                   }}
                 />
               )}
-            </div>
+              </div>
+            </React.Fragment>
           )
         })}
+        {sectionsForPreview.length ? renderSongDropZone(sectionsForPreview.length) : null}
       </div>
 
       {dragGhost?.slide ? (

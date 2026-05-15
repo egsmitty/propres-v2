@@ -107,9 +107,13 @@ export async function runAppCommand(command) {
     case 'insert:blank':
       return insertNewSlideIntoCurrentPresentation()
     case 'insert:song':
+      appState.setMediaLibraryOpen(false)
+      appState.setNewSongEditorOpen(false)
       appState.setSongLibraryOpen(true)
       return true
     case 'insert:media':
+      appState.setSongLibraryOpen(false)
+      appState.setNewSongEditorOpen(false)
       appState.setMediaLibraryOpen(true)
       return true
     case 'insert:announcement':

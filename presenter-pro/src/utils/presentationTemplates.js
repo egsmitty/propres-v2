@@ -1,34 +1,51 @@
-import { createSection, createTextSlide, createMediaSlide } from '@/utils/sectionTypes'
+import { createSection, createTextSlide } from '@/utils/sectionTypes'
+import { flattenSongGroupsToSlides, getSongGroupsAndArrangement, splitTextIntoSlidesByLineCount } from '@/utils/songSections'
+
+const TEST_MEDIA_ROOT = '/Users/ethansmith/Desktop/VSClaude/ProPresV2/test-media'
 
 export const SAMPLE_MEDIA_LIBRARY = [
   {
-    key: 'welcome',
-    name: 'Particle Spin Welcome (MotionWorship Sample)',
+    key: 'welcome-announcements',
+    name: 'Illumine Welcome',
     type: 'video',
-    file_path: '/Users/ethansmith/Desktop/VSClaude/ProPresV2/test-media/ParticleSpinWelcomeHD_PRV.mp4',
-    tags: 'sample,motionworship,announcement',
+    file_path: `${TEST_MEDIA_ROOT}/IllumineWelcomeHD.mp4`,
+    tags: '["built-in","template","announcements","welcome"]',
   },
   {
-    key: 'background',
-    name: 'Particle Spin Blue (MotionWorship Sample)',
-    type: 'video',
-    file_path: '/Users/ethansmith/Desktop/VSClaude/ProPresV2/test-media/ParticleSpinBlueHD_PRV.mp4',
-    tags: 'sample,motionworship,background',
+    key: 'general-background',
+    name: 'Celestial Blue',
+    type: 'image',
+    file_path: `${TEST_MEDIA_ROOT}/CelestialBlueHD.jpg`,
+    tags: '["built-in","template","background","general"]',
   },
   {
-    key: 'countdown',
-    name: 'Geo Depths Countdown (MotionWorship Sample)',
+    key: 'song-motion-1',
+    name: 'Color Flow Magenta Ice',
     type: 'video',
-    file_path: '/Users/ethansmith/Desktop/VSClaude/ProPresV2/test-media/GeoDepthsCountdownHD_PRV.mp4',
-    tags: 'sample,motionworship,countdown',
+    file_path: `${TEST_MEDIA_ROOT}/ColorFlowMagentaIceHD.mp4`,
+    tags: '["built-in","template","background","song"]',
+  },
+  {
+    key: 'song-motion-2',
+    name: 'Illumine Cool Rays',
+    type: 'video',
+    file_path: `${TEST_MEDIA_ROOT}/IllumineCoolRaysHD.mp4`,
+    tags: '["built-in","template","background","song"]',
+  },
+  {
+    key: 'song-motion-3',
+    name: 'Summer Wildflowers Daisy Sunset',
+    type: 'video',
+    file_path: `${TEST_MEDIA_ROOT}/SummerWildflowersDaisySunsetHD.mp4`,
+    tags: '["built-in","template","background","song"]',
   },
 ]
 
-function makeSection(index, title, slideLabels, type = 'announcement') {
-  return createSection(type, index, {
-    title,
-    slides: slideLabels.map((label) => createTextSlide(type, { label })),
-  })
+const BUILT_IN_HYMN_IDS = {
+  amazingGrace: 'amazing-grace',
+  allCreatures: 'all-creatures-of-our-god-and-king',
+  howGreatThouArt: 'how-great-thou-art',
+  greatIsThyFaithfulness: 'great-is-thy-faithfulness',
 }
 
 function makeBodySlide(type, label, body, style = {}) {
@@ -46,144 +63,197 @@ function makeBodySlide(type, label, body, style = {}) {
   })
 }
 
+function buildSongSectionFromLibrarySong(song, index, backgroundId = null) {
+  if (!song) {
+    return createSection('song', index, {
+      title: 'Missing Built-In Song',
+      backgroundId,
+      slides: [makeBodySlide('song', 'Song Missing', 'This template song could not be found in the library.')],
+    })
+  }
+
+  const { groups, arrangement } = getSongGroupsAndArrangement(song)
+  const flattened = flattenSongGroupsToSlides(groups, arrangement, {
+    regenerateSlideIds: true,
+    regenerateGroupIds: true,
+    songId: song.id,
+  })
+
+  return createSection('song', index, {
+    title: song.title,
+    songId: song.id,
+    backgroundId,
+    songGroups: flattened.groups,
+    songOrder: flattened.arrangement,
+    slides: flattened.slides,
+  })
+}
+
+function buildScriptureSlides({ reference, text }) {
+  return splitTextIntoSlidesByLineCount(text, 2).map((body, index) =>
+    createTextSlide('sermon', {
+      label: index === 0 ? reference : `${reference} (cont.)`,
+      body,
+      textStyle: {
+        size: 42,
+        align: 'center',
+        valign: 'center',
+        color: '#ffffff',
+      },
+    })
+  )
+}
+
+function buildSermonPlaceholderSection(index, title = 'Sermon') {
+  return createSection('sermon', index, {
+    title,
+    slides: [
+      makeBodySlide('sermon', 'Sermon Title', 'Faithful In The Middle\nPhilippians 1:3-11', {
+        size: 54,
+        bold: true,
+        align: 'center',
+      }),
+      makeBodySlide('sermon', 'Main Points', '1. God is still at work in ordinary moments\n2. The church grows deeper through prayer\n3. Faithfulness forms us before outcomes appear', {
+        size: 34,
+        align: 'left',
+        bold: false,
+      }),
+      makeBodySlide('sermon', 'Response', 'Lord, make us faithful in the middle.\nTeach us to trust Your work before we see the outcome.', {
+        size: 36,
+        align: 'center',
+        bold: false,
+      }),
+    ],
+  })
+}
+
+function buildAnnouncementsSection(index, backgroundId = null) {
+  return createSection('announcement', index, {
+    title: 'Pre-Service Announcements',
+    backgroundId,
+    slides: [
+      makeBodySlide('announcement', 'Welcome', 'Welcome to worship\nWe are glad you are here', {
+        size: 58,
+        bold: true,
+      }),
+      makeBodySlide('announcement', 'Announcements', 'Baptism Sunday this month\nPrayer Night on Wednesday\nServe Team signups in the lobby', {
+        size: 40,
+        bold: false,
+      }),
+    ],
+  })
+}
+
+function findSongByBuiltInKey(songLibrary = [], builtInKey) {
+  return songLibrary.find((song) => song.builtInKey === builtInKey || song.built_in_key === builtInKey) || null
+}
+
 export const PRESENTATION_TEMPLATES = [
   {
-    id: 'featured-sunday-example',
-    title: 'Sunday Morning Example',
-    description: 'A completed sample service with announcements, worship lyrics, sermon notes, and a media item already wired in.',
-    featured: true,
-    async buildPresentation({ ensureMedia } = {}) {
-      const welcomeMedia = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[0]) : null
-      const backgroundMedia = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[1]) : null
+    id: 'sunday-service',
+    title: 'Basic Worship Service',
+    description: 'Announcements, four built-in hymns, and sermon placeholders with real media backgrounds.',
+    async buildPresentation({ ensureMedia, songLibrary = [] } = {}) {
+      const announcementsMedia = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[0]) : null
+      const generalBackground = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[1]) : null
+      const songBackgroundOne = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[2]) : null
+      const songBackgroundTwo = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[3]) : null
+      const songBackgroundThree = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[4]) : null
 
       return {
-        title: 'Sunday Morning Example',
+        title: 'Basic Worship Service',
         sections: [
-          createSection('announcement', 0, {
-            title: 'Pre-Service Announcements',
-            backgroundId: backgroundMedia?.id ?? null,
-            slides: [
-              createMediaSlide(welcomeMedia, { label: 'Welcome Motion' }),
-              makeBodySlide(
-                'announcement',
-                'Welcome',
-                'Welcome to Riverside Community Church\nWe are glad you are here this morning',
-                { size: 58, bold: true }
-              ),
-              makeBodySlide(
-                'announcement',
-                'Announcements',
-                'Baptism Sunday — April 28\nPrayer Night — Wednesday at 6:30 PM\nYouth Cookout — Friday at 7:00 PM',
-                { size: 40, bold: false }
-              ),
-              makeBodySlide(
-                'announcement',
-                'Giving',
-                'Thank you for your faithful generosity.\nYou can give online, in the lobby, or through the church app.',
-                { size: 36 }
-              ),
-            ],
-          }),
-          createSection('song', 1, {
-            title: 'Worship — Great Things',
-            backgroundId: backgroundMedia?.id ?? null,
-            slides: [
-              makeBodySlide('song', 'Title', 'Great Things', { size: 66, bold: true }),
-              makeBodySlide('song', 'Verse 1', 'Come let us worship our King\nCome let us bow at His feet\nHe has done great things'),
-              makeBodySlide('song', 'Chorus', 'Oh hero of Heaven You conquered the grave\nYou free every captive and break every chain'),
-              makeBodySlide('song', 'Bridge', 'Hallelujah God above it all\nHallelujah God unshakable'),
-            ],
-          }),
-          createSection('song', 2, {
-            title: 'Worship — Gratitude',
-            backgroundId: backgroundMedia?.id ?? null,
-            slides: [
-              makeBodySlide('song', 'Verse 1', 'All my words fall short\nI got nothing new\nHow could I express\nAll my gratitude'),
-              makeBodySlide('song', 'Chorus', 'So I throw up my hands\nAnd praise You again and again\nCause all that I have is a hallelujah'),
-              makeBodySlide('song', 'Outro', 'Come on my soul\nOh do not get shy on me\nLift up your song'),
-            ],
-          }),
-          createSection('sermon', 3, {
-            title: 'Sermon — Faithful In The Middle',
-            backgroundId: backgroundMedia?.id ?? null,
-            slides: [
-              makeBodySlide(
-                'sermon',
-                'Sermon Title',
-                'Faithful In The Middle\nPhilippians 1:3-11',
-                { size: 54, bold: true, align: 'center' }
-              ),
-              makeBodySlide(
-                'sermon',
-                'Notes',
-                '1. God is still forming us in ordinary moments\n2. Prayer keeps us tender in pressure\n3. Love should grow deeper and wiser',
-                { size: 34, align: 'left' }
-              ),
-              makeBodySlide(
-                'sermon',
-                'Response',
-                'Lord, make us faithful in the middle.\nTeach us to trust Your work before we see the outcome.',
-                { size: 36, align: 'center' }
-              ),
-            ],
+          buildAnnouncementsSection(0, announcementsMedia?.id ?? null),
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.amazingGrace), 1, songBackgroundOne?.id ?? null),
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.allCreatures), 2, songBackgroundTwo?.id ?? null),
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.howGreatThouArt), 3, songBackgroundThree?.id ?? null),
+          buildSermonPlaceholderSection(4),
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.greatIsThyFaithfulness), 5, generalBackground?.id ?? null),
+        ],
+      }
+    },
+  },
+  {
+    id: 'worship-set',
+    title: 'Worship Set',
+    description: 'A three-song worship flow built from the seeded hymn library.',
+    async buildPresentation({ ensureMedia, songLibrary = [] } = {}) {
+      const songBackgroundOne = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[2]) : null
+      const songBackgroundTwo = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[3]) : null
+      const songBackgroundThree = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[4]) : null
+
+      return {
+        title: 'Worship Set',
+        sections: [
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.amazingGrace), 0, songBackgroundOne?.id ?? null),
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.allCreatures), 1, songBackgroundTwo?.id ?? null),
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.howGreatThouArt), 2, songBackgroundThree?.id ?? null),
+        ],
+      }
+    },
+  },
+  {
+    id: 'sermon-scripture',
+    title: 'Sermon Set',
+    description: 'A focused sermon deck with message placeholders and KJV scripture slides.',
+    async buildPresentation() {
+      return {
+        title: 'Sermon Set',
+        sections: [
+          buildSermonPlaceholderSection(0, 'Sermon'),
+          createSection('sermon', 1, {
+            title: 'Scripture Reading',
+            slides: buildScriptureSlides({
+              reference: 'Psalm 23:1-3 (KJV)',
+              text: 'The Lord is my shepherd; I shall not want.\nHe maketh me to lie down in green pastures:\nhe leadeth me beside the still waters.\nHe restoreth my soul:\nhe leadeth me in the paths of righteousness\nfor his name\'s sake.',
+            }),
           }),
         ],
       }
     },
   },
   {
-    id: 'sunday-service',
-    title: 'Sunday Service',
-    description: 'Welcome, worship, scripture, sermon, and closing structure.',
-    buildPresentation: () => ({
-      title: 'Sunday Service',
-      sections: [
-        makeSection(0, 'Welcome', ['Welcome'], 'announcement'),
-        makeSection(1, 'Worship Set', ['Song 1', 'Song 2', 'Song 3'], 'song'),
-        makeSection(2, 'Scripture', ['Scripture Reading'], 'sermon'),
-        makeSection(3, 'Sermon', ['Sermon Title', 'Main Point'], 'sermon'),
-        makeSection(4, 'Response', ['Closing Song', 'Benediction'], 'song'),
-      ],
-    }),
-  },
-  {
-    id: 'worship-set',
-    title: 'Worship Set',
-    description: 'A clean worship-only flow for rehearsals or a music-first service.',
-    buildPresentation: () => ({
-      title: 'Worship Set',
-      sections: [
-        makeSection(0, 'Opening', ['Welcome'], 'announcement'),
-        makeSection(1, 'Song 1', ['Verse 1', 'Chorus'], 'song'),
-        makeSection(2, 'Song 2', ['Verse 1', 'Chorus'], 'song'),
-        makeSection(3, 'Song 3', ['Verse 1', 'Chorus'], 'song'),
-      ],
-    }),
-  },
-  {
-    id: 'sermon-scripture',
-    title: 'Sermon + Scripture',
-    description: 'A focused sermon deck with scripture, message points, and response.',
-    buildPresentation: () => ({
-      title: 'Sermon + Scripture',
-      sections: [
-        makeSection(0, 'Title', ['Sermon Title'], 'sermon'),
-        makeSection(1, 'Scripture', ['Passage'], 'sermon'),
-        makeSection(2, 'Message', ['Point 1', 'Point 2', 'Point 3'], 'sermon'),
-        makeSection(3, 'Response', ['Prayer', 'Closing Thought'], 'sermon'),
-      ],
-    }),
+    id: 'featured-sunday-example',
+    title: 'Sunday Morning Example',
+    description: 'A polished sample service with announcements, worship, sermon notes, and a featured flow.',
+    async buildPresentation({ ensureMedia, songLibrary = [] } = {}) {
+      const announcementsMedia = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[0]) : null
+      const generalBackground = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[1]) : null
+      const songBackgroundOne = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[2]) : null
+      const songBackgroundTwo = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[3]) : null
+
+      return {
+        title: 'Sunday Morning Example',
+        sections: [
+          buildAnnouncementsSection(0, announcementsMedia?.id ?? null),
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.amazingGrace), 1, songBackgroundOne?.id ?? null),
+          buildSongSectionFromLibrarySong(findSongByBuiltInKey(songLibrary, BUILT_IN_HYMN_IDS.greatIsThyFaithfulness), 2, songBackgroundTwo?.id ?? null),
+          createSection('sermon', 3, {
+            title: 'Scripture Reading',
+            backgroundId: generalBackground?.id ?? null,
+            slides: buildScriptureSlides({
+              reference: 'Psalm 100:4-5 (KJV)',
+              text: 'Enter into his gates with thanksgiving,\nand into his courts with praise:\nbe thankful unto him, and bless his name.\nFor the Lord is good;\nhis mercy is everlasting;\nand his truth endureth to all generations.',
+            }),
+          }),
+          buildSermonPlaceholderSection(4, 'Message'),
+        ],
+      }
+    },
   },
   {
     id: 'announcement-loop',
     title: 'Announcement Loop',
     description: 'A rotating announcement deck for pre-service and lobby screens.',
-    buildPresentation: () => ({
-      title: 'Announcement Loop',
-      sections: [
-        makeSection(0, 'Announcements', ['Upcoming Event', 'Volunteer Need', 'Giving', 'Next Steps'], 'announcement'),
-      ],
-    }),
+    async buildPresentation({ ensureMedia } = {}) {
+      const announcementsMedia = ensureMedia ? await ensureMedia(SAMPLE_MEDIA_LIBRARY[0]) : null
+      return {
+        title: 'Announcement Loop',
+        sections: [
+          buildAnnouncementsSection(0, announcementsMedia?.id ?? null),
+        ],
+      }
+    },
   },
   {
     id: 'student-night',
@@ -192,11 +262,18 @@ export const PRESENTATION_TEMPLATES = [
     buildPresentation: () => ({
       title: 'Student Night',
       sections: [
-        makeSection(0, 'Welcome', ['Doors Open', 'Host Welcome'], 'announcement'),
-        makeSection(1, 'Game Moment', ['Game Intro', 'Instructions', 'Winners'], 'announcement'),
-        makeSection(2, 'Worship', ['Song 1', 'Song 2'], 'song'),
-        makeSection(3, 'Message', ['Series Title', 'Main Point', 'Response'], 'sermon'),
-        makeSection(4, 'Next Steps', ['Small Groups', 'Prayer', 'Dismissal'], 'announcement'),
+        createSection('announcement', 0, {
+          title: 'Welcome',
+          slides: [makeBodySlide('announcement', 'Doors Open', 'Doors open at 6:30 PM\nGrab a seat and say hello!')],
+        }),
+        createSection('announcement', 1, {
+          title: 'Game Moment',
+          slides: [
+            makeBodySlide('announcement', 'Game Intro', 'Tonight\'s game: Team Relay', { size: 50 }),
+            makeBodySlide('announcement', 'Instructions', 'Line up by team\nListen for the host cue\nCheer loud and have fun', { size: 34, bold: false }),
+          ],
+        }),
+        buildSermonPlaceholderSection(2, 'Message'),
       ],
     }),
   },
@@ -207,11 +284,17 @@ export const PRESENTATION_TEMPLATES = [
     buildPresentation: () => ({
       title: 'Prayer Night',
       sections: [
-        makeSection(0, 'Gathering', ['Welcome', 'Call To Prayer'], 'announcement'),
-        makeSection(1, 'Scripture', ['Opening Passage', 'Reflection Prompt'], 'sermon'),
-        makeSection(2, 'Guided Prayer', ['Church', 'City', 'Families', 'Missions'], 'sermon'),
-        makeSection(3, 'Response Worship', ['Song 1', 'Song 2'], 'song'),
-        makeSection(4, 'Closing', ['Benediction', 'Prayer Teams'], 'announcement'),
+        createSection('announcement', 0, {
+          title: 'Gathering',
+          slides: [makeBodySlide('announcement', 'Welcome', 'Welcome to Prayer Night\nLet\'s quiet our hearts before the Lord', { size: 50 })],
+        }),
+        createSection('sermon', 1, {
+          title: 'Guided Prayer',
+          slides: [
+            makeBodySlide('sermon', 'Church', 'Pray for our church leaders,\nsmall groups, and volunteers.', { size: 34, align: 'left', bold: false }),
+            makeBodySlide('sermon', 'City', 'Pray for our city,\nschools, first responders, and families.', { size: 34, align: 'left', bold: false }),
+          ],
+        }),
       ],
     }),
   },

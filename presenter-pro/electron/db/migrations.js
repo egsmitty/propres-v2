@@ -49,9 +49,12 @@ function runMigrations(db) {
   try { db.exec('ALTER TABLE presentations ADD COLUMN custom_aspect_width INTEGER') } catch (_) {}
   try { db.exec('ALTER TABLE presentations ADD COLUMN custom_aspect_height INTEGER') } catch (_) {}
   try { db.exec('ALTER TABLE songs ADD COLUMN song_order TEXT') } catch (_) {}
+  try { db.exec('ALTER TABLE songs ADD COLUMN song_groups TEXT') } catch (_) {}
+  try { db.exec('ALTER TABLE songs ADD COLUMN built_in_key TEXT') } catch (_) {}
   try { db.exec('ALTER TABLE media ADD COLUMN folder_id INTEGER') } catch (_) {}
   try { db.exec('ALTER TABLE media ADD COLUMN canonical_path TEXT') } catch (_) {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_media_canonical_path ON media(canonical_path)') } catch (_) {}
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_songs_built_in_key ON songs(built_in_key)') } catch (_) {}
 }
 
 module.exports = { runMigrations }

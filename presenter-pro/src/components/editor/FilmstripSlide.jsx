@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import ContextMenu from '@/components/shared/ContextMenu'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
-import { isMediaSlide } from '@/utils/sectionTypes'
+import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { importMediaToSelectedSlide } from '@/utils/presentationCommands'
 import { alertDialog, showDialog } from '@/utils/dialog'
@@ -15,10 +15,12 @@ function isGenericLabel(label) {
   return normalized === 'text' || normalized === 'lyrics' || normalized === 'notes'
 }
 
-export default function FilmstripSlide({ slide, index, selected, isMultiSelected, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete, onEditSong, onApplyTheme }) {
+export default function FilmstripSlide({ slide, sectionType = 'announcement', index, selected, isMultiSelected, mediaDropHighlighted = false, onMediaDragOver, onMediaDrop, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete, onEditSong, onApplyTheme }) {
   const presentation = useEditorStore((s) => s.presentation)
   const moveSlideToSection = useEditorStore((s) => s.moveSlideToSection)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
+  const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
+  const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen)
   const liveSlideId = usePresenterStore((s) => s.liveSlideId)
   const isLive = liveSlideId === slide.id
   const [menu, setMenu] = useState(null)
@@ -32,6 +34,12 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
       onSelect?.({ metaKey: false, ctrlKey: false, shiftKey: false })
     }
     setMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  function openMediaLibrary() {
+    setSongLibraryOpen(false)
+    setNewSongEditorOpen(false)
+    setMediaLibraryOpen(true)
   }
 
   async function handleMoveToSection() {
@@ -70,7 +78,8 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
     { label: 'New Slide', onClick: onNewSlide },
     { label: 'Insert Image…', onClick: () => importMediaToSelectedSlide('image') },
     { label: 'Insert Video…', onClick: () => importMediaToSelectedSlide('video') },
-    { label: 'Set Background', onClick: () => setMediaLibraryOpen(true) },
+    { label: 'Set Slide Background', onClick: () => openMediaLibrary() },
+    { label: `Set ${getSectionTypeLabel(sectionType)} Background`, onClick: () => openMediaLibrary() },
     { label: 'Move to Section…', onClick: handleMoveToSection },
     { divider: true },
     { label: 'Duplicate', onClick: onDuplicate },
@@ -83,6 +92,8 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
       <div
         onDoubleClick={onDoubleClick}
         onContextMenu={handleContextMenu}
+        onDragOver={onMediaDragOver}
+        onDrop={onMediaDrop}
         className="mx-2 mb-2 rounded cursor-pointer relative overflow-visible"
         style={{
           aspectRatio: getPresentationAspectRatio(presentation),
@@ -98,6 +109,8 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
             background: '#1a1a1a',
             border: isLive
               ? '2px solid var(--live)'
+              : mediaDropHighlighted
+              ? '3px solid rgba(74,124,255,0.95)'
               : selected
               ? '2px solid rgba(74,124,255,1)'
               : multiOnly
@@ -105,6 +118,8 @@ export default function FilmstripSlide({ slide, index, selected, isMultiSelected
               : '1px solid #333',
             boxShadow: selected
               ? '0 0 0 1px rgba(255,255,255,0.14), 0 0 0 3px rgba(74,124,255,0.16)'
+              : mediaDropHighlighted
+                ? '0 0 0 1px rgba(255,255,255,0.14), 0 0 0 4px rgba(74,124,255,0.18)'
               : multiOnly
                 ? '0 0 0 1px rgba(255,255,255,0.1), 0 0 0 2px rgba(74,124,255,0.12)'
                 : 'none',

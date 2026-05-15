@@ -1,10 +1,9 @@
 import React, { useState } from 'react'
-import { MoreHorizontal, Pencil } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { deleteSong } from '@/utils/ipc'
 import { createSection } from '@/utils/sectionTypes'
 import { confirmDialog } from '@/utils/dialog'
-import ContextMenu from '@/components/shared/ContextMenu'
 import { flattenSongGroupsToSlides, getOrderedSongSlides, getSongGroupsAndArrangement } from '@/utils/songSections'
 import { insertSectionAfterCurrentSelection } from '@/utils/presentationCommands'
 
@@ -19,7 +18,6 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
   const [isInserting, setIsInserting] = useState(false)
 
   const slides = resolveOrderedSlides(song)
-  const [menu, setMenu] = useState(null)
 
   async function handleInsert() {
     if (!presentation || isInserting) return
@@ -55,21 +53,17 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
     await deleteSong(song.id)
     onRefresh()
   }
-
-  const menuItems = [
-    { label: 'Edit Song', onClick: onEdit },
-    { divider: true },
-    { label: 'Delete Song', danger: true, onClick: handleDelete },
-  ]
-
   return (
-    <>
     <div
       className="flex items-center gap-2 px-3 py-2"
       style={{ borderBottom: '1px solid var(--border-subtle)' }}
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData('application/presenterpro-song-id', String(song.id))
+        event.dataTransfer.effectAllowed = 'copy'
+      }}
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-      onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }) }}
     >
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
@@ -134,31 +128,22 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
 
       <button
         type="button"
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect()
-          setMenu({ x: rect.right - 8, y: rect.bottom + 6 })
-        }}
+        onClick={handleDelete}
         className="flex items-center justify-center w-7 h-7 rounded shrink-0"
         style={{
-          color: 'var(--text-tertiary)',
+          color: '#dc2626',
           border: '1px solid var(--border-subtle)',
           background: 'transparent',
         }}
-        title="More actions"
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
+        title="Delete Song"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(220,38,38,0.08)'
+          e.currentTarget.style.borderColor = 'rgba(220,38,38,0.35)'
+        }}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
-        <MoreHorizontal size={13} />
+        <Trash2 size={13} />
       </button>
     </div>
-    {menu && (
-      <ContextMenu
-        x={menu.x}
-        y={menu.y}
-        items={menuItems}
-        onClose={() => setMenu(null)}
-      />
-    )}
-    </>
   )
 }

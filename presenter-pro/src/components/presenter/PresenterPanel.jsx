@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, LayoutPanelTop } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
@@ -7,6 +7,22 @@ import { sendSlide } from '@/utils/ipc'
 import { getSectionColor } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
+
+const LIVE_SLIDE_OUTLINE_COLOR = '#00f57a'
+const PRESENTER_PANEL_TOP_HEIGHT_KEY = 'presenterpro.presenterPanelTopHeight'
+const PRESENTER_PANEL_MIN_TOP_HEIGHT = 220
+const PRESENTER_PANEL_MIN_BOTTOM_HEIGHT = 170
+const PRESENTER_PANEL_DIVIDER_HEIGHT = 6
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function getInitialTopPanelHeight() {
+  if (typeof window === 'undefined') return 320
+  const saved = Number(window.localStorage.getItem(PRESENTER_PANEL_TOP_HEIGHT_KEY))
+  return Number.isFinite(saved) ? saved : 320
+}
 
 export default function PresenterPanel({ onSetOpen }) {
   const presentation = useEditorStore((s) => s.presentation)
@@ -38,8 +54,63 @@ export default function PresenterPanel({ onSetOpen }) {
   const allSlidesRef = useRef(allSlides)
   const slideGridRef = useRef(null)
   const slideButtonRefs = useRef(new Map())
+  const panelRef = useRef(null)
+  const dividerDragRef = useRef(null)
+  const [topPanelHeight, setTopPanelHeight] = useState(getInitialTopPanelHeight)
   useEffect(() => { liveIdxRef.current = liveIdx }, [liveIdx])
   useEffect(() => { allSlidesRef.current = allSlides }, [allSlides])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(PRESENTER_PANEL_TOP_HEIGHT_KEY, String(topPanelHeight))
+  }, [topPanelHeight])
+
+  useEffect(() => {
+    function clampTopPanelHeight() {
+      const panelHeight = panelRef.current?.clientHeight || 0
+      if (!panelHeight) return
+      const maxTopHeight = Math.max(
+        PRESENTER_PANEL_MIN_TOP_HEIGHT,
+        panelHeight - PRESENTER_PANEL_MIN_BOTTOM_HEIGHT - PRESENTER_PANEL_DIVIDER_HEIGHT
+      )
+      setTopPanelHeight((current) => clamp(current, PRESENTER_PANEL_MIN_TOP_HEIGHT, maxTopHeight))
+    }
+
+    clampTopPanelHeight()
+    window.addEventListener('resize', clampTopPanelHeight)
+    return () => window.removeEventListener('resize', clampTopPanelHeight)
+  }, [presenterPanelOpen, presenterPanelWidth])
+
+  useEffect(() => {
+    function onMove(event) {
+      if (!dividerDragRef.current) return
+      const panelHeight = panelRef.current?.clientHeight || 0
+      if (!panelHeight) return
+      const delta = event.clientY - dividerDragRef.current.startY
+      const maxTopHeight = Math.max(
+        PRESENTER_PANEL_MIN_TOP_HEIGHT,
+        panelHeight - PRESENTER_PANEL_MIN_BOTTOM_HEIGHT - PRESENTER_PANEL_DIVIDER_HEIGHT
+      )
+      setTopPanelHeight(clamp(
+        dividerDragRef.current.startHeight + delta,
+        PRESENTER_PANEL_MIN_TOP_HEIGHT,
+        maxTopHeight
+      ))
+      document.body.style.cursor = 'row-resize'
+    }
+
+    function onUp() {
+      dividerDragRef.current = null
+      document.body.style.cursor = ''
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isPresenting || !liveSlideId) return
@@ -184,6 +255,7 @@ export default function PresenterPanel({ onSetOpen }) {
 
   return (
     <div
+      ref={panelRef}
       className="shrink-0 overflow-hidden"
       style={{
         width: presenterPanelWidth,
@@ -194,99 +266,135 @@ export default function PresenterPanel({ onSetOpen }) {
     >
       {/* Fixed-width inner — gets clipped by overflow-hidden during animation */}
       <div className="flex flex-col h-full" style={{ width: presenterPanelWidth, minWidth: presenterPanelWidth }}>
-
-        {/* ── Section 1: Live Preview ─────────────────────────────── */}
-        <div className="shrink-0 p-3 pb-2">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            {isPresenting ? (
-              <>
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: '#16a34a', flexShrink: 0, animation: 'pulse 2s infinite' }}
-                />
-                <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                  Live Output
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--text-tertiary)', flexShrink: 0 }} />
-                <span style={{ fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                  Preview
-                </span>
-              </>
-            )}
+        <div
+          className="shrink-0 flex flex-col"
+          style={{
+            flexBasis: topPanelHeight,
+            minHeight: PRESENTER_PANEL_MIN_TOP_HEIGHT,
+          }}
+        >
+          <div className="flex-1 min-h-0 p-3 pb-2 flex flex-col">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              {isPresenting ? (
+                <>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: '#16a34a', flexShrink: 0, animation: 'pulse 2s infinite' }}
+                  />
+                  <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    Live Output
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--text-tertiary)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                    Preview
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="flex-1 min-h-0 flex items-center justify-center">
+              <div
+                className="rounded overflow-hidden flex items-center justify-center"
+                style={{
+                  width: '100%',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  aspectRatio: getPresentationAspectRatio(presentation),
+                  background: isBlack ? '#000' : '#111',
+                  border: isPresenting ? '1px solid #16a34a' : '1px solid var(--border-subtle)',
+                  color: '#fff',
+                }}
+              >
+                {isBlack
+                  ? <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
+                  : isLogo
+                  ? <span style={{ color: '#4a7cff', fontSize: 10 }}>LOGO</span>
+                  : <ScaledSlideText
+                      presentation={presentation}
+                      slide={previewSlide}
+                      empty="—"
+                      shadow="none"
+                      minPaddingX={8}
+                      minPaddingY={8}
+                      showPlaceholder={false}
+                    />
+                }
+              </div>
+            </div>
           </div>
-          <div
-            className="rounded overflow-hidden flex items-center justify-center"
-            style={{
-              aspectRatio: getPresentationAspectRatio(presentation),
-              background: isBlack ? '#000' : '#111',
-              border: isPresenting ? '1px solid #16a34a' : '1px solid var(--border-subtle)',
-              color: '#fff',
-            }}
-          >
-            {isBlack
-              ? <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
-              : isLogo
-              ? <span style={{ color: '#4a7cff', fontSize: 10 }}>LOGO</span>
-              : <ScaledSlideText
-                  presentation={presentation}
-                  slide={previewSlide}
-                  empty="—"
-                  shadow="none"
-                  minPaddingX={8}
-                  minPaddingY={8}
-                  showPlaceholder={false}
-                />
+
+          <div className="shrink-0 px-3 pb-2 flex gap-1.5">
+            <button
+              onClick={isPresenting ? handleStop : handleStart}
+              className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium"
+              style={{
+                height: 44,
+                background: isPresenting ? 'var(--danger, #dc2626)' : 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {isPresenting ? '⏹ Stop' : '▶ Start'}
+            </button>
+            <button
+              onClick={() => window.electronAPI?.sendBlack()}
+              className="flex-1 flex items-center justify-center rounded text-xs font-medium"
+              style={{
+                height: 44,
+                background: isBlack ? '#1f1f1f' : 'var(--bg-app)',
+                color: isBlack ? '#fff' : 'var(--text-secondary)',
+                border: `1px solid ${isBlack ? '#555' : 'var(--border-default)'}`,
+                cursor: 'pointer',
+              }}
+            >
+              ⬛ Black
+            </button>
+            <button
+              onClick={() => window.electronAPI?.sendLogo()}
+              className="flex-1 flex items-center justify-center rounded text-xs font-medium"
+              style={{
+                height: 44,
+                background: isLogo ? 'rgba(74,124,255,0.15)' : 'var(--bg-app)',
+                color: isLogo ? '#4a7cff' : 'var(--text-secondary)',
+                border: `1px solid ${isLogo ? '#4a7cff' : 'var(--border-default)'}`,
+                cursor: 'pointer',
+              }}
+            >
+              🏠 Logo
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="shrink-0"
+          style={{
+            height: PRESENTER_PANEL_DIVIDER_HEIGHT,
+            cursor: 'row-resize',
+            background: 'transparent',
+            borderTop: '1px solid var(--border-subtle)',
+            borderBottom: '1px solid var(--border-subtle)',
+          }}
+          onMouseDown={(event) => {
+            event.preventDefault()
+            dividerDragRef.current = {
+              startY: event.clientY,
+              startHeight: topPanelHeight,
             }
-          </div>
-        </div>
+            document.body.style.cursor = 'row-resize'
+          }}
+          onMouseEnter={(event) => {
+            event.currentTarget.style.background = 'var(--border-default)'
+          }}
+          onMouseLeave={(event) => {
+            if (!dividerDragRef.current) {
+              event.currentTarget.style.background = 'transparent'
+            }
+          }}
+        />
 
-        {/* ── Section 2: Output Controls ──────────────────────────── */}
-        <div className="shrink-0 px-3 pb-2 flex gap-1.5">
-          <button
-            onClick={isPresenting ? handleStop : handleStart}
-            className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium"
-            style={{
-              height: 44,
-              background: isPresenting ? 'var(--danger, #dc2626)' : 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {isPresenting ? '⏹ Stop' : '▶ Start'}
-          </button>
-          <button
-            onClick={() => window.electronAPI?.sendBlack()}
-            className="flex-1 flex items-center justify-center rounded text-xs font-medium"
-            style={{
-              height: 44,
-              background: isBlack ? '#1f1f1f' : 'var(--bg-app)',
-              color: isBlack ? '#fff' : 'var(--text-secondary)',
-              border: `1px solid ${isBlack ? '#555' : 'var(--border-default)'}`,
-              cursor: 'pointer',
-            }}
-          >
-            ⬛ Black
-          </button>
-          <button
-            onClick={() => window.electronAPI?.sendLogo()}
-            className="flex-1 flex items-center justify-center rounded text-xs font-medium"
-            style={{
-              height: 44,
-              background: isLogo ? 'rgba(74,124,255,0.15)' : 'var(--bg-app)',
-              color: isLogo ? '#4a7cff' : 'var(--text-secondary)',
-              border: `1px solid ${isLogo ? '#4a7cff' : 'var(--border-default)'}`,
-              cursor: 'pointer',
-            }}
-          >
-            🏠 Logo
-          </button>
-        </div>
-
-        {/* ── Section 3: Slide Grid ───────────────────────────────── */}
         <div ref={slideGridRef} className="flex-1 overflow-y-auto px-3 pb-2">
           {!presentation ? (
             <div className="flex items-center justify-center h-full">
@@ -309,7 +417,6 @@ export default function PresenterPanel({ onSetOpen }) {
                   {section.slides.map((slide) => {
                     const isLive = slide.id === liveSlideId
                     const isSelected = !isPresenting && slide.id === selectedSlideId
-                    const isActive = isLive || isSelected
                     const songSectionColor = slide.groupId ? getSectionColor(slide.type) : null
                     // Use the enriched slide (with sectionId + effectiveBackgroundId) from allSlides when available
                     const enriched = allSlides.find((s) => s.id === slide.id) || { ...slide, sectionId: section.id }
@@ -324,8 +431,16 @@ export default function PresenterPanel({ onSetOpen }) {
                         style={{
                           aspectRatio: getPresentationAspectRatio(presentation),
                           background: '#111',
-                          border: isActive ? '3px solid var(--accent)' : '1px solid var(--border-subtle)',
-                          boxShadow: isActive ? '0 0 0 2px rgba(74,124,255,0.22)' : 'none',
+                          border: isLive
+                            ? `4px solid ${LIVE_SLIDE_OUTLINE_COLOR}`
+                            : isSelected
+                              ? '3px solid var(--accent)'
+                              : '1px solid var(--border-subtle)',
+                          boxShadow: isLive
+                            ? `0 0 0 1px rgba(0,0,0,0.55), 0 0 0 4px rgba(0,245,122,0.22)`
+                            : isSelected
+                              ? '0 0 0 2px rgba(74,124,255,0.22)'
+                              : 'none',
                           borderRadius: 4,
                           overflow: 'hidden',
                           position: 'relative',

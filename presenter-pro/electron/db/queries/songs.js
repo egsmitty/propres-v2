@@ -7,10 +7,16 @@ function getSong(db, id) {
   return row ? parse(row) : null
 }
 
-function createSong(db, { title, artist, ccli, tags, slides, songOrder, song_order }) {
+function getSongByBuiltInKey(db, builtInKey) {
+  if (!builtInKey) return null
+  const row = db.prepare('SELECT * FROM songs WHERE built_in_key = ?').get(builtInKey)
+  return row ? parse(row) : null
+}
+
+function createSong(db, { title, artist, ccli, tags, slides, songOrder, song_order, songGroups, song_groups, builtInKey, built_in_key }) {
   const stmt = db.prepare(`
-    INSERT INTO songs (title, artist, ccli, tags, slides, song_order)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO songs (title, artist, ccli, tags, slides, song_order, song_groups, built_in_key)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
   const result = stmt.run(
     title,
@@ -18,17 +24,29 @@ function createSong(db, { title, artist, ccli, tags, slides, songOrder, song_ord
     ccli || null,
     tags || null,
     slides,
-    songOrder ?? song_order ?? null
+    songOrder ?? song_order ?? null,
+    songGroups ?? song_groups ?? null,
+    builtInKey ?? built_in_key ?? null
   )
   return getSong(db, result.lastInsertRowid)
 }
 
-function updateSong(db, id, { title, artist, ccli, tags, slides, songOrder, song_order }) {
+function updateSong(db, id, { title, artist, ccli, tags, slides, songOrder, song_order, songGroups, song_groups, builtInKey, built_in_key }) {
   db.prepare(`
     UPDATE songs
-    SET title = ?, artist = ?, ccli = ?, tags = ?, slides = ?, song_order = ?, updated_at = unixepoch()
+    SET title = ?, artist = ?, ccli = ?, tags = ?, slides = ?, song_order = ?, song_groups = ?, built_in_key = ?, updated_at = unixepoch()
     WHERE id = ?
-  `).run(title, artist || null, ccli || null, tags || null, slides, songOrder ?? song_order ?? null, id)
+  `).run(
+    title,
+    artist || null,
+    ccli || null,
+    tags || null,
+    slides,
+    songOrder ?? song_order ?? null,
+    songGroups ?? song_groups ?? null,
+    builtInKey ?? built_in_key ?? null,
+    id
+  )
   return getSong(db, id)
 }
 
@@ -40,7 +58,9 @@ function parse(row) {
   return {
     ...row,
     songOrder: row.song_order ?? null,
+    songGroups: row.song_groups ?? null,
+    builtInKey: row.built_in_key ?? null,
   }
 }
 
-module.exports = { getSongs, getSong, createSong, updateSong, deleteSong }
+module.exports = { getSongs, getSong, getSongByBuiltInKey, createSong, updateSong, deleteSong }

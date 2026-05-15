@@ -2,12 +2,18 @@ import { create } from 'zustand'
 
 const PRESENTER_PANEL_WIDTH_KEY = 'presenterpro.presenterPanelWidth'
 const PRESENTER_PANEL_MIN_WIDTH = 240
-const PRESENTER_PANEL_MAX_WIDTH = 420
+const PRESENTER_PANEL_MAX_WIDTH_RATIO = 0.75
+
+function getMaxPresenterPanelWidth() {
+  if (typeof window === 'undefined') return 960
+  return Math.floor(window.innerWidth * PRESENTER_PANEL_MAX_WIDTH_RATIO)
+}
 
 function getInitialPresenterPanelWidth() {
   if (typeof window === 'undefined') return 320
   const saved = Number(window.localStorage.getItem(PRESENTER_PANEL_WIDTH_KEY))
-  if (Number.isFinite(saved) && saved >= PRESENTER_PANEL_MIN_WIDTH && saved <= PRESENTER_PANEL_MAX_WIDTH) {
+  const maxWidth = getMaxPresenterPanelWidth()
+  if (Number.isFinite(saved) && saved >= PRESENTER_PANEL_MIN_WIDTH && saved <= maxWidth) {
     return saved
   }
   return 320
@@ -40,10 +46,11 @@ export const usePresenterStore = create((set) => ({
   setLogo: (val) => set({ isLogo: val, isBlack: false }),
   setPresenterPanelOpen: (open) => set({ presenterPanelOpen: open }),
   setPresenterPanelWidth: (width) => {
+    const nextWidth = Math.min(getMaxPresenterPanelWidth(), Math.max(PRESENTER_PANEL_MIN_WIDTH, width))
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(PRESENTER_PANEL_WIDTH_KEY, String(width))
+      window.localStorage.setItem(PRESENTER_PANEL_WIDTH_KEY, String(nextWidth))
     }
-    set({ presenterPanelWidth: width })
+    set({ presenterPanelWidth: nextWidth })
   },
   setAllSlides: (slides) => set({ allSlides: slides }),
 }))
