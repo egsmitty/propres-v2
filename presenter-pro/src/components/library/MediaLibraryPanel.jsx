@@ -5,10 +5,9 @@ import {
   Folder,
   FolderPlus,
   Image,
-  Pencil,
+  MoreHorizontal,
   Search,
   Trash2,
-  Upload,
   X,
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
@@ -43,6 +42,8 @@ export default function MediaLibraryPanel() {
   const [query, setQuery] = useState('')
   const [currentFolderId, setCurrentFolderId] = useState(null)
   const [selectedFolderId, setSelectedFolderId] = useState(null)
+  const [selectedMediaId, setSelectedMediaId] = useState(null)
+  const [dragOverFolderId, setDragOverFolderId] = useState(null)
   const [menu, setMenu] = useState(null)
 
   useEffect(() => {
@@ -186,6 +187,7 @@ export default function MediaLibraryPanel() {
   const currentFolder = folders.find((folder) => folder.id === currentFolderId) || null
   const selectedSection = presentation?.sections?.find((section) => section.id === selectedSectionId) || null
   const sectionLabel = selectedSection ? getSectionTypeLabel(selectedSection.type) : 'Section'
+  const sectionBackgroundLabel = `Set ${sectionLabel} Background`
   const normalizedQuery = query.trim().toLowerCase()
 
   const visibleFolders = useMemo(
@@ -206,10 +208,58 @@ export default function MediaLibraryPanel() {
       }),
     [currentFolderId, media, normalizedQuery, tab]
   )
+  const selectedMediaItem = visibleMedia.find((item) => item.id === selectedMediaId) || media.find((item) => item.id === selectedMediaId) || null
+
+  useEffect(() => {
+    if (!selectedMediaId) return
+    if (media.some((item) => item.id === selectedMediaId)) return
+    setSelectedMediaId(null)
+  }, [media, selectedMediaId])
+
+  function buildUseMenuItems(item) {
+    return [
+      { label: 'Set Slide Background', onClick: () => applyToSlide(item.id), disabled: !selectedSlideId },
+      { label: sectionBackgroundLabel, onClick: () => applyToSection(item.id), disabled: !selectedSection },
+      { label: 'Insert Media Slide', onClick: () => insertAsMediaSlide(item), disabled: !selectedSection },
+    ]
+  }
+
+  function buildMoreMenuItems(item) {
+    return [
+      { label: 'Move', onClick: () => handleMoveItem(item) },
+      { label: 'Rename', onClick: () => handleRenameItem(item) },
+    ]
+  }
+
+  function buildContextMenuItems(item) {
+    return [
+      ...buildUseMenuItems(item),
+      ...buildMoreMenuItems(item),
+      { label: 'Delete', onClick: () => handleDeleteItem(item), danger: true },
+    ]
+  }
+
+  function openContextMenuForItem(item, x, y) {
+    setSelectedMediaId(item.id)
+    setMenu({
+      x,
+      y,
+      items: buildContextMenuItems(item),
+    })
+  }
+
+  function openFooterMenu(button, items) {
+    const rect = button.getBoundingClientRect()
+    setMenu({
+      x: rect.right - 8,
+      y: rect.bottom + 6,
+      items,
+    })
+  }
 
   return (
     <div
-      className="absolute left-0 top-0 h-full z-30 flex flex-col shadow-xl"
+      className="h-full z-30 flex flex-col shadow-xl shrink-0"
       style={{
         width: 320,
         background: 'var(--bg-surface)',
@@ -312,6 +362,14 @@ export default function MediaLibraryPanel() {
           >
             New Folder
           </button>
+          <button
+            type="button"
+            onClick={handleImport}
+            className="px-2.5 h-8 rounded-lg text-[11px] font-medium shrink-0"
+            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+          >
+            Import
+          </button>
         </div>
 
         <div
@@ -373,9 +431,27 @@ export default function MediaLibraryPanel() {
                         })
                       }}
                       className="w-full rounded-xl px-3 py-2 text-left"
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        setDragOverFolderId(folder.id)
+                      }}
+                      onDragLeave={() => {
+                        setDragOverFolderId((current) => (current === folder.id ? null : current))
+                      }}
+                      onDrop={async (event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        setDragOverFolderId(null)
+                        const rawMediaId = event.dataTransfer.getData('application/presenterpro-media-id')
+                        const mediaId = Number(rawMediaId)
+                        if (!Number.isFinite(mediaId)) return
+                        const updateResult = await updateMedia(mediaId, { folder_id: folder.id })
+                        if (updateResult?.success) loadLibrary()
+                      }}
                       style={{
-                        background: selected ? 'rgba(74,124,255,0.1)' : 'var(--bg-app)',
-                        border: selected ? '1px solid rgba(74,124,255,0.55)' : '1px solid var(--border-default)',
+                        background: dragOverFolderId === folder.id ? 'rgba(74,124,255,0.14)' : selected ? 'rgba(74,124,255,0.1)' : 'var(--bg-app)',
+                        border: dragOverFolderId === folder.id ? '1px solid rgba(74,124,255,0.72)' : selected ? '1px solid rgba(74,124,255,0.55)' : '1px solid var(--border-default)',
                       }}
                     >
                       <div className="flex items-center gap-2">
@@ -432,108 +508,37 @@ export default function MediaLibraryPanel() {
             {visibleMedia.map((item) => (
               <div
                 key={item.id}
-                className="rounded overflow-hidden group"
+                className="rounded overflow-hidden cursor-pointer"
                 title={item.name}
                 style={{
                   background: '#1a1a1a',
-                  border: '1px solid var(--border-subtle)',
+                  border: selectedMediaId === item.id ? '1px solid rgba(74,124,255,0.72)' : '1px solid var(--border-subtle)',
+                  boxShadow: selectedMediaId === item.id ? '0 0 0 2px rgba(74,124,255,0.18)' : 'none',
                 }}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('application/presenterpro-media-id', String(item.id))
+                  event.dataTransfer.effectAllowed = 'move'
+                  setSelectedMediaId(item.id)
+                }}
+                onClick={() => setSelectedMediaId(item.id)}
+                onMouseDown={() => setSelectedMediaId(item.id)}
                 onContextMenu={(event) => {
                   event.preventDefault()
                   event.stopPropagation()
-                  setMenu({
-                    x: event.clientX,
-                    y: event.clientY,
-                    items: [
-                      { label: 'Rename Media', onClick: () => handleRenameItem(item) },
-                      { label: 'Move to Folder…', onClick: () => handleMoveItem(item) },
-                      ...(item.folder_id != null ? [{ label: 'Remove from Folder', onClick: () => updateMedia(item.id, { folder_id: null }).then((result) => { if (result?.success) loadLibrary() }) }] : []),
-                      { divider: true },
-                      { label: 'Delete Media', onClick: () => handleDeleteItem(item), danger: true },
-                    ],
-                  })
+                  openContextMenuForItem(item, event.clientX, event.clientY)
                 }}
               >
                 <div style={{ aspectRatio: '16/9' }} className="relative overflow-hidden">
                   <MediaPreview item={item} />
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 gap-1"
-                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.15))' }}
-                  >
-                    <button
-                      onClick={() => applyToSlide(item.id)}
-                      disabled={!selectedSlideId}
-                      title={selectedSlideId ? 'Apply only to the selected slide' : 'Select a slide first'}
-                      className="w-full rounded px-2 py-1 text-[11px] font-medium"
-                      style={{
-                        background: selectedSlideId ? 'var(--accent)' : 'rgba(255,255,255,0.15)',
-                        color: '#fff',
-                        cursor: selectedSlideId ? 'pointer' : 'default',
-                      }}
-                    >
-                      Set Slide Background
-                    </button>
-                    <button
-                      onClick={() => applyToSection(item.id)}
-                      disabled={!selectedSection}
-                      title={selectedSection ? `Apply to the whole ${sectionLabel.toLowerCase()} section` : 'Select a section first'}
-                      className="w-full rounded px-2 py-1 text-[11px] font-medium"
-                      style={{
-                        background: selectedSection ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        cursor: selectedSection ? 'pointer' : 'default',
-                      }}
-                    >
-                      Set {sectionLabel} Background
-                    </button>
-                    <button
-                      onClick={() => insertAsMediaSlide(item)}
-                      disabled={!selectedSection}
-                      title={selectedSection ? 'Insert as a media-only slide in this section' : 'Select a section first'}
-                      className="w-full rounded px-2 py-1 text-[11px] font-medium"
-                      style={{
-                        background: selectedSection ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        cursor: selectedSection ? 'pointer' : 'default',
-                      }}
-                    >
-                      Insert Media Slide
-                    </button>
-                  </div>
                 </div>
                 <div
                   className="px-2 py-1.5"
                   style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-[11px] font-medium truncate flex-1" style={{ color: '#f3f4f6' }}>
-                      {item.name}
-                    </p>
-                    <button
-                      onClick={() => handleMoveItem(item)}
-                      className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded"
-                      style={{ color: '#d1d5db' }}
-                      title="Move media"
-                    >
-                      <Folder size={11} />
-                    </button>
-                    <button
-                      onClick={() => handleRenameItem(item)}
-                      className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded"
-                      style={{ color: '#d1d5db' }}
-                      title="Rename media item"
-                    >
-                      <Pencil size={11} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteItem(item)}
-                      className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded"
-                      style={{ color: '#fda4af' }}
-                      title="Delete media item"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  </div>
+                  <p className="text-[11px] font-medium truncate flex-1" style={{ color: '#f3f4f6' }}>
+                    {item.name}
+                  </p>
                   <p className="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>
                     {item.type}
                   </p>
@@ -548,20 +553,67 @@ export default function MediaLibraryPanel() {
         className="px-3 py-2 shrink-0"
         style={{ borderTop: '1px solid var(--border-subtle)' }}
       >
-        <button
-          onClick={handleImport}
-          className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded text-xs font-medium"
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-primary)',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
-        >
-          <Upload size={13} />
-          {currentFolder ? `Import To ${currentFolder.name}` : 'Import To Library…'}
-        </button>
+        <div className="mb-2 min-h-[2.25rem]">
+          <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            Selected Media
+          </p>
+          <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+            {selectedMediaItem ? selectedMediaItem.name : 'Select a media item'}
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            disabled={!selectedMediaItem}
+            onClick={(event) => {
+              if (!selectedMediaItem) return
+              openFooterMenu(event.currentTarget, buildUseMenuItems(selectedMediaItem))
+            }}
+            className="h-9 rounded-lg text-xs font-medium"
+            style={{
+              background: selectedMediaItem ? 'var(--bg-surface)' : 'var(--bg-hover)',
+              border: '1px solid var(--border-default)',
+              color: selectedMediaItem ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            }}
+          >
+            Use
+          </button>
+          <button
+            type="button"
+            disabled={!selectedMediaItem}
+            onClick={(event) => {
+              if (!selectedMediaItem) return
+              openFooterMenu(event.currentTarget, buildMoreMenuItems(selectedMediaItem))
+            }}
+            className="h-9 rounded-lg flex items-center justify-center"
+            style={{
+              background: selectedMediaItem ? 'var(--bg-surface)' : 'var(--bg-hover)',
+              border: '1px solid var(--border-default)',
+              color: selectedMediaItem ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            }}
+            aria-label="More actions"
+            title="More actions"
+          >
+            <MoreHorizontal size={15} />
+          </button>
+          <button
+            type="button"
+            disabled={!selectedMediaItem}
+            onClick={() => {
+              if (selectedMediaItem) void handleDeleteItem(selectedMediaItem)
+            }}
+            className="h-9 rounded-lg flex items-center justify-center"
+            style={{
+              background: selectedMediaItem ? 'rgba(220,38,38,0.08)' : 'var(--bg-hover)',
+              border: '1px solid var(--border-default)',
+              color: selectedMediaItem ? '#dc2626' : 'var(--text-tertiary)',
+            }}
+            aria-label="Delete media"
+            title="Delete media"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
       </div>
 
       {menu ? (

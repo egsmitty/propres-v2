@@ -30,7 +30,7 @@ function toTitleCase(value = '') {
 
 export function resolveSongSectionType(raw = '') {
   const lower = String(raw).toLowerCase().replace(/[\[\].-]/g, '').replace(/\s+/g, '')
-  if (lower === 'prechorus') return 'chorus'
+  if (lower === 'prechorus') return 'pre-chorus'
   if (lower === 'turn' || lower === 'ta' || lower === 'turnaround') return 'turnaround'
   return lower.replace(/\d+$/, '')
 }
@@ -53,6 +53,23 @@ export function createSongSectionGroup(type = 'verse', label = '', slides = [], 
       body: slide.body || '',
     })),
   }
+}
+
+export function splitTextIntoSlidesByLineCount(text = '', maxLinesPerSlide = 2) {
+  const lines = String(text || '')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (!lines.length) return ['']
+
+  const slides = []
+  for (let index = 0; index < lines.length; index += maxLinesPerSlide) {
+    slides.push(lines.slice(index, index + maxLinesPerSlide).join('\n'))
+  }
+
+  return slides
 }
 
 export function parseSongGroupsFromLyrics(text = '') {
@@ -119,6 +136,10 @@ export function parseRawSongSlides(song) {
 
 export function parseRawSongArrangement(song) {
   return toArray(song?.songOrder ?? song?.song_order)
+}
+
+export function parseRawSongGroups(song) {
+  return toArray(song?.songGroups ?? song?.song_groups)
 }
 
 export function normalizeSongGroupsFromSlides(slides = []) {
@@ -202,9 +223,29 @@ export function normalizeSongArrangement(order = [], groups = [], options = {}) 
 }
 
 export function getSongGroupsAndArrangement(song) {
+  const persistedGroups = parseRawSongGroups(song).map((group) =>
+    createSongSectionGroup(group?.type || 'verse', group?.label || '', group?.slides || [], group?.id || uuid())
+  )
+  const storedArrangement = parseRawSongArrangement(song)
+  const hasStoredArrangement =
+    Array.isArray(song?.songOrder) ||
+    typeof song?.songOrder === 'string' ||
+    Array.isArray(song?.song_order) ||
+    typeof song?.song_order === 'string'
+
+  if (persistedGroups.length) {
+    const knownGroupIds = new Set(persistedGroups.map((group) => group.id))
+    return {
+      groups: persistedGroups,
+      arrangement: hasStoredArrangement
+        ? storedArrangement.filter((groupId) => knownGroupIds.has(groupId))
+        : normalizeSongArrangement(storedArrangement, persistedGroups),
+    }
+  }
+
   const slides = parseRawSongSlides(song)
   const groups = normalizeSongGroupsFromSlides(slides)
-  const arrangement = normalizeSongArrangement(parseRawSongArrangement(song), groups)
+  const arrangement = normalizeSongArrangement(storedArrangement, groups)
   return { groups, arrangement }
 }
 

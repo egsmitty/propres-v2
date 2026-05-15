@@ -23,6 +23,7 @@ import {
   resolvePlaceholderText,
 } from '@/utils/textBoxes'
 import { flushPendingNumericFieldCommit } from '@/utils/pendingNumericCommit'
+import { applyDroppedMediaToTargets, isMediaLibraryDrag } from '@/utils/mediaDropActions'
 import SlideTextEditor from './SlideTextEditor'
 
 const SNAP_THRESHOLD = 8
@@ -300,6 +301,8 @@ export default function Canvas() {
   const mutateSections = useEditorStore((s) => s.mutateSections)
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
+  const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
+  const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen)
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const slideClipboard = useAppStore((s) => s.slideClipboard)
   const textBoxClipboard = useAppStore((s) => s.textBoxClipboard)
@@ -308,6 +311,7 @@ export default function Canvas() {
   const [media, setMedia] = useState([])
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const [menu, setMenu] = useState(null)
+  const [mediaDropActive, setMediaDropActive] = useState(false)
   const [selectedTextBoxIds, setSelectedTextBoxIds] = useState([])
   const [editingTextBoxId, setEditingTextBoxId] = useState(null)
   const [draftBoxes, setDraftBoxes] = useState(null)
@@ -338,6 +342,12 @@ export default function Canvas() {
   const effectiveBackgroundId = getEffectiveBackgroundId(presentation, selectedSectionId, slide)
   const backgroundMedia = useMemo(() => media.find((item) => item.id === effectiveBackgroundId) || null, [media, effectiveBackgroundId])
   const slideMedia = useMemo(() => media.find((item) => item.id === slide?.mediaId) || null, [media, slide?.mediaId])
+
+  function openMediaLibrary() {
+    setSongLibraryOpen(false)
+    setNewSongEditorOpen(false)
+    setMediaLibraryOpen(true)
+  }
   const textBoxes = useMemo(() => getSlideTextBoxes(slide), [slide])
   const renderedBoxes = draftBoxes || textBoxes
   const primaryTextBoxId = selectedTextBoxIds[selectedTextBoxIds.length - 1] || selectedTextBoxIds[0] || null
@@ -1098,6 +1108,23 @@ export default function Canvas() {
                   maxWidth: '100%',
                   maxHeight: '100%',
                   background: '#1a1a1a',
+                  boxShadow: mediaDropActive
+                    ? '0 0 0 4px rgba(74,124,255,0.24), 0 28px 54px rgba(8,14,30,0.24)'
+                    : undefined,
+                }}
+                onDragOver={(event) => {
+                  if (!isMediaLibraryDrag(event) || !slide || !selectedSectionId || !selectedSlideId) return
+                  event.preventDefault()
+                  setMediaDropActive(true)
+                }}
+                onDragLeave={() => setMediaDropActive(false)}
+                onDrop={async (event) => {
+                  if (!isMediaLibraryDrag(event) || !slide || !selectedSectionId || !selectedSlideId) return
+                  event.preventDefault()
+                  setMediaDropActive(false)
+                  const mediaId = Number(event.dataTransfer.getData('application/presenterpro-media-id'))
+                  if (!Number.isFinite(mediaId)) return
+                  await applyDroppedMediaToTargets(mediaId, [{ sectionId: selectedSectionId, slideId: selectedSlideId }])
                 }}
               >
                 <div
@@ -1164,7 +1191,8 @@ export default function Canvas() {
                   { label: 'Delete Text Box', onClick: () => { removeSlideTextBoxes(selectedSectionId, slide.id, selectedTextBoxIds); setSelectedTextBoxIds([]) }, danger: true },
                 ]
               : [
-                  { label: 'Set Background', onClick: () => setMediaLibraryOpen(true) },
+                  { label: 'Set Slide Background', onClick: () => openMediaLibrary() },
+                  { label: `Set ${section ? getSectionTypeLabel(section.type) : 'Section'} Background`, onClick: () => openMediaLibrary() },
                   { divider: true },
                   { label: 'Copy Slide', onClick: () => copySelectedSlideToClipboard() },
                   { label: 'Paste Slide', onClick: () => pasteSlideAfterSelected(), disabled: !slideClipboard },
@@ -1193,7 +1221,7 @@ export default function Canvas() {
               style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
               onMouseEnter={(event) => (event.currentTarget.style.background = 'var(--bg-hover)')}
               onMouseLeave={(event) => (event.currentTarget.style.background = 'var(--bg-surface)')}
-              onClick={() => setMediaLibraryOpen(true)}
+              onClick={() => openMediaLibrary()}
             >
               {mediaOnlySlide ? 'Change Media' : 'Set Background'}
             </button>

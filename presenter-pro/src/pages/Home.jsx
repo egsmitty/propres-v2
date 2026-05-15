@@ -223,7 +223,6 @@ export default function Home() {
     open: null,
   })
   const [homeLibraryTab, setHomeLibraryTab] = useState('recent')
-  const [selectedTemplateId, setSelectedTemplateId] = useState(null)
   const [pinnedIds, setPinnedIds] = useState(() => loadPinnedPresentationIds())
   const [hiddenRecentIds, setHiddenRecentIds] = useState(() => loadHiddenRecentPresentationIds())
   const [profile, setProfile] = useState({
@@ -261,18 +260,6 @@ export default function Home() {
 
   async function handleTemplate(templateId) {
     await createPresentationFromTemplate(templateId)
-  }
-
-  async function handleCreateSelectedTemplate() {
-    if (!selectedTemplateId) return
-
-    if (selectedTemplateId === 'blank') {
-      await handleNew()
-    } else {
-      await handleTemplate(selectedTemplateId)
-    }
-
-    setSelectedTemplateId(null)
   }
 
   async function handleOpen(pres) {
@@ -415,14 +402,6 @@ export default function Home() {
     }
   }, [activePresentationTab, visiblePresentations, selectedPresentationId])
 
-  useEffect(() => {
-    if (homeTab !== 'new' && selectedTemplateId) {
-      setSelectedTemplateId(null)
-    }
-  }, [homeTab, selectedTemplateId])
-
-  const selectedPresentation =
-    visiblePresentations.find((pres) => pres.id === selectedPresentationId) || null
   const pageTitle =
     homeTab === 'home'
       ? 'Home'
@@ -572,6 +551,7 @@ export default function Home() {
           {homeTab === 'home' && (
             <HomeLibrary
               templates={PRESENTATION_TEMPLATES}
+              onBlankPresentation={handleNew}
               onTemplate={handleTemplate}
               onViewAllTemplates={() => setHomeTab('new')}
               homeLibraryTab={homeLibraryTab}
@@ -598,8 +578,13 @@ export default function Home() {
           {homeTab === 'new' && (
             <NewLibrary
               templates={PRESENTATION_TEMPLATES}
-              selectedTemplateId={selectedTemplateId}
-              onSelectTemplate={setSelectedTemplateId}
+              onCreateTemplate={(templateId) => {
+                if (templateId === 'blank') {
+                  void handleNew()
+                  return
+                }
+                void handleTemplate(templateId)
+              }}
             />
           )}
 
@@ -640,98 +625,6 @@ export default function Home() {
           )}
         </div>
 
-        {(homeTab === 'home' || homeTab === 'recent' || homeTab === 'open' || homeTab === 'new') && (
-          <div
-            className="shrink-0 px-8 py-2 flex items-center justify-between gap-3"
-            style={{
-              borderTop: '1px solid var(--border-subtle)',
-              background: 'rgba(18, 22, 29, 0.92)',
-              backdropFilter: 'blur(14px)',
-            }}
-          >
-            <p className="text-[13px] truncate" style={{ color: 'var(--text-secondary)' }}>
-              {homeTab === 'new'
-                ? selectedTemplateId === 'blank'
-                  ? 'Selected: Blank Presentation'
-                  : selectedTemplateId
-                    ? `Selected: ${PRESENTATION_TEMPLATES.find((template) => template.id === selectedTemplateId)?.title || 'Template'}`
-                    : 'Select a template to create a new presentation.'
-                : selectedPresentation
-                  ? `Selected: ${selectedPresentation.title}`
-                  : 'Select a presentation to open it.'}
-            </p>
-            <div className="flex items-center justify-end gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  if (homeTab === 'new') {
-                    setSelectedTemplateId(null)
-                    setHomeTab('home')
-                    return
-                  }
-
-                  setSelectedPresentationIdForTab(activePresentationTab, null)
-                  setMenu(null)
-                }}
-                disabled={homeTab === 'new' ? !selectedTemplateId : !selectedPresentation}
-                className="px-4 py-1.5 rounded-full text-sm font-medium"
-                style={{
-                  background:
-                    homeTab === 'new'
-                      ? selectedTemplateId ? 'var(--bg-hover)' : 'transparent'
-                      : selectedPresentation ? 'var(--bg-hover)' : 'transparent',
-                  color:
-                    homeTab === 'new'
-                      ? selectedTemplateId ? 'var(--text-primary)' : 'var(--text-tertiary)'
-                      : selectedPresentation ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                  border: '1px solid var(--border-default)',
-                  cursor:
-                    homeTab === 'new'
-                      ? selectedTemplateId ? 'pointer' : 'default'
-                      : selectedPresentation ? 'pointer' : 'default',
-                  opacity:
-                    homeTab === 'new'
-                      ? selectedTemplateId ? 1 : 0.55
-                      : selectedPresentation ? 1 : 0.55,
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (homeTab === 'new') {
-                    void handleCreateSelectedTemplate()
-                    return
-                  }
-
-                  if (selectedPresentation) {
-                    void handleOpen(selectedPresentation)
-                  }
-                }}
-                disabled={homeTab === 'new' ? !selectedTemplateId : !selectedPresentation}
-                className="px-5 py-1.5 rounded-full text-sm font-medium"
-                style={{
-                  background:
-                    homeTab === 'new'
-                      ? selectedTemplateId ? 'var(--accent)' : 'rgba(74,124,255,0.32)'
-                      : selectedPresentation ? 'var(--accent)' : 'rgba(74,124,255,0.32)',
-                  color: '#fff',
-                  cursor:
-                    homeTab === 'new'
-                      ? selectedTemplateId ? 'pointer' : 'default'
-                      : selectedPresentation ? 'pointer' : 'default',
-                  opacity:
-                    homeTab === 'new'
-                      ? selectedTemplateId ? 1 : 0.72
-                      : selectedPresentation ? 1 : 0.72,
-                }}
-              >
-                {homeTab === 'new' ? 'Create' : 'Open'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {menu && (
@@ -763,6 +656,7 @@ export default function Home() {
 
 function HomeLibrary({
   templates,
+  onBlankPresentation,
   onTemplate,
   onViewAllTemplates,
   homeLibraryTab,
@@ -805,6 +699,11 @@ function HomeLibrary({
           className="grid gap-4"
           style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
         >
+          <TemplateCard
+            blank
+            variant="compact"
+            onSelect={onBlankPresentation}
+          />
           {homeTemplates.map((template) => (
             <TemplateCard
               key={template.id}
@@ -849,7 +748,7 @@ function HomeLibrary({
           <p className="text-sm mr-4" style={{ color: 'var(--text-tertiary)' }}>
             {showingPinned
               ? `${pinnedPresentations.length} pinned presentation${pinnedPresentations.length === 1 ? '' : 's'}`
-              : 'Latest 10 presentations'}
+              : 'Latest Presentations'}
           </p>
         </div>
 
@@ -873,7 +772,7 @@ function HomeLibrary({
   )
 }
 
-function NewLibrary({ templates, selectedTemplateId, onSelectTemplate }) {
+function NewLibrary({ templates, onCreateTemplate }) {
   return (
     <section>
       <div
@@ -883,16 +782,14 @@ function NewLibrary({ templates, selectedTemplateId, onSelectTemplate }) {
         <TemplateCard
           blank
           variant="hero"
-          selected={selectedTemplateId === 'blank'}
-          onSelect={() => onSelectTemplate('blank')}
+          onSelect={() => onCreateTemplate('blank')}
         />
         {templates.map((template) => (
           <TemplateCard
             key={template.id}
             template={template}
             variant="hero"
-            selected={selectedTemplateId === template.id}
-            onSelect={() => onSelectTemplate(template.id)}
+            onSelect={() => onCreateTemplate(template.id)}
           />
         ))}
       </div>
@@ -1185,8 +1082,11 @@ function PresentationRow({
         borderBottom: '1px solid var(--border-subtle)',
         background: selected ? 'rgba(74,124,255,0.12)' : menuOpen ? 'rgba(74,124,255,0.08)' : hovered ? 'var(--bg-hover)' : 'transparent',
       }}
-      onClick={() => onSelect?.()}
-      onDoubleClick={() => onOpen(presentation)}
+      onClick={() => {
+        onSelect?.()
+        void onOpen(presentation)
+      }}
+      onDoubleClick={() => void onOpen(presentation)}
       onContextMenu={(e) => {
         onContextMenu(e, presentation, listContext)
       }}
@@ -1228,6 +1128,14 @@ function PresentationRow({
                 background: pinned ? 'rgba(74,124,255,0.14)' : 'transparent',
                 color: pinned ? 'var(--accent)' : 'var(--text-tertiary)',
                 border: `1px solid ${pinned ? 'rgba(74,124,255,0.22)' : 'var(--border-subtle)'}`,
+              }}
+              onMouseEnter={(event) => {
+                event.currentTarget.style.borderColor = pinned ? 'var(--accent)' : 'var(--border-default)'
+                event.currentTarget.style.boxShadow = '0 0 0 2px rgba(74,124,255,0.12)'
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.style.borderColor = pinned ? 'rgba(74,124,255,0.22)' : 'var(--border-subtle)'
+                event.currentTarget.style.boxShadow = 'none'
               }}
             >
               <Pin size={18} fill={pinned ? 'currentColor' : 'none'} />

@@ -5,6 +5,7 @@ import {
   createMedia,
   deletePresentation,
   getMedia,
+  getSongs,
   pickMedia,
   getPresentation,
   touchPresentation,
@@ -20,6 +21,7 @@ import {
   promptForSectionSetup,
 } from '@/utils/sectionTypes'
 import { alertDialog, confirmDialog, promptDialog } from '@/utils/dialog'
+import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed'
 
 function selectFirstSlide(presentation) {
   const firstSection = presentation?.sections?.[0]
@@ -107,6 +109,8 @@ export async function createPresentationFromTemplate(templateId) {
   const template = PRESENTATION_TEMPLATES.find((item) => item.id === templateId)
   if (!template) return null
 
+  await ensureBuiltInSongsSeeded()
+
   async function ensureMedia(mediaDefinition) {
     const existing = await getMedia()
     const matches = existing?.success ? existing.data : []
@@ -122,8 +126,12 @@ export async function createPresentationFromTemplate(templateId) {
     return created?.success ? created.data : null
   }
 
+  const songsResult = await getSongs()
+  const songLibrary = songsResult?.success ? songsResult.data || [] : []
+
   const payload = await template.buildPresentation({
-    ensureMedia: template.featured ? ensureMedia : undefined,
+    ensureMedia,
+    songLibrary,
     sampleMedia: SAMPLE_MEDIA_LIBRARY,
   })
   const result = await createPresentation(payload)

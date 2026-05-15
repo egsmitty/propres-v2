@@ -12,6 +12,7 @@ import ShortcutsOverlay from '@/components/shared/ShortcutsOverlay'
 import OnboardingTutorial from '@/components/shared/OnboardingTutorial'
 import DialogHost from '@/components/shared/Dialog'
 import { runAppCommand } from '@/utils/appCommands'
+import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed'
 import { getSettings, setSetting } from '@/utils/ipc'
 
 const hash = window.location.hash
@@ -56,6 +57,13 @@ export default function App() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  React.useEffect(() => {
+    if (isPresenterWindow || isOutputWindow || isStageDisplayWindow) return
+    ensureBuiltInSongsSeeded().catch((error) => {
+      console.error('Failed to seed built-in songs', error)
+    })
   }, [])
 
   async function handleDismissTutorial() {

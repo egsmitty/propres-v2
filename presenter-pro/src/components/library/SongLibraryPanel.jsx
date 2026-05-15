@@ -35,7 +35,7 @@ export default function SongLibraryPanel() {
   return (
     <>
       <div
-        className="absolute left-0 top-0 h-full z-30 flex flex-col shadow-xl"
+        className="h-full z-30 flex flex-col shadow-xl shrink-0"
         style={{
           width: 320,
           background: 'var(--bg-surface)',

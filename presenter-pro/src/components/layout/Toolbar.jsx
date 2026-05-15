@@ -88,6 +88,7 @@ const PRESENT_CLUSTER_FALLBACK_WIDTH = 312
 const RIBBON_COLLISION_BUFFER = 28
 const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8)
 const MAX_FONT_SIZE_DISPLAY = internalToDisplayFontSize(320)
+const INSERT_BUTTON_MIN_WIDTH = 118
 
 function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
   const section = presentation?.sections?.find((item) => item.id === selectedSectionId)
@@ -171,6 +172,7 @@ function CommandButton({
   danger = false,
   compact = false,
   collapseLabel = false,
+  minWidth = null,
 }) {
   const showLabel = Boolean(label) && !collapseLabel
 
@@ -184,7 +186,7 @@ function CommandButton({
       className="flex items-center gap-1.5 rounded-xl shrink-0 transition-colors"
       style={{
         height: compact ? 30 : 36,
-        minWidth: showLabel ? 0 : compact ? 30 : 36,
+        minWidth: showLabel ? (minWidth ?? 0) : compact ? 30 : 36,
         padding: showLabel ? (compact ? '0 9px' : '0 12px') : (compact ? '0 8px' : '0 10px'),
         border: primary ? '1px solid rgba(74,124,255,0.24)' : '1px solid transparent',
         background: disabled
@@ -1557,7 +1559,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 label="Song"
                 icon={Music}
                 width={88}
-                minButtonWidth={isWindowsPlatform ? 114 : 88}
+                minButtonWidth={INSERT_BUTTON_MIN_WIDTH}
                 height={36}
                 active={songLibraryOpen || newSongEditorOpen}
                 collapseLabel={hideMostLabels}
@@ -1580,7 +1582,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 label="Media"
                 icon={Image}
                 width={94}
-                minButtonWidth={isWindowsPlatform ? 122 : 94}
+                minButtonWidth={INSERT_BUTTON_MIN_WIDTH}
                 height={36}
                 active={mediaLibraryOpen}
                 collapseLabel={hideMostLabels}
@@ -1601,8 +1603,8 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                   </div>
                 )}
               </PopoverMenuButton>
-              <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} />
-              <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} />
+              <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
+              <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
             </Group>
           </>
         )}

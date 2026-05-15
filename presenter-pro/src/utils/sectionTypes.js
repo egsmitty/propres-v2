@@ -3,23 +3,61 @@ import { SECTION_COLORS } from '@/utils/backgrounds'
 // ── Song slide section types ──────────────────────────────────────────────────
 
 export const SECTION_TYPES = [
-  { id: 'verse',      label: 'Verse',      abbr: 'V',  color: '#4a7cff' },
-  { id: 'chorus',     label: 'Chorus',     abbr: 'C',  color: '#16a34a' },
-  { id: 'bridge',     label: 'Bridge',     abbr: 'B',  color: '#9333ea' },
-  { id: 'intro',      label: 'Intro',      abbr: 'I',  color: '#ea580c' },
-  { id: 'outro',      label: 'Outro',      abbr: 'O',  color: '#6b7280' },
-  { id: 'tag',        label: 'Tag',        abbr: 'T',  color: '#db2777' },
-  { id: 'turnaround', label: 'Turnaround', abbr: 'Tu', color: '#ca8a04' },
-  { id: 'blank',      label: 'Blank',      abbr: '--', color: '#374151' },
-  { id: 'custom',     label: 'Custom',     abbr: '?',  color: '#0891b2' },
+  { id: 'verse',       label: 'Verse',       abbr: 'V',  color: '#2563eb' },
+  { id: 'chorus',      label: 'Chorus',      abbr: 'C',  color: '#16a34a' },
+  { id: 'bridge',      label: 'Bridge',      abbr: 'B',  color: '#9333ea' },
+  { id: 'pre-chorus',  label: 'Pre-Chorus',  abbr: 'PC', color: '#ea580c' },
+  { id: 'intro',       label: 'Intro',       abbr: 'I',  color: '#0f766e' },
+  { id: 'outro',       label: 'Outro',       abbr: 'O',  color: '#64748b' },
+  { id: 'tag',         label: 'Tag',         abbr: 'T',  color: '#db2777' },
+  { id: 'turnaround',  label: 'Turnaround',  abbr: 'Tu', color: '#ca8a04' },
+  { id: 'blank',       label: 'Blank',       abbr: '--', color: '#6b7280' },
+  { id: 'custom',      label: 'Custom',      abbr: '?',  color: '#0891b2' },
 ]
 
 export function getSectionType(id) {
   return SECTION_TYPES.find((t) => t.id === id) || SECTION_TYPES[0]
 }
 
-export function getSectionColor(id) {
-  return getSectionType(id).color
+function hexToHsl(hex) {
+  const normalized = String(hex || '').replace('#', '')
+  const bigint = Number.parseInt(normalized, 16)
+  const r = ((bigint >> 16) & 255) / 255
+  const g = ((bigint >> 8) & 255) / 255
+  const b = (bigint & 255) / 255
+
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  let h = 0
+  let s = 0
+  const l = (max + min) / 2
+
+  if (max !== min) {
+    const delta = max - min
+    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min)
+    switch (max) {
+      case r:
+        h = (g - b) / delta + (g < b ? 6 : 0)
+        break
+      case g:
+        h = (b - r) / delta + 2
+        break
+      default:
+        h = (r - g) / delta + 4
+        break
+    }
+    h /= 6
+  }
+
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) }
+}
+
+export function getSectionColor(id, occurrence = 1) {
+  const baseColor = getSectionType(id).color
+  const { h, s, l } = hexToHsl(baseColor)
+  const shadeIndex = Math.max(0, Number(occurrence || 1) - 1)
+  const nextLightness = Math.max(20, l - shadeIndex * 5)
+  return `hsl(${h} ${s}% ${nextLightness}%)`
 }
 import { uuid } from '@/utils/uuid'
 import { showDialog } from '@/utils/dialog'
