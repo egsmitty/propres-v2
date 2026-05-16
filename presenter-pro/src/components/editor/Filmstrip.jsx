@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Film } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
+import { useAppStore } from '@/store/appStore'
 import SectionHeader from './SectionHeader'
 import FilmstripSlide from './FilmstripSlide'
 import ScaledSlideText from '@/components/shared/ScaledSlideText'
 import SongEditorModal from '@/components/library/SongEditorModal'
 import { createSection, createTextSlide, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
-import { getSongs } from '@/utils/ipc'
+import { getMedia, getSongs } from '@/utils/ipc'
 import { flushPendingNumericFieldCommit } from '@/utils/pendingNumericCommit'
 import { getSlideTextBoxes, withUpdatedSlideTextBoxes } from '@/utils/textBoxes'
 import { uuid } from '@/utils/uuid'
@@ -344,6 +345,7 @@ function PreviewInsert({ slide, width, presentation }) {
 
 export default function Filmstrip({ width = 224 }) {
   const presentation = useEditorStore((s) => s.presentation)
+  const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
   const selectedSlideIds = useEditorStore((s) => s.selectedSlideIds)
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
@@ -353,6 +355,7 @@ export default function Filmstrip({ width = 224 }) {
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide)
   const [collapsed, setCollapsed] = useState({})
   const [editSong, setEditSong] = useState(null)
+  const [mediaLibrary, setMediaLibrary] = useState([])
   const [dragCandidate, setDragCandidate] = useState(null)
   const anchorSlideRef = useRef(null)
   const [activeSlideDrag, setActiveSlideDrag] = useState(null)
@@ -412,6 +415,12 @@ export default function Filmstrip({ width = 224 }) {
     })
     setCollapsed(next)
   }, [presentation?.id])
+
+  useEffect(() => {
+    getMedia().then((result) => {
+      if (result?.success) setMediaLibrary(result.data || [])
+    }).catch(() => {})
+  }, [mediaLibraryOpen, presentation?.id])
 
   useEffect(() => {
     activeSlideDragRef.current = activeSlideDrag
@@ -1090,7 +1099,9 @@ export default function Filmstrip({ width = 224 }) {
                       >
                         <FilmstripSlide
                           slide={slide}
+                          sectionId={originalSection.id}
                           sectionType={originalSection.type}
+                          mediaLibrary={mediaLibrary}
                           index={idx}
                           selected={selectedSlideId === slide.id}
                           isMultiSelected={effectiveSelectedSlideIds.includes(slide.id)}

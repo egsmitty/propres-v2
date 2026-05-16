@@ -21,8 +21,8 @@ export default function ContextMenu({ x, y, items, onClose }) {
   // Keep menu on screen
   const menuWidth = 220
   const menuHeight = items.reduce((total, item) => total + (item.divider ? 12 : 42), 10)
-  const adjustedX = Math.min(x, window.innerWidth - menuWidth - 8)
-  const adjustedY = Math.min(y, window.innerHeight - menuHeight - 8)
+  const adjustedX = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8))
+  const adjustedY = Math.max(8, Math.min(y, window.innerHeight - menuHeight - 8))
 
   return (
     <div

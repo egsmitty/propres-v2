@@ -37,6 +37,10 @@
       {
         "from": "public",
         "to": "public"
+      },
+      {
+        "from": "../test-media",
+        "to": "test-media"
       }
     ],
     "mac": {

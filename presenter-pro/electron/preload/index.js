@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value),
   getProfile: () => ipcRenderer.invoke('system:getProfile'),
   getSystemDisplays: () => ipcRenderer.invoke('system:getDisplays'),
+  resolveBuiltInMedia: (assetNames) => ipcRenderer.invoke('system:resolveBuiltInMedia', assetNames),
 
   // Events (main -> renderer)
   onSlideAdvance: (cb) => subscribe('presenter:slideAdvance', cb),

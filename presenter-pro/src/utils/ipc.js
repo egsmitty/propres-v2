@@ -129,3 +129,6 @@ export async function getProfile() {
 export async function getSystemDisplays() {
   return api().getSystemDisplays()
 }
+export async function resolveBuiltInMedia(assetNames) {
+  return api().resolveBuiltInMedia(assetNames)
+}

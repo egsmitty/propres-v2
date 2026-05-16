@@ -37,7 +37,7 @@ export default function App() {
   }, [])
 
   React.useEffect(() => {
-    if (isPresenterWindow || isOutputWindow) return
+    if (isPresenterWindow || isOutputWindow || isStageDisplayWindow) return
 
     let cancelled = false
 
