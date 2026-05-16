@@ -21,11 +21,12 @@ import { alertDialog } from '@/utils/dialog'
 const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth'
 const FILMSTRIP_MIN_WIDTH = 276
 const FILMSTRIP_MAX_WIDTH = 352
-const CENTER_COLUMN_MIN_WIDTH = 520
 const PRESENTER_PANEL_MIN_WIDTH = 240
 const PRESENTER_PANEL_MAX_WIDTH_RATIO = 0.75
 const PRESENTER_RAIL_WIDTH = 48
 const RESIZE_HANDLE_WIDTH = 4
+const EDITOR_CENTER_MIN_WIDTH = 420
+const COLLAPSE_SLIVER_WIDTH = 20
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -40,17 +41,19 @@ function getFilmstripWidthBounds(viewportWidth) {
   return { min: FILMSTRIP_MIN_WIDTH, max }
 }
 
-function getPresenterPanelWidthBounds(viewportWidth) {
+function getPresenterPanelWidthBounds(viewportWidth, {
+  filmstripVisible = true,
+  filmstripWidth = FILMSTRIP_MIN_WIDTH,
+  presenterPanelOpen = true,
+} = {}) {
   const width = Number.isFinite(viewportWidth) ? viewportWidth : 1440
-  const filmstripBounds = getFilmstripWidthBounds(width)
-  const maxByCenterSpace =
-    width - filmstripBounds.min - CENTER_COLUMN_MIN_WIDTH - PRESENTER_RAIL_WIDTH - RESIZE_HANDLE_WIDTH * 2
+  const leftReservedWidth = filmstripVisible ? filmstripWidth + RESIZE_HANDLE_WIDTH : COLLAPSE_SLIVER_WIDTH
+  const rightReservedWidth = presenterPanelOpen ? RESIZE_HANDLE_WIDTH : PRESENTER_RAIL_WIDTH
+  const maxByRatio = Math.floor(width * PRESENTER_PANEL_MAX_WIDTH_RATIO)
+  const maxByLayout = width - leftReservedWidth - rightReservedWidth - EDITOR_CENTER_MIN_WIDTH
   const max = Math.max(
     PRESENTER_PANEL_MIN_WIDTH,
-    Math.min(
-      Math.floor(width * PRESENTER_PANEL_MAX_WIDTH_RATIO),
-      maxByCenterSpace
-    )
+    Math.min(maxByRatio, maxByLayout)
   )
   return { min: PRESENTER_PANEL_MIN_WIDTH, max }
 }
@@ -120,9 +123,14 @@ export default function Editor() {
   useEffect(() => {
     function clampEditorSideWidths() {
       const filmstripBounds = getFilmstripWidthBounds(window.innerWidth)
-      const presenterBounds = getPresenterPanelWidthBounds(window.innerWidth)
+      const nextFilmstripWidth = clamp(filmstripWidth, filmstripBounds.min, filmstripBounds.max)
+      const presenterBounds = getPresenterPanelWidthBounds(window.innerWidth, {
+        filmstripVisible,
+        filmstripWidth: nextFilmstripWidth,
+        presenterPanelOpen,
+      })
 
-      setFilmstripWidth((current) => clamp(current, filmstripBounds.min, filmstripBounds.max))
+      setFilmstripWidth(nextFilmstripWidth)
 
       const presenterState = usePresenterStore.getState()
       const clampedPresenterWidth = clamp(
@@ -139,7 +147,7 @@ export default function Editor() {
     clampEditorSideWidths()
     window.addEventListener('resize', clampEditorSideWidths)
     return () => window.removeEventListener('resize', clampEditorSideWidths)
-  }, [setPresenterPanelWidth])
+  }, [filmstripVisible, filmstripWidth, presenterPanelOpen, setPresenterPanelWidth])
 
   useEffect(() => {
     function onMove(e) {
@@ -152,7 +160,11 @@ export default function Editor() {
           clamp(startWidth + dx, bounds.min, bounds.max)
         )
       } else {
-        const bounds = getPresenterPanelWidthBounds(window.innerWidth)
+        const bounds = getPresenterPanelWidthBounds(window.innerWidth, {
+          filmstripVisible,
+          filmstripWidth,
+          presenterPanelOpen: true,
+        })
         setPresenterPanelWidth(clamp(startWidth - dx, bounds.min, bounds.max))
       }
     }
@@ -163,7 +175,7 @@ export default function Editor() {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [setPresenterPanelWidth])
+  }, [filmstripVisible, filmstripWidth, setPresenterPanelWidth])
   const presentation = useEditorStore((s) => s.presentation)
   const isDirty = useEditorStore((s) => s.isDirty)
   const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave)

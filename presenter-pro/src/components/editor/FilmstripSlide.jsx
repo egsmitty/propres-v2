@@ -4,7 +4,7 @@ import { useEditorStore } from '@/store/editorStore'
 import { useAppStore } from '@/store/appStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import ContextMenu from '@/components/shared/ContextMenu'
-import ScaledSlideText from '@/components/shared/ScaledSlideText'
+import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface'
 import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
 import { importMediaToSelectedSlide } from '@/utils/presentationCommands'
@@ -15,7 +15,7 @@ function isGenericLabel(label) {
   return normalized === 'text' || normalized === 'lyrics' || normalized === 'notes'
 }
 
-export default function FilmstripSlide({ slide, sectionType = 'announcement', index, selected, isMultiSelected, mediaDropHighlighted = false, onMediaDragOver, onMediaDrop, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete, onEditSong, onApplyTheme }) {
+export default function FilmstripSlide({ slide, sectionId = null, sectionType = 'announcement', mediaLibrary = [], index, selected, isMultiSelected, mediaDropHighlighted = false, onMediaDragOver, onMediaDrop, onSelect, onNewSlide, onDoubleClick, onDuplicate, onDelete, onEditSong, onApplyTheme }) {
   const presentation = useEditorStore((s) => s.presentation)
   const moveSlideToSection = useEditorStore((s) => s.moveSlideToSection)
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
@@ -132,22 +132,17 @@ export default function FilmstripSlide({ slide, sectionType = 'announcement', in
             {index}
           </span>
 
-          <div
-            className="w-full h-full"
-          >
-            {mediaOnly ? (
-              <div className="flex flex-col items-center justify-center gap-1" style={{ color: '#d1d5db' }}>
-                <Film size={16} />
-                <div className="truncate">{slide.label || 'Media'}</div>
-              </div>
-            ) : (
-              <ScaledSlideText
-                presentation={presentation}
-                slide={slide}
-                empty="Click to edit"
-                shadow="none"
-              />
-            )}
+          <div className="w-full h-full relative">
+            <SlidePreviewSurface
+              presentation={presentation}
+              slide={slide}
+              sectionId={sectionId}
+              mediaLibrary={mediaLibrary}
+              empty="Click to edit"
+              shadow="none"
+              showPlaceholder
+              missingMediaLabel={slide.label || 'Media'}
+            />
           </div>
 
           {isLive && (

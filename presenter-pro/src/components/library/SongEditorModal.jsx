@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, ChevronDown, ChevronRight, GripVertical, Plus, Trash2, X } from 'lucide-react'
 import { createSong, updateSong } from '@/utils/ipc'
 import { alertDialog, showDialog } from '@/utils/dialog'
-import { SECTION_TYPES, getSectionColor } from '@/utils/sectionTypes'
+import { SECTION_TYPES, getSectionColor, withColorAlpha } from '@/utils/sectionTypes'
 import {
   createSongSectionGroup,
   flattenSongGroupsToSlides,
@@ -818,8 +818,8 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                         onClick={() => setArrangement((current) => [...current, group.id])}
                         className="text-xs px-2.5 py-1 rounded-full"
                         style={{
-                          background: `${group.color}22`,
-                          border: `1px solid ${group.color}55`,
+                          background: withColorAlpha(group.color, 0.13),
+                          border: `1px solid ${withColorAlpha(group.color, 0.33)}`,
                           color: 'var(--text-primary)',
                           cursor: 'grab',
                         }}
@@ -1074,7 +1074,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                         className="px-3 py-3 flex items-start gap-2"
                         style={{
                           borderBottom: collapsed ? 'none' : '1px solid var(--border-subtle)',
-                          background: `${groupColor}12`,
+                          background: withColorAlpha(groupColor, 0.07),
                           boxShadow: `inset 3px 0 0 ${groupColor}`,
                         }}
                       >

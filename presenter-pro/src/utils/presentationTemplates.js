@@ -1,42 +1,40 @@
 import { createSection, createTextSlide } from '@/utils/sectionTypes'
 import { flattenSongGroupsToSlides, getSongGroupsAndArrangement, splitTextIntoSlidesByLineCount } from '@/utils/songSections'
 
-const TEST_MEDIA_ROOT = '/Users/ethansmith/Desktop/VSClaude/ProPresV2/test-media'
-
 export const SAMPLE_MEDIA_LIBRARY = [
   {
     key: 'welcome-announcements',
     name: 'Illumine Welcome',
     type: 'video',
-    file_path: `${TEST_MEDIA_ROOT}/IllumineWelcomeHD.mp4`,
+    asset_name: 'IllumineWelcomeHD.mp4',
     tags: '["built-in","template","announcements","welcome"]',
   },
   {
     key: 'general-background',
     name: 'Celestial Blue',
     type: 'image',
-    file_path: `${TEST_MEDIA_ROOT}/CelestialBlueHD.jpg`,
+    asset_name: 'CelestialBlueHD.jpg',
     tags: '["built-in","template","background","general"]',
   },
   {
     key: 'song-motion-1',
     name: 'Color Flow Magenta Ice',
     type: 'video',
-    file_path: `${TEST_MEDIA_ROOT}/ColorFlowMagentaIceHD.mp4`,
+    asset_name: 'ColorFlowMagentaIceHD.mp4',
     tags: '["built-in","template","background","song"]',
   },
   {
     key: 'song-motion-2',
     name: 'Illumine Cool Rays',
     type: 'video',
-    file_path: `${TEST_MEDIA_ROOT}/IllumineCoolRaysHD.mp4`,
+    asset_name: 'IllumineCoolRaysHD.mp4',
     tags: '["built-in","template","background","song"]',
   },
   {
     key: 'song-motion-3',
     name: 'Summer Wildflowers Daisy Sunset',
     type: 'video',
-    file_path: `${TEST_MEDIA_ROOT}/SummerWildflowersDaisySunsetHD.mp4`,
+    asset_name: 'SummerWildflowersDaisySunsetHD.mp4',
     tags: '["built-in","template","background","song"]',
   },
 ]

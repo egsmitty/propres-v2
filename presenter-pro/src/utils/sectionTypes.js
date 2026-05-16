@@ -52,12 +52,38 @@ function hexToHsl(hex) {
   return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) }
 }
 
+function hexToRgb(hex) {
+  const normalized = String(hex || '').replace('#', '')
+  const bigint = Number.parseInt(normalized, 16)
+  return {
+    r: (bigint >> 16) & 255,
+    g: (bigint >> 8) & 255,
+    b: bigint & 255,
+  }
+}
+
 export function getSectionColor(id, occurrence = 1) {
   const baseColor = getSectionType(id).color
   const { h, s, l } = hexToHsl(baseColor)
   const shadeIndex = Math.max(0, Number(occurrence || 1) - 1)
   const nextLightness = Math.max(20, l - shadeIndex * 5)
   return `hsl(${h} ${s}% ${nextLightness}%)`
+}
+
+export function withColorAlpha(color, alpha = 1) {
+  const normalized = String(color || '').trim()
+  const clampedAlpha = Math.max(0, Math.min(1, alpha))
+
+  if (normalized.startsWith('hsl(') && normalized.endsWith(')')) {
+    return normalized.replace(/\)$/, ` / ${clampedAlpha})`)
+  }
+
+  if (normalized.startsWith('#')) {
+    const { r, g, b } = hexToRgb(normalized)
+    return `rgba(${r}, ${g}, ${b}, ${clampedAlpha})`
+  }
+
+  return normalized
 }
 import { uuid } from '@/utils/uuid'
 import { showDialog } from '@/utils/dialog'

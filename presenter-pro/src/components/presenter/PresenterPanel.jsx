@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, LayoutPanelTop } from 'lucide-react'
+import { useAppStore } from '@/store/appStore'
 import { useEditorStore } from '@/store/editorStore'
 import { usePresenterStore } from '@/store/presenterStore'
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
-import { sendSlide } from '@/utils/ipc'
-import { getSectionColor } from '@/utils/sectionTypes'
+import { getMedia, sendSlide } from '@/utils/ipc'
+import { getSectionColor, withColorAlpha } from '@/utils/sectionTypes'
 import { getPresentationAspectRatio } from '@/utils/presentationSizing'
-import ScaledSlideText from '@/components/shared/ScaledSlideText'
+import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface'
+import { withEffectiveBackground } from '@/utils/backgrounds'
 
 const LIVE_SLIDE_OUTLINE_COLOR = '#00f57a'
 const PRESENTER_PANEL_TOP_HEIGHT_KEY = 'presenterpro.presenterPanelTopHeight'
@@ -25,6 +27,7 @@ function getInitialTopPanelHeight() {
 }
 
 export default function PresenterPanel({ onSetOpen }) {
+  const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
   const presentation = useEditorStore((s) => s.presentation)
   const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
@@ -57,6 +60,7 @@ export default function PresenterPanel({ onSetOpen }) {
   const panelRef = useRef(null)
   const dividerDragRef = useRef(null)
   const [topPanelHeight, setTopPanelHeight] = useState(getInitialTopPanelHeight)
+  const [mediaLibrary, setMediaLibrary] = useState([])
   useEffect(() => { liveIdxRef.current = liveIdx }, [liveIdx])
   useEffect(() => { allSlidesRef.current = allSlides }, [allSlides])
 
@@ -64,6 +68,12 @@ export default function PresenterPanel({ onSetOpen }) {
     if (typeof window === 'undefined') return
     window.localStorage.setItem(PRESENTER_PANEL_TOP_HEIGHT_KEY, String(topPanelHeight))
   }, [topPanelHeight])
+
+  useEffect(() => {
+    getMedia().then((result) => {
+      if (result?.success) setMediaLibrary(result.data || [])
+    }).catch(() => {})
+  }, [mediaLibraryOpen, presentation?.id])
 
   useEffect(() => {
     function clampTopPanelHeight() {
@@ -184,9 +194,12 @@ export default function PresenterPanel({ onSetOpen }) {
   const previewSlide = isPresenting ? liveSlide : selectedSlide
   const previewSectionId = isPresenting ? liveSectionId : selectedSectionId
   const previewSection = presentation?.sections?.find((entry) => entry.id === previewSectionId) || null
+  const previewSlideWithBackground = previewSlide
+    ? withEffectiveBackground(presentation, previewSectionId, previewSlide)
+    : null
   const canGoPrev = isPresenting && liveIdx > 0
   const canGoNext = isPresenting && liveIdx < allSlides.length - 1
-  const slideGridColumns = Math.min(3, Math.max(1, Math.floor((presenterPanelWidth - 32) / 118)))
+  const slideGridColumns = Math.min(5, Math.max(1, Math.floor((presenterPanelWidth - 32) / 118)))
 
   if (!presenterPanelOpen) {
     return (
@@ -311,15 +324,21 @@ export default function PresenterPanel({ onSetOpen }) {
                   ? <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
                   : isLogo
                   ? <span style={{ color: '#4a7cff', fontSize: 10 }}>LOGO</span>
-                  : <ScaledSlideText
-                      presentation={presentation}
-                      slide={previewSlide}
-                      empty="—"
-                      shadow="none"
-                      minPaddingX={8}
-                      minPaddingY={8}
-                      showPlaceholder={false}
-                    />
+                  : (
+                    <div className="relative w-full h-full">
+                      <SlidePreviewSurface
+                        presentation={presentation}
+                        slide={previewSlideWithBackground}
+                        sectionId={previewSectionId}
+                        mediaLibrary={mediaLibrary}
+                        empty="—"
+                        shadow="none"
+                        minPaddingX={8}
+                        minPaddingY={8}
+                        showPlaceholder={false}
+                      />
+                    </div>
+                  )
                 }
               </div>
             </div>
@@ -468,8 +487,8 @@ export default function PresenterPanel({ onSetOpen }) {
                                 top: 8,
                                 padding: '2px 6px',
                                 borderRadius: 999,
-                                background: `${songSectionColor}22`,
-                                border: `1px solid ${songSectionColor}66`,
+                                background: withColorAlpha(songSectionColor, 0.13),
+                                border: `1px solid ${withColorAlpha(songSectionColor, 0.4)}`,
                                 color: '#ffffff',
                                 fontSize: 9,
                                 fontWeight: 700,
@@ -484,9 +503,11 @@ export default function PresenterPanel({ onSetOpen }) {
                           </>
                         ) : null}
                         <div style={{ position: 'absolute', inset: 0 }}>
-                          <ScaledSlideText
+                          <SlidePreviewSurface
                             presentation={presentation}
-                            slide={slide}
+                            slide={enriched}
+                            sectionId={section.id}
+                            mediaLibrary={mediaLibrary}
                             empty="—"
                             shadow="none"
                             minPaddingX={7}

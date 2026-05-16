@@ -696,19 +696,19 @@ function HomeLibrary({
         </div>
 
         <div
-          className="grid gap-4"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
+          className="grid gap-5"
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
         >
           <TemplateCard
             blank
-            variant="compact"
+            variant="hero"
             onSelect={onBlankPresentation}
           />
           {homeTemplates.map((template) => (
             <TemplateCard
               key={template.id}
               template={template}
-              variant="compact"
+              variant="hero"
               onSelect={() => onTemplate(template.id)}
             />
           ))}

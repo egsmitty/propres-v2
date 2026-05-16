@@ -264,6 +264,23 @@ function resolveRuntimeAssetPath(...segments) {
   return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || null
 }
 
+function resolveBuiltInMediaAssetPath(assetName) {
+  if (!assetName) return null
+
+  const candidates = [
+    path.join('test-media', assetName),
+    path.join('..', 'test-media', assetName),
+    path.join('public', 'test-media', assetName),
+  ]
+
+  for (const candidate of candidates) {
+    const resolved = resolveRuntimeAssetPath(candidate)
+    if (resolved) return resolved
+  }
+
+  return null
+}
+
 function resolveWindowIcon() {
   const iconPath = resolveRuntimeAssetPath(
     'public',
@@ -1219,6 +1236,19 @@ function registerIpcHandlers() {
           bounds: display.bounds,
           primary: display.id === screen.getPrimaryDisplay().id,
         })),
+      }
+    } catch (e) {
+      return { success: false, error: e.message }
+    }
+  })
+  ipcMain.handle('system:resolveBuiltInMedia', (_, assetNames = []) => {
+    try {
+      const names = Array.isArray(assetNames) ? assetNames : []
+      return {
+        success: true,
+        data: Object.fromEntries(
+          names.map((assetName) => [assetName, resolveBuiltInMediaAssetPath(assetName)])
+        ),
       }
     } catch (e) {
       return { success: false, error: e.message }

@@ -1001,7 +1001,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const slideTextBoxes = useMemo(() => getSlideTextBoxes(slide), [slide])
   const primaryTextBox = slideTextBoxes?.[0] || null
   const isTextEditing = editingSlideId === selectedSlideId && Boolean(selectedSlideId)
-  const canAddTextBox = hasSlide && !panelOpen && !isMediaSlide(slide)
+  const canAddTextBox = hasSlide && !isMediaSlide(slide)
   const activeTextBoxId = getCurrentOrSavedTextBoxId() || selectedTextBoxIds[selectedTextBoxIds.length - 1] || primaryTextBox?.id || null
   const activeTextBox = slideTextBoxes.find((box) => box.id === activeTextBoxId) || primaryTextBox
   const activeTextBoxIds = activeTextBoxId ? [activeTextBoxId] : null
@@ -1547,10 +1547,10 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
         ) : (
           <>
             <Group title="Slides">
-              <CommandButton icon={Plus} label="New" title={`New Slide (${newSlideShortcut})`} onClick={handleNewSlide} disabled={!hasPresentation || panelOpen} primary collapseLabel={hidePrimaryLabels} />
+              <CommandButton icon={Plus} label="New" title={`New Slide (${newSlideShortcut})`} onClick={handleNewSlide} disabled={!hasPresentation} primary collapseLabel={hidePrimaryLabels} />
               <CommandButton icon={Type} label="Text Box" title="Add Text Box" onClick={() => addSlideTextBox(selectedSectionId, selectedSlideId)} disabled={!canAddTextBox} collapseLabel={hidePrimaryLabels} />
-              <CommandButton icon={Copy} title="Duplicate Slide" onClick={handleDuplicate} disabled={!hasSlide || panelOpen} compact />
-              <CommandButton icon={Trash2} title="Delete Slide" onClick={handleDelete} disabled={!hasSlide || panelOpen} danger compact />
+              <CommandButton icon={Copy} title="Duplicate Slide" onClick={handleDuplicate} disabled={!hasSlide} compact />
+              <CommandButton icon={Trash2} title="Delete Slide" onClick={handleDelete} disabled={!hasSlide} danger compact />
             </Group>
 
             <Group title="Insert">
@@ -1603,8 +1603,8 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                   </div>
                 )}
               </PopoverMenuButton>
-              <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
-              <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation || panelOpen} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
+              <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
+              <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
             </Group>
           </>
         )}
@@ -1614,7 +1614,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
           className="ml-auto shrink-0 flex items-center gap-2 pl-3 self-center"
           style={{ borderLeft: '1px solid var(--border-subtle)' }}
         >
-          <PresentButton onPresent={onPresent} isPresenting={isPresenting} disabled={panelOpen} collapseLabel={false} />
+          <PresentButton onPresent={onPresent} isPresenting={isPresenting} disabled={false} collapseLabel={false} />
           {onTogglePanel && (
             <CommandButton
               icon={LayoutPanelTop}

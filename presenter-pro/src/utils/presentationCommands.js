@@ -8,6 +8,7 @@ import {
   getSongs,
   pickMedia,
   getPresentation,
+  resolveBuiltInMedia,
   touchPresentation,
   updatePresentation,
 } from '@/utils/ipc'
@@ -111,18 +112,44 @@ export async function createPresentationFromTemplate(templateId) {
 
   await ensureBuiltInSongsSeeded()
 
+  const builtInMediaCache = new Map()
+
+  async function resolveTemplateMediaDefinition(mediaDefinition) {
+    if (!mediaDefinition) return null
+    if (mediaDefinition.file_path) return mediaDefinition
+
+    const assetName = mediaDefinition.asset_name
+    if (!assetName) return mediaDefinition
+
+    if (!builtInMediaCache.has(assetName)) {
+      const result = await resolveBuiltInMedia([assetName])
+      builtInMediaCache.set(assetName, result?.success ? result.data?.[assetName] || null : null)
+    }
+
+    const resolvedPath = builtInMediaCache.get(assetName)
+    if (!resolvedPath) return null
+
+    return {
+      ...mediaDefinition,
+      file_path: resolvedPath,
+    }
+  }
+
   async function ensureMedia(mediaDefinition) {
+    const resolvedDefinition = await resolveTemplateMediaDefinition(mediaDefinition)
+    if (!resolvedDefinition?.file_path) return null
+
     const existing = await getMedia()
     const matches = existing?.success ? existing.data : []
-    const targetKey = mediaDefinition.canonical_path || mediaComparisonKey(mediaDefinition.file_path)
+    const targetKey = resolvedDefinition.canonical_path || mediaComparisonKey(resolvedDefinition.file_path)
     const found = matches.find((item) => (
       item.canonical_path && targetKey
         ? item.canonical_path === targetKey
-        : item.file_path === mediaDefinition.file_path
+        : item.file_path === resolvedDefinition.file_path
     ))
     if (found) return found
 
-    const created = await createMedia(mediaDefinition)
+    const created = await createMedia(resolvedDefinition)
     return created?.success ? created.data : null
   }
 
