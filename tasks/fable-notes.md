@@ -257,3 +257,44 @@ database now sees zero writes on launch. The unit tests changed to describe
 that stricter contract — a deliberate behaviour change, stated as such. This
 is the pattern the charter asks for: a mechanical check found a flaw no reading
 would have.
+
+### 2026-09-06 — Dependabot's first sweep (10 PRs, triage)
+
+Dependabot ran immediately on config creation. All PRs run the full gate, so
+nothing merges unverified. Recommended dispositions, for Ethan:
+
+| PR | Update | Disposition | Why |
+|---|---|---|---|
+| #24 | npm minor+patch group | **merge when green** | that is the point of grouping |
+| #19–#23 | GitHub Actions majors (checkout, setup-node, upload/download-artifact, gh-release) | **merge when green, one at a time** | action majors are usually runtime-only (Node 20 → 24); the gate proves each |
+| #28 | typescript 5.9 → 7.0 | **hold — add to `ignore` as a recorded decision** | TS 7 is outside `typescript-eslint`'s supported range (`<6.1`) and removed `baseUrl`; this exact version was deliberately pinned away from during Phase 6 |
+| #25 | @electron/rebuild 3 → 4 | **hold until Node 22** | requires Node ≥22.12; `.nvmrc` pins 20 (see R2) |
+| #26 | electron-vite 2 → 5 | **hold — needs its own plan** | three majors at once across the build toolchain; couple it with the Electron upgrade (R1) |
+| #27 | @commitlint/config-conventional 20 → 21 | merge when green | low risk; hooks are local |
+
+`ignore` entries for #28 and #25 are the *recorded-decision* path the
+dependabot.yml comment describes — not pre-emptive pinning. Filed as a small
+follow-up PR rather than mixed into A1.
+
+**Two process findings from the first Dependabot sweep.**
+
+1. *Every Dependabot PR fails `npm ci`* with "package.json and package-lock.json
+   are not in sync — Missing: esbuild@0.28.2 … @esbuild/<platform>". Dependabot's
+   lockfile regeneration is dropping esbuild's optional platform packages, so
+   its PRs cannot pass the gate as opened. This is Dependabot's lock, not ours
+   (our lock installs cleanly on macOS, Windows, and Linux CI). Workaround per
+   PR: check out the branch, run `npm install`, push the corrected lock. Worth
+   an upstream look before relying on grouped auto-updates. Recorded rather
+   than fixed — outside every plan's blast radius.
+2. *`git check-ignore` does not report tracked files.* I misread "NOT matched"
+   as a broken rule; the rule was fine. The artifact got tracked because the A1
+   branch was cut from `main` before P2's ignore rules existed there, and a
+   `git add -A` swept it in. Untracked now; cannot recur once branches are cut
+   from current `main`. Lesson: cut branches from freshly fetched `main`, and
+   never `git add -A` — add paths.
+
+**lint-staged had a gap.** Its globs covered `js,jsx,ts,tsx` but not `.mjs`/`.cjs`,
+so `e2e/tools/verify-legacy-db.mjs` was committed unformatted and CI's
+`format:check` (which covers everything) went red. Globs now include `mjs`,
+`cjs`, `yml`, `yaml`. The pre-commit hook and the CI check must cover the same
+set, or the hook silently lies.

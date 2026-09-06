@@ -31,13 +31,17 @@ function query(dbFile, sql) {
 }
 
 function tableNames(dbFile) {
-  return query(dbFile, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").map((r) => r.name);
+  return query(
+    dbFile,
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+  ).map((r) => r.name);
 }
 
 function counts(dbFile) {
   const present = new Set(tableNames(dbFile));
   const result = {};
-  for (const t of TABLES) result[t] = present.has(t) ? query(dbFile, `SELECT COUNT(*) AS n FROM ${t}`)[0].n : null;
+  for (const t of TABLES)
+    result[t] = present.has(t) ? query(dbFile, `SELECT COUNT(*) AS n FROM ${t}`)[0].n : null;
   return result;
 }
 
@@ -92,8 +96,13 @@ async function main() {
     }
 
     const after = { counts: counts(dbCopy), tables: tableNames(dbCopy) };
-    const migrations = query(dbCopy, 'SELECT version, name, applied_at FROM schema_migrations ORDER BY version');
-    const backups = fs.readdirSync(userDataDir).filter((f) => /^presenterpro\.backup-v\d+-\d{8}T\d{6}Z\.db$/.test(f));
+    const migrations = query(
+      dbCopy,
+      'SELECT version, name, applied_at FROM schema_migrations ORDER BY version'
+    );
+    const backups = fs
+      .readdirSync(userDataDir)
+      .filter((f) => /^presenterpro\.backup-v\d+-\d{8}T\d{6}Z\.db$/.test(f));
 
     console.log(`after:    tables=${after.tables.join(',')}`);
     console.log(`          counts=${JSON.stringify(after.counts)}`);
@@ -121,7 +130,11 @@ async function main() {
       console.error(`expected exactly one backup, found ${backups.length}`);
       failed = true;
     }
-    for (const marker of ['Cannot find module', 'UnhandledPromiseRejection', 'Uncaught Exception']) {
+    for (const marker of [
+      'Cannot find module',
+      'UnhandledPromiseRejection',
+      'Uncaught Exception',
+    ]) {
       if (stderr.includes(marker)) {
         console.error(`fatal marker in stderr: ${marker}\n${stderr}`);
         failed = true;
@@ -129,7 +142,9 @@ async function main() {
     }
   } finally {
     await app.evaluate(({ app: a }) => a.exit(0)).catch(() => undefined);
-    await new Promise((resolve) => (proc.exitCode !== null ? resolve() : proc.once('exit', resolve)));
+    await new Promise((resolve) =>
+      proc.exitCode !== null ? resolve() : proc.once('exit', resolve)
+    );
     fs.rmSync(userDataDir, { recursive: true, force: true });
   }
 
