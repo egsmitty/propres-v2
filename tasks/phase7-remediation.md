@@ -112,6 +112,23 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
 
 ---
 
+### 12. Windows packaging never worked — **FIXED**
+
+- **Found by the release pipeline** on the first real tag (v1.0.1). macOS
+  packaged fine; Windows failed with:
+  `'CSC_IDENTITY_AUTO_DISCOVERY' is not recognized as an internal or external
+  command`.
+- **Cause:** `dist:win` used `VAR=value command`, which is POSIX shell syntax.
+  cmd.exe does not understand it, so `npm run dist:win` had never worked on an
+  actual Windows machine — only from a bash shell. This is the "Attempted to add
+  Windows compatability" commit (4077928) never having been verified on Windows.
+- **Fix:** all four `dist:*` scripts now route the env var through `cross-env`.
+- **Rule added:** `src/utils/__tests__/packageScripts.test.ts` fails on any npm
+  script using a bare `NAME=value` shell prefix, and requires every `dist:`
+  script that sets that var to use cross-env.
+
+---
+
 ## P1 — Suspicious behavior
 
 ### 3. `songSections.js:32` — unnecessary regex escape

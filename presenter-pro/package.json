@@ -26,10 +26,10 @@
     "gate": "npm run type-check && npm run lint && npm run test:unit",
     "icons:generate": "python3 scripts/generate_app_icons.py",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "dist:dir": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir",
-    "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
-    "dist:win": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --x64",
-    "dist:win:arm64": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --arm64",
+    "dist:dir": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir",
+    "dist:mac": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
+    "dist:win": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --x64",
+    "dist:win:arm64": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --arm64",
     "prepare": "cd .. && git config core.hooksPath .husky"
   },
   "build": {
@@ -90,6 +90,7 @@
     "@vitest/coverage-v8": "^4.1.11",
     "@vitest/eslint-plugin": "^1.6.27",
     "autoprefixer": "^10.4.18",
+    "cross-env": "^10.1.0",
     "electron": "^29.1.1",
     "electron-builder": "^26.8.1",
     "electron-vite": "^2.0.0",
