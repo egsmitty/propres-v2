@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { getMedia } from '@/utils/ipc';
+import {
+  closeOutputWindow,
+  getMedia,
+  getWindowViewState,
+  notifyOutputReady,
+  onOutputBlack,
+  onOutputCountdown,
+  onOutputLogo,
+  onOutputUpdate,
+  onWindowViewState,
+} from '@/utils/ipc';
 import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds';
 import { isMediaSlide } from '@/utils/sectionTypes';
 import { getPresentationDimensions, getPresentationScale } from '@/utils/presentationSizing';
@@ -18,7 +28,7 @@ function PreviewCloseButton() {
   return (
     <button
       type="button"
-      onClick={() => window.electronAPI?.closeOutputWindow?.()}
+      onClick={() => closeOutputWindow()}
       style={{
         position: 'absolute',
         top: 22,
@@ -103,18 +113,14 @@ export default function OutputRenderer() {
   useEffect(() => {
     loadMedia();
 
-    const api = window.electronAPI;
-    if (!api) return;
-
-    api.notifyOutputReady?.();
-    api
-      .getWindowViewState?.()
+    notifyOutputReady();
+    getWindowViewState()
       .then((result) => {
         if (result?.success) setIsPreviewWindow(!result.data?.isFullScreen);
       })
       .catch(() => {});
 
-    const offUpdate = api.onOutputUpdate(async ({ slide: s, background: bg }) => {
+    const offUpdate = onOutputUpdate(async ({ slide: s, background: bg }) => {
       setSlide(s);
       setIsBlack(false);
       setIsLogo(false);
@@ -147,19 +153,19 @@ export default function OutputRenderer() {
       backgroundIdRef.current = nextBackgroundId;
     });
 
-    const offBlack = api.onOutputBlack(({ active }) => {
+    const offBlack = onOutputBlack(({ active }) => {
       setIsBlack(Boolean(active));
       if (active) setIsLogo(false);
     });
 
-    const offLogo = api.onOutputLogo(({ active }) => {
+    const offLogo = onOutputLogo(({ active }) => {
       setIsLogo(Boolean(active));
       if (active) setIsBlack(false);
     });
-    const offCountdown = api.onOutputCountdown((state) => {
+    const offCountdown = onOutputCountdown((state) => {
       setCountdown(state || { active: false, endAt: null, durationSeconds: 0 });
     });
-    const offViewState = api.onWindowViewState?.(({ isFullScreen }) => {
+    const offViewState = onWindowViewState(({ isFullScreen }) => {
       setIsPreviewWindow(!isFullScreen);
     });
 

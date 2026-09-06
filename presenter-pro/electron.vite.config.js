@@ -17,6 +17,10 @@ export default defineConfig({
           // same way the db modules below do, or the app crashes on launch
           // with "Cannot find module './closeController'".
           'main/closeController': resolve(__dirname, 'electron/main/closeController.ts'),
+          // IPC contract enforcement (plan B1): the registry is required from
+          // index.js; the contract is imported by the registry AND by preload.
+          'main/ipcRegistry': resolve(__dirname, 'electron/main/ipcRegistry.ts'),
+          'shared/ipcContract': resolve(__dirname, 'shared/ipcContract.ts'),
           'db/index': resolve(__dirname, 'electron/db/index.js'),
           'db/migrations': resolve(__dirname, 'electron/db/migrations.js'),
           // Required by migrations.js via relative require (CommonJS main), so
@@ -41,7 +45,7 @@ export default defineConfig({
       outDir: 'out/preload',
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'electron/preload/index.js'),
+          index: resolve(__dirname, 'electron/preload/index.ts'),
         },
       },
     },

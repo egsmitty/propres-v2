@@ -21,10 +21,16 @@ vi.mock('@/utils/presenterFlow', () => ({
   stopPresentationSession: vi.fn(),
   startSidebarPresentationSession: vi.fn(),
 }));
+// Plan B1: appCommands reaches main only through `@/utils/ipc`, so the window
+// controls are mocked here instead of stubbing `window.electronAPI`.
 vi.mock('@/utils/ipc', () => ({
   openOutputWindow: vi.fn(),
   openStageDisplayWindow: vi.fn(),
   touchPresentation: vi.fn(),
+  windowClose: vi.fn(),
+  resolveWindowCloseRequest: vi.fn(),
+  sendBlack: vi.fn(),
+  sendLogo: vi.fn(),
 }));
 vi.mock('@/utils/presentationCommands', () => ({
   copySelectedSlideToClipboard: vi.fn(),
@@ -43,21 +49,13 @@ import { confirmDialog } from '@/utils/dialog';
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
 import { stopPresentationSession } from '@/utils/presenterFlow';
 import { usePresenterStore } from '@/store/presenterStore';
+import { resolveWindowCloseRequest, windowClose } from '@/utils/ipc';
 
 const PRESENTER_INITIAL = usePresenterStore.getState();
-
-let windowClose: ReturnType<typeof vi.fn>;
-let resolveWindowCloseRequest: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
   usePresenterStore.setState(PRESENTER_INITIAL, true);
-
-  windowClose = vi.fn();
-  resolveWindowCloseRequest = vi.fn();
-  // jsdom's globalThis IS window, so stubGlobal is what puts this on
-  // `window.electronAPI` for the code under test.
-  vi.stubGlobal('electronAPI', { windowClose, resolveWindowCloseRequest });
 
   // Default: nothing unsaved, so tests isolate the presenting guard.
   vi.mocked(resolveUnsavedChanges).mockResolvedValue(true);
