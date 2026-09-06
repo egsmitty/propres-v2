@@ -29,11 +29,7 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
       // Extensions are explicit: a bare `src/**` also matches .md and .json,
       // which the coverage remapper tries (and fails) to parse as source.
-      include: [
-        'src/**/*.{js,jsx,ts,tsx}',
-        'electron/**/*.{js,ts}',
-        'shared/**/*.{js,ts}',
-      ],
+      include: ['src/**/*.{js,jsx,ts,tsx}', 'electron/**/*.{js,ts}', 'shared/**/*.{js,ts}'],
       exclude: [
         '**/__tests__/**',
         '**/*.config.*',
