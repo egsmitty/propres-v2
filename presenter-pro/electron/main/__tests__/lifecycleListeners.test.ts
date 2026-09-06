@@ -81,4 +81,25 @@ describe('build wiring', () => {
     const viteConfig = readFileSync(resolve(dirname, '../../../electron.vite.config.js'), 'utf8');
     expect(viteConfig).toContain("'main/closeController'");
   });
+
+  it('emits the migration modules as their own entry points', () => {
+    // migrations.js requires migrationRunner, which requires migrationPlanner.
+    // Both are left external by the CommonJS main build and need entries, or
+    // the app crashes at startup with "Cannot find module".
+    const viteConfig = readFileSync(resolve(dirname, '../../../electron.vite.config.js'), 'utf8');
+    for (const entry of ["'db/migrationPlanner'", "'db/migrationRunner'"]) {
+      expect(viteConfig, `${entry} must be a rollup input`).toContain(entry);
+    }
+  });
+});
+
+describe('migration safety', () => {
+  it('migrations.js swallows no errors', () => {
+    // Ten empty catch blocks once made a failed ALTER TABLE indistinguishable
+    // from an already-applied one. Every statement is now guarded by
+    // inspection; an empty catch here would reintroduce silent failure.
+    const source = readFileSync(resolve(dirname, '../../db/migrations.js'), 'utf8');
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    expect(code).not.toMatch(/catch\s*(\([^)]*\))?\s*\{\s*\}/);
+  });
 });
