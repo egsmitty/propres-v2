@@ -98,17 +98,17 @@ as still manual-only.
 
 ## Todos
 
-- [ ] **0. Fix renderer loading (pitfall 0) and add its guard test** before
+- [x] **0. Fix renderer loading (pitfall 0) and add its guard test** before
       anything else — nothing below can launch until this is done.
       *Verify:* `npx vitest run electron/main/__tests__/rendererLoading.test.ts`
       passes, and `npm run gate` still reports 124 + the new guard tests.
 
-- [ ] **1. Install Playwright** as a devDependency in `presenter-pro`:
+- [x] **1. Install Playwright** as a devDependency in `presenter-pro`:
       `npm install -D --ignore-scripts @playwright/test`.
       *Verify:* `node -e "console.log(require('./package.json').devDependencies['@playwright/test'])"`
       prints a version.
 
-- [ ] **2. Create the launch fixture** `presenter-pro/e2e/fixtures/launchApp.ts`,
+- [x] **2. Create the launch fixture** `presenter-pro/e2e/fixtures/launchApp.ts`,
       exporting a helper that:
       - creates a fresh temp userData directory per launch,
       - **throws** if the directory is not under `os.tmpdir()` (pitfall 1),
@@ -117,7 +117,7 @@ as still manual-only.
       - returns `{ app, window, userDataDir }`,
       - exposes a `close()` that terminates the app and removes the temp dir.
 
-- [ ] **3. Write `e2e/launch.spec.ts` — all 3 assertions, this list is
+- [x] **3. Write `e2e/launch.spec.ts` — all 3 assertions, this list is
       exhaustive:**
       1. the app launches and produces exactly one window
       2. the window title is non-empty
@@ -130,13 +130,13 @@ as still manual-only.
          `closeController` rollup entry.*
       *Verify:* `npm run test:e2e -- launch.spec.ts` passes.
 
-- [ ] **4. Write `e2e/quit.spec.ts`.** With no unsaved changes, trigger a quit
+- [x] **4. Write `e2e/quit.spec.ts`.** With no unsaved changes, trigger a quit
       and assert the Electron app process actually exits (await the app's close
       event with a timeout; a timeout is a FAIL, not a skip). This is finding #0
       from `phase7-remediation.md`, which shipped broken for months.
       *Verify:* `npm run test:e2e -- quit.spec.ts` passes.
 
-- [ ] **5. Write `e2e/unsavedChanges.spec.ts`.** Click **Blank Presentation**
+- [x] **5. Write `e2e/unsavedChanges.spec.ts`.** Click **Blank Presentation**
       on Home. `createNewPresentation` sets `requiresInitialSave(true)`, so the
       fresh document already counts as unsaved — **no typing into the canvas is
       needed** (driving `contentEditable` through Playwright is the most fragile
@@ -148,20 +148,20 @@ as still manual-only.
       still open.
       *Verify:* `npm run test:e2e -- unsavedChanges.spec.ts` passes.
 
-- [ ] **6. Add the `test:e2e` script** to `presenter-pro/package.json` as
+- [x] **6. Add the `test:e2e` script** to `presenter-pro/package.json` as
       `npm run build && playwright test`. Do not add it to `gate` — the gate must
       stay fast, and E2E is not yet a required check (pitfall 5).
 
-- [ ] **7. Create `.github/workflows/e2e.yml`**: on `pull_request`, `macos-latest`,
+- [x] **7. Create `.github/workflows/e2e.yml`**: on `pull_request`, `macos-latest`,
       full `npm ci` (not `--ignore-scripts`), `npx playwright install --with-deps`
       if required, then `npm run test:e2e`. Upload the Playwright report as an
       artifact on failure. **Do not** reference this job from `pr-gate`.
 
-- [ ] **8. Ignore artifacts:** add `playwright-report/`, `test-results/`, and
+- [x] **8. Ignore artifacts:** add `playwright-report/`, `test-results/`, and
       `e2e/.artifacts/` to the appropriate `.gitignore`. Committed test output is
       the same mistake as the committed `coverage/` directory.
 
-- [ ] **9. Run the completion gate and report.** E2E is separate from the gate,
+- [x] **9. Run the completion gate and report.** E2E is separate from the gate,
       so unit numbers must be unchanged.
       *Verify:* `cd presenter-pro && npm run gate` — expect **124/124** and 0
       lint errors. Then `npm run test:e2e` — report passed/total separately.
