@@ -24,6 +24,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "npm run build && playwright test",
+    "verify:db": "node e2e/tools/verify-legacy-db.mjs",
     "gate": "npm run type-check && npm run lint && npm run test:unit",
     "icons:generate": "python3 scripts/generate_app_icons.py",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
@@ -117,11 +118,11 @@
     "npm": ">=10.0.0"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
+    "*.{js,jsx,mjs,cjs,ts,tsx}": [
       "prettier --write",
       "eslint --fix"
     ],
-    "*.{json,css,md}": [
+    "*.{json,css,md,yml,yaml}": [
       "prettier --write"
     ]
   }
