@@ -220,10 +220,10 @@ categories gets its second half sampled) and handed to the Executor.
 | P1 process hardening | done — Dependabot, `enforce_admins` on | #17 |
 | P2 E2E harness | done — 7 specs, launch/quit/unsaved-changes, `e2e.yml` (not yet in `PR Gate`) | #18 |
 | A1 versioned migrations | done — 17 unit + 4 E2E, verified on copies of both real DBs, `npm run verify:db` | #29 |
-| A2 crash-recovery journal | **decided: journal first** (Ethan, 2026-09-06) — plan next | — |
+| A2 crash-recovery journal | done — migration 2, journal sync, Later/Discard/Recover prompt; 21 unit + 3 E2E | see PR |
 | A3 seeder fix (phase7 #14) | decided: match by `built_in_key` only, never delete; title matching → one-time data migration | — |
 | U1 Electron/Node upgrade | decided: after A2, behind the E2E harness | — |
 
-Gate on `main`: 149 unit tests, E2E 11/11. `eslint-suppressions.json` 71 → 61.
+Gate on `main` after A2: 170 unit tests, E2E 14/14. `eslint-suppressions.json` 71 → 61.
 Everything learned along the way, including corrections to these plans, is in
 `fable-notes.md`.

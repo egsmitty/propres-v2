@@ -153,6 +153,25 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
 
 ---
 
+### 15. No crash recovery — **FIXED** (plan A2)
+
+- **What:** manual save only; a crash mid-edit lost everything since the last
+  Save. The charter's largest product risk.
+- **Fix:** a crash-recovery journal (`presentation_journal`, migration 2 — the
+  first real use of A1). While a document is dirty the renderer journals a
+  snapshot (2s debounce, 10s max wait); on the next launch the app offers
+  **Later / Discard / Recover**, with Later as the Escape action so a reflexive
+  keypress never discards. Recovered work is loaded as unsaved and its journal
+  is kept until a real Save. Stale journals (presentation gone, or saved since)
+  are deleted silently. Save keeps its meaning; nothing writes to
+  `presentations` without the user.
+- **Rules added:** 21 unit tests (policy, wiring with fake timers, queries,
+  and an IPC drift guard that asserts main handlers == preload wrappers); 3 E2E
+  specs that SIGKILL the built app mid-edit and verify Recover, Discard, and
+  clean-save paths against the real database.
+
+---
+
 ## P1 — Suspicious behavior
 
 ### 3. `songSections.js:32` — unnecessary regex escape

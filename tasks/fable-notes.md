@@ -307,3 +307,30 @@ set, or the hook silently lies.
 | Electron 29 EOL | **Plan it next, after A2.** Electron → current, Node 20 → 22, then @electron/rebuild 4 / electron-vite 5. | Becomes plan U1, sequenced after A2, run behind the E2E harness. |
 | Seeder (phase7 #14) | **Match by `built_in_key` only, never delete.** Title matching becomes a one-time versioned data migration. | Becomes plan A3 — and it is also the first *data* migration (migration 2), which exercises A1 for real. |
 | Dependabot | **Fix the lock on the safe PRs** (#24, #27; the Actions bumps need only a branch update). | Done by me; see the running log. |
+
+### 2026-09-06 — A2 (crash-recovery journal) implemented
+
+- **Escape must never discard.** With `[Discard, Recover]`, DialogHost resolves
+  Escape to the first action. Added **Later** as the cancel action (keep the
+  journal, ask next launch). Deviation from the plan text, stated in the plan.
+- **A fresh profile has two presentations, not one.** Main's `seed()` inserts a
+  sample "Sunday Morning Service"; the E2E helper assumed a single row and
+  failed before ever reaching the recovery dialog. Same family as the earlier
+  seeding surprises: synthetic expectations about a fresh database are wrong
+  until checked against what the app actually seeds.
+- **The staleness rule works as designed:** the journal's `base_updated_at`
+  equalled the row's `updated_at` after a crash (verified by dumping both).
+  `touchPresentation` bumps `updated_at` on close/open, which correctly
+  invalidates a journal only when the row genuinely changed after the snapshot.
+- **IPC drift guard now exists** (`ipcChannels.test.ts`): main handlers and
+  preload wrappers must be the same set. Zero drift locked in; the three
+  journal channels are covered. This was workstream B's first rule, brought
+  forward because the pinning rule required it.
+- **Git lesson, expensive:** deleting a stale `index.lock` left by a
+  concurrent background `git fetch` corrupted the index (every file showed as
+  untracked). `git reset` (mixed) rebuilt it from HEAD without touching the
+  working tree. Never run foreground git while a background job may hold the
+  lock; and never `rm index.lock` without checking for a live process.
+- Behaviour-change test edits (stated per the rule): `migrations.spec.ts`
+  expected version lists `[1]` → `[1, 2]` and the table list gained
+  `presentation_journal`. Each failed under the old code and passes now.

@@ -101,8 +101,27 @@ function baselineSchema(db) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_songs_built_in_key ON songs(built_in_key)');
 }
 
+/**
+ * Migration 2 — crash-recovery journal (plan A2). One snapshot per
+ * presentation while it has unsaved edits; policy in
+ * src/utils/recoveryJournal.ts.
+ */
+function presentationJournal(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS presentation_journal (
+      presentation_id INTEGER PRIMARY KEY,
+      snapshot TEXT NOT NULL,
+      saved_at INTEGER NOT NULL,
+      base_updated_at INTEGER
+    );
+  `);
+}
+
 /** Ordered list. Append only; never edit a migration that has shipped. */
-const MIGRATIONS = [{ version: 1, name: 'baseline-schema', up: baselineSchema }];
+const MIGRATIONS = [
+  { version: 1, name: 'baseline-schema', up: baselineSchema },
+  { version: 2, name: 'presentation-journal', up: presentationJournal },
+];
 
 /** Real filesystem implementation of the runner's BackupStore seam. */
 function createBackupStore(dir) {
