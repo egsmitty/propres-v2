@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { X } from 'lucide-react'
-import { slideBodyToPlainText } from '@/utils/slideMarkup'
+import React, { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
+import { slideBodyToPlainText } from '@/utils/slideMarkup';
 
 function getStageText(slide, emptyMessage) {
-  const text = slideBodyToPlainText(slide?.body || '')
-  return text || emptyMessage
+  const text = slideBodyToPlainText(slide?.body || '');
+  return text || emptyMessage;
 }
 
 function StageTextBlock({ text, empty = false, fontSize, lineHeight, textAlign = 'center' }) {
@@ -22,45 +22,45 @@ function StageTextBlock({ text, empty = false, fontSize, lineHeight, textAlign =
     >
       {text}
     </div>
-  )
+  );
 }
 
 export default function StageDisplayRenderer() {
-  const [currentSlide, setCurrentSlide] = useState(null)
-  const [nextSlide, setNextSlide] = useState(null)
-  const [isPreviewWindow, setIsPreviewWindow] = useState(true)
+  const [currentSlide, setCurrentSlide] = useState(null);
+  const [nextSlide, setNextSlide] = useState(null);
+  const [isPreviewWindow, setIsPreviewWindow] = useState(true);
 
   useEffect(() => {
-    const api = window.electronAPI
-    if (!api) return undefined
+    const api = window.electronAPI;
+    if (!api) return undefined;
 
-    api.notifyStageDisplayReady?.()
-    api.getWindowViewState?.().then((result) => {
-      if (result?.success) setIsPreviewWindow(!result.data?.isFullScreen)
-    }).catch(() => {})
+    api.notifyStageDisplayReady?.();
+    api
+      .getWindowViewState?.()
+      .then((result) => {
+        if (result?.success) setIsPreviewWindow(!result.data?.isFullScreen);
+      })
+      .catch(() => {});
 
     const offUpdate = api.onStageUpdate?.(({ currentSlide: current, nextSlide: next }) => {
-      setCurrentSlide(current || null)
-      setNextSlide(next || null)
-    })
+      setCurrentSlide(current || null);
+      setNextSlide(next || null);
+    });
     const offViewState = api.onWindowViewState?.(({ isFullScreen }) => {
-      setIsPreviewWindow(!isFullScreen)
-    })
+      setIsPreviewWindow(!isFullScreen);
+    });
 
     return () => {
-      offUpdate?.()
-      offViewState?.()
-    }
-  }, [])
+      offUpdate?.();
+      offViewState?.();
+    };
+  }, []);
 
   const currentText = useMemo(
     () => getStageText(currentSlide, 'Waiting for live slide'),
     [currentSlide]
-  )
-  const nextText = useMemo(
-    () => getStageText(nextSlide, 'No upcoming slide'),
-    [nextSlide]
-  )
+  );
+  const nextText = useMemo(() => getStageText(nextSlide, 'No upcoming slide'), [nextSlide]);
 
   return (
     <div
@@ -122,7 +122,9 @@ export default function StageDisplayRenderer() {
           <StageTextBlock
             text={currentText}
             empty={!currentSlide?.body}
-            fontSize={!currentSlide?.body ? 'clamp(42px, 4.2vw, 72px)' : 'clamp(58px, 6.2vw, 122px)'}
+            fontSize={
+              !currentSlide?.body ? 'clamp(42px, 4.2vw, 72px)' : 'clamp(58px, 6.2vw, 122px)'
+            }
             lineHeight={!currentSlide?.body ? 1.12 : 1.08}
           />
         </div>
@@ -164,5 +166,5 @@ export default function StageDisplayRenderer() {
         />
       </div>
     </div>
-  )
+  );
 }

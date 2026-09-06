@@ -1,194 +1,220 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { alertDialog, promptDialog } from '@/utils/dialog'
-import { getPresentationAspectRatio } from '@/utils/presentationSizing'
-import ScaledSlideText from '@/components/shared/ScaledSlideText'
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { alertDialog, promptDialog } from '@/utils/dialog';
+import { getPresentationAspectRatio } from '@/utils/presentationSizing';
+import ScaledSlideText from '@/components/shared/ScaledSlideText';
 
 function formatCountdownInput(input) {
-  const value = input.trim()
-  if (!value) return null
+  const value = input.trim();
+  if (!value) return null;
 
   if (value.includes(':')) {
-    const [minutes, seconds] = value.split(':').map((part) => Number(part))
-    if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null
-    return minutes * 60 + seconds
+    const [minutes, seconds] = value.split(':').map((part) => Number(part));
+    if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null;
+    return minutes * 60 + seconds;
   }
 
-  const seconds = Number(value)
-  if (Number.isNaN(seconds)) return null
-  return seconds
+  const seconds = Number(value);
+  if (Number.isNaN(seconds)) return null;
+  return seconds;
 }
 
 function formatRemaining(endAt) {
-  if (!endAt) return '00:00'
-  const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
-  const minutes = Math.floor(remaining / 60)
-  const seconds = remaining % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  if (!endAt) return '00:00';
+  const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 export default function PresenterView() {
-  const [slides, setSlides] = useState([])
-  const [currentIdx, setCurrentIdx] = useState(0)
-  const [isBlack, setIsBlack] = useState(false)
-  const [isLogo, setIsLogo] = useState(false)
-  const [countdown, setCountdown] = useState({ active: false, endAt: null, durationSeconds: 0 })
-  const [remaining, setRemaining] = useState('00:00')
-  const idxRef = useRef(0)
-  const slidesRef = useRef([])
-  const toggleCountdownRef = useRef(null)
+  const [slides, setSlides] = useState([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [isBlack, setIsBlack] = useState(false);
+  const [isLogo, setIsLogo] = useState(false);
+  const [countdown, setCountdown] = useState({ active: false, endAt: null, durationSeconds: 0 });
+  const [remaining, setRemaining] = useState('00:00');
+  const idxRef = useRef(0);
+  const slidesRef = useRef([]);
+  const toggleCountdownRef = useRef(null);
 
-  useEffect(() => { slidesRef.current = slides }, [slides])
-  useEffect(() => { idxRef.current = currentIdx }, [currentIdx])
+  useEffect(() => {
+    slidesRef.current = slides;
+  }, [slides]);
+  useEffect(() => {
+    idxRef.current = currentIdx;
+  }, [currentIdx]);
   // Keep ref current so the static keydown handler always calls the latest version
-  toggleCountdownRef.current = toggleCountdown
+  toggleCountdownRef.current = toggleCountdown;
   useEffect(() => {
     if (!countdown.active || !countdown.endAt) {
-      setRemaining('00:00')
-      return
+      setRemaining('00:00');
+      return;
     }
 
-    const sync = () => setRemaining(formatRemaining(countdown.endAt))
-    sync()
-    const interval = window.setInterval(sync, 250)
-    return () => window.clearInterval(interval)
-  }, [countdown])
+    const sync = () => setRemaining(formatRemaining(countdown.endAt));
+    sync();
+    const interval = window.setInterval(sync, 250);
+    return () => window.clearInterval(interval);
+  }, [countdown]);
 
   useEffect(() => {
-    const api = window.electronAPI
-    if (!api) return
+    const api = window.electronAPI;
+    if (!api) return;
 
-    api.notifyPresenterReady?.()
+    api.notifyPresenterReady?.();
 
     const offStart = api.onPresenterStart(({ slides: list }) => {
-      setSlides(list)
-      slidesRef.current = list
-      setCurrentIdx(0)
-      idxRef.current = 0
-      setIsBlack(false)
-      setIsLogo(false)
-    })
+      setSlides(list);
+      slidesRef.current = list;
+      setCurrentIdx(0);
+      idxRef.current = 0;
+      setIsBlack(false);
+      setIsLogo(false);
+    });
 
     const offSlidesUpdate = api.onPresenterSlidesUpdate(({ slides: list }) => {
       setSlides((prev) => {
-        const currentSlideId = prev[idxRef.current]?.id
-        const nextIndex = list.findIndex((slide) => slide.id === currentSlideId)
-        const resolvedIndex = nextIndex === -1 ? Math.min(idxRef.current, Math.max(0, list.length - 1)) : nextIndex
-        setCurrentIdx(resolvedIndex)
-        idxRef.current = resolvedIndex
-        slidesRef.current = list
-        return list
-      })
-    })
+        const currentSlideId = prev[idxRef.current]?.id;
+        const nextIndex = list.findIndex((slide) => slide.id === currentSlideId);
+        const resolvedIndex =
+          nextIndex === -1 ? Math.min(idxRef.current, Math.max(0, list.length - 1)) : nextIndex;
+        setCurrentIdx(resolvedIndex);
+        idxRef.current = resolvedIndex;
+        slidesRef.current = list;
+        return list;
+      });
+    });
 
     const offAdvance = api.onSlideAdvance(({ slide }) => {
-      const nextSlides = slidesRef.current.map((item) => (item.id === slide.id ? { ...item, ...slide } : item))
-      slidesRef.current = nextSlides
-      setSlides(nextSlides)
-      const idx = nextSlides.findIndex((s) => s.id === slide.id)
-      if (idx !== -1) { setCurrentIdx(idx); idxRef.current = idx }
-      setIsBlack(false)
-      setIsLogo(false)
-    })
+      const nextSlides = slidesRef.current.map((item) =>
+        item.id === slide.id ? { ...item, ...slide } : item
+      );
+      slidesRef.current = nextSlides;
+      setSlides(nextSlides);
+      const idx = nextSlides.findIndex((s) => s.id === slide.id);
+      if (idx !== -1) {
+        setCurrentIdx(idx);
+        idxRef.current = idx;
+      }
+      setIsBlack(false);
+      setIsLogo(false);
+    });
 
     const offBlack = api.onOutputBlack(({ active }) => {
-      setIsBlack(Boolean(active))
-      if (active) setIsLogo(false)
-    })
+      setIsBlack(Boolean(active));
+      if (active) setIsLogo(false);
+    });
     const offLogo = api.onOutputLogo(({ active }) => {
-      setIsLogo(Boolean(active))
-      if (active) setIsBlack(false)
-    })
+      setIsLogo(Boolean(active));
+      if (active) setIsBlack(false);
+    });
     const offCountdown = api.onOutputCountdown((state) => {
-      setCountdown(state || { active: false, endAt: null, durationSeconds: 0 })
-    })
-    const offStop = api.onPresenterStop(() => window.close())
+      setCountdown(state || { active: false, endAt: null, durationSeconds: 0 });
+    });
+    const offStop = api.onPresenterStop(() => window.close());
 
     function handleKey(e) {
-      const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable) {
-        return
+      const tag = document.activeElement?.tagName;
+      if (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        document.activeElement?.isContentEditable
+      ) {
+        return;
       }
 
       if (e.key === ' ' || e.code === 'Space') {
-        e.preventDefault()
-        goNext()
-        return
+        e.preventDefault();
+        goNext();
+        return;
       }
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext()
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev()
-      if (e.key === 'b' || e.key === 'B') toggleBlack()
-      if (e.key === 'l' || e.key === 'L') toggleLogo()
-      if (e.key === 'c' || e.key === 'C') toggleCountdownRef.current()
-      if (e.key === 'Escape') api.stopPresenting()
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev();
+      if (e.key === 'b' || e.key === 'B') toggleBlack();
+      if (e.key === 'l' || e.key === 'L') toggleLogo();
+      if (e.key === 'c' || e.key === 'C') toggleCountdownRef.current();
+      if (e.key === 'Escape') api.stopPresenting();
     }
-    window.addEventListener('keydown', handleKey)
+    window.addEventListener('keydown', handleKey);
     return () => {
-      window.removeEventListener('keydown', handleKey)
-      offStart?.()
-      offSlidesUpdate?.()
-      offAdvance?.()
-      offBlack?.()
-      offLogo?.()
-      offCountdown?.()
-      offStop?.()
-    }
-  }, [])
+      window.removeEventListener('keydown', handleKey);
+      offStart?.();
+      offSlidesUpdate?.();
+      offAdvance?.();
+      offBlack?.();
+      offLogo?.();
+      offCountdown?.();
+      offStop?.();
+    };
+  }, []);
 
   function goTo(idx) {
-    const list = slidesRef.current
-    if (!list.length || idx < 0 || idx >= list.length) return
-    setCurrentIdx(idx)
-    idxRef.current = idx
-    setIsBlack(false)
-    setIsLogo(false)
-    window.electronAPI?.presenterGoToSlide(list[idx])
+    const list = slidesRef.current;
+    if (!list.length || idx < 0 || idx >= list.length) return;
+    setCurrentIdx(idx);
+    idxRef.current = idx;
+    setIsBlack(false);
+    setIsLogo(false);
+    window.electronAPI?.presenterGoToSlide(list[idx]);
   }
 
-  function goNext() { goTo(idxRef.current + 1) }
-  function goPrev() { goTo(idxRef.current - 1) }
+  function goNext() {
+    goTo(idxRef.current + 1);
+  }
+  function goPrev() {
+    goTo(idxRef.current - 1);
+  }
 
   function toggleBlack() {
-    window.electronAPI?.sendBlack()
+    window.electronAPI?.sendBlack();
   }
 
   function toggleLogo() {
-    window.electronAPI?.sendLogo()
+    window.electronAPI?.sendLogo();
   }
 
   async function toggleCountdown() {
     if (countdown.active) {
-      window.electronAPI?.stopCountdown()
-      return
+      window.electronAPI?.stopCountdown();
+      return;
     }
 
     const input = await promptDialog('Countdown length (mm:ss or seconds):', '5:00', {
       title: 'Start Countdown',
       confirmLabel: 'Start',
-    })
-    if (input === null) return
+    });
+    if (input === null) return;
 
-    const durationSeconds = formatCountdownInput(input)
+    const durationSeconds = formatCountdownInput(input);
     if (!durationSeconds || durationSeconds <= 0) {
-      await alertDialog('Enter a valid countdown like 5:00 or 300.', { title: 'Invalid Countdown' })
-      return
+      await alertDialog('Enter a valid countdown like 5:00 or 300.', {
+        title: 'Invalid Countdown',
+      });
+      return;
     }
 
-    window.electronAPI?.startCountdown(durationSeconds)
+    window.electronAPI?.startCountdown(durationSeconds);
   }
 
-  const current = slides[currentIdx] || null
-  const next = slides[currentIdx + 1] || null
+  const current = slides[currentIdx] || null;
+  const next = slides[currentIdx + 1] || null;
 
   return (
-    <div className="flex flex-col h-screen select-none" style={{ background: '#0d0d0d', color: '#f0f0f0' }}>
+    <div
+      className="flex flex-col h-screen select-none"
+      style={{ background: '#0d0d0d', color: '#f0f0f0' }}
+    >
       {/* Status */}
       <div
         className="flex items-center px-4 shrink-0 h-10 gap-3"
         style={{ background: '#1a1a1a', borderBottom: '1px solid #2a2a2a' }}
       >
         <div className="w-2 h-2 rounded-full" style={{ background: '#16a34a' }} />
-        <span className="text-sm font-medium" style={{ color: '#16a34a' }}>PRESENTING</span>
+        <span className="text-sm font-medium" style={{ color: '#16a34a' }}>
+          PRESENTING
+        </span>
         {slides.length > 0 && (
           <span className="text-sm" style={{ color: '#666' }}>
             — Slide {currentIdx + 1} of {slides.length}
@@ -207,7 +233,9 @@ export default function PresenterView() {
       {/* Previews */}
       <div className="flex flex-1 overflow-hidden gap-4 p-4">
         <div className="flex-1 flex flex-col gap-2">
-          <p className="text-xs uppercase tracking-wide" style={{ color: '#666' }}>Current</p>
+          <p className="text-xs uppercase tracking-wide" style={{ color: '#666' }}>
+            Current
+          </p>
           <div
             className="flex-1 rounded-lg flex items-center justify-center"
             style={{
@@ -219,18 +247,20 @@ export default function PresenterView() {
               aspectRatio: getPresentationAspectRatio(current),
             }}
           >
-            {isBlack
-              ? <span style={{ color: '#333' }}>BLACK</span>
-              : isLogo
-              ? <span style={{ color: '#4a7cff' }}>LOGO</span>
-              : <ScaledSlideText
-                  presentation={current}
-                  slide={current}
-                  empty="No slide"
-                  shadow="none"
-                  minPaddingX={24}
-                  minPaddingY={24}
-                />}
+            {isBlack ? (
+              <span style={{ color: '#333' }}>BLACK</span>
+            ) : isLogo ? (
+              <span style={{ color: '#4a7cff' }}>LOGO</span>
+            ) : (
+              <ScaledSlideText
+                presentation={current}
+                slide={current}
+                empty="No slide"
+                shadow="none"
+                minPaddingX={24}
+                minPaddingY={24}
+              />
+            )}
           </div>
           {current && (
             <p className="text-xs text-center" style={{ color: '#666' }}>
@@ -240,7 +270,9 @@ export default function PresenterView() {
         </div>
 
         <div className="flex flex-col gap-2 shrink-0" style={{ width: 240 }}>
-          <p className="text-xs uppercase tracking-wide" style={{ color: '#666' }}>Next</p>
+          <p className="text-xs uppercase tracking-wide" style={{ color: '#666' }}>
+            Next
+          </p>
           <div
             className="rounded-lg flex items-center justify-center"
             style={{
@@ -261,7 +293,11 @@ export default function PresenterView() {
               minPaddingY={12}
             />
           </div>
-          {next && <p className="text-xs" style={{ color: '#666' }}>{next.label}</p>}
+          {next && (
+            <p className="text-xs" style={{ color: '#666' }}>
+              {next.label}
+            </p>
+          )}
         </div>
       </div>
 
@@ -283,12 +319,18 @@ export default function PresenterView() {
 
       {/* Action controls */}
       <div className="flex items-center justify-center gap-3 px-4 pb-4 shrink-0">
-        <ActionBtn active={isBlack} onClick={toggleBlack}>Black (B)</ActionBtn>
-        <ActionBtn active={isLogo} onClick={toggleLogo}>Logo (L)</ActionBtn>
+        <ActionBtn active={isBlack} onClick={toggleBlack}>
+          Black (B)
+        </ActionBtn>
+        <ActionBtn active={isLogo} onClick={toggleLogo}>
+          Logo (L)
+        </ActionBtn>
         <ActionBtn active={countdown.active} onClick={toggleCountdown}>
           {countdown.active ? `Stop Countdown (${remaining})` : 'Add Countdown (C)'}
         </ActionBtn>
-        <ActionBtn danger onClick={() => window.electronAPI?.stopPresenting()}>Stop (Esc)</ActionBtn>
+        <ActionBtn danger onClick={() => window.electronAPI?.stopPresenting()}>
+          Stop (Esc)
+        </ActionBtn>
       </div>
 
       {/* Mini filmstrip */}
@@ -325,7 +367,7 @@ export default function PresenterView() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function PresBtn({ onClick, disabled, children }) {
@@ -345,7 +387,7 @@ function PresBtn({ onClick, disabled, children }) {
     >
       {children}
     </button>
-  )
+  );
 }
 
 function ActionBtn({ onClick, danger, active, children }) {
@@ -363,5 +405,5 @@ function ActionBtn({ onClick, danger, active, children }) {
     >
       {children}
     </button>
-  )
+  );
 }

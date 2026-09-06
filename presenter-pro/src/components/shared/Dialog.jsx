@@ -1,50 +1,52 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { useDialogStore } from '@/store/dialogStore'
+import React, { useEffect, useRef, useState } from 'react';
+import { useDialogStore } from '@/store/dialogStore';
 
 export default function DialogHost() {
-  const dialog = useDialogStore((s) => s.dialog)
-  if (!dialog) return null
-  return <Dialog dialog={dialog} key={dialog.title + (dialog.description || '')} />
+  const dialog = useDialogStore((s) => s.dialog);
+  if (!dialog) return null;
+  return <Dialog dialog={dialog} key={dialog.title + (dialog.description || '')} />;
 }
 
 function Dialog({ dialog }) {
-  const { title, description, fields = [], actions = [], resolve } = dialog
+  const { title, description, fields = [], actions = [], resolve } = dialog;
 
   const [values, setValues] = useState(() => {
-    const initial = {}
-    fields.forEach((f) => { initial[f.name] = f.defaultValue ?? '' })
-    return initial
-  })
+    const initial = {};
+    fields.forEach((f) => {
+      initial[f.name] = f.defaultValue ?? '';
+    });
+    return initial;
+  });
 
-  const firstInputRef = useRef(null)
+  const firstInputRef = useRef(null);
 
   useEffect(() => {
     if (firstInputRef.current) {
-      firstInputRef.current.focus()
-      if (firstInputRef.current.select) firstInputRef.current.select()
+      firstInputRef.current.focus();
+      if (firstInputRef.current.select) firstInputRef.current.select();
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     function handleKey(e) {
       if (e.key === 'Escape') {
-        e.preventDefault()
-        const cancel = actions.find((a) => a.cancel) || actions[0]
-        resolve(cancel ? { action: cancel.value, values } : null)
+        e.preventDefault();
+        const cancel = actions.find((a) => a.cancel) || actions[0];
+        resolve(cancel ? { action: cancel.value, values } : null);
       } else if (e.key === 'Enter' && !e.shiftKey) {
-        const primary = actions.find((a) => a.primary)
+        const primary = actions.find((a) => a.primary);
         if (primary) {
-          e.preventDefault()
-          resolve({ action: primary.value, values })
+          e.preventDefault();
+          resolve({ action: primary.value, values });
         }
       }
     }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [values, actions, resolve])
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [values, actions, resolve]);
 
   function setField(name, value) {
-    setValues((prev) => ({ ...prev, [name]: value }))
+    setValues((prev) => ({ ...prev, [name]: value }));
   }
 
   return (
@@ -61,8 +63,8 @@ function Dialog({ dialog }) {
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          const cancel = actions.find((a) => a.cancel) || actions[0]
-          resolve(cancel ? { action: cancel.value, values } : null)
+          const cancel = actions.find((a) => a.cancel) || actions[0];
+          resolve(cancel ? { action: cancel.value, values } : null);
         }
       }}
     >
@@ -77,11 +79,25 @@ function Dialog({ dialog }) {
           padding: 26,
         }}
       >
-        <h2 style={{ fontSize: 17, fontWeight: 650, color: 'var(--text-primary)', marginBottom: description ? 10 : 18 }}>
+        <h2
+          style={{
+            fontSize: 17,
+            fontWeight: 650,
+            color: 'var(--text-primary)',
+            marginBottom: description ? 10 : 18,
+          }}
+        >
           {title}
         </h2>
         {description && (
-          <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.45 }}>
+          <p
+            style={{
+              fontSize: 15,
+              color: 'var(--text-secondary)',
+              marginBottom: 20,
+              lineHeight: 1.45,
+            }}
+          >
             {description}
           </p>
         )}
@@ -120,7 +136,9 @@ function Dialog({ dialog }) {
                 }}
               >
                 {(field.options || []).map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             ) : (
@@ -175,7 +193,7 @@ function Dialog({ dialog }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function buttonStyle(variant, primary) {
@@ -184,7 +202,7 @@ function buttonStyle(variant, primary) {
       background: 'rgba(220, 38, 38, 0.08)',
       borderColor: 'rgba(220, 38, 38, 0.18)',
       color: 'var(--danger)',
-    }
+    };
   }
   if (primary || variant === 'primary') {
     return {
@@ -192,11 +210,11 @@ function buttonStyle(variant, primary) {
       borderColor: 'var(--accent)',
       color: '#fff',
       boxShadow: '0 10px 24px rgba(74, 124, 255, 0.18)',
-    }
+    };
   }
   return {
     background: 'var(--bg-app)',
     borderColor: 'var(--border-default)',
     color: 'var(--text-primary)',
-  }
+  };
 }

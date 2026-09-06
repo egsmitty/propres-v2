@@ -1,45 +1,49 @@
-import React, { useState } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
-import { useEditorStore } from '@/store/editorStore'
-import { deleteSong } from '@/utils/ipc'
-import { createSection } from '@/utils/sectionTypes'
-import { confirmDialog } from '@/utils/dialog'
-import { flattenSongGroupsToSlides, getOrderedSongSlides, getSongGroupsAndArrangement } from '@/utils/songSections'
-import { insertSectionAfterCurrentSelection } from '@/utils/presentationCommands'
+import React, { useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
+import { useEditorStore } from '@/store/editorStore';
+import { deleteSong } from '@/utils/ipc';
+import { createSection } from '@/utils/sectionTypes';
+import { confirmDialog } from '@/utils/dialog';
+import {
+  flattenSongGroupsToSlides,
+  getOrderedSongSlides,
+  getSongGroupsAndArrangement,
+} from '@/utils/songSections';
+import { insertSectionAfterCurrentSelection } from '@/utils/presentationCommands';
 
 function resolveOrderedSlides(song) {
-  return getOrderedSongSlides(song)
+  return getOrderedSongSlides(song);
 }
 
 export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
-  const addSection = useEditorStore((s) => s.addSection)
-  const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
-  const presentation = useEditorStore((s) => s.presentation)
-  const [isInserting, setIsInserting] = useState(false)
+  const addSection = useEditorStore((s) => s.addSection);
+  const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide);
+  const presentation = useEditorStore((s) => s.presentation);
+  const [isInserting, setIsInserting] = useState(false);
 
-  const slides = resolveOrderedSlides(song)
+  const slides = resolveOrderedSlides(song);
 
   async function handleInsert() {
-    if (!presentation || isInserting) return
-    setIsInserting(true)
+    if (!presentation || isInserting) return;
+    setIsInserting(true);
     try {
-      const { groups, arrangement } = getSongGroupsAndArrangement(song)
+      const { groups, arrangement } = getSongGroupsAndArrangement(song);
       const flattened = flattenSongGroupsToSlides(groups, arrangement, {
         regenerateSlideIds: true,
         regenerateGroupIds: true,
         songId: song.id,
-      })
+      });
       const newSection = createSection('song', presentation.sections.length, {
         title: song.title,
         songId: song.id,
         songGroups: flattened.groups,
         songOrder: flattened.arrangement,
         slides: flattened.slides,
-      })
-      insertSectionAfterCurrentSelection(newSection)
-      await Promise.resolve(onInsert?.(newSection))
+      });
+      insertSectionAfterCurrentSelection(newSection);
+      await Promise.resolve(onInsert?.(newSection));
     } finally {
-      setIsInserting(false)
+      setIsInserting(false);
     }
   }
 
@@ -48,10 +52,10 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       title: 'Delete Song',
       confirmLabel: 'Delete',
       danger: true,
-    })
-    if (!ok) return
-    await deleteSong(song.id)
-    onRefresh()
+    });
+    if (!ok) return;
+    await deleteSong(song.id);
+    onRefresh();
   }
   return (
     <div
@@ -59,8 +63,8 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       style={{ borderBottom: '1px solid var(--border-subtle)' }}
       draggable
       onDragStart={(event) => {
-        event.dataTransfer.setData('application/presenterpro-song-id', String(song.id))
-        event.dataTransfer.effectAllowed = 'copy'
+        event.dataTransfer.setData('application/presenterpro-song-id', String(song.id));
+        event.dataTransfer.effectAllowed = 'copy';
       }}
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -74,10 +78,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
         </p>
       </div>
 
-      <span
-        className="text-xs mx-2 shrink-0"
-        style={{ color: 'var(--text-tertiary)' }}
-      >
+      <span className="text-xs mx-2 shrink-0" style={{ color: 'var(--text-tertiary)' }}>
         {slides.length} slides
       </span>
 
@@ -87,24 +88,23 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
         disabled={isInserting || !presentation}
         className="px-2.5 py-1 rounded text-xs font-medium shrink-0"
         style={{
-          background: isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.12)',
+          background:
+            isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.12)',
           color: isInserting || !presentation ? 'var(--text-tertiary)' : 'var(--accent)',
           border: `1px solid ${isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.16)'}`,
           cursor: isInserting || !presentation ? 'default' : 'pointer',
         }}
         onMouseEnter={(e) => {
           if (!isInserting && presentation) {
-            e.currentTarget.style.background = 'var(--accent)'
-            e.currentTarget.style.color = '#fff'
+            e.currentTarget.style.background = 'var(--accent)';
+            e.currentTarget.style.color = '#fff';
           }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = isInserting || !presentation
-            ? 'var(--border-default)'
-            : 'rgba(74,124,255,0.12)'
-          e.currentTarget.style.color = isInserting || !presentation
-            ? 'var(--text-tertiary)'
-            : 'var(--accent)'
+          e.currentTarget.style.background =
+            isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.12)';
+          e.currentTarget.style.color =
+            isInserting || !presentation ? 'var(--text-tertiary)' : 'var(--accent)';
         }}
       >
         {isInserting ? 'Inserted' : 'Insert'}
@@ -137,13 +137,13 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
         }}
         title="Delete Song"
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(220,38,38,0.08)'
-          e.currentTarget.style.borderColor = 'rgba(220,38,38,0.35)'
+          e.currentTarget.style.background = 'rgba(220,38,38,0.08)';
+          e.currentTarget.style.borderColor = 'rgba(220,38,38,0.35)';
         }}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
         <Trash2 size={13} />
       </button>
     </div>
-  )
+  );
 }

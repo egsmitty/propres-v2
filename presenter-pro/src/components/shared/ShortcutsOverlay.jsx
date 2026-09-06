@@ -1,41 +1,48 @@
-import React, { useEffect } from 'react'
-import { X } from 'lucide-react'
-import { getPlatform, getShortcutKeys } from '@/utils/platformShortcuts'
+import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
+import { getPlatform, getShortcutKeys } from '@/utils/platformShortcuts';
 
 const SHORTCUTS = [
-  { group: 'File', items: [
-    { shortcutTokens: ['mod', 'n'], label: 'New Presentation' },
-    { shortcutTokens: ['mod', 'o'], label: 'Open Presentation' },
-    { shortcutTokens: ['mod', 's'], label: 'Save' },
-    { shortcutTokens: ['mod', 'shift', 's'], label: 'Save As' },
-  ]},
-  { group: 'Edit', items: [
-    { shortcutTokens: ['mod', 'm'], label: 'New Slide' },
-    { shortcutTokens: ['Double-click'], label: 'Edit slide text' },
-    { shortcutTokens: ['esc'], label: 'Exit text editing / stop presenting' },
-  ]},
-  { group: 'Present', items: [
-    { shortcutTokens: ['F5'], label: 'Start Presenting' },
-    { shortcutTokens: ['esc'], label: 'Stop Presenting' },
-    { shortcutTokens: ['left', 'right'], label: 'Previous / Next slide' },
-    { shortcutTokens: ['b'], label: 'Black screen' },
-    { shortcutTokens: ['l'], label: 'Logo screen' },
-  ]},
-  { group: 'Navigation', items: [
-    { shortcutTokens: ['?'], label: 'Show this overlay' },
-  ]},
-]
+  {
+    group: 'File',
+    items: [
+      { shortcutTokens: ['mod', 'n'], label: 'New Presentation' },
+      { shortcutTokens: ['mod', 'o'], label: 'Open Presentation' },
+      { shortcutTokens: ['mod', 's'], label: 'Save' },
+      { shortcutTokens: ['mod', 'shift', 's'], label: 'Save As' },
+    ],
+  },
+  {
+    group: 'Edit',
+    items: [
+      { shortcutTokens: ['mod', 'm'], label: 'New Slide' },
+      { shortcutTokens: ['Double-click'], label: 'Edit slide text' },
+      { shortcutTokens: ['esc'], label: 'Exit text editing / stop presenting' },
+    ],
+  },
+  {
+    group: 'Present',
+    items: [
+      { shortcutTokens: ['F5'], label: 'Start Presenting' },
+      { shortcutTokens: ['esc'], label: 'Stop Presenting' },
+      { shortcutTokens: ['left', 'right'], label: 'Previous / Next slide' },
+      { shortcutTokens: ['b'], label: 'Black screen' },
+      { shortcutTokens: ['l'], label: 'Logo screen' },
+    ],
+  },
+  { group: 'Navigation', items: [{ shortcutTokens: ['?'], label: 'Show this overlay' }] },
+];
 
 export default function ShortcutsOverlay({ onClose }) {
-  const platform = getPlatform()
+  const platform = getPlatform();
 
   useEffect(() => {
     function handleKey(e) {
-      if (e.key === 'Escape' || e.key === '?') onClose()
+      if (e.key === 'Escape' || e.key === '?') onClose();
     }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
   return (
     <div
@@ -117,7 +124,8 @@ export default function ShortcutsOverlay({ onClose }) {
             borderTop: '1px solid var(--border-subtle)',
           }}
         >
-          Press <kbd
+          Press{' '}
+          <kbd
             className="px-1 py-0.5 rounded mx-0.5"
             style={{
               background: 'var(--bg-app)',
@@ -125,7 +133,11 @@ export default function ShortcutsOverlay({ onClose }) {
               fontFamily: 'monospace',
               fontSize: 11,
             }}
-          >?</kbd> or <kbd
+          >
+            ?
+          </kbd>{' '}
+          or{' '}
+          <kbd
             className="px-1 py-0.5 rounded mx-0.5"
             style={{
               background: 'var(--bg-app)',
@@ -133,9 +145,12 @@ export default function ShortcutsOverlay({ onClose }) {
               fontFamily: 'monospace',
               fontSize: 11,
             }}
-          >Esc</kbd> to dismiss
+          >
+            Esc
+          </kbd>{' '}
+          to dismiss
         </div>
       </div>
     </div>
-  )
+  );
 }

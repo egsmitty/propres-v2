@@ -1,134 +1,134 @@
 // Typed wrappers around window.electronAPI
 // All functions return { success, data, error }
 
-const api = () => window.electronAPI
+const api = () => window.electronAPI;
 
 // Presentations
 export async function getPresentations() {
-  return api().getPresentations()
+  return api().getPresentations();
 }
 export async function getPresentation(id) {
-  return api().getPresentation(id)
+  return api().getPresentation(id);
 }
 export async function createPresentation(data) {
-  return api().createPresentation(data)
+  return api().createPresentation(data);
 }
 export async function updatePresentation(id, data) {
-  return api().updatePresentation(id, data)
+  return api().updatePresentation(id, data);
 }
 export async function touchPresentation(id) {
-  return api().touchPresentation(id)
+  return api().touchPresentation(id);
 }
 export async function deletePresentation(id) {
-  return api().deletePresentation(id)
+  return api().deletePresentation(id);
 }
 
 // Songs
 export async function getSongs() {
-  return api().getSongs()
+  return api().getSongs();
 }
 export async function createSong(data) {
-  return api().createSong(data)
+  return api().createSong(data);
 }
 export async function updateSong(id, data) {
-  return api().updateSong(id, data)
+  return api().updateSong(id, data);
 }
 export async function deleteSong(id) {
-  return api().deleteSong(id)
+  return api().deleteSong(id);
 }
 
 // Media
 export async function getMedia() {
-  return api().getMedia()
+  return api().getMedia();
 }
 export async function getMediaFolders() {
-  return api().getMediaFolders()
+  return api().getMediaFolders();
 }
 export async function createMediaFolder(data) {
-  return api().createMediaFolder(data)
+  return api().createMediaFolder(data);
 }
 export async function createMedia(data) {
-  return api().createMedia(data)
+  return api().createMedia(data);
 }
 export async function updateMediaFolder(id, data) {
-  return api().updateMediaFolder(id, data)
+  return api().updateMediaFolder(id, data);
 }
 export async function deleteMediaFolder(id) {
-  return api().deleteMediaFolder(id)
+  return api().deleteMediaFolder(id);
 }
 export async function importMedia(options) {
-  return api().importMedia(options)
+  return api().importMedia(options);
 }
 export async function pickMedia(kind) {
-  return api().pickMedia(kind)
+  return api().pickMedia(kind);
 }
 export async function updateMedia(id, data) {
-  return api().updateMedia(id, data)
+  return api().updateMedia(id, data);
 }
 export async function deleteMedia(id) {
-  return api().deleteMedia(id)
+  return api().deleteMedia(id);
 }
 
 // Output / Presenter
 export async function openPresenterView() {
-  return api().openPresenterView()
+  return api().openPresenterView();
 }
 export async function closePresenterView() {
-  return api().closePresenterView()
+  return api().closePresenterView();
 }
 export async function openOutputWindow(options) {
-  return api().openOutputWindow(options)
+  return api().openOutputWindow(options);
 }
 export async function openStageDisplayWindow(options) {
-  return api().openStageDisplayWindow(options)
+  return api().openStageDisplayWindow(options);
 }
 export async function closeOutputWindow() {
-  return api().closeOutputWindow()
+  return api().closeOutputWindow();
 }
 export async function closeStageDisplayWindow() {
-  return api().closeStageDisplayWindow()
+  return api().closeStageDisplayWindow();
 }
 export async function sendSlide(slide, background) {
-  return api().sendSlide(slide, background)
+  return api().sendSlide(slide, background);
 }
 export async function setPresentationSessionSlides(slides) {
-  return api().setPresentationSessionSlides(slides)
+  return api().setPresentationSessionSlides(slides);
 }
 export async function refreshLiveSlide(slide, background) {
-  return api().refreshLiveSlide(slide, background)
+  return api().refreshLiveSlide(slide, background);
 }
 export async function updatePresentationSlides(slides) {
-  return api().updatePresentationSlides(slides)
+  return api().updatePresentationSlides(slides);
 }
 export async function sendBlack() {
-  return api().sendBlack()
+  return api().sendBlack();
 }
 export async function sendLogo() {
-  return api().sendLogo()
+  return api().sendLogo();
 }
 export async function startCountdown(durationSeconds) {
-  return api().startCountdown(durationSeconds)
+  return api().startCountdown(durationSeconds);
 }
 export async function stopCountdown() {
-  return api().stopCountdown()
+  return api().stopCountdown();
 }
 export async function stopPresenting() {
-  return api().stopPresenting()
+  return api().stopPresenting();
 }
 
 // Settings
 export async function getSettings() {
-  return api().getSettings()
+  return api().getSettings();
 }
 export async function setSetting(key, value) {
-  return api().setSetting(key, value)
+  return api().setSetting(key, value);
 }
 export async function getProfile() {
-  return api().getProfile()
+  return api().getProfile();
 }
 export async function getSystemDisplays() {
-  return api().getSystemDisplays()
+  return api().getSystemDisplays();
 }
 export async function resolveBuiltInMedia(assetNames) {
-  return api().resolveBuiltInMedia(assetNames)
+  return api().resolveBuiltInMedia(assetNames);
 }

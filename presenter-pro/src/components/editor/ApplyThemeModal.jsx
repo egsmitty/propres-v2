@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { getMedia } from '@/utils/ipc'
+import React, { useEffect, useState } from 'react';
+import { getMedia } from '@/utils/ipc';
 
 const FONT_OPTIONS = [
   'Arial, sans-serif',
@@ -7,48 +7,48 @@ const FONT_OPTIONS = [
   'Times New Roman, serif',
   'Trebuchet MS, sans-serif',
   'Courier New, monospace',
-]
+];
 
 export default function ApplyThemeModal({ count, initialTheme = null, onClose, onApply }) {
-  const [media, setMedia] = useState([])
-  const [fontFamily, setFontFamily] = useState('Arial, sans-serif')
-  const [size, setSize] = useState(48)
-  const [color, setColor] = useState('#ffffff')
-  const [align, setAlign] = useState('center')
-  const [lineHeight, setLineHeight] = useState(1.2)
-  const [highlightColor, setHighlightColor] = useState('transparent')
-  const [textBoxFillColor, setTextBoxFillColor] = useState('transparent')
-  const [bold, setBold] = useState(false)
-  const [italic, setItalic] = useState(false)
-  const [underline, setUnderline] = useState(false)
-  const [strikethrough, setStrikethrough] = useState(false)
-  const [backgroundMode, setBackgroundMode] = useState('keep')
-  const [backgroundId, setBackgroundId] = useState('')
+  const [media, setMedia] = useState([]);
+  const [fontFamily, setFontFamily] = useState('Arial, sans-serif');
+  const [size, setSize] = useState(48);
+  const [color, setColor] = useState('#ffffff');
+  const [align, setAlign] = useState('center');
+  const [lineHeight, setLineHeight] = useState(1.2);
+  const [highlightColor, setHighlightColor] = useState('transparent');
+  const [textBoxFillColor, setTextBoxFillColor] = useState('transparent');
+  const [bold, setBold] = useState(false);
+  const [italic, setItalic] = useState(false);
+  const [underline, setUnderline] = useState(false);
+  const [strikethrough, setStrikethrough] = useState(false);
+  const [backgroundMode, setBackgroundMode] = useState('keep');
+  const [backgroundId, setBackgroundId] = useState('');
 
   useEffect(() => {
     async function loadMedia() {
-      const result = await getMedia()
-      if (result?.success) setMedia(result.data)
+      const result = await getMedia();
+      if (result?.success) setMedia(result.data);
     }
-    loadMedia()
-  }, [])
+    loadMedia();
+  }, []);
 
   useEffect(() => {
-    if (!initialTheme) return
-    setFontFamily(initialTheme.fontFamily || 'Arial, sans-serif')
-    setSize(initialTheme.size ?? 48)
-    setColor(initialTheme.color || '#ffffff')
-    setAlign(initialTheme.align || 'center')
-    setLineHeight(initialTheme.lineHeight ?? 1.2)
-    setHighlightColor(initialTheme.highlightColor || 'transparent')
-    setTextBoxFillColor(initialTheme.textBoxFillColor || 'transparent')
-    setBold(Boolean(initialTheme.bold))
-    setItalic(Boolean(initialTheme.italic))
-    setUnderline(Boolean(initialTheme.underline))
-    setStrikethrough(Boolean(initialTheme.strikethrough))
-    setBackgroundMode(initialTheme.backgroundMode || 'keep')
-    setBackgroundId(initialTheme.backgroundId != null ? String(initialTheme.backgroundId) : '')
-  }, [initialTheme])
+    if (!initialTheme) return;
+    setFontFamily(initialTheme.fontFamily || 'Arial, sans-serif');
+    setSize(initialTheme.size ?? 48);
+    setColor(initialTheme.color || '#ffffff');
+    setAlign(initialTheme.align || 'center');
+    setLineHeight(initialTheme.lineHeight ?? 1.2);
+    setHighlightColor(initialTheme.highlightColor || 'transparent');
+    setTextBoxFillColor(initialTheme.textBoxFillColor || 'transparent');
+    setBold(Boolean(initialTheme.bold));
+    setItalic(Boolean(initialTheme.italic));
+    setUnderline(Boolean(initialTheme.underline));
+    setStrikethrough(Boolean(initialTheme.strikethrough));
+    setBackgroundMode(initialTheme.backgroundMode || 'keep');
+    setBackgroundId(initialTheme.backgroundId != null ? String(initialTheme.backgroundId) : '');
+  }, [initialTheme]);
 
   function handleApply() {
     onApply({
@@ -67,7 +67,7 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
       textBoxFillColor,
       backgroundMode,
       backgroundId: backgroundMode === 'set' ? Number(backgroundId) || null : null,
-    })
+    });
   }
 
   return (
@@ -81,7 +81,9 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
         alignItems: 'center',
         justifyContent: 'center',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="rounded-xl"
@@ -102,7 +104,9 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
 
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
-            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Font Family</span>
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Font Family
+            </span>
             <select
               value={fontFamily}
               onChange={(e) => setFontFamily(e.target.value)}
@@ -115,14 +119,18 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
               }}
             >
               {FONT_OPTIONS.map((f) => (
-                <option key={f} value={f}>{f.split(',')[0]}</option>
+                <option key={f} value={f}>
+                  {f.split(',')[0]}
+                </option>
               ))}
             </select>
           </label>
 
           <div className="flex gap-3">
             <label className="flex flex-col gap-1 flex-1">
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Font Size</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Font Size
+              </span>
               <input
                 type="number"
                 min={12}
@@ -140,7 +148,9 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
             </label>
 
             <label className="flex flex-col gap-1 flex-1">
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Line Height</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Line Height
+              </span>
               <input
                 type="number"
                 min={0.8}
@@ -161,17 +171,29 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
 
           <div className="flex gap-3 items-end">
             <label className="flex flex-col gap-1">
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Text Color</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Text Color
+              </span>
               <input
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                style={{ height: 34, width: 48, padding: 2, borderRadius: 4, border: '1px solid var(--border-default)', background: 'var(--bg-app)', cursor: 'pointer' }}
+                style={{
+                  height: 34,
+                  width: 48,
+                  padding: 2,
+                  borderRadius: 4,
+                  border: '1px solid var(--border-default)',
+                  background: 'var(--bg-app)',
+                  cursor: 'pointer',
+                }}
               />
             </label>
 
             <label className="flex flex-col gap-1 flex-1">
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Alignment</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Alignment
+              </span>
               <select
                 value={align}
                 onChange={(e) => setAlign(e.target.value)}
@@ -192,22 +214,42 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
 
           <div className="flex gap-3 items-end">
             <label className="flex flex-col gap-1">
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Highlight</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Highlight
+              </span>
               <input
                 type="color"
                 value={highlightColor === 'transparent' ? '#fff59d' : highlightColor}
                 onChange={(e) => setHighlightColor(e.target.value)}
-                style={{ height: 34, width: 48, padding: 2, borderRadius: 4, border: '1px solid var(--border-default)', background: 'var(--bg-app)', cursor: 'pointer' }}
+                style={{
+                  height: 34,
+                  width: 48,
+                  padding: 2,
+                  borderRadius: 4,
+                  border: '1px solid var(--border-default)',
+                  background: 'var(--bg-app)',
+                  cursor: 'pointer',
+                }}
               />
             </label>
 
             <label className="flex flex-col gap-1">
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Text Box Fill</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Text Box Fill
+              </span>
               <input
                 type="color"
                 value={textBoxFillColor === 'transparent' ? '#111827' : textBoxFillColor}
                 onChange={(e) => setTextBoxFillColor(e.target.value)}
-                style={{ height: 34, width: 48, padding: 2, borderRadius: 4, border: '1px solid var(--border-default)', background: 'var(--bg-app)', cursor: 'pointer' }}
+                style={{
+                  height: 34,
+                  width: 48,
+                  padding: 2,
+                  borderRadius: 4,
+                  border: '1px solid var(--border-default)',
+                  background: 'var(--bg-app)',
+                  cursor: 'pointer',
+                }}
               />
             </label>
           </div>
@@ -236,7 +278,9 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
           </div>
 
           <label className="flex flex-col gap-1">
-            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Slide Background</span>
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Slide Background
+            </span>
             <select
               value={backgroundMode}
               onChange={(e) => setBackgroundMode(e.target.value)}
@@ -256,7 +300,9 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
 
           {backgroundMode === 'set' && (
             <label className="flex flex-col gap-1">
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Background Media</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Background Media
+              </span>
               <select
                 value={backgroundId}
                 onChange={(e) => setBackgroundId(e.target.value)}
@@ -270,7 +316,9 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
               >
                 <option value="">Select Media</option>
                 {media.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
                 ))}
               </select>
             </label>
@@ -282,7 +330,11 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
             type="button"
             onClick={onClose}
             className="text-xs px-3 py-1.5 rounded"
-            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            style={{
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+            }}
           >
             Cancel
           </button>
@@ -297,5 +349,5 @@ export default function ApplyThemeModal({ count, initialTheme = null, onClose, o
         </div>
       </div>
     </div>
-  )
+  );
 }

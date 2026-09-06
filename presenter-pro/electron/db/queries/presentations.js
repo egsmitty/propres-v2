@@ -1,10 +1,10 @@
 function getPresentations(db) {
-  return db.prepare('SELECT * FROM presentations ORDER BY updated_at DESC').all().map(parse)
+  return db.prepare('SELECT * FROM presentations ORDER BY updated_at DESC').all().map(parse);
 }
 
 function getPresentation(db, id) {
-  const row = db.prepare('SELECT * FROM presentations WHERE id = ?').get(id)
-  return row ? parse(row) : null
+  const row = db.prepare('SELECT * FROM presentations WHERE id = ?').get(id);
+  return row ? parse(row) : null;
 }
 
 function createPresentation(
@@ -32,7 +32,7 @@ function createPresentation(
       custom_aspect_height
     )
     VALUES (?, ?, ?, ?, ?, ?)
-  `)
+  `);
   const result = stmt.run(
     title,
     JSON.stringify(sections || []),
@@ -40,8 +40,8 @@ function createPresentation(
     aspectRatio ?? aspect_ratio ?? '16:9',
     customAspectWidth ?? custom_aspect_width ?? null,
     customAspectHeight ?? custom_aspect_height ?? null
-  )
-  return getPresentation(db, result.lastInsertRowid)
+  );
+  return getPresentation(db, result.lastInsertRowid);
 }
 
 function updatePresentation(
@@ -60,7 +60,8 @@ function updatePresentation(
     custom_aspect_height,
   }
 ) {
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE presentations
     SET title = ?,
         sections = ?,
@@ -70,7 +71,8 @@ function updatePresentation(
         custom_aspect_height = ?,
         updated_at = unixepoch()
     WHERE id = ?
-  `).run(
+  `
+  ).run(
     title,
     JSON.stringify(sections || []),
     defaultBackgroundId ?? default_background_id ?? null,
@@ -78,28 +80,30 @@ function updatePresentation(
     customAspectWidth ?? custom_aspect_width ?? null,
     customAspectHeight ?? custom_aspect_height ?? null,
     id
-  )
-  return getPresentation(db, id)
+  );
+  return getPresentation(db, id);
 }
 
 function touchPresentation(db, id) {
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE presentations
     SET updated_at = unixepoch()
     WHERE id = ?
-  `).run(id)
-  return getPresentation(db, id)
+  `
+  ).run(id);
+  return getPresentation(db, id);
 }
 
 function deletePresentation(db, id) {
-  db.prepare('DELETE FROM presentations WHERE id = ?').run(id)
+  db.prepare('DELETE FROM presentations WHERE id = ?').run(id);
 }
 
 function parse(row) {
-  const defaultBackgroundId = row.default_background_id ?? null
-  const aspectRatio = row.aspect_ratio || '16:9'
-  const customAspectWidth = row.custom_aspect_width ?? null
-  const customAspectHeight = row.custom_aspect_height ?? null
+  const defaultBackgroundId = row.default_background_id ?? null;
+  const aspectRatio = row.aspect_ratio || '16:9';
+  const customAspectWidth = row.custom_aspect_width ?? null;
+  const customAspectHeight = row.custom_aspect_height ?? null;
   return {
     ...row,
     sections: JSON.parse(row.sections || '[]'),
@@ -107,7 +111,14 @@ function parse(row) {
     aspectRatio,
     customAspectWidth,
     customAspectHeight,
-  }
+  };
 }
 
-module.exports = { getPresentations, getPresentation, createPresentation, updatePresentation, touchPresentation, deletePresentation }
+module.exports = {
+  getPresentations,
+  getPresentation,
+  createPresentation,
+  updatePresentation,
+  touchPresentation,
+  deletePresentation,
+};

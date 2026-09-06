@@ -1,64 +1,71 @@
-import React, { useState } from 'react'
-import { ChevronRight, ChevronDown, Plus, Image } from 'lucide-react'
-import { useEditorStore } from '@/store/editorStore'
-import ContextMenu from '@/components/shared/ContextMenu'
-import { getSectionTypeLabel } from '@/utils/sectionTypes'
-import { promptDialog } from '@/utils/dialog'
+import React, { useState } from 'react';
+import { ChevronRight, ChevronDown, Plus, Image } from 'lucide-react';
+import { useEditorStore } from '@/store/editorStore';
+import ContextMenu from '@/components/shared/ContextMenu';
+import { getSectionTypeLabel } from '@/utils/sectionTypes';
+import { promptDialog } from '@/utils/dialog';
 
-export default function SectionHeader({ section, collapsed, onToggle, onAddSlide, onRemove, onEditSong }) {
-  const [menu, setMenu] = useState(null)
-  const updateSectionMeta = useEditorStore((s) => s.updateSectionMeta)
+export default function SectionHeader({
+  section,
+  collapsed,
+  onToggle,
+  onAddSlide,
+  onRemove,
+  onEditSong,
+}) {
+  const [menu, setMenu] = useState(null);
+  const updateSectionMeta = useEditorStore((s) => s.updateSectionMeta);
 
   function handleContextMenu(e) {
-    e.preventDefault()
-    setMenu({ x: e.clientX, y: e.clientY })
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY });
   }
 
   async function handleEditSection() {
-    const title = await promptDialog(
-      'Section title:',
-      section.title,
-      {
-        title: section.type === 'announcement'
+    const title = await promptDialog('Section title:', section.title, {
+      title:
+        section.type === 'announcement'
           ? 'Rename Announcements'
           : section.type === 'sermon'
             ? 'Rename Sermon'
             : 'Rename Section',
-        confirmLabel: 'Rename',
-      }
-    )
-    if (!title) return
-    updateSectionMeta(section.id, { title })
+      confirmLabel: 'Rename',
+    });
+    if (!title) return;
+    updateSectionMeta(section.id, { title });
   }
 
-  const menuItems = section.type === 'song'
-    ? [
-        { label: 'Edit Song', onClick: onEditSong, disabled: !onEditSong },
-        { divider: true },
-        { label: 'Remove Song', danger: true, onClick: onRemove },
-      ]
-    : [
-        {
-          label: section.type === 'announcement'
-            ? 'Rename Announcements'
-            : section.type === 'sermon'
-              ? 'Rename Sermon'
-              : 'Rename Section',
-          onClick: handleEditSection,
-        },
-        { divider: true },
-        { label: 'Add Slide', onClick: onAddSlide },
-        { divider: true },
-        {
-          label: section.type === 'announcement'
-            ? 'Remove Announcements'
-            : section.type === 'sermon'
-              ? 'Remove Sermon'
-              : 'Remove Section',
-          danger: true,
-          onClick: onRemove,
-        },
-      ]
+  const menuItems =
+    section.type === 'song'
+      ? [
+          { label: 'Edit Song', onClick: onEditSong, disabled: !onEditSong },
+          { divider: true },
+          { label: 'Remove Song', danger: true, onClick: onRemove },
+        ]
+      : [
+          {
+            label:
+              section.type === 'announcement'
+                ? 'Rename Announcements'
+                : section.type === 'sermon'
+                  ? 'Rename Sermon'
+                  : 'Rename Section',
+            onClick: handleEditSection,
+          },
+          { divider: true },
+          { label: 'Add Slide', onClick: onAddSlide },
+          { divider: true },
+          {
+            label:
+              section.type === 'announcement'
+                ? 'Remove Announcements'
+                : section.type === 'sermon'
+                  ? 'Remove Sermon'
+                  : 'Remove Section',
+            danger: true,
+            onClick: onRemove,
+          },
+        ];
 
   return (
     <>
@@ -116,12 +123,12 @@ export default function SectionHeader({ section, collapsed, onToggle, onAddSlide
           style={{ color: 'var(--text-tertiary)' }}
           title="Add slide to this section"
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--bg-hover)'
-            e.currentTarget.style.color = 'var(--text-primary)'
+            e.currentTarget.style.background = 'var(--bg-hover)';
+            e.currentTarget.style.color = 'var(--text-primary)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.color = 'var(--text-tertiary)'
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--text-tertiary)';
           }}
         >
           <Plus size={11} />
@@ -129,13 +136,8 @@ export default function SectionHeader({ section, collapsed, onToggle, onAddSlide
       </div>
 
       {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          items={menuItems}
-          onClose={() => setMenu(null)}
-        />
+        <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
       )}
     </>
-  )
+  );
 }
