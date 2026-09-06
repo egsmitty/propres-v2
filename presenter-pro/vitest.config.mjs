@@ -23,7 +23,8 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./vitest.setup.mjs'],
     include: ['{src,electron,shared}/**/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}'],
-    exclude: ['node_modules', 'out', 'dist', 'release', 'e2e'],
+    // `* 2.*`: macOS/iCloud sync duplicates; they must never run as tests.
+    exclude: ['node_modules', 'out', 'dist', 'release', 'e2e', '**/* 2', '**/* 2.*'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

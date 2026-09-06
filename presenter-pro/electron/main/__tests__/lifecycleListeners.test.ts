@@ -35,6 +35,14 @@ const REQUIRED_APP_LISTENERS: ReadonlyArray<{ event: string; why: string }> = [
     event: 'activate',
     why: 'recreates the window when the dock icon is clicked on macOS',
   },
+  {
+    event: 'second-instance',
+    why: 'a second copy launched mid-service must focus the running one, not open a second editor on the same database (plan C1)',
+  },
+  {
+    event: 'child-process-gone',
+    why: 'a GPU or utility process crash is otherwise invisible; it must at least be logged with its reason (plan C1)',
+  },
 ];
 
 const REQUIRED_WEBCONTENTS_LISTENERS: ReadonlyArray<{ event: string; why: string }> = [
@@ -69,6 +77,32 @@ describe('main process lifecycle wiring', () => {
     for (const flag of ['allowMainWindowClose', 'appIsQuitting', 'mainWindowCloseRequestPending']) {
       expect(MAIN_SOURCE).not.toContain(flag);
     }
+  });
+});
+
+describe('single instance (plan C1)', () => {
+  it('requests the single-instance lock and quits when another copy holds it', () => {
+    expect(MAIN_SOURCE).toMatch(/app\.requestSingleInstanceLock\(\)/);
+    // The denied branch must quit — never fall through to whenReady.
+    expect(MAIN_SOURCE).toMatch(/if \(!gotSingleInstanceLock\) \{\s*app\.quit\(\);/);
+  });
+});
+
+describe('preview window robustness (plan C1)', () => {
+  it('watches render-process-gone on all three windows: main, output, stage', () => {
+    const count = (MAIN_SOURCE.match(/webContents\.on\('render-process-gone'/g) ?? []).length;
+    expect(count).toBe(3);
+  });
+
+  it('reloads a crashed output or stage renderer instead of leaving the projector blank', () => {
+    expect(MAIN_SOURCE).toMatch(/function recoverPreviewRenderer/);
+    expect((MAIN_SOURCE.match(/recoverPreviewRenderer\(/g) ?? []).length).toBeGreaterThanOrEqual(3); // definition + 2 uses
+  });
+});
+
+describe('source hygiene', () => {
+  it('contains no replacement characters (a mojibake comment shipped in the close handler)', () => {
+    expect(MAIN_SOURCE).not.toContain('\uFFFD');
   });
 });
 

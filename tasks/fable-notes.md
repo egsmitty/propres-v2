@@ -521,3 +521,29 @@ ratchet and belongs with the domain models, not the transport.
 `import`, not `require`, for local modules — electron-vite leaves CommonJS
 requires external and the packaged app then has no `electronAPI` at all. I hit
 this; E2E caught it (8/16 red); fixed and verified in the packaged app.
+
+### 2026-09-06 — C1 (process lifecycle) implemented
+
+`tasks/plan-C1-lifecycle-robustness.md`. What changed for a live service:
+
+- **Only one copy can run per profile.** A second double-click now focuses the
+  running app and exits, instead of opening a second editor on the same
+  SQLite file. E2E-proven (second instance exits 0 within 15 s; the first
+  keeps its window).
+- **A crashed projector recovers itself.** If the output or stage renderer
+  dies, main reloads it and re-sends the live slide when it says ready. Before
+  this the output window went blank until someone stopped and restarted.
+  E2E-proven with a forced renderer crash.
+- **Side discovery, fixed:** re-opening the output window mid-session also
+  came up blank until the next slide advance — same re-sync fixes it.
+- GPU/utility crashes are now logged with their reason; a mojibake comment
+  that shipped in the close handler is fixed.
+
+**The presenting-flow E2E gap from S1 is closed** (open output windowed →
+two windows → stop → one).
+
+**Housekeeping you should know about:** this Desktop folder is iCloud-synced
+and it produced "name 2.ext" duplicates of three brand-new test files while I
+worked. Vitest and ESLint now ignore that pattern; prettier's rule for it was
+silently inert (POSIX class) and is now a plain glob. If you ever see a
+"… 2.ts" file in git status, delete it — it is never a source of truth.
