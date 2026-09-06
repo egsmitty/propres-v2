@@ -184,3 +184,117 @@ teardown fix (8.8–9.2s each). Gate 129/129 (124 + 4 renderer-loading guards +
   Playwright output is not format-checked). Both should have been listed.
 - *E2E is a separate workflow (`e2e.yml`), not in `PR Gate`*, per pitfall 5.
   Promote it once it has a green streak on CI.
+### 2026-09-06 — A1 (versioned migrations) implemented
+
+- **Backup uses `VACUUM INTO`, not `db.backup()`.** My own proofread (A1-2)
+  chose `db.backup()`; it is async, which would force `runMigrations` async and
+  a change to `electron/main/index.js` outside A1's blast radius. `VACUUM INTO`
+  is synchronous and consistent under WAL (it reads through a normal
+  transaction). Same guarantee, no startup-sequence change. Recorded here
+  because it contradicts the amended plan text.
+- **The plan says six tables; there are five** (songs, media, media_folders,
+  presentations, settings). The proofread missed it. Migration 1 has five.
+- **A test of mine was wrong, not the code.** The "ascending order" runner spec
+  passed a misordered list `[m2, m1]`; `assertMigrationsWellFormed` rejects
+  that by design. Fixed the input, kept the assertion — the applied order and
+  full call sequence are what is under test.
+- **I hand-computed a unix timestamp wrong** in a test expectation. Now derived
+  from the same fixed `Date`. Lesson for the rules file: never hand-compute
+  values in assertions when they can be derived from the fixture.
+- **`eslint-suppressions.json` had to be pruned** (71 → 61): the ten
+  `no-empty` suppressions became unused and ESLint 9 treats unused suppressions
+  as an error. The amended plan listed that file as do-not-touch, which is
+  wrong whenever a plan fixes suppressed violations — pruning is the documented
+  workflow. Deviation reported.
+- **Backup filenames avoid colons** (`20260906T153000Z`) so they are valid on
+  Windows. Given the `dist:win` history, this codebase's Windows blind spots
+  are worth assuming everywhere paths are built.
+
+### 2026-09-06 — A1 verified against real databases (copies)
+
+Made the plan's "existing database" manual check mechanical:
+`e2e/tools/verify-legacy-db.mjs <db>` copies a database into a throwaway
+profile, launches the BUILT app there, and diffs row counts before/after.
+Ethan can run it on any installation before upgrading. Results on this
+machine, both against copies:
+
+| Database | Before | After | Migration | Backup |
+|---|---|---|---|---|
+| `PresenterPro/` (packaged app, 640K) | 47 presentations · 7 songs · 15 media | identical | v1 recorded | 1 written |
+| `presenter-pro/` (older dev build, 28K) | 2 · 3 · 3, **no `media_folders` table, 8 columns missing** | identical; table created, all 8 columns added by inspection | v1 recorded | 1 written |
+
+The second one is exactly the case the proofread's A1-1 fix exists for: the
+original "baseline and skip" design would have recorded that database as
+fully migrated and left `media_folders` and eight columns missing.
+
+Also observed, and I got it wrong once before checking: `seed(db)` runs after
+migrations and inserts a sample presentation and songs — but only when
+`settings.initialized` is absent. Every real database has that row, so my
+synthetic legacy fixture was *less* realistic than reality and the seeded
+sample tripped an exact-equality assertion. Fixed the fixture (it now carries
+`initialized`), not the assertion. Lesson: a synthetic fixture must reproduce
+the invariants a real installation always has, not just its schema.
+
+**A1 E2E: three wrong theories before the right one.** The legacy spec failed
+on extra rows. I blamed main's `seed()` (partly right — it is gated by
+`settings.initialized`, and the fixture lacked that row, so the fixture was
+unrealistic), then the renderer's keyed hymn seeding (right mechanism), then
+mis-read a `built_in_key` NULL that was actually a **timing** artifact: the
+renderer seeds four hymns asynchronously ~1s after the window loads, and my
+query landed mid-seeding. Dumping the actual rows at two points in time settled
+it in one run. Lesson recorded: when an assertion fails on data the app wrote,
+dump the rows before theorizing. Filtering to `built_in_key IS NULL` makes the
+user-data assertion independent of that race. Reading the seeder also surfaced
+phase7 #14 (it can overwrite/delete a user's hymn-titled song) — not fixed
+under A1; needs a decision.
+
+**A1: the E2E improved the design.** The legacy-database spec asserted the
+backup has no `schema_migrations` table — and it did, empty, because the runner
+created the tracking table before backing up. A backup should be the database
+*untouched*. Reordered: detect the table via `sqlite_master`, read applied
+versions only if present, back up, *then* create the table; a fully-applied
+database now sees zero writes on launch. The unit tests changed to describe
+that stricter contract — a deliberate behaviour change, stated as such. This
+is the pattern the charter asks for: a mechanical check found a flaw no reading
+would have.
+
+### 2026-09-06 — Dependabot's first sweep (10 PRs, triage)
+
+Dependabot ran immediately on config creation. All PRs run the full gate, so
+nothing merges unverified. Recommended dispositions, for Ethan:
+
+| PR | Update | Disposition | Why |
+|---|---|---|---|
+| #24 | npm minor+patch group | **merge when green** | that is the point of grouping |
+| #19–#23 | GitHub Actions majors (checkout, setup-node, upload/download-artifact, gh-release) | **merge when green, one at a time** | action majors are usually runtime-only (Node 20 → 24); the gate proves each |
+| #28 | typescript 5.9 → 7.0 | **hold — add to `ignore` as a recorded decision** | TS 7 is outside `typescript-eslint`'s supported range (`<6.1`) and removed `baseUrl`; this exact version was deliberately pinned away from during Phase 6 |
+| #25 | @electron/rebuild 3 → 4 | **hold until Node 22** | requires Node ≥22.12; `.nvmrc` pins 20 (see R2) |
+| #26 | electron-vite 2 → 5 | **hold — needs its own plan** | three majors at once across the build toolchain; couple it with the Electron upgrade (R1) |
+| #27 | @commitlint/config-conventional 20 → 21 | merge when green | low risk; hooks are local |
+
+`ignore` entries for #28 and #25 are the *recorded-decision* path the
+dependabot.yml comment describes — not pre-emptive pinning. Filed as a small
+follow-up PR rather than mixed into A1.
+
+**Two process findings from the first Dependabot sweep.**
+
+1. *Every Dependabot PR fails `npm ci`* with "package.json and package-lock.json
+   are not in sync — Missing: esbuild@0.28.2 … @esbuild/<platform>". Dependabot's
+   lockfile regeneration is dropping esbuild's optional platform packages, so
+   its PRs cannot pass the gate as opened. This is Dependabot's lock, not ours
+   (our lock installs cleanly on macOS, Windows, and Linux CI). Workaround per
+   PR: check out the branch, run `npm install`, push the corrected lock. Worth
+   an upstream look before relying on grouped auto-updates. Recorded rather
+   than fixed — outside every plan's blast radius.
+2. *`git check-ignore` does not report tracked files.* I misread "NOT matched"
+   as a broken rule; the rule was fine. The artifact got tracked because the A1
+   branch was cut from `main` before P2's ignore rules existed there, and a
+   `git add -A` swept it in. Untracked now; cannot recur once branches are cut
+   from current `main`. Lesson: cut branches from freshly fetched `main`, and
+   never `git add -A` — add paths.
+
+**lint-staged had a gap.** Its globs covered `js,jsx,ts,tsx` but not `.mjs`/`.cjs`,
+so `e2e/tools/verify-legacy-db.mjs` was committed unformatted and CI's
+`format:check` (which covers everything) went red. Globs now include `mjs`,
+`cjs`, `yml`, `yaml`. The pre-commit hook and the CI check must cover the same
+set, or the hook silently lies.

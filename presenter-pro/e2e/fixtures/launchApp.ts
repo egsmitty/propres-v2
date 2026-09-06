@@ -52,7 +52,17 @@ function realpath(p: string): string {
  * userData anywhere outside the OS temp dir. That guard exists so a future
  * refactor cannot silently drop the flag.
  */
-export async function launchApp(): Promise<LaunchedApp> {
+export interface LaunchOptions {
+  /**
+   * Reuse an existing throwaway profile (e.g. to relaunch and prove a second
+   * start is a no-op). Must be under the OS temp dir — enforced.
+   */
+  userDataDir?: string;
+  /** Seed the profile before launch — e.g. write a legacy database into it. */
+  prepareUserData?: (userDataDir: string) => void;
+}
+
+export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedApp> {
   if (!fs.existsSync(MAIN_ENTRY)) {
     throw new Error(
       `Built main entry not found at ${MAIN_ENTRY}. Run \`npm run build\` first ` +
@@ -60,7 +70,13 @@ export async function launchApp(): Promise<LaunchedApp> {
     );
   }
 
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ppro-e2e-'));
+  const userDataDir = options.userDataDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'ppro-e2e-'));
+  if (!realpath(userDataDir).startsWith(realpath(os.tmpdir()))) {
+    throw new Error(
+      `REFUSING TO LAUNCH: userDataDir "${userDataDir}" is not under the OS temp dir.`
+    );
+  }
+  options.prepareUserData?.(userDataDir);
 
   // Never inherit a dev-server URL from the shell: the app must load the
   // BUILT renderer, or we are not testing what ships.
@@ -186,7 +202,12 @@ function waitForExit(proc: ChildProcess, ms: number): Promise<void> {
  * This function does not return until the process is actually gone, so the
  * next launch never overlaps a dying predecessor.
  */
-export async function closeApp(launched: LaunchedApp): Promise<void> {
+export interface CloseOptions {
+  /** Leave the profile on disk so a spec can relaunch against it. */
+  keepUserData?: boolean;
+}
+
+export async function closeApp(launched: LaunchedApp, options: CloseOptions = {}): Promise<void> {
   const proc = launched.process; // NOT app.process() — see LaunchedApp.process
   const alive = () => proc.exitCode === null && proc.signalCode === null;
 
@@ -202,7 +223,7 @@ export async function closeApp(launched: LaunchedApp): Promise<void> {
       }
     }
   } finally {
-    fs.rmSync(launched.userDataDir, { recursive: true, force: true });
+    if (!options.keepUserData) fs.rmSync(launched.userDataDir, { recursive: true, force: true });
   }
 }
 
