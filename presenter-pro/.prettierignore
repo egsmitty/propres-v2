@@ -14,3 +14,7 @@ eslint-suppressions.json
 coverage*/
 *[[:space:]]2
 *[[:space:]]2.*
+
+# Playwright output
+playwright-report/
+test-results/
