@@ -45,8 +45,8 @@ function createFakeDb() {
 const migrations = MIGRATIONS as Migration[];
 
 describe('MIGRATIONS list', () => {
-  it('is exactly versions 1, 2, 3 and well-formed', () => {
-    expect(migrations.map((m) => m.version)).toEqual([1, 2, 3]);
+  it('is exactly versions 1, 2, 3, 4 and well-formed', () => {
+    expect(migrations.map((m) => m.version)).toEqual([1, 2, 3, 4]);
     expect(() => assertMigrationsWellFormed(migrations)).not.toThrow();
   });
 
@@ -83,5 +83,43 @@ describe('migration 3 — claim legacy built-in hymns', () => {
       expect(sql).toContain('NOT EXISTS (SELECT 1 FROM songs WHERE built_in_key = ?)');
       expect(sql).not.toMatch(/DELETE|DROP|INSERT/i);
     }
+  });
+});
+
+describe('migration 4 — built_in_revision column', () => {
+  function fakeWithColumns(columns: string[]) {
+    const execs: string[] = [];
+    const db = {
+      exec(sql: string) {
+        execs.push(normalize(sql));
+      },
+      prepare() {
+        return {
+          all: () => columns.map((name) => ({ name })),
+          run: () => undefined,
+          get: () => undefined,
+        };
+      },
+      transaction<T>(fn: () => T) {
+        return () => fn();
+      },
+    };
+    return { db, execs };
+  }
+
+  it('is named built-in-revision', () => {
+    expect(migrations[3]?.name).toBe('built-in-revision');
+  });
+
+  it('adds songs.built_in_revision when absent — by inspection, not exception', () => {
+    const { db, execs } = fakeWithColumns(['id', 'title']);
+    migrations[3]!.up(db as never);
+    expect(execs).toEqual(['ALTER TABLE songs ADD COLUMN built_in_revision TEXT']);
+  });
+
+  it('does nothing when the column already exists', () => {
+    const { db, execs } = fakeWithColumns(['id', 'title', 'built_in_revision']);
+    migrations[3]!.up(db as never);
+    expect(execs).toEqual([]);
   });
 });

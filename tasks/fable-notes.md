@@ -15,14 +15,14 @@ factual error that would have produced a wrong or fragile implementation.
 ### Plan A1 — versioned migrations
 
 **A1-1. The baseline design had a data hole.** The plan said: if
-`schema_migrations` is absent and legacy tables exist, *record* every migration
-as applied *without executing it*. That assumes every existing database already
+`schema_migrations` is absent and legacy tables exist, _record_ every migration
+as applied _without executing it_. That assumes every existing database already
 has every column. It only does if it was launched by a build that ran the
 current ten `ALTER TABLE`s. A user who skipped a version would be baselined
 past columns they do not have, and the first query touching one would crash.
-**Fix:** migration 1 is *idempotent by inspection* — it checks
+**Fix:** migration 1 is _idempotent by inspection_ — it checks
 `PRAGMA table_info` before each `ADD COLUMN` and `sqlite_master` before each
-`CREATE` — and is simply *run* on every database, legacy or fresh. No skip
+`CREATE` — and is simply _run_ on every database, legacy or fresh. No skip
 path exists, so there is nothing to get wrong. Simpler and safer.
 
 **A1-2. File-copy backup is unsafe under WAL.** The database is opened with
@@ -40,10 +40,10 @@ runner takes a minimal DB interface (`exec`, `prepare`, `transaction`,
 sequence and that a failing statement rolls back and records nothing.
 
 **A1-4. The native-module premise was right for the wrong reason, and is
-fragile.** `require('better-sqlite3')` *succeeds* under Node 20 here — only
+fragile.** `require('better-sqlite3')` _succeeds_ under Node 20 here — only
 `new Database()` fails, because the binary is built for Electron's ABI (121 vs
 Node's 115). In CI the gate installs with `--ignore-scripts`, which leaves the
-*Node* prebuilt in place, so the same test would pass there and fail locally
+_Node_ prebuilt in place, so the same test would pass there and fail locally
 after any full `npm install`. Tests must not depend on either state. The
 injected-interface design above is what makes that true.
 
@@ -51,7 +51,7 @@ injected-interface design above is what makes that true.
 
 **P1-1. The Dependabot/commitlint claim was wrong.** The plan said Dependabot's
 PRs would fail the `commit-msg` hook without a `chore` prefix. Husky hooks run
-*locally* on the committing machine; Dependabot commits on GitHub, where no
+_locally_ on the committing machine; Dependabot commits on GitHub, where no
 hook runs. The prefix is still worth setting for a clean conventional history —
 but it is not a blocker and the plan overstated it. Corrected in the plan.
 
@@ -100,7 +100,7 @@ These are opinions. None are actioned without Ethan's say-so.
 **R1. Electron 29 is end-of-life.** Electron supports the three most recent
 majors; 29 shipped in early 2024 and stopped receiving security fixes long ago.
 Chromium CVEs land constantly. For an app that loads local media files, this
-is the single largest *security* debt in the project, ahead of anything in the
+is the single largest _security_ debt in the project, ahead of anything in the
 lint backlog. Dependabot (P1) will surface the upgrade; it will be a major PR
 with real breakage risk and deserves its own plan. I would schedule it before
 Workstream E.
@@ -114,14 +114,14 @@ current tooling. Best done together with R1.
 consequence and I agree with it more strongly: continuous autosave to the real
 record removes the ability to abandon a bad edit, and this app's users are
 volunteers editing under time pressure. A crash-recovery journal alone
-eliminates the data-loss risk *without* changing what Save means. Autosave can
+eliminates the data-loss risk _without_ changing what Save means. Autosave can
 follow once undo history is persistent. This is a product call, so it is
 recorded here rather than changed.
 
 **R4. Test count is becoming a vanity metric.** 124 "tests" includes ~20 from
 `it.each` over every npm script — one assertion, twenty rows. That is fine as a
 guard, but "N tests passing" should not be read as N units of confidence.
-Coverage percentage and *which paths* are covered are the honest numbers.
+Coverage percentage and _which paths_ are covered are the honest numbers.
 
 **R5. `enforce_admins` should have been on from the start.** Protection that
 the owner silently bypasses is theater; the earlier direct push to `main`
@@ -149,41 +149,42 @@ PR #17.
 teardown fix (8.8–9.2s each). Gate 129/129 (124 + 4 renderer-loading guards +
 1 script-table row). Things worth knowing:
 
-- *The dev-server hardcoding was real and blocked every launch*, exactly as the
+- _The dev-server hardcoding was real and blocked every launch_, exactly as the
   proofread predicted. Fixed with `ELECTRON_RENDERER_URL` at all three load
   sites; the guard test failed first (2/4) and passes after (4/4). `npm run
-  preview` now works too.
-- *`--user-data-dir` is honored by Electron* — the isolation check passed on
+preview` now works too.
+- _`--user-data-dir` is honored by Electron_ — the isolation check passed on
   every launch. I made the check honest in code: it is detection, not
   prevention, because the app opens SQLite during `ready` before any evaluate
   can run. The switch is the prevention; the check makes a regression loud.
-- *Playwright's `app.close()` is the wrong teardown for this app.* It requests a
+- _Playwright's `app.close()` is the wrong teardown for this app._ It requests a
   graceful quit, which correctly runs the unsaved-changes handshake and blocks
   on the dialog — so a spec that leaves a document unsaved hangs teardown for
   60s and poisons the worker. Electron's `app.exit(0)` (immediate, skips
   `before-quit`, closes windows without asking) is the right tool; SIGKILL only
   as a last resort because it leaves helper processes lingering. This also cut
   suite time from ~24s to ~9s.
-- *Never call `app.process()` after the app may have exited* — Playwright
+- _Never call `app.process()` after the app may have exited_ — Playwright
   disposes its wrapper and the accessor throws an internal TypeError, which made
   a **successful** quit look like a failed test. The child process is captured
   at launch instead. The quit spec now waits on the real OS `exit` event and
   asserts exit code 0.
-- *One cold-start `firstWindow` timeout* was observed on a worker's first launch
+- _One cold-start `firstWindow` timeout_ was observed on a worker's first launch
   with empty stdout/stderr — a slow start, not an error. First-window allowance
   raised to 60s (test timeout 90s). Zero recurrences in five runs; if it
   returns on CI, investigate macOS Gatekeeper on freshly built binaries before
   raising it further.
-- *Added one spec beyond the plan*: "Cancel on a quit keeps the app running".
+- _Added one spec beyond the plan_: "Cancel on a quit keeps the app running".
   It exercises the deferred-quit path (`before-quit` → handshake → Cancel must
-  cancel the *quit*, not just the window close), which is the newest and least
+  cancel the _quit_, not just the window close), which is the newest and least
   exercised code in the lifecycle fix. Cheap, and it passes.
-- *Blast-radius deviations, reported per the plan*: `package-lock.json`
+- _Blast-radius deviations, reported per the plan_: `package-lock.json`
   (dependency install — unavoidable), `.prettierignore` and `tsconfig.json`
   (not in the table; needed so E2E files are type-checked in the gate and
   Playwright output is not format-checked). Both should have been listed.
-- *E2E is a separate workflow (`e2e.yml`), not in `PR Gate`*, per pitfall 5.
+- _E2E is a separate workflow (`e2e.yml`), not in `PR Gate`_, per pitfall 5.
   Promote it once it has a green streak on CI.
+
 ### 2026-09-06 — A1 (versioned migrations) implemented
 
 - **Backup uses `VACUUM INTO`, not `db.backup()`.** My own proofread (A1-2)
@@ -218,9 +219,9 @@ profile, launches the BUILT app there, and diffs row counts before/after.
 Ethan can run it on any installation before upgrading. Results on this
 machine, both against copies:
 
-| Database | Before | After | Migration | Backup |
-|---|---|---|---|---|
-| `PresenterPro/` (packaged app, 640K) | 47 presentations · 7 songs · 15 media | identical | v1 recorded | 1 written |
+| Database                                | Before                                                     | After                                                       | Migration   | Backup    |
+| --------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------- | ----------- | --------- |
+| `PresenterPro/` (packaged app, 640K)    | 47 presentations · 7 songs · 15 media                      | identical                                                   | v1 recorded | 1 written |
 | `presenter-pro/` (older dev build, 28K) | 2 · 3 · 3, **no `media_folders` table, 8 columns missing** | identical; table created, all 8 columns added by inspection | v1 recorded | 1 written |
 
 The second one is exactly the case the proofread's A1-1 fix exists for: the
@@ -230,7 +231,7 @@ fully migrated and left `media_folders` and eight columns missing.
 Also observed, and I got it wrong once before checking: `seed(db)` runs after
 migrations and inserts a sample presentation and songs — but only when
 `settings.initialized` is absent. Every real database has that row, so my
-synthetic legacy fixture was *less* realistic than reality and the seeded
+synthetic legacy fixture was _less_ realistic than reality and the seeded
 sample tripped an exact-equality assertion. Fixed the fixture (it now carries
 `initialized`), not the assertion. Lesson: a synthetic fixture must reproduce
 the invariants a real installation always has, not just its schema.
@@ -251,8 +252,8 @@ under A1; needs a decision.
 **A1: the E2E improved the design.** The legacy-database spec asserted the
 backup has no `schema_migrations` table — and it did, empty, because the runner
 created the tracking table before backing up. A backup should be the database
-*untouched*. Reordered: detect the table via `sqlite_master`, read applied
-versions only if present, back up, *then* create the table; a fully-applied
+_untouched_. Reordered: detect the table via `sqlite_master`, read applied
+versions only if present, back up, _then_ create the table; a fully-applied
 database now sees zero writes on launch. The unit tests changed to describe
 that stricter contract — a deliberate behaviour change, stated as such. This
 is the pattern the charter asks for: a mechanical check found a flaw no reading
@@ -263,22 +264,22 @@ would have.
 Dependabot ran immediately on config creation. All PRs run the full gate, so
 nothing merges unverified. Recommended dispositions, for Ethan:
 
-| PR | Update | Disposition | Why |
-|---|---|---|---|
-| #24 | npm minor+patch group | **merge when green** | that is the point of grouping |
-| #19–#23 | GitHub Actions majors (checkout, setup-node, upload/download-artifact, gh-release) | **merge when green, one at a time** | action majors are usually runtime-only (Node 20 → 24); the gate proves each |
-| #28 | typescript 5.9 → 7.0 | **hold — add to `ignore` as a recorded decision** | TS 7 is outside `typescript-eslint`'s supported range (`<6.1`) and removed `baseUrl`; this exact version was deliberately pinned away from during Phase 6 |
-| #25 | @electron/rebuild 3 → 4 | **hold until Node 22** | requires Node ≥22.12; `.nvmrc` pins 20 (see R2) |
-| #26 | electron-vite 2 → 5 | **hold — needs its own plan** | three majors at once across the build toolchain; couple it with the Electron upgrade (R1) |
-| #27 | @commitlint/config-conventional 20 → 21 | merge when green | low risk; hooks are local |
+| PR      | Update                                                                             | Disposition                                       | Why                                                                                                                                                       |
+| ------- | ---------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #24     | npm minor+patch group                                                              | **merge when green**                              | that is the point of grouping                                                                                                                             |
+| #19–#23 | GitHub Actions majors (checkout, setup-node, upload/download-artifact, gh-release) | **merge when green, one at a time**               | action majors are usually runtime-only (Node 20 → 24); the gate proves each                                                                               |
+| #28     | typescript 5.9 → 7.0                                                               | **hold — add to `ignore` as a recorded decision** | TS 7 is outside `typescript-eslint`'s supported range (`<6.1`) and removed `baseUrl`; this exact version was deliberately pinned away from during Phase 6 |
+| #25     | @electron/rebuild 3 → 4                                                            | **hold until Node 22**                            | requires Node ≥22.12; `.nvmrc` pins 20 (see R2)                                                                                                           |
+| #26     | electron-vite 2 → 5                                                                | **hold — needs its own plan**                     | three majors at once across the build toolchain; couple it with the Electron upgrade (R1)                                                                 |
+| #27     | @commitlint/config-conventional 20 → 21                                            | merge when green                                  | low risk; hooks are local                                                                                                                                 |
 
-`ignore` entries for #28 and #25 are the *recorded-decision* path the
+`ignore` entries for #28 and #25 are the _recorded-decision_ path the
 dependabot.yml comment describes — not pre-emptive pinning. Filed as a small
 follow-up PR rather than mixed into A1.
 
 **Two process findings from the first Dependabot sweep.**
 
-1. *Every Dependabot PR fails `npm ci`* with "package.json and package-lock.json
+1. _Every Dependabot PR fails `npm ci`_ with "package.json and package-lock.json
    are not in sync — Missing: esbuild@0.28.2 … @esbuild/<platform>". Dependabot's
    lockfile regeneration is dropping esbuild's optional platform packages, so
    its PRs cannot pass the gate as opened. This is Dependabot's lock, not ours
@@ -286,7 +287,7 @@ follow-up PR rather than mixed into A1.
    PR: check out the branch, run `npm install`, push the corrected lock. Worth
    an upstream look before relying on grouped auto-updates. Recorded rather
    than fixed — outside every plan's blast radius.
-2. *`git check-ignore` does not report tracked files.* I misread "NOT matched"
+2. _`git check-ignore` does not report tracked files._ I misread "NOT matched"
    as a broken rule; the rule was fine. The artifact got tracked because the A1
    branch was cut from `main` before P2's ignore rules existed there, and a
    `git add -A` swept it in. Untracked now; cannot recur once branches are cut
@@ -301,12 +302,12 @@ set, or the hook silently lies.
 
 ## 5. Decisions from Ethan (2026-09-06, via the questions modal)
 
-| Question | Decision | Consequence |
-|---|---|---|
-| A2 model | **Journal first.** Save keeps its meaning; a crash-recovery journal eliminates data loss; autosave waits for persistent undo history. | Plan A2 = recovery journal only. R3 accepted. |
-| Electron 29 EOL | **Plan it next, after A2.** Electron → current, Node 20 → 22, then @electron/rebuild 4 / electron-vite 5. | Becomes plan U1, sequenced after A2, run behind the E2E harness. |
-| Seeder (phase7 #14) | **Match by `built_in_key` only, never delete.** Title matching becomes a one-time versioned data migration. | Becomes plan A3 — and it is also the first *data* migration (migration 2), which exercises A1 for real. |
-| Dependabot | **Fix the lock on the safe PRs** (#24, #27; the Actions bumps need only a branch update). | Done by me; see the running log. |
+| Question            | Decision                                                                                                                              | Consequence                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| A2 model            | **Journal first.** Save keeps its meaning; a crash-recovery journal eliminates data loss; autosave waits for persistent undo history. | Plan A2 = recovery journal only. R3 accepted.                                                           |
+| Electron 29 EOL     | **Plan it next, after A2.** Electron → current, Node 20 → 22, then @electron/rebuild 4 / electron-vite 5.                             | Becomes plan U1, sequenced after A2, run behind the E2E harness.                                        |
+| Seeder (phase7 #14) | **Match by `built_in_key` only, never delete.** Title matching becomes a one-time versioned data migration.                           | Becomes plan A3 — and it is also the first _data_ migration (migration 2), which exercises A1 for real. |
+| Dependabot          | **Fix the lock on the safe PRs** (#24, #27; the Actions bumps need only a branch update).                                             | Done by me; see the running log.                                                                        |
 
 ### 2026-09-06 — A2 (crash-recovery journal) implemented
 
@@ -367,7 +368,7 @@ open on purpose** as the reminder for plan U1.
 - **The verify tool had gone stale** — it hard-coded "exactly migration 1",
   which was wrong the moment migration 2 shipped. Now checks a contiguous
   1..N. A check must not know which migrations exist.
-- **Open question for Ethan, not changed:** the seeder still *refreshes* a
+- **Open question for Ethan, not changed:** the seeder still _refreshes_ a
   keyed row's content on every launch (`updateSong`, `ccli` preserved). That
   means a user who edits a built-in hymn — reorders verses, fixes a line —
   loses the edit on next launch. Same family as #14, but outside today's
@@ -375,3 +376,41 @@ open on purpose** as the reminder for plan U1.
   fixes as data migrations), or add an `edited_by_user` flag. Asking.
 - Behaviour-change edits, stated: `migrations.spec.ts` version lists `[1,2]` →
   `[1,2,3]`. Real DB copies: counts identical; migrations 1–3 recorded.
+
+### 2026-09-06 — A3b (refresh only if untouched) implemented
+
+**Your decision:** "Refresh only if untouched". Done exactly that way; plan and
+matrix in `tasks/plan-A3b-refresh-if-untouched.md`.
+
+**Two things I found while doing it — be aware of both:**
+
+1. **A real bug fixed along the way.** `updateSong` wrote `built_in_key = ?`
+   with `null` whenever a caller omitted the field. The song editor does pass
+   the key today, so you were one refactor away from: user edits a hymn → key
+   cleared → next launch the seeder re-creates it → duplicate. And nothing at
+   all would have preserved the new `built_in_revision`. Both columns are now
+   `COALESCE(?, column)` — a caller that says nothing changes nothing. That is
+   a small behaviour change in a query function and is pinned by
+   `electron/db/__tests__/songQueries.test.ts`.
+
+2. **Every fresh install ships two "Amazing Grace" songs.** The main process's
+   sample seed (`electron/main/index.js:525`) inserts an unkeyed "Amazing
+   Grace" and the renderer seeds the built-in one. My first E2E asserted
+   "exactly one Amazing Grace" and failed — on a wrong premise, not a product
+   bug, so I rewrote the assertion to something stronger (row count unchanged
+   across relaunch + exactly one row by key) rather than weakening it. I did
+   NOT touch the sample seed (outside A3b's blast radius). **Opinion:** the
+   sample songs should go entirely — the built-in hymns already give a new
+   user something to click, and a sample titled identically to a built-in is
+   pure confusion. Say the word and it is a five-line change with an E2E
+   assertion update.
+
+**Verification:** gate 197/197; E2E 16/16 twice; `npm run verify:db` on your
+real library DB (`~/Library/Application Support/PresenterPro/presenterpro.db`):
+migrations 1–4 recorded, `built_in_revision` added, 47/7/15 counts identical.
+The second DB copy I verified for A1–A3 (`presenter-pro/presenterpro.db`) no
+longer exists, so only the real one was checked this time.
+
+**What upgrading does to your existing hymns:** the rows migration 3 keyed have
+no stamp. If their text still equals the shipped hymn they get stamped on first
+launch; if you ever edited one, it is left alone forever. Nothing is deleted.
