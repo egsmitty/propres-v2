@@ -229,15 +229,40 @@ function ArrangementChip({ label, color, onRemove, onDragStart, onDragEnd }) {
   );
 }
 
+/**
+ * Everything the editor derives from `song`, computed once at mount (plan D2
+ * #11). Parents key the modal by song id, so a different song is a fresh mount.
+ */
+function buildSongEditorInitialState(song) {
+  const title = song?.title || '';
+  const artist = song?.artist || '';
+  const ccli = song?.ccli || '';
+  const { groups: loadedGroups, arrangement } = getSongGroupsAndArrangement(song);
+  const groups = normalizeSongEditorGroups(loadedGroups);
+  const lyrics = groupsToLyrics(groups);
+  const selection = getGroupSlideSelection(groups, arrangement, null, null);
+  return {
+    title,
+    artist,
+    ccli,
+    groups,
+    arrangement,
+    lyrics,
+    selectedGroupId: selection.groupId,
+    selectedSlideId: selection.slideId,
+  };
+}
+
 export default function SongEditorModal({ song, onClose, onSave }) {
-  const [title, setTitle] = useState(song?.title || '');
-  const [artist, setArtist] = useState(song?.artist || '');
-  const [ccli, setCcli] = useState(song?.ccli || '');
-  const [lyrics, setLyrics] = useState('');
-  const [groups, setGroups] = useState([]);
-  const [arrangement, setArrangement] = useState([]);
-  const [selectedGroupId, setSelectedGroupId] = useState(null);
-  const [selectedSlideId, setSelectedSlideId] = useState(null);
+  const [initial] = useState(() => buildSongEditorInitialState(song));
+  const [title, setTitle] = useState(initial.title);
+  const [artist, setArtist] = useState(initial.artist);
+  const [ccli, setCcli] = useState(initial.ccli);
+  const [lyrics, setLyrics] = useState(initial.lyrics);
+  const [groups, setGroups] = useState(initial.groups);
+  const [arrangement, setArrangement] = useState(initial.arrangement);
+  const [selectedGroupId, setSelectedGroupId] = useState(initial.selectedGroupId);
+  const [selectedSlideId, setSelectedSlideId] = useState(initial.selectedSlideId);
   const [dragState, setDragState] = useState(null);
   const [saving, setSaving] = useState(false);
   const [lyricsFocusCount, setLyricsFocusCount] = useState(0);
@@ -246,7 +271,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   const [collapsedGroupIds, setCollapsedGroupIds] = useState([]);
   const [pendingCustomFocusGroupId, setPendingCustomFocusGroupId] = useState(null);
 
-  const initialSnapshotRef = useRef('');
+  const initialSnapshotRef = useRef(createSongEditorSnapshot(initial));
   const titleInputRef = useRef(null);
   const editingLyrics = lyricsFocusCount > 0;
 
@@ -259,57 +284,6 @@ export default function SongEditorModal({ song, onClose, onSave }) {
       )
     );
   }
-
-  useEffect(() => {
-    const nextTitle = song?.title || '';
-    const nextArtist = song?.artist || '';
-    const nextCcli = song?.ccli || '';
-    const { groups: loadedGroups, arrangement: nextArrangement } =
-      getSongGroupsAndArrangement(song);
-    const nextGroups = normalizeSongEditorGroups(loadedGroups);
-    const nextLyrics = groupsToLyrics(nextGroups);
-
-    setTitle(nextTitle);
-    setArtist(nextArtist);
-    setCcli(nextCcli);
-    setGroups(nextGroups);
-    setArrangement(nextArrangement);
-    setLyrics(nextLyrics);
-    setRawLyricsFocused(false);
-    setRawLyricsDirty(false);
-    setCollapsedGroupIds([]);
-    setPendingCustomFocusGroupId(null);
-
-    const selection = getGroupSlideSelection(nextGroups, nextArrangement, null, null);
-    setSelectedGroupId(selection.groupId);
-    setSelectedSlideId(selection.slideId);
-
-    initialSnapshotRef.current = createSongEditorSnapshot({
-      title: nextTitle,
-      artist: nextArtist,
-      ccli: nextCcli,
-      lyrics: nextLyrics,
-      groups: nextGroups,
-      arrangement: nextArrangement,
-    });
-  }, [song]);
-
-  useEffect(() => {
-    setCollapsedGroupIds((current) =>
-      current.filter((groupId) => groups.some((group) => group.id === groupId))
-    );
-  }, [groups]);
-
-  useEffect(() => {
-    if (rawLyricsFocused || rawLyricsDirty) return;
-    setLyrics(groupsToLyrics(groups));
-  }, [groups, rawLyricsDirty, rawLyricsFocused]);
-
-  useEffect(() => {
-    const selection = getGroupSlideSelection(groups, arrangement, selectedGroupId, selectedSlideId);
-    if (selection.groupId !== selectedGroupId) setSelectedGroupId(selection.groupId);
-    if (selection.slideId !== selectedSlideId) setSelectedSlideId(selection.slideId);
-  }, [arrangement, groups, selectedGroupId, selectedSlideId]);
 
   useEffect(() => {
     if (!pendingCustomFocusGroupId) return undefined;
@@ -330,12 +304,28 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   );
   const selectedGroup = selection.group;
   const selectedSlide = selection.slide;
+  // Derived, not synced (plan D2 #12/#13): the textarea mirrors the groups
+  // until the user edits it; collapsed ids only count while their group exists.
+  const lyricsShown = useMemo(
+    () => (rawLyricsFocused || rawLyricsDirty ? lyrics : groupsToLyrics(groups)),
+    [groups, lyrics, rawLyricsDirty, rawLyricsFocused]
+  );
+  const activeCollapsedGroupIds = useMemo(
+    () => collapsedGroupIds.filter((groupId) => groups.some((group) => group.id === groupId)),
+    [collapsedGroupIds, groups]
+  );
 
   const isDirty = useMemo(
     () =>
-      createSongEditorSnapshot({ title, artist, ccli, lyrics, groups, arrangement }) !==
-      initialSnapshotRef.current,
-    [arrangement, artist, ccli, groups, lyrics, title]
+      createSongEditorSnapshot({
+        title,
+        artist,
+        ccli,
+        lyrics: lyricsShown,
+        groups,
+        arrangement,
+      }) !== initialSnapshotRef.current,
+    [arrangement, artist, ccli, groups, lyricsShown, title]
   );
 
   const availableSections = useMemo(
@@ -348,7 +338,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     [groups]
   );
   const allGroupsCollapsed =
-    groups.length > 0 && groups.every((group) => collapsedGroupIds.includes(group.id));
+    groups.length > 0 && groups.every((group) => activeCollapsedGroupIds.includes(group.id));
 
   const arrangementEntries = useMemo(
     () =>
@@ -370,8 +360,8 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   }
 
   function handleParse() {
-    if (!lyrics.trim()) return;
-    const nextSongState = buildSongEditorStateFromLyrics(lyrics);
+    if (!lyricsShown.trim()) return;
+    const nextSongState = buildSongEditorStateFromLyrics(lyricsShown);
     setGroups(nextSongState.groups);
     setArrangement(nextSongState.arrangement);
     setLyrics(nextSongState.lyrics);
@@ -551,7 +541,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
       slides: current.slides.filter((slide) => slide.id !== slideId),
     }));
 
-    if (selectedSlideId === slideId) {
+    if (selection.slideId === slideId) {
       const nextSlide = group.slides.find((slide) => slide.id !== slideId);
       setSelectedGroupId(groupId);
       setSelectedSlideId(nextSlide?.id || null);
@@ -643,8 +633,8 @@ export default function SongEditorModal({ song, onClose, onSave }) {
       }
 
       const nextSongState = rawLyricsDirty
-        ? buildSongEditorStateFromLyrics(lyrics)
-        : { groups, arrangement, lyrics };
+        ? buildSongEditorStateFromLyrics(lyricsShown)
+        : { groups, arrangement, lyrics: lyricsShown };
       const finalizedGroups = finalizeSongEditorGroups(nextSongState.groups);
       const flattened = flattenSongGroupsToSlides(finalizedGroups, nextSongState.arrangement, {
         preserveEmptyArrangement: true,
@@ -791,10 +781,10 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                 <button
                   type="button"
                   onClick={handleParse}
-                  disabled={!lyrics.trim()}
+                  disabled={!lyricsShown.trim()}
                   className="inline-flex shrink-0 items-center justify-center gap-1.5 px-3.5 h-8 rounded text-xs font-medium"
                   style={{
-                    background: lyrics.trim() ? 'var(--accent)' : 'var(--bg-hover)',
+                    background: lyricsShown.trim() ? 'var(--accent)' : 'var(--bg-hover)',
                     color: lyrics.trim() ? '#fff' : 'var(--text-tertiary)',
                   }}
                 >
@@ -803,7 +793,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                 </button>
               </div>
               <textarea
-                value={lyrics}
+                value={lyricsShown}
                 onChange={(event) => {
                   setLyrics(event.target.value);
                   setRawLyricsDirty(true);
@@ -1124,7 +1114,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                 Add Section Group
               </button>
               {groups.map((group) => {
-                const collapsed = collapsedGroupIds.includes(group.id);
+                const collapsed = activeCollapsedGroupIds.includes(group.id);
                 const customGroup = isCustomSongEditorGroupType(group.type);
                 const groupDisplayLabel = resolveSongEditorGroupLabel(group);
                 const groupColor = getGroupColor(groups, group.id, group.type);
@@ -1145,11 +1135,13 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                       style={{
                         background: 'var(--bg-app)',
                         border:
-                          group.id === selectedGroupId
+                          group.id === selection.groupId
                             ? '1px solid var(--accent)'
                             : '1px solid var(--border-subtle)',
                         boxShadow:
-                          group.id === selectedGroupId ? '0 0 0 2px rgba(74,124,255,0.12)' : 'none',
+                          group.id === selection.groupId
+                            ? '0 0 0 2px rgba(74,124,255,0.12)'
+                            : 'none',
                       }}
                     >
                       <div
@@ -1259,7 +1251,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                           )}
                           {group.slides.map((slide, index) => {
                             const selected =
-                              group.id === selectedGroupId && slide.id === selectedSlideId;
+                              group.id === selection.groupId && slide.id === selection.slideId;
                             return (
                               <div
                                 key={slide.id}

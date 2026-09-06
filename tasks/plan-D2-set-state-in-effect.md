@@ -84,3 +84,21 @@ gets a render test that pins current behaviour before the change.
 - Gate 31 files / 270 tests; E2E 19/19 (the tutorial is dismissed in every
   spec, so the store-owned step is exercised for real).
 - Coverage 10.12/8.49/9.09/10.77 → 11.39/9.26/10.21/12.06; thresholds raised.
+
+## Findings — slice 2 (2026-09-06): findings 4, 11–15
+
+- **Finding 4 was dead code.** `ApplyThemeModal.jsx` is imported nowhere;
+  the filmstrip's "Style Slides…" applies an appearance snapshot directly.
+  Deleted (it also carried a `no-unescaped-entities` suppression).
+- Characterization first: SongEditorModal (4 cases: loads title/groups,
+  textarea derived from groups, typed text wins, new song empty) and the
+  OutputRenderer countdown (active shows `01:30`, inactive hides) — all green
+  before and after.
+- SongEditorModal: the `[song]` load effect became a lazy initial state
+  (`buildSongEditorInitialState`) and the two parents that pass a real song
+  now key the modal by song id, so a different song remounts. The three
+  sync effects became `lyricsShown` / `activeCollapsedGroupIds` / the
+  existing `selection` memo, and the four raw reads of the selection state
+  now read the normalised selection.
+- Suppressions 48 → **41**; gate 32 files / 275 tests; E2E 19/19.
+- Coverage 11.39/9.26/10.21/12.06 → 14.27/12.09/13.11/15.18; thresholds raised.

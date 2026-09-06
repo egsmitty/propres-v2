@@ -108,6 +108,29 @@ describe('OutputRenderer', () => {
     });
   });
 
+  it('shows the countdown remaining time when active and 00:00 when it stops', async () => {
+    const { getByText, queryByText } = render(<OutputRenderer />);
+    await waitFor(() => expect(getMedia).toHaveBeenCalledTimes(1));
+    // The overlay lives on the slide view, so a slide must be live first.
+    await act(async () => {
+      await subscriptions.update!({
+        slide: { id: 's', type: 'text', body: 'Hi' },
+        background: null,
+      });
+    });
+
+    await act(async () => {
+      subscriptions.countdown!({ active: true, endAt: Date.now() + 90_000, durationSeconds: 90 });
+    });
+    expect(getByText('01:30')).toBeTruthy();
+
+    await act(async () => {
+      subscriptions.countdown!({ active: false, endAt: null, durationSeconds: 0 });
+    });
+    // The overlay is only rendered while active; the display value resets.
+    expect(queryByText('01:30')).toBeNull();
+  });
+
   it('unmount unsubscribes from all five events', async () => {
     const { unmount } = render(<OutputRenderer />);
     await waitFor(() => expect(getMedia).toHaveBeenCalledTimes(1));

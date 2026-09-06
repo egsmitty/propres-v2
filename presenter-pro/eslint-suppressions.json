@@ -4,14 +4,6 @@
       "count": 2
     }
   },
-  "src/components/editor/ApplyThemeModal.jsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
-    }
-  },
   "src/components/editor/Canvas.jsx": {
     "no-unused-vars": {
       "count": 2
@@ -56,18 +48,10 @@
   "src/components/library/SongEditorModal.jsx": {
     "no-unused-vars": {
       "count": 1
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 4
     }
   },
   "src/components/library/SongLibraryPanel.jsx": {
     "no-unused-vars": {
-      "count": 1
-    }
-  },
-  "src/components/presenter/OutputRenderer.jsx": {
-    "react-hooks/set-state-in-effect": {
       "count": 1
     }
   },
