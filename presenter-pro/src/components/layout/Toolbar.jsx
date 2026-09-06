@@ -67,6 +67,7 @@ import { uuid } from '@/utils/uuid';
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup';
 import {
   deleteSelectedSlideFromCurrentPresentation,
+  importMediaToSelectedSlide,
   insertNewSectionIntoCurrentPresentation,
   insertNewSlideIntoCurrentPresentation,
 } from '@/utils/presentationCommands';

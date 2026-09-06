@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+const dirname = fileURLToPath(new URL('.', import.meta.url));
 
 // Vitest reuses the renderer half of electron.vite.config.js — same React
 // transform, same `@` alias — so tests resolve modules exactly the way the app
@@ -9,7 +12,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(dirname, 'src'),
     },
   },
   test: {
@@ -18,13 +21,19 @@ export default defineConfig({
     // suite and don't need a DOM. Component tests opt in per-file with
     // `// @vitest-environment jsdom`.
     environment: 'node',
-    setupFiles: ['./vitest.setup.js'],
+    setupFiles: ['./vitest.setup.mjs'],
     include: ['{src,electron,shared}/**/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}'],
     exclude: ['node_modules', 'out', 'dist', 'release', 'e2e'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      include: ['src/**', 'electron/**', 'shared/**'],
+      // Extensions are explicit: a bare `src/**` also matches .md and .json,
+      // which the coverage remapper tries (and fails) to parse as source.
+      include: [
+        'src/**/*.{js,jsx,ts,tsx}',
+        'electron/**/*.{js,ts}',
+        'shared/**/*.{js,ts}',
+      ],
       exclude: [
         '**/__tests__/**',
         '**/*.config.*',
@@ -32,14 +41,18 @@ export default defineConfig({
         'src/main.jsx',
         'electron/preload/**',
       ],
-      // Thresholds start at the floor the first real tests establish and
-      // ratchet upward — never set an aspirational number that gets disabled
-      // the first time it fails. See tasks/todo.md item 15.
+      // A RATCHET, not a target. These are set just below what the suite
+      // actually achieves today, so coverage can never silently fall — and
+      // they are raised as tests are added. Never set an aspirational number
+      // here; a threshold that fails on day one gets deleted rather than met.
+      //
+      // Measured 2026-09-05 with the first 69 tests:
+      //   statements 2.68% · branches 2.81% · functions 3.19% · lines 2.63%
       thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0,
+        statements: 2.6,
+        branches: 2.7,
+        functions: 3.1,
+        lines: 2.6,
       },
     },
   },
