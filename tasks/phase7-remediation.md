@@ -11,7 +11,7 @@ behavior · **P2** = dead code, cleanup, or risk without a known symptom.
 
 ## P0 — Confirmed runtime crashes
 
-### 0. The app cannot be quit with Cmd+Q
+### 0. The app cannot be quit with Cmd+Q — **FIXED** (branch `fix/app-quit-lifecycle`)
 
 - **Where:** `electron/main/index.js` — `close` handler at :664, menu
   `{ role: 'quit' }` at :1442, `window-all-closed` at :1541.
@@ -39,6 +39,12 @@ behavior · **P2** = dead code, cleanup, or risk without a known symptom.
   close. **Test first:** assert the close handler does not `preventDefault` once
   the quitting flag is set, and that a handshake that never resolves still
   closes after the timeout.
+- **Resolution:** the decision logic was extracted to a pure, tested state
+  machine at `electron/main/closeController.ts` (15 tests), `before-quit` and
+  `render-process-gone` listeners were added, and the renderer handshake now
+  expires after 5s instead of latching. A guard test
+  (`lifecycleListeners.test.ts`) fails if the listeners are ever removed or if
+  the inline boolean flags return — the mechanical rule, per Phase 8.
 
 ---
 

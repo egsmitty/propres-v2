@@ -12,6 +12,11 @@ export default defineConfig({
       rollupOptions: {
         input: {
           'main/index': resolve(__dirname, 'electron/main/index.js'),
+          // The main process is CommonJS, so `require('./closeController')` is
+          // left external rather than inlined — it needs its own entry, the
+          // same way the db modules below do, or the app crashes on launch
+          // with "Cannot find module './closeController'".
+          'main/closeController': resolve(__dirname, 'electron/main/closeController.ts'),
           'db/index': resolve(__dirname, 'electron/db/index.js'),
           'db/migrations': resolve(__dirname, 'electron/db/migrations.js'),
           'db/queries/songs': resolve(__dirname, 'electron/db/queries/songs.js'),

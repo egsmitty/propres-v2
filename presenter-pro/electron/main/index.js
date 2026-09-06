@@ -10,6 +10,7 @@ const {
   protocol,
 } = require('electron');
 const os = require('os');
+const { createCloseController } = require('./closeController');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
@@ -52,10 +53,13 @@ let allowPresenterWindowClose = false;
 let presentationSessionSlides = [];
 let currentStageSlide = null;
 let currentStageBackground = null;
-let allowMainWindowClose = false;
-let appIsQuitting = false;
-let mainWindowCloseRequestPending = false;
 let mainWindowResponsive = true;
+
+// Window-close / app-quit decision logic lives in a pure, tested state machine
+// (electron/main/closeController.ts). Keeping it out of this file is what makes
+// the quit behavior verifiable at all — see its header for the three
+// properties it guarantees.
+const closeController = createCloseController();
 
 function emitWindowViewState(win) {
   if (!win || win.isDestroyed()) return;
@@ -438,7 +442,7 @@ function resetCountdownState() {
 }
 
 function resetMainWindowCloseRequestState() {
-  mainWindowCloseRequestPending = false;
+  closeController.resolveRequest();
 }
 
 function closePreviewWindows() {
@@ -451,9 +455,7 @@ function closePreviewWindows() {
 }
 
 function prepareForAppShutdown() {
-  appIsQuitting = true;
-  allowMainWindowClose = true;
-  resetMainWindowCloseRequestState();
+  closeController.markQuitting();
   clearCountdownInterval();
   closePreviewWindows();
 }
@@ -662,13 +664,19 @@ function createMainWindow() {
   }
 
   mainWindow.on('close', (event) => {
-    if (allowMainWindowClose || appIsQuitting) {
-      allowMainWindowClose = false;
-      resetMainWindowCloseRequestState();
+    const decision = closeController.decideClose({
+      responsive: mainWindowResponsive,
+      crashed: mainWindow.webContents.isCrashed(),
+      now: Date.now(),
+    });
+
+    // Allow: let the default close proceed. This is the path a quit takes —
+    // preventing it here is what used to cancel Cmd+Q entirely.
+    if (decision.action === 'allow') {
       return;
     }
 
-    if (!mainWindowResponsive || mainWindow.webContents.isCrashed()) {
+    if (decision.action === 'prompt-force') {
       const choice = dialog.showMessageBoxSync(mainWindow, {
         type: 'warning',
         buttons: ['Cancel', 'Force Close'],
@@ -678,34 +686,36 @@ function createMainWindow() {
         message: 'PresenterPro is not responding.',
         detail: 'Force closing may discard unsaved changes.',
       });
+      event.preventDefault();
       if (choice === 1) {
-        event.preventDefault();
         prepareForAppShutdown();
         app.quit();
-      } else {
-        event.preventDefault();
       }
       return;
     }
 
-    if (mainWindowCloseRequestPending) {
-      event.preventDefault();
-      return;
-    }
-
+    // Block: hand control to the renderer so it can prompt about unsaved
+    // changes. The controller guarantees this cannot wait forever.
     event.preventDefault();
-    mainWindowCloseRequestPending = true;
-    mainWindow?.webContents.send('app:command', 'window:requestClose');
+    if (decision.askRenderer) {
+      mainWindow?.webContents.send('app:command', 'window:requestClose');
+    }
   });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
-    allowMainWindowClose = false;
-    resetMainWindowCloseRequestState();
+    closeController.reset();
     mainWindowResponsive = true;
     // DISABLED (session 6): presenter moved to sidebar, no presenterWindow to close
     // if (presenterWindow) presenterWindow.close()
     closePreviewWindows();
+  });
+
+  // A dead renderer can never answer the close handshake, so record it or the
+  // window would be strand�ed waiting for a reply that cannot come.
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[main] render process gone:', details?.reason);
+    closeController.markRendererGone();
   });
 
   mainWindow.on('unresponsive', () => {
@@ -949,8 +959,9 @@ function registerIpcHandlers() {
   // Window controls
   ipcMain.handle('window:close', () => {
     if (mainWindow) {
-      resetMainWindowCloseRequestState();
-      allowMainWindowClose = true;
+      // The renderer resolved unsaved changes and approved the close. This
+      // permission is single-use, so a later close still gets the prompt.
+      closeController.allowNextClose();
       mainWindow.close();
     }
   });
@@ -1536,6 +1547,14 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   buildNativeMenu();
   createMainWindow();
+});
+
+// Without this listener the window `close` handler's preventDefault() silently
+// cancelled every quit, so Cmd+Q closed the window but left the process alive
+// in the dock (phase7 finding #0). Marking the shutdown here is what lets the
+// close handler allow the quit through.
+app.on('before-quit', () => {
+  prepareForAppShutdown();
 });
 
 app.on('window-all-closed', () => {
