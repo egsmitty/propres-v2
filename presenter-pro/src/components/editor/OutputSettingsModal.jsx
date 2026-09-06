@@ -1,25 +1,33 @@
-import React, { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
-import { getSettings, getSystemDisplays, openOutputWindow, openStageDisplayWindow, closeOutputWindow, closeStageDisplayWindow, setSetting } from '@/utils/ipc'
+import React, { useEffect, useState } from 'react';
+import { useAppStore } from '@/store/appStore';
+import {
+  getSettings,
+  getSystemDisplays,
+  openOutputWindow,
+  openStageDisplayWindow,
+  closeOutputWindow,
+  closeStageDisplayWindow,
+  setSetting,
+} from '@/utils/ipc';
 
 const DEFAULT_THEME = {
   fontSize: 84,
   textColor: '#ffffff',
   backgroundColor: '#000000',
-}
+};
 
 function parseTheme(value) {
   try {
-    return { ...DEFAULT_THEME, ...(value ? JSON.parse(value) : {}) }
+    return { ...DEFAULT_THEME, ...(value ? JSON.parse(value) : {}) };
   } catch {
-    return DEFAULT_THEME
+    return DEFAULT_THEME;
   }
 }
 
 function getDisplayLabel(display) {
-  const baseLabel = display.label?.trim() || `Display ${display.id}`
-  const size = `${display.bounds.width}×${display.bounds.height}`
-  return display.primary ? `${baseLabel} (${size}, Primary)` : `${baseLabel} (${size})`
+  const baseLabel = display.label?.trim() || `Display ${display.id}`;
+  const size = `${display.bounds.width}×${display.bounds.height}`;
+  return display.primary ? `${baseLabel} (${size}, Primary)` : `${baseLabel} (${size})`;
 }
 
 function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhenClosed = false }) {
@@ -45,103 +53,118 @@ function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhen
     >
       {open ? closeLabel : openLabel}
     </button>
-  )
+  );
 }
 
 export default function OutputSettingsModal() {
-  const setOutputSettingsOpen = useAppStore((s) => s.setOutputSettingsOpen)
-  const [loading, setLoading] = useState(true)
-  const [displays, setDisplays] = useState([])
-  const [mainDisplayId, setMainDisplayId] = useState('')
-  const [stageDisplayId, setStageDisplayId] = useState('')
-  const [theme, setTheme] = useState(DEFAULT_THEME)
-  const [saving, setSaving] = useState(false)
-  const [mainPreviewOpen, setMainPreviewOpen] = useState(false)
-  const [stagePreviewOpen, setStagePreviewOpen] = useState(false)
+  const setOutputSettingsOpen = useAppStore((s) => s.setOutputSettingsOpen);
+  const [loading, setLoading] = useState(true);
+  const [displays, setDisplays] = useState([]);
+  const [mainDisplayId, setMainDisplayId] = useState('');
+  const [stageDisplayId, setStageDisplayId] = useState('');
+  const [theme, setTheme] = useState(DEFAULT_THEME);
+  const [saving, setSaving] = useState(false);
+  const [mainPreviewOpen, setMainPreviewOpen] = useState(false);
+  const [stagePreviewOpen, setStagePreviewOpen] = useState(false);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function syncPreviewState() {
-      const result = await window.electronAPI?.getPreviewWindowState?.()
-      if (cancelled || !result?.success) return
-      setMainPreviewOpen(Boolean(result.data?.outputOpen))
-      setStagePreviewOpen(Boolean(result.data?.stageOpen))
+      const result = await window.electronAPI?.getPreviewWindowState?.();
+      if (cancelled || !result?.success) return;
+      setMainPreviewOpen(Boolean(result.data?.outputOpen));
+      setStagePreviewOpen(Boolean(result.data?.stageOpen));
     }
 
     async function load() {
-      setLoading(true)
-      const [settingsResult, displaysResult] = await Promise.all([getSettings(), getSystemDisplays()])
-      if (cancelled) return
+      setLoading(true);
+      const [settingsResult, displaysResult] = await Promise.all([
+        getSettings(),
+        getSystemDisplays(),
+      ]);
+      if (cancelled) return;
 
-      const settings = settingsResult?.success ? settingsResult.data || {} : {}
-      setMainDisplayId(settings['output.mainDisplayId'] || '')
-      setStageDisplayId(settings['output.stageDisplayId'] || '')
-      setTheme(parseTheme(settings['stageDisplay.theme']))
-      setDisplays(displaysResult?.success ? displaysResult.data || [] : [])
-      setLoading(false)
-      await syncPreviewState()
+      const settings = settingsResult?.success ? settingsResult.data || {} : {};
+      setMainDisplayId(settings['output.mainDisplayId'] || '');
+      setStageDisplayId(settings['output.stageDisplayId'] || '');
+      setTheme(parseTheme(settings['stageDisplay.theme']));
+      setDisplays(displaysResult?.success ? displaysResult.data || [] : []);
+      setLoading(false);
+      await syncPreviewState();
     }
 
-    load()
+    load();
 
     const offPreviewClosed = window.electronAPI?.onPreviewWindowClosed?.(({ kind }) => {
-      if (kind === 'output') setMainPreviewOpen(false)
-      if (kind === 'stage') setStagePreviewOpen(false)
-    })
+      if (kind === 'output') setMainPreviewOpen(false);
+      if (kind === 'stage') setStagePreviewOpen(false);
+    });
     const offPreviewState = window.electronAPI?.onPreviewWindowState?.(({ kind, open }) => {
-      if (kind === 'output') setMainPreviewOpen(Boolean(open))
-      if (kind === 'stage') setStagePreviewOpen(Boolean(open))
-    })
+      if (kind === 'output') setMainPreviewOpen(Boolean(open));
+      if (kind === 'stage') setStagePreviewOpen(Boolean(open));
+    });
     const interval = window.setInterval(() => {
-      syncPreviewState().catch(() => {})
-    }, 500)
+      syncPreviewState().catch(() => {});
+    }, 500);
 
     return () => {
-      cancelled = true
-      window.clearInterval(interval)
-      offPreviewClosed?.()
-      offPreviewState?.()
-    }
-  }, [])
+      cancelled = true;
+      window.clearInterval(interval);
+      offPreviewClosed?.();
+      offPreviewState?.();
+    };
+  }, []);
 
-  const hasDisplayConflict = Boolean(mainDisplayId && stageDisplayId && mainDisplayId === stageDisplayId)
+  const hasDisplayConflict = Boolean(
+    mainDisplayId && stageDisplayId && mainDisplayId === stageDisplayId
+  );
 
   async function handleClose() {
-    if (mainPreviewOpen) { await closeOutputWindow(); setMainPreviewOpen(false) }
-    if (stagePreviewOpen) { await closeStageDisplayWindow(); setStagePreviewOpen(false) }
-    setOutputSettingsOpen(false)
+    if (mainPreviewOpen) {
+      await closeOutputWindow();
+      setMainPreviewOpen(false);
+    }
+    if (stagePreviewOpen) {
+      await closeStageDisplayWindow();
+      setStagePreviewOpen(false);
+    }
+    setOutputSettingsOpen(false);
   }
 
   async function handleSave() {
-    if (hasDisplayConflict) return
-    setSaving(true)
+    if (hasDisplayConflict) return;
+    setSaving(true);
     await Promise.all([
       setSetting('output.mainDisplayId', mainDisplayId),
       setSetting('output.stageDisplayId', stageDisplayId),
       setSetting('stageDisplay.theme', JSON.stringify(theme)),
-    ])
-    setSaving(false)
-    await handleClose()
+    ]);
+    setSaving(false);
+    await handleClose();
   }
 
   async function toggleMainPreview() {
     if (mainPreviewOpen) {
-      await closeOutputWindow()
-      setMainPreviewOpen(false)
+      await closeOutputWindow();
+      setMainPreviewOpen(false);
     } else {
-      await openOutputWindow(mainDisplayId ? { displayId: Number(mainDisplayId) } : { useConfiguredDisplay: false })
-      setMainPreviewOpen(true)
+      await openOutputWindow(
+        mainDisplayId ? { displayId: Number(mainDisplayId) } : { useConfiguredDisplay: false }
+      );
+      setMainPreviewOpen(true);
     }
   }
 
   async function toggleStagePreview() {
     if (stagePreviewOpen) {
-      await closeStageDisplayWindow()
-      setStagePreviewOpen(false)
+      await closeStageDisplayWindow();
+      setStagePreviewOpen(false);
     } else {
-      await openStageDisplayWindow(stageDisplayId ? { displayId: Number(stageDisplayId) } : { useConfiguredDisplay: false })
-      setStagePreviewOpen(true)
+      await openStageDisplayWindow(
+        stageDisplayId ? { displayId: Number(stageDisplayId) } : { useConfiguredDisplay: false }
+      );
+      setStagePreviewOpen(true);
     }
   }
 
@@ -157,7 +180,7 @@ export default function OutputSettingsModal() {
         justifyContent: 'center',
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose()
+        if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div
@@ -197,7 +220,9 @@ export default function OutputSettingsModal() {
               </h3>
               <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Main Output Display</span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    Main Output Display
+                  </span>
                   <select
                     value={mainDisplayId}
                     onChange={(e) => setMainDisplayId(e.target.value)}
@@ -211,13 +236,17 @@ export default function OutputSettingsModal() {
                   >
                     <option value="">Open in a window</option>
                     {displays.map((display) => (
-                      <option key={display.id} value={String(display.id)}>{getDisplayLabel(display)}</option>
+                      <option key={display.id} value={String(display.id)}>
+                        {getDisplayLabel(display)}
+                      </option>
                     ))}
                   </select>
                 </label>
 
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Stage Display</span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    Stage Display
+                  </span>
                   <select
                     value={stageDisplayId}
                     onChange={(e) => setStageDisplayId(e.target.value)}
@@ -231,12 +260,17 @@ export default function OutputSettingsModal() {
                   >
                     <option value="">Do not auto-open</option>
                     {displays.map((display) => (
-                      <option key={display.id} value={String(display.id)}>{getDisplayLabel(display)}</option>
+                      <option key={display.id} value={String(display.id)}>
+                        {getDisplayLabel(display)}
+                      </option>
                     ))}
                   </select>
                 </label>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-tertiary)' }}>
+                  <span
+                    className="text-[11px] font-semibold uppercase tracking-[0.08em]"
+                    style={{ color: 'var(--text-tertiary)' }}
+                  >
                     Preview Window
                   </span>
                   <PreviewToggleButton
@@ -248,7 +282,10 @@ export default function OutputSettingsModal() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-tertiary)' }}>
+                  <span
+                    className="text-[11px] font-semibold uppercase tracking-[0.08em]"
+                    style={{ color: 'var(--text-tertiary)' }}
+                  >
                     Preview Window
                   </span>
                   <PreviewToggleButton
@@ -275,13 +312,23 @@ export default function OutputSettingsModal() {
               </h3>
               <div className="grid gap-3" style={{ gridTemplateColumns: '1.2fr 1fr 1fr' }}>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Font Size</span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    Font Size
+                  </span>
                   <input
                     type="number"
                     min={36}
                     max={180}
                     value={theme.fontSize}
-                    onChange={(e) => setTheme((prev) => ({ ...prev, fontSize: Math.max(36, Math.min(180, Number(e.target.value) || DEFAULT_THEME.fontSize)) }))}
+                    onChange={(e) =>
+                      setTheme((prev) => ({
+                        ...prev,
+                        fontSize: Math.max(
+                          36,
+                          Math.min(180, Number(e.target.value) || DEFAULT_THEME.fontSize)
+                        ),
+                      }))
+                    }
                     className="text-xs rounded outline-none"
                     style={{
                       background: 'var(--bg-surface)',
@@ -292,12 +339,28 @@ export default function OutputSettingsModal() {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Text Color</span>
-                  <input type="color" value={theme.textColor} onChange={(e) => setTheme((prev) => ({ ...prev, textColor: e.target.value }))} style={{ height: 38 }} />
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    Text Color
+                  </span>
+                  <input
+                    type="color"
+                    value={theme.textColor}
+                    onChange={(e) => setTheme((prev) => ({ ...prev, textColor: e.target.value }))}
+                    style={{ height: 38 }}
+                  />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Background</span>
-                  <input type="color" value={theme.backgroundColor} onChange={(e) => setTheme((prev) => ({ ...prev, backgroundColor: e.target.value }))} style={{ height: 38 }} />
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    Background
+                  </span>
+                  <input
+                    type="color"
+                    value={theme.backgroundColor}
+                    onChange={(e) =>
+                      setTheme((prev) => ({ ...prev, backgroundColor: e.target.value }))
+                    }
+                    style={{ height: 38 }}
+                  />
                 </label>
               </div>
             </section>
@@ -310,10 +373,14 @@ export default function OutputSettingsModal() {
                 Video Outputs (SMPTE)
               </h3>
               <p className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
-                DeckLink and other SMPTE/video interfaces are treated separately from desktop display outputs.
+                DeckLink and other SMPTE/video interfaces are treated separately from desktop
+                display outputs.
               </p>
               <p className="text-xs" style={{ color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
-                Planned architecture stub: Blackmagic DeckLink Duo 2 exposes 4 ports, Quad 2 exposes 8 ports, and those PCIe or Thunderbolt 3 video outputs will be configured in a dedicated video-output manager rather than through the graphics display assignments above.
+                Planned architecture stub: Blackmagic DeckLink Duo 2 exposes 4 ports, Quad 2 exposes
+                8 ports, and those PCIe or Thunderbolt 3 video outputs will be configured in a
+                dedicated video-output manager rather than through the graphics display assignments
+                above.
               </p>
             </section>
           </div>
@@ -324,7 +391,11 @@ export default function OutputSettingsModal() {
             type="button"
             onClick={handleClose}
             className="text-xs px-3 py-1.5 rounded"
-            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            style={{
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+            }}
           >
             Cancel
           </button>
@@ -334,7 +405,8 @@ export default function OutputSettingsModal() {
             onClick={handleSave}
             className="text-xs px-3 py-1.5 rounded font-medium"
             style={{
-              background: loading || saving || hasDisplayConflict ? 'var(--bg-hover)' : 'var(--accent)',
+              background:
+                loading || saving || hasDisplayConflict ? 'var(--bg-hover)' : 'var(--accent)',
               color: loading || saving || hasDisplayConflict ? 'var(--text-tertiary)' : '#fff',
             }}
           >
@@ -343,5 +415,5 @@ export default function OutputSettingsModal() {
         </div>
       </div>
     </div>
-  )
+  );
 }

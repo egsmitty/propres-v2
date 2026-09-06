@@ -1,44 +1,54 @@
-import React, { useState } from 'react'
-import { useEditorStore } from '@/store/editorStore'
-import { useAppStore } from '@/store/appStore'
+import React, { useState } from 'react';
+import { useEditorStore } from '@/store/editorStore';
+import { useAppStore } from '@/store/appStore';
 
 const PRESETS = [
   { label: '16:9 (Widescreen)', value: '16:9' },
   { label: '4:3 (Standard)', value: '4:3' },
   { label: '16:10', value: '16:10' },
   { label: 'Custom', value: 'custom' },
-]
+];
 
 export default function PresentationSettingsModal() {
-  const presentation = useEditorStore((s) => s.presentation)
-  const updatePresentationAspectRatio = useEditorStore((s) => s.updatePresentationAspectRatio)
-  const setPresentationSettingsOpen = useAppStore((s) => s.setPresentationSettingsOpen)
+  const presentation = useEditorStore((s) => s.presentation);
+  const updatePresentationAspectRatio = useEditorStore((s) => s.updatePresentationAspectRatio);
+  const setPresentationSettingsOpen = useAppStore((s) => s.setPresentationSettingsOpen);
 
-  const [ratio, setRatio] = useState(presentation?.aspectRatio || '16:9')
-  const [customW, setCustomW] = useState(presentation?.customAspectWidth || 1920)
-  const [customH, setCustomH] = useState(presentation?.customAspectHeight || 1080)
-  const customWidth = Number(customW)
-  const customHeight = Number(customH)
-  const customValid = Number.isFinite(customWidth) && Number.isFinite(customHeight) && customWidth >= 400 && customHeight >= 300
+  const [ratio, setRatio] = useState(presentation?.aspectRatio || '16:9');
+  const [customW, setCustomW] = useState(presentation?.customAspectWidth || 1920);
+  const [customH, setCustomH] = useState(presentation?.customAspectHeight || 1080);
+  const customWidth = Number(customW);
+  const customHeight = Number(customH);
+  const customValid =
+    Number.isFinite(customWidth) &&
+    Number.isFinite(customHeight) &&
+    customWidth >= 400 &&
+    customHeight >= 300;
 
   function handleSave() {
-    if (ratio === 'custom' && !customValid) return
+    if (ratio === 'custom' && !customValid) return;
     updatePresentationAspectRatio(
       ratio,
       ratio === 'custom' ? customWidth : undefined,
       ratio === 'custom' ? customHeight : undefined
-    )
-    setPresentationSettingsOpen(false)
+    );
+    setPresentationSettingsOpen(false);
   }
 
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
         background: 'rgba(0,0,0,0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) setPresentationSettingsOpen(false) }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setPresentationSettingsOpen(false);
+      }}
     >
       <div
         style={{
@@ -55,7 +65,9 @@ export default function PresentationSettingsModal() {
         </h2>
 
         <div className="mb-4">
-          <p className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>Aspect Ratio</p>
+          <p className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
+            Aspect Ratio
+          </p>
           <select
             value={ratio}
             onChange={(e) => setRatio(e.target.value)}
@@ -68,7 +80,9 @@ export default function PresentationSettingsModal() {
             }}
           >
             {PRESETS.map(({ label, value }) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value}>
+                {label}
+              </option>
             ))}
           </select>
         </div>
@@ -77,7 +91,9 @@ export default function PresentationSettingsModal() {
           <div className="mb-4">
             <div className="flex items-center gap-2">
               <div className="flex flex-col gap-1 flex-1">
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Width</span>
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Width
+                </span>
                 <input
                   type="number"
                   value={customW}
@@ -94,9 +110,13 @@ export default function PresentationSettingsModal() {
                   }}
                 />
               </div>
-              <span className="text-xs mt-5" style={{ color: 'var(--text-tertiary)' }}>×</span>
+              <span className="text-xs mt-5" style={{ color: 'var(--text-tertiary)' }}>
+                ×
+              </span>
               <div className="flex flex-col gap-1 flex-1">
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Height</span>
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Height
+                </span>
                 <input
                   type="number"
                   value={customH}
@@ -114,7 +134,10 @@ export default function PresentationSettingsModal() {
                 />
               </div>
             </div>
-            <div className="mt-2 text-xs" style={{ color: customValid ? 'var(--text-tertiary)' : 'var(--danger, #ef4444)' }}>
+            <div
+              className="mt-2 text-xs"
+              style={{ color: customValid ? 'var(--text-tertiary)' : 'var(--danger, #ef4444)' }}
+            >
               {customValid
                 ? 'Custom output is saved per presentation.'
                 : 'Enter a width of at least 400 and a height of at least 300.'}
@@ -151,5 +174,5 @@ export default function PresentationSettingsModal() {
         </div>
       </div>
     </div>
-  )
+  );
 }

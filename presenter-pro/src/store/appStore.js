@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+import { create } from 'zustand';
 
 export const useAppStore = create((set) => ({
   currentView: 'home',
@@ -34,4 +34,4 @@ export const useAppStore = create((set) => ({
   setTextBoxClipboard: (textBoxClipboard) => set({ textBoxClipboard }),
   setTutorialOpen: (val) => set({ tutorialOpen: val }),
   setTutorialStepIndex: (val) => set({ tutorialStepIndex: val }),
-}))
+}));

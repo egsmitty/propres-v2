@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Film,
@@ -9,9 +9,9 @@ import {
   Search,
   Trash2,
   X,
-} from 'lucide-react'
-import { useAppStore } from '@/store/appStore'
-import { useEditorStore } from '@/store/editorStore'
+} from 'lucide-react';
+import { useAppStore } from '@/store/appStore';
+import { useEditorStore } from '@/store/editorStore';
 import {
   createMediaFolder,
   deleteMedia,
@@ -21,59 +21,60 @@ import {
   importMedia,
   updateMedia,
   updateMediaFolder,
-} from '@/utils/ipc'
-import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds'
-import { getSectionTypeLabel } from '@/utils/sectionTypes'
-import { insertMediaSlideIntoCurrentPresentation } from '@/utils/presentationCommands'
-import { confirmDialog, promptDialog, showDialog } from '@/utils/dialog'
-import ContextMenu from '@/components/shared/ContextMenu'
+} from '@/utils/ipc';
+import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds';
+import { getSectionTypeLabel } from '@/utils/sectionTypes';
+import { insertMediaSlideIntoCurrentPresentation } from '@/utils/presentationCommands';
+import { confirmDialog, promptDialog, showDialog } from '@/utils/dialog';
+import ContextMenu from '@/components/shared/ContextMenu';
 
 export default function MediaLibraryPanel() {
-  const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
-  const presentation = useEditorStore((s) => s.presentation)
-  const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
-  const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
-  const setSlideBackground = useEditorStore((s) => s.setSlideBackground)
-  const setSectionBackground = useEditorStore((s) => s.setSectionBackground)
+  const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen);
+  const presentation = useEditorStore((s) => s.presentation);
+  const selectedSectionId = useEditorStore((s) => s.selectedSectionId);
+  const selectedSlideId = useEditorStore((s) => s.selectedSlideId);
+  const setSlideBackground = useEditorStore((s) => s.setSlideBackground);
+  const setSectionBackground = useEditorStore((s) => s.setSectionBackground);
 
-  const [media, setMedia] = useState([])
-  const [folders, setFolders] = useState([])
-  const [tab, setTab] = useState('images')
-  const [query, setQuery] = useState('')
-  const [currentFolderId, setCurrentFolderId] = useState(null)
-  const [selectedFolderId, setSelectedFolderId] = useState(null)
-  const [selectedMediaId, setSelectedMediaId] = useState(null)
-  const [dragOverFolderId, setDragOverFolderId] = useState(null)
-  const [menu, setMenu] = useState(null)
+  const [media, setMedia] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [tab, setTab] = useState('images');
+  const [query, setQuery] = useState('');
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
+  const [selectedMediaId, setSelectedMediaId] = useState(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState(null);
+  const [menu, setMenu] = useState(null);
 
   useEffect(() => {
-    loadLibrary()
-  }, [])
+    loadLibrary();
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(event) {
-      if (!selectedFolderId) return
-      const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return
-      event.preventDefault()
-      const folder = folders.find((item) => item.id === selectedFolderId)
-      if (folder) void handleDeleteFolder(folder)
+      if (!selectedFolderId) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable)
+        return;
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      event.preventDefault();
+      const folder = folders.find((item) => item.id === selectedFolderId);
+      if (folder) void handleDeleteFolder(folder);
     }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [folders, selectedFolderId])
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [folders, selectedFolderId]);
 
   async function loadLibrary() {
-    const [mediaResult, folderResult] = await Promise.all([getMedia(), getMediaFolders()])
-    if (mediaResult?.success) setMedia(mediaResult.data)
-    if (folderResult?.success) setFolders(folderResult.data)
+    const [mediaResult, folderResult] = await Promise.all([getMedia(), getMediaFolders()]);
+    if (mediaResult?.success) setMedia(mediaResult.data);
+    if (folderResult?.success) setFolders(folderResult.data);
   }
 
   async function handleImport() {
-    const result = await importMedia({ folderId: currentFolderId })
-    if (result?.success) loadLibrary()
+    const result = await importMedia({ folderId: currentFolderId });
+    if (result?.success) loadLibrary();
   }
 
   async function handleNewFolder() {
@@ -81,12 +82,12 @@ export default function MediaLibraryPanel() {
       title: 'New Folder',
       confirmLabel: 'Create',
       placeholder: 'New Folder',
-    })
-    if (!name) return
-    const result = await createMediaFolder({ name })
+    });
+    if (!name) return;
+    const result = await createMediaFolder({ name });
     if (result?.success) {
-      setSelectedFolderId(result.data?.id ?? null)
-      loadLibrary()
+      setSelectedFolderId(result.data?.id ?? null);
+      loadLibrary();
     }
   }
 
@@ -94,14 +95,14 @@ export default function MediaLibraryPanel() {
     const nextName = await promptDialog('Rename folder:', folder.name, {
       title: 'Rename Folder',
       confirmLabel: 'Rename',
-    })
-    if (!nextName || nextName === folder.name) return
-    const result = await updateMediaFolder(folder.id, { name: nextName })
-    if (result?.success) loadLibrary()
+    });
+    if (!nextName || nextName === folder.name) return;
+    const result = await updateMediaFolder(folder.id, { name: nextName });
+    if (result?.success) loadLibrary();
   }
 
   async function handleDeleteFolder(folder) {
-    const count = media.filter((item) => item.folder_id === folder.id).length
+    const count = media.filter((item) => item.folder_id === folder.id).length;
     const ok = await confirmDialog(
       count
         ? `Delete folder "${folder.name}" and remove its ${count} media item${count === 1 ? '' : 's'} from your media library? The files on your hard drive will not be deleted.`
@@ -111,28 +112,31 @@ export default function MediaLibraryPanel() {
         confirmLabel: 'Delete',
         danger: true,
       }
-    )
-    if (!ok) return
-    const result = await deleteMediaFolder(folder.id)
+    );
+    if (!ok) return;
+    const result = await deleteMediaFolder(folder.id);
     if (result?.success) {
-      if (currentFolderId === folder.id) setCurrentFolderId(null)
-      if (selectedFolderId === folder.id) setSelectedFolderId(null)
-      loadLibrary()
+      if (currentFolderId === folder.id) setCurrentFolderId(null);
+      if (selectedFolderId === folder.id) setSelectedFolderId(null);
+      loadLibrary();
     }
   }
 
   async function handleRenameItem(item) {
-    const nextName = await promptDialog('Rename media item:', item.name, { title: 'Rename Media', confirmLabel: 'Rename' })
-    if (!nextName || nextName === item.name) return
-    const result = await updateMedia(item.id, { name: nextName })
-    if (result?.success) loadLibrary()
+    const nextName = await promptDialog('Rename media item:', item.name, {
+      title: 'Rename Media',
+      confirmLabel: 'Rename',
+    });
+    if (!nextName || nextName === item.name) return;
+    const result = await updateMedia(item.id, { name: nextName });
+    if (result?.success) loadLibrary();
   }
 
   async function handleMoveItem(item) {
     const folderOptions = [
       { value: 'root', label: 'Library Root' },
       ...folders.map((folder) => ({ value: String(folder.id), label: folder.name })),
-    ]
+    ];
     const result = await showDialog({
       title: 'Move Media',
       description: `Choose where "${item.name}" should live.`,
@@ -149,11 +153,14 @@ export default function MediaLibraryPanel() {
         { label: 'Cancel', value: null, cancel: true },
         { label: 'Move', value: 'confirm', primary: true },
       ],
-    })
-    if (!result || result.action !== 'confirm') return
-    const nextFolderId = result.values?.folderId === 'root' ? null : Number(result.values?.folderId)
-    const updateResult = await updateMedia(item.id, { folder_id: Number.isFinite(nextFolderId) ? nextFolderId : null })
-    if (updateResult?.success) loadLibrary()
+    });
+    if (!result || result.action !== 'confirm') return;
+    const nextFolderId =
+      result.values?.folderId === 'root' ? null : Number(result.values?.folderId);
+    const updateResult = await updateMedia(item.id, {
+      folder_id: Number.isFinite(nextFolderId) ? nextFolderId : null,
+    });
+    if (updateResult?.success) loadLibrary();
   }
 
   async function handleDeleteItem(item) {
@@ -161,74 +168,94 @@ export default function MediaLibraryPanel() {
       title: 'Delete Media',
       confirmLabel: 'Delete',
       danger: true,
-    })
-    if (!ok) return
-    const result = await deleteMedia(item.id)
-    if (result?.success) loadLibrary()
+    });
+    if (!ok) return;
+    const result = await deleteMedia(item.id);
+    if (result?.success) loadLibrary();
   }
 
   function applyToSlide(mediaId) {
-    if (!selectedSectionId || !selectedSlideId) return
-    setSlideBackground(selectedSectionId, selectedSlideId, mediaId)
-    setMediaLibraryOpen(false)
+    if (!selectedSectionId || !selectedSlideId) return;
+    setSlideBackground(selectedSectionId, selectedSlideId, mediaId);
+    setMediaLibraryOpen(false);
   }
 
   function applyToSection(mediaId) {
-    if (!selectedSectionId) return
-    setSectionBackground(selectedSectionId, mediaId)
-    setMediaLibraryOpen(false)
+    if (!selectedSectionId) return;
+    setSectionBackground(selectedSectionId, mediaId);
+    setMediaLibraryOpen(false);
   }
 
   async function insertAsMediaSlide(item) {
-    const result = await insertMediaSlideIntoCurrentPresentation(item)
-    if (result) setMediaLibraryOpen(false)
+    const result = await insertMediaSlideIntoCurrentPresentation(item);
+    if (result) setMediaLibraryOpen(false);
   }
 
-  const currentFolder = folders.find((folder) => folder.id === currentFolderId) || null
-  const selectedSection = presentation?.sections?.find((section) => section.id === selectedSectionId) || null
-  const sectionLabel = selectedSection ? getSectionTypeLabel(selectedSection.type) : 'Section'
-  const sectionBackgroundLabel = `Set ${sectionLabel} Background`
-  const normalizedQuery = query.trim().toLowerCase()
+  const currentFolder = folders.find((folder) => folder.id === currentFolderId) || null;
+  const selectedSection =
+    presentation?.sections?.find((section) => section.id === selectedSectionId) || null;
+  const sectionLabel = selectedSection ? getSectionTypeLabel(selectedSection.type) : 'Section';
+  const sectionBackgroundLabel = `Set ${sectionLabel} Background`;
+  const normalizedQuery = query.trim().toLowerCase();
 
   const visibleFolders = useMemo(
     () =>
       currentFolderId
         ? []
-        : folders.filter((folder) => !normalizedQuery || folder.name.toLowerCase().includes(normalizedQuery)),
+        : folders.filter(
+            (folder) => !normalizedQuery || folder.name.toLowerCase().includes(normalizedQuery)
+          ),
     [currentFolderId, folders, normalizedQuery]
-  )
+  );
 
   const visibleMedia = useMemo(
     () =>
       media.filter((item) => {
-        const matchesType = tab === 'images' ? item.type === 'image' : item.type === 'video'
-        const matchesFolder = currentFolderId ? item.folder_id === currentFolderId : item.folder_id == null
-        const matchesQuery = !normalizedQuery || item.name.toLowerCase().includes(normalizedQuery)
-        return matchesType && matchesFolder && matchesQuery
+        const matchesType = tab === 'images' ? item.type === 'image' : item.type === 'video';
+        const matchesFolder = currentFolderId
+          ? item.folder_id === currentFolderId
+          : item.folder_id == null;
+        const matchesQuery = !normalizedQuery || item.name.toLowerCase().includes(normalizedQuery);
+        return matchesType && matchesFolder && matchesQuery;
       }),
     [currentFolderId, media, normalizedQuery, tab]
-  )
-  const selectedMediaItem = visibleMedia.find((item) => item.id === selectedMediaId) || media.find((item) => item.id === selectedMediaId) || null
+  );
+  const selectedMediaItem =
+    visibleMedia.find((item) => item.id === selectedMediaId) ||
+    media.find((item) => item.id === selectedMediaId) ||
+    null;
 
   useEffect(() => {
-    if (!selectedMediaId) return
-    if (media.some((item) => item.id === selectedMediaId)) return
-    setSelectedMediaId(null)
-  }, [media, selectedMediaId])
+    if (!selectedMediaId) return;
+    if (media.some((item) => item.id === selectedMediaId)) return;
+    setSelectedMediaId(null);
+  }, [media, selectedMediaId]);
 
   function buildUseMenuItems(item) {
     return [
-      { label: 'Set Slide Background', onClick: () => applyToSlide(item.id), disabled: !selectedSlideId },
-      { label: sectionBackgroundLabel, onClick: () => applyToSection(item.id), disabled: !selectedSection },
-      { label: 'Insert Media Slide', onClick: () => insertAsMediaSlide(item), disabled: !selectedSection },
-    ]
+      {
+        label: 'Set Slide Background',
+        onClick: () => applyToSlide(item.id),
+        disabled: !selectedSlideId,
+      },
+      {
+        label: sectionBackgroundLabel,
+        onClick: () => applyToSection(item.id),
+        disabled: !selectedSection,
+      },
+      {
+        label: 'Insert Media Slide',
+        onClick: () => insertAsMediaSlide(item),
+        disabled: !selectedSection,
+      },
+    ];
   }
 
   function buildMoreMenuItems(item) {
     return [
       { label: 'Move', onClick: () => handleMoveItem(item) },
       { label: 'Rename', onClick: () => handleRenameItem(item) },
-    ]
+    ];
   }
 
   function buildContextMenuItems(item) {
@@ -236,25 +263,25 @@ export default function MediaLibraryPanel() {
       ...buildUseMenuItems(item),
       ...buildMoreMenuItems(item),
       { label: 'Delete', onClick: () => handleDeleteItem(item), danger: true },
-    ]
+    ];
   }
 
   function openContextMenuForItem(item, x, y) {
-    setSelectedMediaId(item.id)
+    setSelectedMediaId(item.id);
     setMenu({
       x,
       y,
       items: buildContextMenuItems(item),
-    })
+    });
   }
 
   function openFooterMenu(button, items) {
-    const rect = button.getBoundingClientRect()
+    const rect = button.getBoundingClientRect();
     setMenu({
       x: rect.right - 8,
       y: rect.bottom + 6,
       items,
-    })
+    });
   }
 
   return (
@@ -289,10 +316,7 @@ export default function MediaLibraryPanel() {
         </button>
       </div>
 
-      <div
-        className="flex shrink-0"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
+      <div className="flex shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         {['images', 'videos'].map((t) => (
           <button
             key={t}
@@ -320,11 +344,16 @@ export default function MediaLibraryPanel() {
             border: '1px solid var(--border-default)',
           }}
         >
-          <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <p
+            className="text-[11px] uppercase tracking-wide mb-1"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
             Applying To
           </p>
           <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-            {selectedSection ? `${sectionLabel}: ${selectedSection.title}` : 'Choose a section first'}
+            {selectedSection
+              ? `${sectionLabel}: ${selectedSection.title}`
+              : 'Choose a section first'}
           </p>
           <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>
             Library items can become a section background or a media slide in the flow.
@@ -335,9 +364,16 @@ export default function MediaLibraryPanel() {
           {currentFolder ? (
             <button
               type="button"
-              onClick={() => { setCurrentFolderId(null); setSelectedFolderId(null) }}
+              onClick={() => {
+                setCurrentFolderId(null);
+                setSelectedFolderId(null);
+              }}
               className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-              style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+              style={{
+                background: 'var(--bg-app)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)',
+              }}
               title="Back to media library"
             >
               <ArrowLeft size={14} />
@@ -347,7 +383,10 @@ export default function MediaLibraryPanel() {
             className="flex-1 rounded-xl px-3 py-2"
             style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
           >
-            <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            <p
+              className="text-[11px] uppercase tracking-wide"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
               {currentFolder ? 'Folder' : 'Library'}
             </p>
             <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
@@ -358,7 +397,11 @@ export default function MediaLibraryPanel() {
             type="button"
             onClick={handleNewFolder}
             className="px-2.5 h-8 rounded-lg text-[11px] font-medium shrink-0"
-            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            style={{
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+            }}
           >
             New Folder
           </button>
@@ -366,7 +409,11 @@ export default function MediaLibraryPanel() {
             type="button"
             onClick={handleImport}
             className="px-2.5 h-8 rounded-lg text-[11px] font-medium shrink-0"
-            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            style={{
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+            }}
           >
             Import
           </button>
@@ -393,32 +440,35 @@ export default function MediaLibraryPanel() {
           <div className="mb-3">
             <div className="flex items-center gap-2 mb-2">
               <Folder size={13} style={{ color: 'var(--text-secondary)' }} />
-              <span className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              <span
+                className="text-[11px] uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
                 Folders
               </span>
             </div>
             {visibleFolders.length ? (
               <div className="grid grid-cols-1 gap-2">
                 {visibleFolders.map((folder) => {
-                  const folderCount = media.filter((item) => item.folder_id === folder.id).length
-                  const selected = selectedFolderId === folder.id
+                  const folderCount = media.filter((item) => item.folder_id === folder.id).length;
+                  const selected = selectedFolderId === folder.id;
                   return (
                     <button
                       key={folder.id}
                       type="button"
                       onMouseDown={(event) => {
-                        event.stopPropagation()
-                        setSelectedFolderId(folder.id)
+                        event.stopPropagation();
+                        setSelectedFolderId(folder.id);
                       }}
                       onDoubleClick={(event) => {
-                        event.stopPropagation()
-                        setCurrentFolderId(folder.id)
-                        setSelectedFolderId(folder.id)
+                        event.stopPropagation();
+                        setCurrentFolderId(folder.id);
+                        setSelectedFolderId(folder.id);
                       }}
                       onContextMenu={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        setSelectedFolderId(folder.id)
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setSelectedFolderId(folder.id);
                         setMenu({
                           x: event.clientX,
                           y: event.clientY,
@@ -426,38 +476,60 @@ export default function MediaLibraryPanel() {
                             { label: 'Open Folder', onClick: () => setCurrentFolderId(folder.id) },
                             { label: 'Rename Folder', onClick: () => handleRenameFolder(folder) },
                             { divider: true },
-                            { label: 'Delete Folder', onClick: () => handleDeleteFolder(folder), danger: true },
+                            {
+                              label: 'Delete Folder',
+                              onClick: () => handleDeleteFolder(folder),
+                              danger: true,
+                            },
                           ],
-                        })
+                        });
                       }}
                       className="w-full rounded-xl px-3 py-2 text-left"
                       onDragOver={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        setDragOverFolderId(folder.id)
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setDragOverFolderId(folder.id);
                       }}
                       onDragLeave={() => {
-                        setDragOverFolderId((current) => (current === folder.id ? null : current))
+                        setDragOverFolderId((current) => (current === folder.id ? null : current));
                       }}
                       onDrop={async (event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        setDragOverFolderId(null)
-                        const rawMediaId = event.dataTransfer.getData('application/presenterpro-media-id')
-                        const mediaId = Number(rawMediaId)
-                        if (!Number.isFinite(mediaId)) return
-                        const updateResult = await updateMedia(mediaId, { folder_id: folder.id })
-                        if (updateResult?.success) loadLibrary()
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setDragOverFolderId(null);
+                        const rawMediaId = event.dataTransfer.getData(
+                          'application/presenterpro-media-id'
+                        );
+                        const mediaId = Number(rawMediaId);
+                        if (!Number.isFinite(mediaId)) return;
+                        const updateResult = await updateMedia(mediaId, { folder_id: folder.id });
+                        if (updateResult?.success) loadLibrary();
                       }}
                       style={{
-                        background: dragOverFolderId === folder.id ? 'rgba(74,124,255,0.14)' : selected ? 'rgba(74,124,255,0.1)' : 'var(--bg-app)',
-                        border: dragOverFolderId === folder.id ? '1px solid rgba(74,124,255,0.72)' : selected ? '1px solid rgba(74,124,255,0.55)' : '1px solid var(--border-default)',
+                        background:
+                          dragOverFolderId === folder.id
+                            ? 'rgba(74,124,255,0.14)'
+                            : selected
+                              ? 'rgba(74,124,255,0.1)'
+                              : 'var(--bg-app)',
+                        border:
+                          dragOverFolderId === folder.id
+                            ? '1px solid rgba(74,124,255,0.72)'
+                            : selected
+                              ? '1px solid rgba(74,124,255,0.55)'
+                              : '1px solid var(--border-default)',
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <Folder size={16} style={{ color: selected ? 'var(--accent)' : 'var(--text-secondary)' }} />
+                        <Folder
+                          size={16}
+                          style={{ color: selected ? 'var(--accent)' : 'var(--text-secondary)' }}
+                        />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                          <p
+                            className="text-xs font-medium truncate"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
                             {folder.name}
                           </p>
                           <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
@@ -466,35 +538,48 @@ export default function MediaLibraryPanel() {
                         </div>
                       </div>
                     </button>
-                  )
+                  );
                 })}
               </div>
             ) : (
               <div
                 className="rounded-xl px-3 py-4 text-center"
-                style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-tertiary)' }}
+                style={{
+                  background: 'var(--bg-app)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-tertiary)',
+                }}
               >
                 <FolderPlus size={18} className="mx-auto mb-2" />
-                <p className="text-xs">{query ? 'No folders match that search' : 'No folders yet'}</p>
+                <p className="text-xs">
+                  {query ? 'No folders match that search' : 'No folders yet'}
+                </p>
               </div>
             )}
           </div>
         )}
 
         <div className="flex items-center gap-2 mb-2">
-          {tab === 'images'
-            ? <Image size={13} style={{ color: 'var(--text-secondary)' }} />
-            : <Film size={13} style={{ color: 'var(--text-secondary)' }} />}
-          <span className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+          {tab === 'images' ? (
+            <Image size={13} style={{ color: 'var(--text-secondary)' }} />
+          ) : (
+            <Film size={13} style={{ color: 'var(--text-secondary)' }} />
+          )}
+          <span
+            className="text-[11px] uppercase tracking-wide"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
             {currentFolder ? currentFolder.name : tab}
           </span>
         </div>
 
         {visibleMedia.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2">
-            {tab === 'images'
-              ? <Image size={24} style={{ color: 'var(--text-tertiary)' }} />
-              : <Film size={24} style={{ color: 'var(--text-tertiary)' }} />}
+            {tab === 'images' ? (
+              <Image size={24} style={{ color: 'var(--text-tertiary)' }} />
+            ) : (
+              <Film size={24} style={{ color: 'var(--text-tertiary)' }} />
+            )}
             <p className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
               {query
                 ? 'No media matches that search'
@@ -512,21 +597,25 @@ export default function MediaLibraryPanel() {
                 title={item.name}
                 style={{
                   background: '#1a1a1a',
-                  border: selectedMediaId === item.id ? '1px solid rgba(74,124,255,0.72)' : '1px solid var(--border-subtle)',
-                  boxShadow: selectedMediaId === item.id ? '0 0 0 2px rgba(74,124,255,0.18)' : 'none',
+                  border:
+                    selectedMediaId === item.id
+                      ? '1px solid rgba(74,124,255,0.72)'
+                      : '1px solid var(--border-subtle)',
+                  boxShadow:
+                    selectedMediaId === item.id ? '0 0 0 2px rgba(74,124,255,0.18)' : 'none',
                 }}
                 draggable
                 onDragStart={(event) => {
-                  event.dataTransfer.setData('application/presenterpro-media-id', String(item.id))
-                  event.dataTransfer.effectAllowed = 'move'
-                  setSelectedMediaId(item.id)
+                  event.dataTransfer.setData('application/presenterpro-media-id', String(item.id));
+                  event.dataTransfer.effectAllowed = 'move';
+                  setSelectedMediaId(item.id);
                 }}
                 onClick={() => setSelectedMediaId(item.id)}
                 onMouseDown={() => setSelectedMediaId(item.id)}
                 onContextMenu={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  openContextMenuForItem(item, event.clientX, event.clientY)
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openContextMenuForItem(item, event.clientX, event.clientY);
                 }}
               >
                 <div style={{ aspectRatio: '16/9' }} className="relative overflow-hidden">
@@ -536,7 +625,10 @@ export default function MediaLibraryPanel() {
                   className="px-2 py-1.5"
                   style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
                 >
-                  <p className="text-[11px] font-medium truncate flex-1" style={{ color: '#f3f4f6' }}>
+                  <p
+                    className="text-[11px] font-medium truncate flex-1"
+                    style={{ color: '#f3f4f6' }}
+                  >
                     {item.name}
                   </p>
                   <p className="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>
@@ -549,12 +641,12 @@ export default function MediaLibraryPanel() {
         )}
       </div>
 
-      <div
-        className="px-3 py-2 shrink-0"
-        style={{ borderTop: '1px solid var(--border-subtle)' }}
-      >
+      <div className="px-3 py-2 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
         <div className="mb-2 min-h-[2.25rem]">
-          <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+          <p
+            className="text-[11px] uppercase tracking-wide"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
             Selected Media
           </p>
           <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
@@ -566,8 +658,8 @@ export default function MediaLibraryPanel() {
             type="button"
             disabled={!selectedMediaItem}
             onClick={(event) => {
-              if (!selectedMediaItem) return
-              openFooterMenu(event.currentTarget, buildUseMenuItems(selectedMediaItem))
+              if (!selectedMediaItem) return;
+              openFooterMenu(event.currentTarget, buildUseMenuItems(selectedMediaItem));
             }}
             className="h-9 rounded-lg text-xs font-medium"
             style={{
@@ -582,8 +674,8 @@ export default function MediaLibraryPanel() {
             type="button"
             disabled={!selectedMediaItem}
             onClick={(event) => {
-              if (!selectedMediaItem) return
-              openFooterMenu(event.currentTarget, buildMoreMenuItems(selectedMediaItem))
+              if (!selectedMediaItem) return;
+              openFooterMenu(event.currentTarget, buildMoreMenuItems(selectedMediaItem));
             }}
             className="h-9 rounded-lg flex items-center justify-center"
             style={{
@@ -600,7 +692,7 @@ export default function MediaLibraryPanel() {
             type="button"
             disabled={!selectedMediaItem}
             onClick={() => {
-              if (selectedMediaItem) void handleDeleteItem(selectedMediaItem)
+              if (selectedMediaItem) void handleDeleteItem(selectedMediaItem);
             }}
             className="h-9 rounded-lg flex items-center justify-center"
             style={{
@@ -617,49 +709,29 @@ export default function MediaLibraryPanel() {
       </div>
 
       {menu ? (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          items={menu.items}
-          onClose={() => setMenu(null)}
-        />
+        <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />
       ) : null}
     </div>
-  )
+  );
 }
 
 function MediaPreview({ item }) {
-  const src = getMediaAssetUrl(item, { preferThumbnail: true })
+  const src = getMediaAssetUrl(item, { preferThumbnail: true });
 
   if (!src || item.file_exists === false) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center">
         <Image size={20} style={{ color: '#555' }} />
-        <span style={{ color: '#9ca3af', fontSize: 10, fontWeight: 600 }}>
-          Missing File
-        </span>
+        <span style={{ color: '#9ca3af', fontSize: 10, fontWeight: 600 }}>Missing File</span>
       </div>
-    )
+    );
   }
 
   if (isVideoMedia(item)) {
     return (
-      <video
-        src={src}
-        className="w-full h-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-      />
-    )
+      <video src={src} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+    );
   }
 
-  return (
-    <img
-      src={src}
-      alt={item.name}
-      className="w-full h-full object-cover"
-    />
-  )
+  return <img src={src} alt={item.name} className="w-full h-full object-cover" />;
 }

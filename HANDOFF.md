@@ -32,7 +32,7 @@ PresenterPro is a local-first Electron desktop app for worship presentations. It
 
 ## Repo / Project Location
 
-- Local project: `/Users/ethansmith/Desktop/VSClaude/ProPresV2`
+- Local project: `/Users/ethansmith/Desktop/ClaudeAccess/ProPresV2`
 - GitHub repo: `https://github.com/egsmitty/propres-v2`
 
 ## Packaged Build Status

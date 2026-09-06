@@ -1,14 +1,14 @@
-import React from 'react'
-import { AlertTriangle } from 'lucide-react'
+import React from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
-    super(props)
-    this.state = { error: null }
+    super(props);
+    this.state = { error: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { error }
+    return { error };
   }
 
   render() {
@@ -22,7 +22,10 @@ export default class ErrorBoundary extends React.Component {
           <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
             {this.props.label || 'Something went wrong'}
           </p>
-          <p className="text-xs text-center" style={{ color: 'var(--text-tertiary)', maxWidth: 280 }}>
+          <p
+            className="text-xs text-center"
+            style={{ color: 'var(--text-tertiary)', maxWidth: 280 }}
+          >
             {this.state.error.message}
           </p>
           <button
@@ -37,8 +40,8 @@ export default class ErrorBoundary extends React.Component {
             Try again
           </button>
         </div>
-      )
+      );
     }
-    return this.props.children
+    return this.props.children;
   }
 }

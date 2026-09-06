@@ -1,205 +1,222 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, LayoutPanelTop } from 'lucide-react'
-import { useAppStore } from '@/store/appStore'
-import { useEditorStore } from '@/store/editorStore'
-import { usePresenterStore } from '@/store/presenterStore'
-import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow'
-import { getMedia, sendSlide } from '@/utils/ipc'
-import { getSectionColor, withColorAlpha } from '@/utils/sectionTypes'
-import { getPresentationAspectRatio } from '@/utils/presentationSizing'
-import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface'
-import { withEffectiveBackground } from '@/utils/backgrounds'
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, LayoutPanelTop } from 'lucide-react';
+import { useAppStore } from '@/store/appStore';
+import { useEditorStore } from '@/store/editorStore';
+import { usePresenterStore } from '@/store/presenterStore';
+import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow';
+import { getMedia, sendSlide } from '@/utils/ipc';
+import { getSectionColor, withColorAlpha } from '@/utils/sectionTypes';
+import { getPresentationAspectRatio } from '@/utils/presentationSizing';
+import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
+import { withEffectiveBackground } from '@/utils/backgrounds';
 
-const LIVE_SLIDE_OUTLINE_COLOR = '#00f57a'
-const PRESENTER_PANEL_TOP_HEIGHT_KEY = 'presenterpro.presenterPanelTopHeight'
-const PRESENTER_PANEL_MIN_TOP_HEIGHT = 220
-const PRESENTER_PANEL_MIN_BOTTOM_HEIGHT = 170
-const PRESENTER_PANEL_DIVIDER_HEIGHT = 6
+const LIVE_SLIDE_OUTLINE_COLOR = '#00f57a';
+const PRESENTER_PANEL_TOP_HEIGHT_KEY = 'presenterpro.presenterPanelTopHeight';
+const PRESENTER_PANEL_MIN_TOP_HEIGHT = 220;
+const PRESENTER_PANEL_MIN_BOTTOM_HEIGHT = 170;
+const PRESENTER_PANEL_DIVIDER_HEIGHT = 6;
 
 function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value))
+  return Math.min(max, Math.max(min, value));
 }
 
 function getInitialTopPanelHeight() {
-  if (typeof window === 'undefined') return 320
-  const saved = Number(window.localStorage.getItem(PRESENTER_PANEL_TOP_HEIGHT_KEY))
-  return Number.isFinite(saved) ? saved : 320
+  if (typeof window === 'undefined') return 320;
+  const saved = Number(window.localStorage.getItem(PRESENTER_PANEL_TOP_HEIGHT_KEY));
+  return Number.isFinite(saved) ? saved : 320;
 }
 
 export default function PresenterPanel({ onSetOpen }) {
-  const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
-  const presentation = useEditorStore((s) => s.presentation)
-  const selectedSectionId = useEditorStore((s) => s.selectedSectionId)
-  const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
-  const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide)
+  const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen);
+  const presentation = useEditorStore((s) => s.presentation);
+  const selectedSectionId = useEditorStore((s) => s.selectedSectionId);
+  const selectedSlideId = useEditorStore((s) => s.selectedSlideId);
+  const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide);
 
-  const isPresenting = usePresenterStore((s) => s.isPresenting)
-  const liveSlideId = usePresenterStore((s) => s.liveSlideId)
-  const liveSectionId = usePresenterStore((s) => s.liveSectionId)
-  const isBlack = usePresenterStore((s) => s.isBlack)
-  const isLogo = usePresenterStore((s) => s.isLogo)
-  const allSlides = usePresenterStore((s) => s.allSlides)
-  const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
-  const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth)
-  const setPresenterPanelOpen = usePresenterStore((s) => s.setPresenterPanelOpen)
-  const setOpen = onSetOpen || setPresenterPanelOpen
+  const isPresenting = usePresenterStore((s) => s.isPresenting);
+  const liveSlideId = usePresenterStore((s) => s.liveSlideId);
+  const liveSectionId = usePresenterStore((s) => s.liveSectionId);
+  const isBlack = usePresenterStore((s) => s.isBlack);
+  const isLogo = usePresenterStore((s) => s.isLogo);
+  const allSlides = usePresenterStore((s) => s.allSlides);
+  const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen);
+  const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth);
+  const setPresenterPanelOpen = usePresenterStore((s) => s.setPresenterPanelOpen);
+  const setOpen = onSetOpen || setPresenterPanelOpen;
 
-  const liveIdx = allSlides.findIndex((sl) => sl.id === liveSlideId)
-  const liveSlide = liveIdx >= 0 ? allSlides[liveIdx] : null
+  const liveIdx = allSlides.findIndex((sl) => sl.id === liveSlideId);
+  const liveSlide = liveIdx >= 0 ? allSlides[liveIdx] : null;
 
   // Selected slide preview when not presenting
-  const selectedSlide = presentation?.sections
-    ?.find((s) => s.id === selectedSectionId)
-    ?.slides?.find((sl) => sl.id === selectedSlideId) || null
+  const selectedSlide =
+    presentation?.sections
+      ?.find((s) => s.id === selectedSectionId)
+      ?.slides?.find((sl) => sl.id === selectedSlideId) || null;
 
   // Keep refs current so keyboard handler always has the latest values
-  const liveIdxRef = useRef(liveIdx)
-  const allSlidesRef = useRef(allSlides)
-  const slideGridRef = useRef(null)
-  const slideButtonRefs = useRef(new Map())
-  const panelRef = useRef(null)
-  const dividerDragRef = useRef(null)
-  const [topPanelHeight, setTopPanelHeight] = useState(getInitialTopPanelHeight)
-  const [mediaLibrary, setMediaLibrary] = useState([])
-  useEffect(() => { liveIdxRef.current = liveIdx }, [liveIdx])
-  useEffect(() => { allSlidesRef.current = allSlides }, [allSlides])
+  const liveIdxRef = useRef(liveIdx);
+  const allSlidesRef = useRef(allSlides);
+  const slideGridRef = useRef(null);
+  const slideButtonRefs = useRef(new Map());
+  const panelRef = useRef(null);
+  const dividerDragRef = useRef(null);
+  const [topPanelHeight, setTopPanelHeight] = useState(getInitialTopPanelHeight);
+  const [mediaLibrary, setMediaLibrary] = useState([]);
+  useEffect(() => {
+    liveIdxRef.current = liveIdx;
+  }, [liveIdx]);
+  useEffect(() => {
+    allSlidesRef.current = allSlides;
+  }, [allSlides]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(PRESENTER_PANEL_TOP_HEIGHT_KEY, String(topPanelHeight))
-  }, [topPanelHeight])
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(PRESENTER_PANEL_TOP_HEIGHT_KEY, String(topPanelHeight));
+  }, [topPanelHeight]);
 
   useEffect(() => {
-    getMedia().then((result) => {
-      if (result?.success) setMediaLibrary(result.data || [])
-    }).catch(() => {})
-  }, [mediaLibraryOpen, presentation?.id])
+    getMedia()
+      .then((result) => {
+        if (result?.success) setMediaLibrary(result.data || []);
+      })
+      .catch(() => {});
+  }, [mediaLibraryOpen, presentation?.id]);
 
   useEffect(() => {
     function clampTopPanelHeight() {
-      const panelHeight = panelRef.current?.clientHeight || 0
-      if (!panelHeight) return
+      const panelHeight = panelRef.current?.clientHeight || 0;
+      if (!panelHeight) return;
       const maxTopHeight = Math.max(
         PRESENTER_PANEL_MIN_TOP_HEIGHT,
         panelHeight - PRESENTER_PANEL_MIN_BOTTOM_HEIGHT - PRESENTER_PANEL_DIVIDER_HEIGHT
-      )
-      setTopPanelHeight((current) => clamp(current, PRESENTER_PANEL_MIN_TOP_HEIGHT, maxTopHeight))
+      );
+      setTopPanelHeight((current) => clamp(current, PRESENTER_PANEL_MIN_TOP_HEIGHT, maxTopHeight));
     }
 
-    clampTopPanelHeight()
-    window.addEventListener('resize', clampTopPanelHeight)
-    return () => window.removeEventListener('resize', clampTopPanelHeight)
-  }, [presenterPanelOpen, presenterPanelWidth])
+    clampTopPanelHeight();
+    window.addEventListener('resize', clampTopPanelHeight);
+    return () => window.removeEventListener('resize', clampTopPanelHeight);
+  }, [presenterPanelOpen, presenterPanelWidth]);
 
   useEffect(() => {
     function onMove(event) {
-      if (!dividerDragRef.current) return
-      const panelHeight = panelRef.current?.clientHeight || 0
-      if (!panelHeight) return
-      const delta = event.clientY - dividerDragRef.current.startY
+      if (!dividerDragRef.current) return;
+      const panelHeight = panelRef.current?.clientHeight || 0;
+      if (!panelHeight) return;
+      const delta = event.clientY - dividerDragRef.current.startY;
       const maxTopHeight = Math.max(
         PRESENTER_PANEL_MIN_TOP_HEIGHT,
         panelHeight - PRESENTER_PANEL_MIN_BOTTOM_HEIGHT - PRESENTER_PANEL_DIVIDER_HEIGHT
-      )
-      setTopPanelHeight(clamp(
-        dividerDragRef.current.startHeight + delta,
-        PRESENTER_PANEL_MIN_TOP_HEIGHT,
-        maxTopHeight
-      ))
-      document.body.style.cursor = 'row-resize'
+      );
+      setTopPanelHeight(
+        clamp(
+          dividerDragRef.current.startHeight + delta,
+          PRESENTER_PANEL_MIN_TOP_HEIGHT,
+          maxTopHeight
+        )
+      );
+      document.body.style.cursor = 'row-resize';
     }
 
     function onUp() {
-      dividerDragRef.current = null
-      document.body.style.cursor = ''
+      dividerDragRef.current = null;
+      document.body.style.cursor = '';
     }
 
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-  }, [])
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
 
   useEffect(() => {
-    if (!isPresenting || !liveSlideId) return
+    if (!isPresenting || !liveSlideId) return;
 
-    const container = slideGridRef.current
-    const node = slideButtonRefs.current.get(liveSlideId)
-    if (!container || !node) return
+    const container = slideGridRef.current;
+    const node = slideButtonRefs.current.get(liveSlideId);
+    if (!container || !node) return;
 
-    const containerRect = container.getBoundingClientRect()
-    const nodeRect = node.getBoundingClientRect()
-    const topPadding = 12
-    const bottomPadding = 20
-    const isAbove = nodeRect.top < containerRect.top + topPadding
-    const isBelow = nodeRect.bottom > containerRect.bottom - bottomPadding
+    const containerRect = container.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    const topPadding = 12;
+    const bottomPadding = 20;
+    const isAbove = nodeRect.top < containerRect.top + topPadding;
+    const isBelow = nodeRect.bottom > containerRect.bottom - bottomPadding;
 
-    if (!isAbove && !isBelow) return
+    if (!isAbove && !isBelow) return;
 
     node.scrollIntoView({
       block: 'nearest',
       inline: 'nearest',
       behavior: 'smooth',
-    })
-  }, [isPresenting, liveSlideId])
+    });
+  }, [isPresenting, liveSlideId]);
 
   // Arrow key navigation when presenting
   useEffect(() => {
-    if (!isPresenting) return
+    if (!isPresenting) return;
     function handler(e) {
-      const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return
-      if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev() }
-      if (e.key === 'ArrowRight' || e.key === ' ' || e.code === 'Space') { e.preventDefault(); goNext() }
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable)
+        return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goPrev();
+      }
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        goNext();
+      }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [isPresenting])
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isPresenting]);
 
   async function goToSlide(slide) {
-    if (!slide) return
+    if (!slide) return;
     if (!isPresenting) {
-      setSelectedSlide(slide.sectionId, slide.id)
-      return
+      setSelectedSlide(slide.sectionId, slide.id);
+      return;
     }
-    await sendSlide(slide, null)
-    usePresenterStore.getState().setLiveSlide(slide.sectionId, slide.id)
+    await sendSlide(slide, null);
+    usePresenterStore.getState().setLiveSlide(slide.sectionId, slide.id);
   }
 
   function goPrev() {
-    const idx = liveIdxRef.current
-    const slides = allSlidesRef.current
-    if (idx <= 0) return
-    goToSlide(slides[idx - 1])
+    const idx = liveIdxRef.current;
+    const slides = allSlidesRef.current;
+    if (idx <= 0) return;
+    goToSlide(slides[idx - 1]);
   }
 
   function goNext() {
-    const idx = liveIdxRef.current
-    const slides = allSlidesRef.current
-    if (idx >= slides.length - 1) return
-    goToSlide(slides[idx + 1])
+    const idx = liveIdxRef.current;
+    const slides = allSlidesRef.current;
+    if (idx >= slides.length - 1) return;
+    goToSlide(slides[idx + 1]);
   }
 
   async function handleStart() {
-    if (!presentation) return
-    await startSidebarPresentationSession(presentation)
+    if (!presentation) return;
+    await startSidebarPresentationSession(presentation);
   }
 
   async function handleStop() {
-    await stopPresentationSession()
+    await stopPresentationSession();
   }
 
-  const previewSlide = isPresenting ? liveSlide : selectedSlide
-  const previewSectionId = isPresenting ? liveSectionId : selectedSectionId
-  const previewSection = presentation?.sections?.find((entry) => entry.id === previewSectionId) || null
+  const previewSlide = isPresenting ? liveSlide : selectedSlide;
+  const previewSectionId = isPresenting ? liveSectionId : selectedSectionId;
+  const previewSection =
+    presentation?.sections?.find((entry) => entry.id === previewSectionId) || null;
   const previewSlideWithBackground = previewSlide
     ? withEffectiveBackground(presentation, previewSectionId, previewSlide)
-    : null
-  const canGoPrev = isPresenting && liveIdx > 0
-  const canGoNext = isPresenting && liveIdx < allSlides.length - 1
-  const slideGridColumns = Math.min(5, Math.max(1, Math.floor((presenterPanelWidth - 32) / 118)))
+    : null;
+  const canGoPrev = isPresenting && liveIdx > 0;
+  const canGoNext = isPresenting && liveIdx < allSlides.length - 1;
+  const slideGridColumns = Math.min(5, Math.max(1, Math.floor((presenterPanelWidth - 32) / 118)));
 
   if (!presenterPanelOpen) {
     return (
@@ -214,10 +231,10 @@ export default function PresenterPanel({ onSetOpen }) {
           cursor: 'pointer',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'var(--bg-hover)'
+          e.currentTarget.style.background = 'var(--bg-hover)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'var(--bg-surface)'
+          e.currentTarget.style.background = 'var(--bg-surface)';
         }}
         title="Show presenter panel"
         aria-label="Show presenter panel"
@@ -263,7 +280,7 @@ export default function PresenterPanel({ onSetOpen }) {
           <span className="text-[11px] font-medium whitespace-nowrap">Show presenter</span>
         </div>
       </button>
-    )
+    );
   }
 
   return (
@@ -278,7 +295,10 @@ export default function PresenterPanel({ onSetOpen }) {
       }}
     >
       {/* Fixed-width inner — gets clipped by overflow-hidden during animation */}
-      <div className="flex flex-col h-full" style={{ width: presenterPanelWidth, minWidth: presenterPanelWidth }}>
+      <div
+        className="flex flex-col h-full"
+        style={{ width: presenterPanelWidth, minWidth: presenterPanelWidth }}
+      >
         <div
           className="shrink-0 flex flex-col"
           style={{
@@ -294,14 +314,32 @@ export default function PresenterPanel({ onSetOpen }) {
                     className="w-1.5 h-1.5 rounded-full"
                     style={{ background: '#16a34a', flexShrink: 0, animation: 'pulse 2s infinite' }}
                   />
-                  <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      color: '#16a34a',
+                      fontWeight: 600,
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
                     Live Output
                   </span>
                 </>
               ) : (
                 <>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--text-tertiary)', flexShrink: 0 }} />
-                  <span style={{ fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: 'var(--text-tertiary)', flexShrink: 0 }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 9,
+                      color: 'var(--text-tertiary)',
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
                     Preview
                   </span>
                 </>
@@ -320,26 +358,25 @@ export default function PresenterPanel({ onSetOpen }) {
                   color: '#fff',
                 }}
               >
-                {isBlack
-                  ? <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
-                  : isLogo
-                  ? <span style={{ color: '#4a7cff', fontSize: 10 }}>LOGO</span>
-                  : (
-                    <div className="relative w-full h-full">
-                      <SlidePreviewSurface
-                        presentation={presentation}
-                        slide={previewSlideWithBackground}
-                        sectionId={previewSectionId}
-                        mediaLibrary={mediaLibrary}
-                        empty="—"
-                        shadow="none"
-                        minPaddingX={8}
-                        minPaddingY={8}
-                        showPlaceholder={false}
-                      />
-                    </div>
-                  )
-                }
+                {isBlack ? (
+                  <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
+                ) : isLogo ? (
+                  <span style={{ color: '#4a7cff', fontSize: 10 }}>LOGO</span>
+                ) : (
+                  <div className="relative w-full h-full">
+                    <SlidePreviewSurface
+                      presentation={presentation}
+                      slide={previewSlideWithBackground}
+                      sectionId={previewSectionId}
+                      mediaLibrary={mediaLibrary}
+                      empty="—"
+                      shadow="none"
+                      minPaddingX={8}
+                      minPaddingY={8}
+                      showPlaceholder={false}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -397,19 +434,19 @@ export default function PresenterPanel({ onSetOpen }) {
             borderBottom: '1px solid var(--border-subtle)',
           }}
           onMouseDown={(event) => {
-            event.preventDefault()
+            event.preventDefault();
             dividerDragRef.current = {
               startY: event.clientY,
               startHeight: topPanelHeight,
-            }
-            document.body.style.cursor = 'row-resize'
+            };
+            document.body.style.cursor = 'row-resize';
           }}
           onMouseEnter={(event) => {
-            event.currentTarget.style.background = 'var(--border-default)'
+            event.currentTarget.style.background = 'var(--border-default)';
           }}
           onMouseLeave={(event) => {
             if (!dividerDragRef.current) {
-              event.currentTarget.style.background = 'transparent'
+              event.currentTarget.style.background = 'transparent';
             }
           }}
         />
@@ -417,7 +454,9 @@ export default function PresenterPanel({ onSetOpen }) {
         <div ref={slideGridRef} className="flex-1 overflow-y-auto px-3 pb-2">
           {!presentation ? (
             <div className="flex items-center justify-center h-full">
-              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No presentation open</span>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                No presentation open
+              </span>
             </div>
           ) : (
             presentation.sections.map((section) => (
@@ -428,24 +467,35 @@ export default function PresenterPanel({ onSetOpen }) {
                   style={{ fontSize: 10, color: 'var(--text-tertiary)' }}
                 >
                   <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
-                  <span className="shrink-0 truncate" style={{ maxWidth: 160 }}>{section.title}</span>
+                  <span className="shrink-0 truncate" style={{ maxWidth: 160 }}>
+                    {section.title}
+                  </span>
                   <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
                 </div>
                 {/* Responsive thumbnail grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${slideGridColumns}, minmax(0, 1fr))`, gap: 4 }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${slideGridColumns}, minmax(0, 1fr))`,
+                    gap: 4,
+                  }}
+                >
                   {section.slides.map((slide) => {
-                    const isLive = slide.id === liveSlideId
-                    const isSelected = !isPresenting && slide.id === selectedSlideId
-                    const songSectionColor = slide.groupId ? getSectionColor(slide.type) : null
+                    const isLive = slide.id === liveSlideId;
+                    const isSelected = !isPresenting && slide.id === selectedSlideId;
+                    const songSectionColor = slide.groupId ? getSectionColor(slide.type) : null;
                     // Use the enriched slide (with sectionId + effectiveBackgroundId) from allSlides when available
-                    const enriched = allSlides.find((s) => s.id === slide.id) || { ...slide, sectionId: section.id }
+                    const enriched = allSlides.find((s) => s.id === slide.id) || {
+                      ...slide,
+                      sectionId: section.id,
+                    };
                     return (
                       <button
                         key={slide.id}
                         onClick={() => goToSlide(enriched)}
                         ref={(node) => {
-                          if (node) slideButtonRefs.current.set(slide.id, node)
-                          else slideButtonRefs.current.delete(slide.id)
+                          if (node) slideButtonRefs.current.set(slide.id, node);
+                          else slideButtonRefs.current.delete(slide.id);
                         }}
                         style={{
                           aspectRatio: getPresentationAspectRatio(presentation),
@@ -515,7 +565,7 @@ export default function PresenterPanel({ onSetOpen }) {
                           />
                         </div>
                       </button>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -557,8 +607,7 @@ export default function PresenterPanel({ onSetOpen }) {
             NEXT ▶
           </button>
         </div>
-
       </div>
     </div>
-  )
+  );
 }

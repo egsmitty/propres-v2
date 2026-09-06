@@ -1,0 +1,96 @@
+name: Build Release
+
+# Releases are cut from version tags, not from a promotion branch.
+#   git tag v1.1.0 && git push origin v1.1.0
+#
+# Produces unsigned macOS (dmg/zip) and Windows (nsis/zip) artifacts and
+# attaches them to a draft GitHub Release for the architect to publish.
+on:
+  push:
+    tags: ['v*']
+  # Lets a build be produced without tagging, e.g. to hand a tester a build.
+  workflow_dispatch:
+
+permissions:
+  contents: write # required to create the release and upload assets
+
+defaults:
+  run:
+    working-directory: presenter-pro
+
+jobs:
+  build:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            script: dist:mac
+            artifact: presenterpro-macos
+          - os: windows-latest
+            script: dist:win
+            artifact: presenterpro-windows
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: presenter-pro/package-lock.json
+
+      # Full install: electron-builder needs the native better-sqlite3 rebuild.
+      - name: Install dependencies
+        run: npm ci
+
+      # A release must never be cut from code that fails the gate.
+      - name: Completion gate
+        run: npm run gate
+
+      - name: Package
+        run: npm run ${{ matrix.script }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          # Only the distributable files — not the unpacked app directories,
+          # which are large and redundant with the dmg/zip.
+          path: |
+            presenter-pro/dist/*.dmg
+            presenter-pro/dist/*.exe
+            presenter-pro/dist/*.zip
+            presenter-pro/dist/*.blockmap
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Draft GitHub Release
+    needs: build
+    # Only tag pushes produce a release; workflow_dispatch just leaves artifacts.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: artifacts/**/*
+          body: |
+            Unsigned builds for personal distribution.
+
+            **macOS:** the app is unsigned, so the first launch needs
+            right-click → Open rather than a double-click.
+
+            **Windows:** SmartScreen will warn on first run; choose
+            More info → Run anyway.

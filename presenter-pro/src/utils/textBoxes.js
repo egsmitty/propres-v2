@@ -1,8 +1,8 @@
-import { uuid } from '@/utils/uuid'
+import { uuid } from '@/utils/uuid';
 
-export const DEFAULT_PLACEHOLDER_TEXT = 'Double-click to edit'
-export const FONT_SIZE_DISPLAY_SCALE = 0.4
-export const FONT_SIZE_DISPLAY_PRESETS = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 56, 64]
+export const DEFAULT_PLACEHOLDER_TEXT = 'Double-click to edit';
+export const FONT_SIZE_DISPLAY_SCALE = 0.4;
+export const FONT_SIZE_DISPLAY_PRESETS = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 56, 64];
 
 export const DEFAULT_TEXT_STYLE = {
   fontFamily: 'Arial, sans-serif',
@@ -22,14 +22,14 @@ export const DEFAULT_TEXT_STYLE = {
   bullets: false,
   numbering: false,
   indent: 0,
-}
+};
 
 const LEGACY_DEFAULT_TEXT_BOX = {
   x: 240,
   y: 270,
   width: 1440,
   height: 540,
-}
+};
 
 export const DEFAULT_TEXT_BOX = {
   x: 110,
@@ -59,70 +59,76 @@ export const DEFAULT_TEXT_BOX = {
   autoFit: 'none',
   textDirection: 'horizontal',
   opacity: 1,
-}
+};
 
 export function mergeTextStyle(style = {}) {
-  const next = { ...DEFAULT_TEXT_STYLE, ...(style || {}) }
-  if (next.valign === 'center') next.valign = 'middle'
-  return next
+  const next = { ...DEFAULT_TEXT_STYLE, ...(style || {}) };
+  if (next.valign === 'center') next.valign = 'middle';
+  return next;
 }
 
 export function internalToDisplayFontSize(size, fallback = DEFAULT_TEXT_STYLE.size) {
-  const numeric = Number(size)
-  const base = Number.isFinite(numeric) && numeric > 0 ? numeric : fallback
-  return Math.max(1, Math.round(base * FONT_SIZE_DISPLAY_SCALE))
+  const numeric = Number(size);
+  const base = Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+  return Math.max(1, Math.round(base * FONT_SIZE_DISPLAY_SCALE));
 }
 
 export function displayToInternalFontSize(size, fallback = DEFAULT_TEXT_STYLE.size) {
-  const numeric = Number(size)
-  const display = Number.isFinite(numeric) && numeric > 0 ? numeric : internalToDisplayFontSize(fallback)
-  return Math.max(1, Math.round(display / FONT_SIZE_DISPLAY_SCALE))
+  const numeric = Number(size);
+  const display =
+    Number.isFinite(numeric) && numeric > 0 ? numeric : internalToDisplayFontSize(fallback);
+  return Math.max(1, Math.round(display / FONT_SIZE_DISPLAY_SCALE));
 }
 
 export function mergeTextBox(frame = {}) {
-  return { ...DEFAULT_TEXT_BOX, ...(frame || {}) }
+  return { ...DEFAULT_TEXT_BOX, ...(frame || {}) };
 }
 
 export function resolvePlaceholderText(text, fallback = DEFAULT_PLACEHOLDER_TEXT) {
-  if (!text) return fallback
-  return text === 'Click to edit' ? DEFAULT_PLACEHOLDER_TEXT : text
+  if (!text) return fallback;
+  return text === 'Click to edit' ? DEFAULT_PLACEHOLDER_TEXT : text;
 }
 
 export function getDefaultAutoFitMode(slideOrType) {
-  const type = typeof slideOrType === 'string' ? slideOrType : slideOrType?.type
-  return type === 'song' ? 'shrink' : 'none'
+  const type = typeof slideOrType === 'string' ? slideOrType : slideOrType?.type;
+  return type === 'song' ? 'shrink' : 'none';
 }
 
 function isLegacyDefaultFrame(frame = {}) {
-  return frame
-    && frame.x === LEGACY_DEFAULT_TEXT_BOX.x
-    && frame.y === LEGACY_DEFAULT_TEXT_BOX.y
-    && frame.width === LEGACY_DEFAULT_TEXT_BOX.width
-    && frame.height == LEGACY_DEFAULT_TEXT_BOX.height
+  return (
+    frame &&
+    frame.x === LEGACY_DEFAULT_TEXT_BOX.x &&
+    frame.y === LEGACY_DEFAULT_TEXT_BOX.y &&
+    frame.width === LEGACY_DEFAULT_TEXT_BOX.width &&
+    frame.height == LEGACY_DEFAULT_TEXT_BOX.height
+  );
 }
 
 function upgradeLegacyFrame(frame = {}) {
-  return isLegacyDefaultFrame(frame) ? { ...DEFAULT_TEXT_BOX, ...frame, x: DEFAULT_TEXT_BOX.x, y: DEFAULT_TEXT_BOX.y, width: DEFAULT_TEXT_BOX.width, height: DEFAULT_TEXT_BOX.height } : frame
+  return isLegacyDefaultFrame(frame)
+    ? {
+        ...DEFAULT_TEXT_BOX,
+        ...frame,
+        x: DEFAULT_TEXT_BOX.x,
+        y: DEFAULT_TEXT_BOX.y,
+        width: DEFAULT_TEXT_BOX.width,
+        height: DEFAULT_TEXT_BOX.height,
+      }
+    : frame;
 }
 
 function legacyTextBoxId(slide) {
-  return slide?.id ? `${slide.id}::textbox-1` : uuid()
+  return slide?.id ? `${slide.id}::textbox-1` : uuid();
 }
 
 export function createTextBox(overrides = {}, options = {}) {
-  const {
-    id,
-    body,
-    placeholderText,
-    textStyle: rawTextStyle,
-    ...frameOverrides
-  } = overrides || {}
+  const { id, body, placeholderText, textStyle: rawTextStyle, ...frameOverrides } = overrides || {};
 
-  const textStyle = mergeTextStyle(rawTextStyle)
+  const textStyle = mergeTextStyle(rawTextStyle);
   const frame = mergeTextBox({
     autoFit: options.autoFit ?? frameOverrides.autoFit ?? 'none',
     ...frameOverrides,
-  })
+  });
 
   return {
     id: id || uuid(),
@@ -130,18 +136,12 @@ export function createTextBox(overrides = {}, options = {}) {
     placeholderText: resolvePlaceholderText(placeholderText),
     textStyle,
     ...frame,
-  }
+  };
 }
 
 export function normalizeTextBox(textBox, slide, index = 0) {
-  const upgradedFrame = upgradeLegacyFrame(textBox || {})
-  const {
-    id,
-    body,
-    placeholderText,
-    textStyle: rawTextStyle,
-    ...frameProps
-  } = upgradedFrame || {}
+  const upgradedFrame = upgradeLegacyFrame(textBox || {});
+  const { id, body, placeholderText, textStyle: rawTextStyle, ...frameProps } = upgradedFrame || {};
 
   return {
     id: id || (index === 0 ? legacyTextBoxId(slide) : uuid()),
@@ -153,19 +153,19 @@ export function normalizeTextBox(textBox, slide, index = 0) {
       zIndex: textBox?.zIndex ?? index,
       ...frameProps,
     }),
-  }
+  };
 }
 
 export function getSlideTextBoxes(slide) {
-  if (!slide || slide.type === 'media') return []
+  if (!slide || slide.type === 'media') return [];
 
   if (Array.isArray(slide.textBoxes) && slide.textBoxes.length > 0) {
     return slide.textBoxes
       .map((textBox, index) => normalizeTextBox(textBox, slide, index))
-      .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+      .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
   }
 
-  const upgradedFrame = upgradeLegacyFrame(slide.textBox || {})
+  const upgradedFrame = upgradeLegacyFrame(slide.textBox || {});
 
   return [
     normalizeTextBox(
@@ -180,7 +180,7 @@ export function getSlideTextBoxes(slide) {
       slide,
       0
     ),
-  ]
+  ];
 }
 
 export function syncLegacyTextFields(slide, textBoxes = getSlideTextBoxes(slide)) {
@@ -190,11 +190,11 @@ export function syncLegacyTextFields(slide, textBoxes = getSlideTextBoxes(slide)
       textBoxes: [],
       body: '',
       placeholderText: null,
-    }
+    };
   }
 
-  const sortedBoxes = [...textBoxes].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
-  const primary = sortedBoxes[0] || createTextBox({}, { autoFit: getDefaultAutoFitMode(slide) })
+  const sortedBoxes = [...textBoxes].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+  const primary = sortedBoxes[0] || createTextBox({}, { autoFit: getDefaultAutoFitMode(slide) });
 
   return {
     ...slide,
@@ -203,28 +203,24 @@ export function syncLegacyTextFields(slide, textBoxes = getSlideTextBoxes(slide)
     textStyle: mergeTextStyle(primary.textStyle),
     textBox: legacyFrameFromTextBox(primary),
     textBoxes: sortedBoxes,
-  }
+  };
 }
 
 export function withUpdatedSlideTextBoxes(slide, updater) {
-  const current = getSlideTextBoxes(slide)
-  const next = updater(current).map((textBox, index) => normalizeTextBox({ ...textBox, zIndex: textBox.zIndex ?? index }, slide, index))
-  return syncLegacyTextFields(slide, next)
+  const current = getSlideTextBoxes(slide);
+  const next = updater(current).map((textBox, index) =>
+    normalizeTextBox({ ...textBox, zIndex: textBox.zIndex ?? index }, slide, index)
+  );
+  return syncLegacyTextFields(slide, next);
 }
 
 export function findTextBox(slide, textBoxId) {
-  return getSlideTextBoxes(slide).find((textBox) => textBox.id === textBoxId) || null
+  return getSlideTextBoxes(slide).find((textBox) => textBox.id === textBoxId) || null;
 }
 
 function legacyFrameFromTextBox(textBox = {}) {
-  const {
-    id,
-    body,
-    placeholderText,
-    textStyle,
-    ...frameProps
-  } = textBox || {}
-  return mergeTextBox(frameProps)
+  const { id, body, placeholderText, textStyle, ...frameProps } = textBox || {};
+  return mergeTextBox(frameProps);
 }
 
 export function createDefaultTextBoxForSlide(slide, overrides = {}) {
@@ -234,11 +230,11 @@ export function createDefaultTextBoxForSlide(slide, overrides = {}) {
       ...overrides,
     },
     { autoFit: getDefaultAutoFitMode(slide) }
-  )
+  );
 }
 
 export function reorderTextBoxes(textBoxes) {
   return [...textBoxes]
     .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
-    .map((textBox, index) => ({ ...textBox, zIndex: index }))
+    .map((textBox, index) => ({ ...textBox, zIndex: index }));
 }

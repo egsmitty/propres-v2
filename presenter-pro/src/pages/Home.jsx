@@ -1,80 +1,94 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { Home as HomeIcon, PlusCircle, FolderOpen, Clock3, BookOpen, Search, FileText, Plus, MoreHorizontal, Pencil, Pin, Trash2, XCircle } from 'lucide-react'
-import { getPresentations, getProfile } from '@/utils/ipc'
-import ContextMenu from '@/components/shared/ContextMenu'
-import ScaledSlideText from '@/components/shared/ScaledSlideText'
-import { useAppStore } from '@/store/appStore'
-import { getPresentationAspectRatio } from '@/utils/presentationSizing'
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Home as HomeIcon,
+  PlusCircle,
+  FolderOpen,
+  Clock3,
+  BookOpen,
+  Search,
+  FileText,
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Pin,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
+import { getPresentations, getProfile } from '@/utils/ipc';
+import ContextMenu from '@/components/shared/ContextMenu';
+import ScaledSlideText from '@/components/shared/ScaledSlideText';
+import { useAppStore } from '@/store/appStore';
+import { getPresentationAspectRatio } from '@/utils/presentationSizing';
 import {
   createNewPresentation,
   createPresentationFromTemplate,
   deletePresentationById,
   openPresentationInEditor,
   renamePresentationById,
-} from '@/utils/presentationCommands'
-import { PRESENTATION_TEMPLATES } from '@/utils/presentationTemplates'
+} from '@/utils/presentationCommands';
+import { PRESENTATION_TEMPLATES } from '@/utils/presentationTemplates';
 
 const NAV = [
   { id: 'home', label: 'Home', icon: HomeIcon },
   { id: 'new', label: 'New', icon: PlusCircle },
   { id: 'recent', label: 'Recent', icon: Clock3 },
   { id: 'open', label: 'Open', icon: FolderOpen },
-]
+];
 
-const PRESENTATION_SELECTION_TABS = ['homeRecent', 'homePinned', 'recent', 'open']
+const PRESENTATION_SELECTION_TABS = ['homeRecent', 'homePinned', 'recent', 'open'];
 
-const PINNED_PRESENTATIONS_KEY = 'presenterpro.home.pinnedPresentations'
-const HIDDEN_RECENT_PRESENTATIONS_KEY = 'presenterpro.home.hiddenRecentPresentations'
-const HOME_LIBRARY_TAB_OPTIONS = ['recent', 'pinned']
+const PINNED_PRESENTATIONS_KEY = 'presenterpro.home.pinnedPresentations';
+const HIDDEN_RECENT_PRESENTATIONS_KEY = 'presenterpro.home.hiddenRecentPresentations';
+const HOME_LIBRARY_TAB_OPTIONS = ['recent', 'pinned'];
 
 function loadPinnedPresentationIds() {
-  if (typeof window === 'undefined') return []
+  if (typeof window === 'undefined') return [];
 
   try {
-    const raw = window.localStorage.getItem(PINNED_PRESENTATIONS_KEY)
-    const parsed = JSON.parse(raw || '[]')
-    return Array.isArray(parsed) ? parsed : []
+    const raw = window.localStorage.getItem(PINNED_PRESENTATIONS_KEY);
+    const parsed = JSON.parse(raw || '[]');
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 function savePinnedPresentationIds(ids) {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(PINNED_PRESENTATIONS_KEY, JSON.stringify(ids))
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(PINNED_PRESENTATIONS_KEY, JSON.stringify(ids));
 }
 
 function loadHiddenRecentPresentationIds() {
-  if (typeof window === 'undefined') return []
+  if (typeof window === 'undefined') return [];
 
   try {
-    const raw = window.localStorage.getItem(HIDDEN_RECENT_PRESENTATIONS_KEY)
-    const parsed = JSON.parse(raw || '[]')
-    return Array.isArray(parsed) ? parsed : []
+    const raw = window.localStorage.getItem(HIDDEN_RECENT_PRESENTATIONS_KEY);
+    const parsed = JSON.parse(raw || '[]');
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 function saveHiddenRecentPresentationIds(ids) {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') return;
   if (!ids.length) {
-    window.localStorage.removeItem(HIDDEN_RECENT_PRESENTATIONS_KEY)
-    return
+    window.localStorage.removeItem(HIDDEN_RECENT_PRESENTATIONS_KEY);
+    return;
   }
-  window.localStorage.setItem(HIDDEN_RECENT_PRESENTATIONS_KEY, JSON.stringify(ids))
+  window.localStorage.setItem(HIDDEN_RECENT_PRESENTATIONS_KEY, JSON.stringify(ids));
 }
 
 function sortPresentationsByRecent(presentations) {
   return [...presentations].sort((a, b) => {
-    return (b.updated_at || 0) - (a.updated_at || 0)
-  })
+    return (b.updated_at || 0) - (a.updated_at || 0);
+  });
 }
 
 function getPinnedPresentations(presentations, pinnedIds) {
   return pinnedIds
     .map((id) => presentations.find((presentation) => presentation.id === id) || null)
-    .filter(Boolean)
+    .filter(Boolean);
 }
 
 const TEMPLATE_VISUALS = {
@@ -142,53 +156,55 @@ const TEMPLATE_VISUALS = {
     title: 'Sunday Morning',
     lines: ['Announcements', 'Worship', 'Message', 'Media'],
   },
-}
+};
 
 function formatDate(ts) {
-  if (!ts) return ''
-  const d = new Date(ts * 1000)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function firstSlideOf(presentation) {
-  return presentation?.sections?.find((section) => section.slides?.length)?.slides?.[0] || null
+  return presentation?.sections?.find((section) => section.slides?.length)?.slides?.[0] || null;
 }
 
 function describePresentation(presentation) {
-  const sections = Array.isArray(presentation?.sections) ? presentation.sections : []
-  const sectionCount = sections.length
-  const slideCount = sections.reduce((total, section) => total + (section.slides?.length || 0), 0)
+  const sections = Array.isArray(presentation?.sections) ? presentation.sections : [];
+  const sectionCount = sections.length;
+  const slideCount = sections.reduce((total, section) => total + (section.slides?.length || 0), 0);
 
-  if (!slideCount) return 'No slides yet'
+  if (!slideCount) return 'No slides yet';
   if (sectionCount > 1) {
-    return `${slideCount} slide${slideCount === 1 ? '' : 's'} • ${sectionCount} section${sectionCount === 1 ? '' : 's'}`
+    return `${slideCount} slide${slideCount === 1 ? '' : 's'} • ${sectionCount} section${sectionCount === 1 ? '' : 's'}`;
   }
-  return `${slideCount} slide${slideCount === 1 ? '' : 's'}`
+  return `${slideCount} slide${slideCount === 1 ? '' : 's'}`;
 }
 
 function matchesPresentationQuery(presentation, query) {
-  if (!query.trim()) return true
+  if (!query.trim()) return true;
 
-  const lowerQuery = query.trim().toLowerCase()
-  const title = presentation.title?.toLowerCase() || ''
-  const dateString = formatDate(presentation.updated_at).toLowerCase()
+  const lowerQuery = query.trim().toLowerCase();
+  const title = presentation.title?.toLowerCase() || '';
+  const dateString = formatDate(presentation.updated_at).toLowerCase();
   const isoDate = presentation.updated_at
     ? new Date(presentation.updated_at * 1000).toISOString().slice(0, 10)
-    : ''
+    : '';
 
-  return title.includes(lowerQuery) || dateString.includes(lowerQuery) || isoDate.includes(lowerQuery)
+  return (
+    title.includes(lowerQuery) || dateString.includes(lowerQuery) || isoDate.includes(lowerQuery)
+  );
 }
 
 function HighlightText({ text, query }) {
-  if (!query.trim()) return text
+  if (!query.trim()) return text;
 
-  const lowerText = text.toLowerCase()
-  const lowerQuery = query.trim().toLowerCase()
-  const start = lowerText.indexOf(lowerQuery)
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.trim().toLowerCase();
+  const start = lowerText.indexOf(lowerQuery);
 
-  if (start === -1) return text
+  if (start === -1) return text;
 
-  const end = start + lowerQuery.length
+  const end = start + lowerQuery.length;
 
   return (
     <>
@@ -205,99 +221,99 @@ function HighlightText({ text, query }) {
       </mark>
       {text.slice(end)}
     </>
-  )
+  );
 }
 
 export default function Home() {
-  const homeTab = useAppStore((s) => s.homeTab)
-  const setHomeTab = useAppStore((s) => s.setHomeTab)
-  const setTutorialOpen = useAppStore((s) => s.setTutorialOpen)
-  const setTutorialStepIndex = useAppStore((s) => s.setTutorialStepIndex)
-  const [presentations, setPresentations] = useState([])
-  const [menu, setMenu] = useState(null)
-  const [query, setQuery] = useState('')
+  const homeTab = useAppStore((s) => s.homeTab);
+  const setHomeTab = useAppStore((s) => s.setHomeTab);
+  const setTutorialOpen = useAppStore((s) => s.setTutorialOpen);
+  const setTutorialStepIndex = useAppStore((s) => s.setTutorialStepIndex);
+  const [presentations, setPresentations] = useState([]);
+  const [menu, setMenu] = useState(null);
+  const [query, setQuery] = useState('');
   const [selectedPresentationIds, setSelectedPresentationIds] = useState({
     homeRecent: null,
     homePinned: null,
     recent: null,
     open: null,
-  })
-  const [homeLibraryTab, setHomeLibraryTab] = useState('recent')
-  const [pinnedIds, setPinnedIds] = useState(() => loadPinnedPresentationIds())
-  const [hiddenRecentIds, setHiddenRecentIds] = useState(() => loadHiddenRecentPresentationIds())
+  });
+  const [homeLibraryTab, setHomeLibraryTab] = useState('recent');
+  const [pinnedIds, setPinnedIds] = useState(() => loadPinnedPresentationIds());
+  const [hiddenRecentIds, setHiddenRecentIds] = useState(() => loadHiddenRecentPresentationIds());
   const [profile, setProfile] = useState({
     displayName: 'PresenterPro User',
     initials: 'PP',
     subtitle: 'On this device',
-  })
+  });
 
   useEffect(() => {
-    loadPresentations()
-  }, [])
+    loadPresentations();
+  }, []);
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     getProfile().then((result) => {
       if (active && result?.success && result.data) {
-        setProfile(result.data)
+        setProfile(result.data);
       }
-    })
+    });
 
     return () => {
-      active = false
-    }
-  }, [])
+      active = false;
+    };
+  }, []);
 
   async function loadPresentations() {
-    const result = await getPresentations()
-    if (result?.success) setPresentations(result.data)
+    const result = await getPresentations();
+    if (result?.success) setPresentations(result.data);
   }
 
   async function handleNew() {
-    await createNewPresentation()
+    await createNewPresentation();
   }
 
   async function handleTemplate(templateId) {
-    await createPresentationFromTemplate(templateId)
+    await createPresentationFromTemplate(templateId);
   }
 
   async function handleOpen(pres) {
     setHiddenRecentIds((current) => {
-      if (!current.includes(pres.id)) return current
-      const next = current.filter((id) => id !== pres.id)
-      saveHiddenRecentPresentationIds(next)
-      return next
-    })
-    await openPresentationInEditor(pres.id)
+      if (!current.includes(pres.id)) return current;
+      const next = current.filter((id) => id !== pres.id);
+      saveHiddenRecentPresentationIds(next);
+      return next;
+    });
+    await openPresentationInEditor(pres.id);
   }
 
   async function handleRename(pres) {
-    const result = await renamePresentationById(pres.id, pres.title)
-    if (result?.success) await loadPresentations()
+    const result = await renamePresentationById(pres.id, pres.title);
+    if (result?.success) await loadPresentations();
   }
 
   async function handleDelete(pres) {
-    const result = await deletePresentationById(pres.id, pres.title)
+    const result = await deletePresentationById(pres.id, pres.title);
     if (result?.success) {
       setPinnedIds((current) => {
-        const next = current.filter((id) => id !== pres.id)
-        savePinnedPresentationIds(next)
-        return next
-      })
+        const next = current.filter((id) => id !== pres.id);
+        savePinnedPresentationIds(next);
+        return next;
+      });
       setHiddenRecentIds((current) => {
-        if (!current.includes(pres.id)) return current
-        const next = current.filter((id) => id !== pres.id)
-        saveHiddenRecentPresentationIds(next)
-        return next
-      })
+        if (!current.includes(pres.id)) return current;
+        const next = current.filter((id) => id !== pres.id);
+        saveHiddenRecentPresentationIds(next);
+        return next;
+      });
       setSelectedPresentationIds((current) => ({
         homeRecent: current.homeRecent === pres.id ? null : current.homeRecent,
         homePinned: current.homePinned === pres.id ? null : current.homePinned,
         recent: current.recent === pres.id ? null : current.recent,
         open: current.open === pres.id ? null : current.open,
-      }))
-      await loadPresentations()
+      }));
+      await loadPresentations();
     }
   }
 
@@ -305,24 +321,24 @@ export default function Home() {
     setPinnedIds((current) => {
       const next = current.includes(pres.id)
         ? current.filter((id) => id !== pres.id)
-        : [pres.id, ...current.filter((id) => id !== pres.id)]
-      savePinnedPresentationIds(next)
-      return next
-    })
+        : [pres.id, ...current.filter((id) => id !== pres.id)];
+      savePinnedPresentationIds(next);
+      return next;
+    });
   }
 
   function handleRemoveFromRecent(pres) {
     setHiddenRecentIds((current) => {
-      if (current.includes(pres.id)) return current
-      const next = [pres.id, ...current]
-      saveHiddenRecentPresentationIds(next)
-      return next
-    })
+      if (current.includes(pres.id)) return current;
+      const next = [pres.id, ...current];
+      saveHiddenRecentPresentationIds(next);
+      return next;
+    });
     setSelectedPresentationIds((current) => ({
       ...current,
       homeRecent: current.homeRecent === pres.id ? null : current.homeRecent,
       recent: current.recent === pres.id ? null : current.recent,
-    }))
+    }));
   }
 
   const activePresentationTab =
@@ -334,53 +350,58 @@ export default function Home() {
         ? 'recent'
         : homeTab === 'open'
           ? 'open'
-          : null
-  const selectedPresentationId = activePresentationTab ? selectedPresentationIds[activePresentationTab] : null
+          : null;
+  const selectedPresentationId = activePresentationTab
+    ? selectedPresentationIds[activePresentationTab]
+    : null;
 
   function setSelectedPresentationIdForTab(tab, id) {
-    if (!PRESENTATION_SELECTION_TABS.includes(tab)) return
+    if (!PRESENTATION_SELECTION_TABS.includes(tab)) return;
 
-    setSelectedPresentationIds((current) => (
-      current[tab] === id
-        ? current
-        : { ...current, [tab]: id }
-    ))
+    setSelectedPresentationIds((current) =>
+      current[tab] === id ? current : { ...current, [tab]: id }
+    );
   }
 
-  function openPresentationMenu(eventLike, pres, source = 'context', listContext = activePresentationTab) {
-    const pinned = pinnedIds.includes(pres.id)
+  function openPresentationMenu(
+    eventLike,
+    pres,
+    source = 'context',
+    listContext = activePresentationTab
+  ) {
+    const pinned = pinnedIds.includes(pres.id);
     setMenu((current) => {
       if (source === 'actions' && current?.source === 'actions' && current?.pres?.id === pres.id) {
-        return null
+        return null;
       }
-      return { x: eventLike.clientX, y: eventLike.clientY, pres, pinned, source, listContext }
-    })
+      return { x: eventLike.clientX, y: eventLike.clientY, pres, pinned, source, listContext };
+    });
   }
 
   function handleShowTutorial() {
-    setHomeTab('home')
-    setTutorialStepIndex(0)
-    setTutorialOpen(true)
+    setHomeTab('home');
+    setTutorialStepIndex(0);
+    setTutorialOpen(true);
   }
 
   const sortedPresentations = useMemo(
     () => sortPresentationsByRecent(presentations),
     [presentations]
-  )
-  const hiddenRecentSet = useMemo(() => new Set(hiddenRecentIds), [hiddenRecentIds])
+  );
+  const hiddenRecentSet = useMemo(() => new Set(hiddenRecentIds), [hiddenRecentIds]);
   const visibleRecentPresentations = useMemo(
     () => sortedPresentations.filter((presentation) => !hiddenRecentSet.has(presentation.id)),
     [sortedPresentations, hiddenRecentSet]
-  )
-  const homeRecentPresentations = visibleRecentPresentations.slice(0, 10)
-  const recentPresentations = visibleRecentPresentations.slice(0, 25)
+  );
+  const homeRecentPresentations = visibleRecentPresentations.slice(0, 10);
+  const recentPresentations = visibleRecentPresentations.slice(0, 25);
   const homePinnedPresentations = useMemo(
     () => getPinnedPresentations(presentations, pinnedIds),
     [presentations, pinnedIds]
-  )
+  );
   const filteredPresentations = sortedPresentations.filter((pres) =>
     matchesPresentationQuery(pres, query)
-  )
+  );
 
   const visiblePresentations =
     homeTab === 'home'
@@ -391,16 +412,16 @@ export default function Home() {
         ? recentPresentations
         : homeTab === 'open'
           ? filteredPresentations
-          : []
+          : [];
 
   useEffect(() => {
-    if (!activePresentationTab) return
-    if (!selectedPresentationId) return
+    if (!activePresentationTab) return;
+    if (!selectedPresentationId) return;
     if (!visiblePresentations.some((pres) => pres.id === selectedPresentationId)) {
-      setSelectedPresentationIdForTab(activePresentationTab, null)
-      setMenu((current) => (current?.pres?.id === selectedPresentationId ? null : current))
+      setSelectedPresentationIdForTab(activePresentationTab, null);
+      setMenu((current) => (current?.pres?.id === selectedPresentationId ? null : current));
     }
-  }, [activePresentationTab, visiblePresentations, selectedPresentationId])
+  }, [activePresentationTab, visiblePresentations, selectedPresentationId]);
 
   const pageTitle =
     homeTab === 'home'
@@ -409,7 +430,7 @@ export default function Home() {
         ? 'New Presentation'
         : homeTab === 'recent'
           ? 'Recent Presentations'
-          : 'Open Presentation'
+          : 'Open Presentation';
   const pageDescription =
     homeTab === 'home'
       ? 'Start from a polished template, then jump back into the presentations you worked on most recently.'
@@ -417,7 +438,7 @@ export default function Home() {
         ? 'Choose a blank presentation or start with a worship-ready structure that already has sections in place.'
         : homeTab === 'recent'
           ? 'Your expanded recent history for quickly reopening work from the last few services, events, and edits.'
-          : 'Search your presentation library by title or by date when you need to find something specific fast.'
+          : 'Search your presentation library by title or by date when you need to find something specific fast.';
 
   return (
     <div className="flex h-full" style={{ background: 'var(--bg-app)' }}>
@@ -433,7 +454,8 @@ export default function Home() {
           <div
             className="rounded-[28px] p-4 text-center"
             style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
               border: '1px solid var(--border-subtle)',
             }}
           >
@@ -478,18 +500,16 @@ export default function Home() {
                   ? 'linear-gradient(180deg, rgba(74,124,255,0.24) 0%, rgba(74,124,255,0.14) 100%)'
                   : 'transparent',
               color: homeTab === id ? 'var(--accent)' : 'var(--text-secondary)',
-              border: `1px solid ${
-                homeTab === id ? 'rgba(74,124,255,0.22)' : 'transparent'
-              }`,
+              border: `1px solid ${homeTab === id ? 'rgba(74,124,255,0.22)' : 'transparent'}`,
             }}
             onMouseEnter={(e) => {
-              if (homeTab !== id) e.currentTarget.style.background = 'var(--bg-hover)'
+              if (homeTab !== id) e.currentTarget.style.background = 'var(--bg-hover)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background =
                 homeTab === id
                   ? 'linear-gradient(180deg, rgba(74,124,255,0.24) 0%, rgba(74,124,255,0.14) 100%)'
-                  : 'transparent'
+                  : 'transparent';
             }}
           >
             <Icon size={30} strokeWidth={2.2} />
@@ -508,16 +528,10 @@ export default function Home() {
         >
           <div className="flex items-start justify-between gap-6">
             <div>
-              <h1
-                className="text-[2rem] font-semibold"
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <h1 className="text-[2rem] font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {pageTitle}
               </h1>
-              <p
-                className="text-sm mt-2 max-w-2xl"
-                style={{ color: 'var(--text-secondary)' }}
-              >
+              <p className="text-sm mt-2 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
                 {pageDescription}
               </p>
             </div>
@@ -560,8 +574,13 @@ export default function Home() {
               pinnedPresentations={homePinnedPresentations}
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
-                e.preventDefault()
-                openPresentationMenu(e, pres, 'context', homeLibraryTab === 'pinned' ? 'homePinned' : 'homeRecent')
+                e.preventDefault();
+                openPresentationMenu(
+                  e,
+                  pres,
+                  'context',
+                  homeLibraryTab === 'pinned' ? 'homePinned' : 'homeRecent'
+                );
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
@@ -580,10 +599,10 @@ export default function Home() {
               templates={PRESENTATION_TEMPLATES}
               onCreateTemplate={(templateId) => {
                 if (templateId === 'blank') {
-                  void handleNew()
-                  return
+                  void handleNew();
+                  return;
                 }
-                void handleTemplate(templateId)
+                void handleTemplate(templateId);
               }}
             />
           )}
@@ -593,8 +612,8 @@ export default function Home() {
               presentations={recentPresentations}
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
-                e.preventDefault()
-                openPresentationMenu(e, pres, 'context', 'recent')
+                e.preventDefault();
+                openPresentationMenu(e, pres, 'context', 'recent');
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
@@ -612,8 +631,8 @@ export default function Home() {
               query={query}
               onOpen={handleOpen}
               onContextMenu={(e, pres) => {
-                e.preventDefault()
-                openPresentationMenu(e, pres, 'context', 'open')
+                e.preventDefault();
+                openPresentationMenu(e, pres, 'context', 'open');
               }}
               pinnedIds={pinnedIds}
               onTogglePinned={handleTogglePinned}
@@ -624,7 +643,6 @@ export default function Home() {
             />
           )}
         </div>
-
       </div>
 
       {menu && (
@@ -634,7 +652,11 @@ export default function Home() {
           items={[
             { label: 'Open', icon: FolderOpen, onClick: () => handleOpen(menu.pres) },
             { label: 'Rename', icon: Pencil, onClick: () => handleRename(menu.pres) },
-            { label: menu.pinned ? 'Unpin' : 'Pin', icon: Pin, onClick: () => handleTogglePinned(menu.pres) },
+            {
+              label: menu.pinned ? 'Unpin' : 'Pin',
+              icon: Pin,
+              onClick: () => handleTogglePinned(menu.pres),
+            },
             ...(menu.listContext === 'homeRecent' || menu.listContext === 'recent'
               ? [
                   {
@@ -651,7 +673,7 @@ export default function Home() {
         />
       )}
     </div>
-  )
+  );
 }
 
 function HomeLibrary({
@@ -675,9 +697,9 @@ function HomeLibrary({
   menu,
   onActionMenuToggle,
 }) {
-  const homeTemplates = templates.slice(0, 4)
-  const showingPinned = homeLibraryTab === 'pinned'
-  const presentations = showingPinned ? pinnedPresentations : recentPresentations
+  const homeTemplates = templates.slice(0, 4);
+  const showingPinned = homeLibraryTab === 'pinned';
+  const presentations = showingPinned ? pinnedPresentations : recentPresentations;
 
   return (
     <>
@@ -696,21 +718,26 @@ function HomeLibrary({
         </div>
 
         <div
-          className="grid gap-5"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
+          className="flex gap-5 overflow-x-auto pb-2"
+          style={{
+            flexWrap: 'nowrap',
+            scrollbarWidth: 'thin',
+          }}
         >
-          <TemplateCard
-            blank
-            variant="hero"
-            onSelect={onBlankPresentation}
-          />
+          <div style={{ flex: '0 0 clamp(260px, calc((100% - 48px) / 4), 360px)' }}>
+            <TemplateCard blank variant="hero" onSelect={onBlankPresentation} />
+          </div>
           {homeTemplates.map((template) => (
-            <TemplateCard
+            <div
               key={template.id}
-              template={template}
-              variant="hero"
-              onSelect={() => onTemplate(template.id)}
-            />
+              style={{ flex: '0 0 clamp(260px, calc((100% - 48px) / 4), 360px)' }}
+            >
+              <TemplateCard
+                template={template}
+                variant="hero"
+                onSelect={() => onTemplate(template.id)}
+              />
+            </div>
           ))}
         </div>
       </section>
@@ -726,8 +753,8 @@ function HomeLibrary({
             }}
           >
             {HOME_LIBRARY_TAB_OPTIONS.map((tab) => {
-              const active = homeLibraryTab === tab
-              const label = tab === 'recent' ? 'Recent' : 'Pinned'
+              const active = homeLibraryTab === tab;
+              const label = tab === 'recent' ? 'Recent' : 'Pinned';
 
               return (
                 <button
@@ -742,7 +769,7 @@ function HomeLibrary({
                 >
                   {label}
                 </button>
-              )
+              );
             })}
           </div>
           <p className="text-sm mr-4" style={{ color: 'var(--text-tertiary)' }}>
@@ -758,18 +785,26 @@ function HomeLibrary({
           onContextMenu={onContextMenu}
           pinnedIds={pinnedIds}
           onTogglePinned={onTogglePinned}
-          selectedPresentationId={showingPinned ? selectedPinnedPresentationId : selectedRecentPresentationId}
-          onSelectPresentation={showingPinned ? onSelectPinnedPresentation : onSelectRecentPresentation}
+          selectedPresentationId={
+            showingPinned ? selectedPinnedPresentationId : selectedRecentPresentationId
+          }
+          onSelectPresentation={
+            showingPinned ? onSelectPinnedPresentation : onSelectRecentPresentation
+          }
           onRemoveFromRecent={showingPinned ? undefined : onRemoveFromRecent}
           listContext={showingPinned ? 'homePinned' : 'homeRecent'}
           menu={menu}
           onActionMenuToggle={onActionMenuToggle}
           emptyTitle={showingPinned ? 'No Pinned Presentations' : 'No recent presentations yet'}
-          emptyBody={showingPinned ? 'Pin a presentation to make it easy to find.' : 'Open or create a presentation and it will show up here for quick access.'}
+          emptyBody={
+            showingPinned
+              ? 'Pin a presentation to make it easy to find.'
+              : 'Open or create a presentation and it will show up here for quick access.'
+          }
         />
       </section>
     </>
-  )
+  );
 }
 
 function NewLibrary({ templates, onCreateTemplate }) {
@@ -779,11 +814,7 @@ function NewLibrary({ templates, onCreateTemplate }) {
         className="grid gap-5"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
       >
-        <TemplateCard
-          blank
-          variant="hero"
-          onSelect={() => onCreateTemplate('blank')}
-        />
+        <TemplateCard blank variant="hero" onSelect={() => onCreateTemplate('blank')} />
         {templates.map((template) => (
           <TemplateCard
             key={template.id}
@@ -794,10 +825,21 @@ function NewLibrary({ templates, onCreateTemplate }) {
         ))}
       </div>
     </section>
-  )
+  );
 }
 
-function RecentLibrary({ presentations, onOpen, onContextMenu, pinnedIds, onTogglePinned, selectedPresentationId, onSelectPresentation, onRemoveFromRecent, menu, onActionMenuToggle }) {
+function RecentLibrary({
+  presentations,
+  onOpen,
+  onContextMenu,
+  pinnedIds,
+  onTogglePinned,
+  selectedPresentationId,
+  onSelectPresentation,
+  onRemoveFromRecent,
+  menu,
+  onActionMenuToggle,
+}) {
   return (
     <PresentationList
       presentations={presentations}
@@ -814,10 +856,21 @@ function RecentLibrary({ presentations, onOpen, onContextMenu, pinnedIds, onTogg
       emptyTitle="No recent presentations yet"
       emptyBody="As you work, your most recently opened presentations will collect here."
     />
-  )
+  );
 }
 
-function OpenLibrary({ presentations, query, onOpen, onContextMenu, pinnedIds, onTogglePinned, selectedPresentationId, onSelectPresentation, menu, onActionMenuToggle }) {
+function OpenLibrary({
+  presentations,
+  query,
+  onOpen,
+  onContextMenu,
+  pinnedIds,
+  onTogglePinned,
+  selectedPresentationId,
+  onSelectPresentation,
+  menu,
+  onActionMenuToggle,
+}) {
   return (
     <PresentationList
       presentations={presentations}
@@ -834,7 +887,7 @@ function OpenLibrary({ presentations, query, onOpen, onContextMenu, pinnedIds, o
       emptyTitle="No presentations match that search"
       emptyBody="Try a different title, month, or full date."
     />
-  )
+  );
 }
 
 function LibrarySearchField({ query, setQuery }) {
@@ -858,32 +911,44 @@ function LibrarySearchField({ query, setQuery }) {
         }}
       />
     </div>
-  )
+  );
 }
 
-function TemplateCard({ template, onSelect, variant = 'compact', blank = false, selected = false }) {
-  const visual = TEMPLATE_VISUALS[blank ? 'blank' : template.id]
-  const title = blank ? 'Blank Presentation' : template.title
+function TemplateCard({
+  template,
+  onSelect,
+  variant = 'compact',
+  blank = false,
+  selected = false,
+}) {
+  const visual = TEMPLATE_VISUALS[blank ? 'blank' : template.id];
+  const title = blank ? 'Blank Presentation' : template.title;
 
   return (
     <button
       onClick={onSelect}
-      className={variant === 'hero' ? 'text-left rounded-[30px] p-4' : 'text-left rounded-[24px] p-3.5'}
+      className={
+        variant === 'hero' ? 'text-left rounded-[30px] p-4' : 'text-left rounded-[24px] p-3.5'
+      }
       style={{
+        display: 'block',
+        width: '100%',
         background: 'var(--bg-surface)',
         border: selected ? '1px solid rgba(74,124,255,0.5)' : '1px solid var(--border-subtle)',
-        boxShadow: selected ? '0 0 0 3px rgba(74,124,255,0.14), 0 14px 34px rgba(8, 14, 30, 0.07)' : '0 14px 34px rgba(8, 14, 30, 0.07)',
+        boxShadow: selected
+          ? '0 0 0 3px rgba(74,124,255,0.14), 0 14px 34px rgba(8, 14, 30, 0.07)'
+          : '0 14px 34px rgba(8, 14, 30, 0.07)',
         transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-default)'
-        e.currentTarget.style.transform = 'translateY(-1px)'
-        e.currentTarget.style.boxShadow = '0 18px 38px rgba(8, 14, 30, 0.10)'
+        e.currentTarget.style.borderColor = 'var(--border-default)';
+        e.currentTarget.style.transform = 'translateY(-1px)';
+        e.currentTarget.style.boxShadow = '0 18px 38px rgba(8, 14, 30, 0.10)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-subtle)'
-        e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = '0 14px 34px rgba(8, 14, 30, 0.07)'
+        e.currentTarget.style.borderColor = 'var(--border-subtle)';
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = '0 14px 34px rgba(8, 14, 30, 0.07)';
       }}
     >
       <TemplatePreview visual={visual} blank={blank} variant={variant} />
@@ -895,22 +960,28 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false, 
         }
       >
         <p
-          className={variant === 'hero' ? 'text-[1.08rem] font-semibold leading-tight' : 'text-[0.95rem] font-semibold leading-tight'}
+          className={
+            variant === 'hero'
+              ? 'text-[1.08rem] font-semibold leading-tight'
+              : 'text-[0.95rem] font-semibold leading-tight'
+          }
           style={{ color: 'var(--text-primary)' }}
         >
           {title}
         </p>
       </div>
     </button>
-  )
+  );
 }
 
 function TemplatePreview({ visual, blank, variant }) {
-  const isHero = variant === 'hero'
+  const isHero = variant === 'hero';
 
   return (
     <div
-      className={isHero ? 'rounded-[26px] p-4 overflow-hidden' : 'rounded-[20px] p-3 overflow-hidden'}
+      className={
+        isHero ? 'rounded-[26px] p-4 overflow-hidden' : 'rounded-[20px] p-3 overflow-hidden'
+      }
       style={{
         background: visual.gradient,
         minHeight: isHero ? 212 : 132,
@@ -925,6 +996,7 @@ function TemplatePreview({ visual, blank, variant }) {
         style={{
           background: visual.card,
           boxShadow: '0 10px 24px rgba(17, 25, 40, 0.12)',
+          minHeight: blank ? (isHero ? 286 : 152) : undefined,
         }}
       >
         <div
@@ -979,7 +1051,7 @@ function TemplatePreview({ visual, blank, variant }) {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function PresentationList({
@@ -1054,7 +1126,7 @@ function PresentationList({
         ))
       )}
     </div>
-  )
+  );
 }
 
 function PresentationRow({
@@ -1070,25 +1142,31 @@ function PresentationRow({
   menu,
   onActionMenuToggle,
 }) {
-  const [hovered, setHovered] = useState(false)
-  const metadataText = describePresentation(presentation)
-  const menuOpen = menu?.pres?.id === presentation.id
-  const showActions = hovered || selected || menuOpen
+  const [hovered, setHovered] = useState(false);
+  const metadataText = describePresentation(presentation);
+  const menuOpen = menu?.pres?.id === presentation.id;
+  const showActions = hovered || selected || menuOpen;
 
   return (
     <div
       className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-4 items-center cursor-pointer"
       style={{
         borderBottom: '1px solid var(--border-subtle)',
-        background: selected ? 'rgba(74,124,255,0.12)' : menuOpen ? 'rgba(74,124,255,0.08)' : hovered ? 'var(--bg-hover)' : 'transparent',
+        background: selected
+          ? 'rgba(74,124,255,0.12)'
+          : menuOpen
+            ? 'rgba(74,124,255,0.08)'
+            : hovered
+              ? 'var(--bg-hover)'
+              : 'transparent',
       }}
       onClick={() => {
-        onSelect?.()
-        void onOpen(presentation)
+        onSelect?.();
+        void onOpen(presentation);
       }}
       onDoubleClick={() => void onOpen(presentation)}
       onContextMenu={(e) => {
-        onContextMenu(e, presentation, listContext)
+        onContextMenu(e, presentation, listContext);
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -1098,7 +1176,11 @@ function PresentationRow({
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             {pinned && (
-              <Pin size={13} fill="currentColor" style={{ color: 'var(--accent)', flexShrink: 0 }} />
+              <Pin
+                size={13}
+                fill="currentColor"
+                style={{ color: 'var(--accent)', flexShrink: 0 }}
+              />
             )}
             <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
               <HighlightText text={presentation.title} query={query} />
@@ -1120,8 +1202,8 @@ function PresentationRow({
               aria-label={pinned ? 'Unpin presentation' : 'Pin presentation'}
               title={pinned ? 'Unpin' : 'Pin'}
               onClick={(e) => {
-                e.stopPropagation()
-                onTogglePinned?.(presentation)
+                e.stopPropagation();
+                onTogglePinned?.(presentation);
               }}
               className="w-11 h-11 rounded-full flex items-center justify-center"
               style={{
@@ -1130,12 +1212,16 @@ function PresentationRow({
                 border: `1px solid ${pinned ? 'rgba(74,124,255,0.22)' : 'var(--border-subtle)'}`,
               }}
               onMouseEnter={(event) => {
-                event.currentTarget.style.borderColor = pinned ? 'var(--accent)' : 'var(--border-default)'
-                event.currentTarget.style.boxShadow = '0 0 0 2px rgba(74,124,255,0.12)'
+                event.currentTarget.style.borderColor = pinned
+                  ? 'var(--accent)'
+                  : 'var(--border-default)';
+                event.currentTarget.style.boxShadow = '0 0 0 2px rgba(74,124,255,0.12)';
               }}
               onMouseLeave={(event) => {
-                event.currentTarget.style.borderColor = pinned ? 'rgba(74,124,255,0.22)' : 'var(--border-subtle)'
-                event.currentTarget.style.boxShadow = 'none'
+                event.currentTarget.style.borderColor = pinned
+                  ? 'rgba(74,124,255,0.22)'
+                  : 'var(--border-subtle)';
+                event.currentTarget.style.boxShadow = 'none';
               }}
             >
               <Pin size={18} fill={pinned ? 'currentColor' : 'none'} />
@@ -1145,17 +1231,17 @@ function PresentationRow({
               aria-label="More actions"
               title="More actions"
               onMouseDown={(e) => {
-                e.stopPropagation()
+                e.stopPropagation();
               }}
               onClick={(e) => {
-                e.stopPropagation()
-                const rect = e.currentTarget.getBoundingClientRect()
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
                 onActionMenuToggle?.(
                   { preventDefault() {}, clientX: rect.right - 8, clientY: rect.bottom + 6 },
                   presentation,
                   'actions',
                   listContext
-                )
+                );
               }}
               className="w-11 h-11 rounded-full flex items-center justify-center"
               style={{
@@ -1172,11 +1258,11 @@ function PresentationRow({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function PresentationPreview({ presentation }) {
-  const slide = firstSlideOf(presentation)
+  const slide = firstSlideOf(presentation);
 
   if (!slide) {
     return (
@@ -1186,10 +1272,10 @@ function PresentationPreview({ presentation }) {
       >
         <FileText size={24} style={{ color: '#555' }} />
       </div>
-    )
+    );
   }
 
-  const lines = slide.body.split('\n').filter(Boolean).slice(0, 4)
+  const lines = slide.body.split('\n').filter(Boolean).slice(0, 4);
 
   return (
     <div
@@ -1205,5 +1291,5 @@ function PresentationPreview({ presentation }) {
         minPaddingY={8}
       />
     </div>
-  )
+  );
 }

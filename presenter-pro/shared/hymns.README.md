@@ -3,6 +3,7 @@
 This file is the **single source of truth** for the four built-in public-domain hymns referenced by spec issues B2 and B4. It has been pre-generated and committed. **Do not regenerate, edit lyric content, or split slides inside this file.**
 
 ## File location
+
 `presenter-pro/shared/hymns.json`
 
 Add the sibling `shared/hymns.README.md` (this file) to the repo so future contributors understand the contract.
@@ -42,6 +43,7 @@ Add the sibling `shared/hymns.README.md` (this file) to the repo so future contr
 ## How to consume this file
 
 ### 1. Seeding the Song Library (issue B2)
+
 On first app launch (or whenever the built-in library seed runs), iterate over `hymns[]` and create one song record per entry:
 
 - Use `title` as the song name.
@@ -53,11 +55,13 @@ On first app launch (or whenever the built-in library seed runs), iterate over `
 These four hymns must appear in the Song Library on a fresh install with no further user action.
 
 ### 2. Templates (issue B4)
+
 The three built-in templates reference these hymns as placeholder content. **The template builder should reference the library entries seeded in step 1 — not re-parse `hymns.json` independently.** Match whatever pattern the existing app already uses for "song in a service order" (reference vs. embedded copy — match the existing data model, do not introduce a new pattern).
 
 Per B4, template construction assigns each song a **background** from the test-media folder. Assign backgrounds at template-build time using the existing background-set APIs. Do not store backgrounds in `hymns.json`.
 
 ### 3. Updating lyrics later
+
 If a future change needs different lyric content, edit `hymns.json` and re-run the seed (or migrate existing user installs). The seed should be idempotent: running it twice should not produce duplicate library entries. Use `id` as the dedup key.
 
 ## Public-domain status notes

@@ -1,29 +1,30 @@
-import React from 'react'
-import { useEditorStore } from '@/store/editorStore'
-import { usePresenterStore } from '@/store/presenterStore'
+import React from 'react';
+import { useEditorStore } from '@/store/editorStore';
+import { usePresenterStore } from '@/store/presenterStore';
 
 export default function StatusBar() {
-  const presentation = useEditorStore((s) => s.presentation)
-  const selectedSlideId = useEditorStore((s) => s.selectedSlideId)
-  const isPresenting = usePresenterStore((s) => s.isPresenting)
-  const liveSlideId = usePresenterStore((s) => s.liveSlideId)
+  const presentation = useEditorStore((s) => s.presentation);
+  const selectedSlideId = useEditorStore((s) => s.selectedSlideId);
+  const isPresenting = usePresenterStore((s) => s.isPresenting);
+  const liveSlideId = usePresenterStore((s) => s.liveSlideId);
 
   const totalSlides = presentation
     ? presentation.sections.reduce((sum, sec) => sum + sec.slides.length, 0)
-    : 0
+    : 0;
 
-  const slideIndex = presentation && selectedSlideId
-    ? (() => {
-        let idx = 0
-        for (const sec of presentation.sections) {
-          for (const sl of sec.slides) {
-            idx++
-            if (sl.id === selectedSlideId) return idx
+  const slideIndex =
+    presentation && selectedSlideId
+      ? (() => {
+          let idx = 0;
+          for (const sec of presentation.sections) {
+            for (const sl of sec.slides) {
+              idx++;
+              if (sl.id === selectedSlideId) return idx;
+            }
           }
-        }
-        return null
-      })()
-    : null
+          return null;
+        })()
+      : null;
 
   return (
     <div
@@ -53,5 +54,5 @@ export default function StatusBar() {
         )}
       </div>
     </div>
-  )
+  );
 }

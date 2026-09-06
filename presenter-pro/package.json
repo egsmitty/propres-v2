@@ -14,12 +14,23 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "start": "electron-vite dev",
+    "lint": "eslint . --max-warnings 16",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "gate": "npm run type-check && npm run lint && npm run test:unit",
     "icons:generate": "python3 scripts/generate_app_icons.py",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "dist:dir": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir",
     "dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
     "dist:win": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --x64",
-    "dist:win:arm64": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --arm64"
+    "dist:win:arm64": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --arm64",
+    "prepare": "cd .. && git config core.hooksPath .husky"
   },
   "build": {
     "appId": "com.ethansmith.presenterpro",
@@ -68,14 +79,46 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
     "@electron/rebuild": "^3.7.2",
+    "@eslint/js": "^9.39.5",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/eslint-plugin": "^1.6.27",
     "autoprefixer": "^10.4.18",
     "electron": "^29.1.1",
     "electron-builder": "^26.8.1",
     "electron-vite": "^2.0.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
+    "lint-staged": "^16.4.0",
     "postcss": "^8.4.35",
+    "prettier": "^3.9.6",
     "tailwindcss": "^3.4.1",
-    "vite": "^5.1.4"
+    "typescript": "^7.0.2",
+    "vite": "^5.1.4",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   }
 }

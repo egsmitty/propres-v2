@@ -1,0 +1,10 @@
+# Revisions to skip when running `git blame`.
+#
+# Enable locally (one time):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub honors this file automatically in its blame view.
+
+# style: apply Prettier across src, electron, and shared (2026-09-05)
+# 67 files reflowed; no semantic change.
+b454247243694c87a07f7488ed1913928fdaa40e

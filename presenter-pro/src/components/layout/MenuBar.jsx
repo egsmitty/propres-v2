@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { useEditorStore } from '@/store/editorStore'
-import { usePresenterStore } from '@/store/presenterStore'
-import { useAppStore } from '@/store/appStore'
-import { runAppCommand } from '@/utils/appCommands'
-import { formatShortcutLabel, getPlatform } from '@/utils/platformShortcuts'
+import React, { useState, useRef, useEffect } from 'react';
+import { useEditorStore } from '@/store/editorStore';
+import { usePresenterStore } from '@/store/presenterStore';
+import { useAppStore } from '@/store/appStore';
+import { runAppCommand } from '@/utils/appCommands';
+import { formatShortcutLabel, getPlatform } from '@/utils/platformShortcuts';
 
 const MENUS = [
   {
@@ -15,7 +15,7 @@ const MENUS = [
       { label: 'Save As…', shortcutTokens: ['mod', 'shift', 's'], action: 'file:saveAs' },
       { divider: true },
       { label: 'Close', action: 'file:close' },
-    ]
+    ],
   },
   {
     label: 'Insert',
@@ -26,14 +26,14 @@ const MENUS = [
       { label: 'Media', action: 'insert:media' },
       { label: 'Announcement', action: 'insert:announcement' },
       { label: 'Sermon', action: 'insert:sermon' },
-    ]
+    ],
   },
   {
     label: 'Edit',
     items: [
       { label: 'Presentation Settings…', action: 'edit:presentationSettings' },
       { label: 'Output Settings…', action: 'view:outputSettings' },
-    ]
+    ],
   },
   {
     label: 'View',
@@ -42,7 +42,7 @@ const MENUS = [
       { label: 'Song Library', action: 'view:songLibrary' },
       { label: 'Media Library', action: 'view:mediaLibrary' },
       { label: 'Show Presenter Panel', action: 'view:presenterPanel' },
-    ]
+    ],
   },
   {
     label: 'Present',
@@ -52,7 +52,7 @@ const MENUS = [
       { divider: true },
       { label: 'Black Screen', shortcut: 'B', action: 'present:black' },
       { label: 'Logo Screen', shortcut: 'L', action: 'present:logo' },
-    ]
+    ],
   },
   {
     label: 'Help',
@@ -60,16 +60,16 @@ const MENUS = [
       { label: 'Show Tutorial', action: 'help:tutorial' },
       { label: 'Keyboard Shortcuts', shortcut: '?', action: 'help:shortcuts' },
       { label: 'About PresenterPro', action: 'help:about' },
-    ]
-  }
-]
+    ],
+  },
+];
 
 function MenuItem({ item, onAction, onClose }) {
   if (item.divider) {
-    return <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+    return <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />;
   }
 
-  const disabled = item.disabled
+  const disabled = item.disabled;
 
   return (
     <button
@@ -79,15 +79,15 @@ function MenuItem({ item, onAction, onClose }) {
         cursor: disabled ? 'default' : 'pointer',
       }}
       onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.background = 'var(--bg-hover)'
+        if (!disabled) e.currentTarget.style.background = 'var(--bg-hover)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent'
+        e.currentTarget.style.background = 'transparent';
       }}
       onClick={() => {
         if (!disabled) {
-          onAction(item.action)
-          onClose()
+          onAction(item.action);
+          onClose();
         }
       }}
     >
@@ -98,75 +98,81 @@ function MenuItem({ item, onAction, onClose }) {
         </span>
       )}
     </button>
-  )
+  );
 }
 
 export default function MenuBar() {
-  const [openMenu, setOpenMenu] = useState(null)
-  const menuRef = useRef(null)
-  const platform = getPlatform()
+  const [openMenu, setOpenMenu] = useState(null);
+  const menuRef = useRef(null);
+  const platform = getPlatform();
 
-  const filmstripVisible = useAppStore((s) => s.filmstripVisible)
-  const presentation = useEditorStore((s) => s.presentation)
-  const isPresenting = usePresenterStore((s) => s.isPresenting)
-  const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
+  const filmstripVisible = useAppStore((s) => s.filmstripVisible);
+  const presentation = useEditorStore((s) => s.presentation);
+  const isPresenting = usePresenterStore((s) => s.isPresenting);
+  const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen);
 
   useEffect(() => {
     function handleClickOutside(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setOpenMenu(null)
+        setOpenMenu(null);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   async function handleAction(action) {
-    await runAppCommand(action)
+    await runAppCommand(action);
   }
 
   const computedMenus = MENUS.map((menu) => ({
     ...menu,
     items: menu.items.map((item) => {
-      if (item.divider) return item
+      if (item.divider) return item;
 
-      let disabled = false
+      let disabled = false;
 
       if (['file:save', 'file:saveAs', 'file:close', 'present:start'].includes(item.action)) {
-        disabled = !presentation
+        disabled = !presentation;
       }
       if (['edit:presentationSettings', 'view:outputSettings'].includes(item.action)) {
-        disabled = !presentation
+        disabled = !presentation;
       }
-      if (item.action === 'present:start') disabled = disabled || isPresenting
+      if (item.action === 'present:start') disabled = disabled || isPresenting;
       if (['present:stop', 'present:black', 'present:logo'].includes(item.action)) {
-        disabled = !isPresenting
+        disabled = !isPresenting;
       }
-      if (['view:filmstrip', 'view:songLibrary', 'view:mediaLibrary', 'view:presenterPanel'].includes(item.action)) {
-        disabled = !presentation
+      if (
+        ['view:filmstrip', 'view:songLibrary', 'view:mediaLibrary', 'view:presenterPanel'].includes(
+          item.action
+        )
+      ) {
+        disabled = !presentation;
       }
       if (item.action === 'view:filmstrip') {
         return {
           ...item,
           label: filmstripVisible ? 'Hide Service Order' : 'Show Service Order',
           disabled,
-        }
+        };
       }
       if (item.action === 'view:presenterPanel') {
         return {
           ...item,
           label: presenterPanelOpen ? 'Hide Presenter Panel' : 'Show Presenter Panel',
           disabled,
-        }
+        };
       }
 
       return {
         ...item,
         disabled,
-        shortcut: item.shortcutTokens ? formatShortcutLabel(item.shortcutTokens, platform) : item.shortcut,
-      }
+        shortcut: item.shortcutTokens
+          ? formatShortcutLabel(item.shortcutTokens, platform)
+          : item.shortcut,
+      };
     }),
-  }))
+  }));
 
   return (
     <div
@@ -186,7 +192,7 @@ export default function MenuBar() {
               background: openMenu === menu.label ? 'var(--bg-hover)' : 'transparent',
             }}
             onMouseEnter={() => {
-              if (openMenu !== null) setOpenMenu(menu.label)
+              if (openMenu !== null) setOpenMenu(menu.label);
             }}
             onClick={() => setOpenMenu(openMenu === menu.label ? null : menu.label)}
           >
@@ -215,5 +221,5 @@ export default function MenuBar() {
         </div>
       ))}
     </div>
-  )
+  );
 }

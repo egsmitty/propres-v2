@@ -1,28 +1,28 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react';
 
 export default function ContextMenu({ x, y, items, onClose }) {
-  const ref = useRef(null)
+  const ref = useRef(null);
 
   useEffect(() => {
     function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) onClose()
+      if (ref.current && !ref.current.contains(e.target)) onClose();
     }
     function handleKey(e) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onClose();
     }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
     return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
-    }
-  }, [onClose])
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
 
   // Keep menu on screen
-  const menuWidth = 220
-  const menuHeight = items.reduce((total, item) => total + (item.divider ? 12 : 42), 10)
-  const adjustedX = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8))
-  const adjustedY = Math.max(8, Math.min(y, window.innerHeight - menuHeight - 8))
+  const menuWidth = 220;
+  const menuHeight = items.reduce((total, item) => total + (item.divider ? 12 : 42), 10);
+  const adjustedX = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8));
+  const adjustedY = Math.max(8, Math.min(y, window.innerHeight - menuHeight - 8));
 
   return (
     <div
@@ -45,9 +45,9 @@ export default function ContextMenu({ x, y, items, onClose }) {
               key={i}
               style={{ height: 1, background: 'var(--border-subtle)', margin: '6px 10px' }}
             />
-          )
+          );
         }
-        const Icon = item.icon
+        const Icon = item.icon;
         return (
           <button
             key={i}
@@ -56,34 +56,34 @@ export default function ContextMenu({ x, y, items, onClose }) {
               color: item.disabled
                 ? 'var(--text-tertiary)'
                 : item.danger
-                ? 'var(--danger)'
-                : 'var(--text-primary)',
+                  ? 'var(--danger)'
+                  : 'var(--text-primary)',
               cursor: item.disabled ? 'default' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 10,
             }}
             onMouseEnter={(e) => {
-              if (item.disabled) return
+              if (item.disabled) return;
               e.currentTarget.style.background = item.danger
                 ? 'var(--danger-dim)'
-                : 'var(--bg-hover)'
+                : 'var(--bg-hover)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.background = 'transparent';
             }}
             onClick={() => {
-              if (item.disabled) return
-              item.onClick()
-              onClose()
+              if (item.disabled) return;
+              item.onClick();
+              onClose();
             }}
             disabled={item.disabled}
           >
             {Icon ? <Icon size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : null}
             <span>{item.label}</span>
           </button>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
