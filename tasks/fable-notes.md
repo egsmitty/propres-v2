@@ -334,3 +334,21 @@ set, or the hook silently lies.
 - Behaviour-change test edits (stated per the rule): `migrations.spec.ts`
   expected version lists `[1]` → `[1, 2]` and the table list gained
   `presentation_journal`. Each failed under the old code and passes now.
+
+### 2026-09-06 — GitHub issues triage (Ethan: "check for up-to-dateness; fix if true, else close")
+
+Seven open issues (#3–#9), all filed 2026-05-14, ~26 items across Home, templates,
+song editor, editor layout, song library, media library, presenter. Every item
+was checked against the code on `main`, not the commit log. **All 26 are
+implemented**; no code change was needed. Each issue was closed with an
+item-by-item comment citing `file:line`.
+
+Two places where a first grep gave the wrong answer, corrected before acting:
+"collapsed on open" (the filmstrip sets `next[section.id] = true` on
+presentation change — I had grepped for `collapsed: true`), and the media
+library's menu options (built from handlers, not string labels). Lesson, again:
+grep hits are leads, not verdicts.
+
+Dependabot: #24 and #27 (npm) and #19–#23 (Actions) merged after branch
+updates; #25/#28 closed as recorded holds; **#26 (electron-vite 2 → 5) left
+open on purpose** as the reminder for plan U1.
