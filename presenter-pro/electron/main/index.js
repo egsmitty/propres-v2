@@ -21,6 +21,14 @@ const presentationQueries = require('../db/queries/presentations');
 const mediaQueries = require('../db/queries/media');
 
 const isDev = !app.isPackaged;
+
+// Where to load the renderer from. `electron-vite dev` sets this to the dev
+// server's URL; nothing else does. When it is absent — packaged app,
+// `npm run preview`, or Playwright E2E launching out/main/index.js — the built
+// renderer is loaded from disk. Gating this on `app.isPackaged` was wrong: it
+// is false in preview and E2E too, which sent both to a dev server that was
+// not running. Guarded by electron/main/__tests__/rendererLoading.test.ts.
+const RENDERER_DEV_URL = process.env.ELECTRON_RENDERER_URL || null;
 const MEDIA_PROTOCOL_SCHEME = 'presenterpro-media';
 
 protocol.registerSchemesAsPrivileged([
@@ -661,8 +669,8 @@ function createMainWindow() {
     },
   });
 
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+  if (RENDERER_DEV_URL) {
+    mainWindow.loadURL(RENDERER_DEV_URL);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../out/renderer/index.html'));
   }
@@ -862,8 +870,8 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
     }
   });
 
-  if (isDev) {
-    outputWindow.loadURL('http://localhost:5173/#/output');
+  if (RENDERER_DEV_URL) {
+    outputWindow.loadURL(`${RENDERER_DEV_URL}/#/output`);
   } else {
     outputWindow.loadFile(path.join(__dirname, '../../out/renderer/index.html'), {
       hash: '/output',
@@ -941,8 +949,8 @@ function createStageDisplayWindow(options = {}) {
     publishPreviewWindowState('stage', true);
   });
 
-  if (isDev) {
-    stageDisplayWindow.loadURL('http://localhost:5173/#/stage-display');
+  if (RENDERER_DEV_URL) {
+    stageDisplayWindow.loadURL(`${RENDERER_DEV_URL}/#/stage-display`);
   } else {
     stageDisplayWindow.loadFile(path.join(__dirname, '../../out/renderer/index.html'), {
       hash: '/stage-display',

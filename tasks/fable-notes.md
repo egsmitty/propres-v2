@@ -137,3 +137,50 @@ It is a five-line change.
 ## 4. Running log
 
 _(appended as work proceeds)_
+
+### 2026-09-06 — P1 done, P2 done
+
+**P1 (process hardening)** — config only. Dependabot for npm + github-actions
+(non-majors grouped, majors individual, no `ignore`). `enforce_admins` verified
+`true`; required checks still exactly `["PR Gate"]`. Gate unchanged at 124/124.
+PR #17.
+
+**P2 (E2E harness)** — 7 specs, 7/7 across five consecutive full runs after the
+teardown fix (8.8–9.2s each). Gate 129/129 (124 + 4 renderer-loading guards +
+1 script-table row). Things worth knowing:
+
+- *The dev-server hardcoding was real and blocked every launch*, exactly as the
+  proofread predicted. Fixed with `ELECTRON_RENDERER_URL` at all three load
+  sites; the guard test failed first (2/4) and passes after (4/4). `npm run
+  preview` now works too.
+- *`--user-data-dir` is honored by Electron* — the isolation check passed on
+  every launch. I made the check honest in code: it is detection, not
+  prevention, because the app opens SQLite during `ready` before any evaluate
+  can run. The switch is the prevention; the check makes a regression loud.
+- *Playwright's `app.close()` is the wrong teardown for this app.* It requests a
+  graceful quit, which correctly runs the unsaved-changes handshake and blocks
+  on the dialog — so a spec that leaves a document unsaved hangs teardown for
+  60s and poisons the worker. Electron's `app.exit(0)` (immediate, skips
+  `before-quit`, closes windows without asking) is the right tool; SIGKILL only
+  as a last resort because it leaves helper processes lingering. This also cut
+  suite time from ~24s to ~9s.
+- *Never call `app.process()` after the app may have exited* — Playwright
+  disposes its wrapper and the accessor throws an internal TypeError, which made
+  a **successful** quit look like a failed test. The child process is captured
+  at launch instead. The quit spec now waits on the real OS `exit` event and
+  asserts exit code 0.
+- *One cold-start `firstWindow` timeout* was observed on a worker's first launch
+  with empty stdout/stderr — a slow start, not an error. First-window allowance
+  raised to 60s (test timeout 90s). Zero recurrences in five runs; if it
+  returns on CI, investigate macOS Gatekeeper on freshly built binaries before
+  raising it further.
+- *Added one spec beyond the plan*: "Cancel on a quit keeps the app running".
+  It exercises the deferred-quit path (`before-quit` → handshake → Cancel must
+  cancel the *quit*, not just the window close), which is the newest and least
+  exercised code in the lifecycle fix. Cheap, and it passes.
+- *Blast-radius deviations, reported per the plan*: `package-lock.json`
+  (dependency install — unavoidable), `.prettierignore` and `tsconfig.json`
+  (not in the table; needed so E2E files are type-checked in the gate and
+  Playwright output is not format-checked). Both should have been listed.
+- *E2E is a separate workflow (`e2e.yml`), not in `PR Gate`*, per pitfall 5.
+  Promote it once it has a green streak on CI.
