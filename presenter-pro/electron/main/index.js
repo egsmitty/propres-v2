@@ -450,6 +450,16 @@ function closePreviewWindows() {
   }
 }
 
+// A crashed output or stage renderer is a blank projector mid-service. Reload
+// it; the renderer's ready handshake ('output:ready' / 'stage:ready') then
+// re-syncs the live slide and state (plan C1).
+function recoverPreviewRenderer(kind, win, details) {
+  console.error(`[main] ${kind} render process gone:`, details?.reason);
+  if (details?.reason === 'clean-exit') return;
+  if (!win || win.isDestroyed()) return;
+  win.webContents.reload();
+}
+
 function prepareForAppShutdown() {
   closeController.markQuitting();
   clearCountdownInterval();
@@ -713,7 +723,7 @@ function createMainWindow() {
   });
 
   // A dead renderer can never answer the close handshake, so record it or the
-  // window would be strand�ed waiting for a reply that cannot come.
+  // window would be stranded waiting for a reply that cannot come.
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error('[main] render process gone:', details?.reason);
     closeController.markRendererGone();
@@ -809,6 +819,9 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
     publishPreviewWindowState('output', false);
     notifyMainWindow('preview:windowClosed', { kind: 'output' });
   });
+  outputWindow.webContents.on('render-process-gone', (_event, details) => {
+    recoverPreviewRenderer('output', outputWindow, details);
+  });
 
   outputWindow.on('enter-full-screen', () => emitWindowViewState(outputWindow));
   outputWindow.on('leave-full-screen', () => emitWindowViewState(outputWindow));
@@ -885,6 +898,9 @@ function createStageDisplayWindow(options = {}) {
     stageDisplayReadyResolvers = [];
     publishPreviewWindowState('stage', false);
     notifyMainWindow('preview:windowClosed', { kind: 'stage' });
+  });
+  stageDisplayWindow.webContents.on('render-process-gone', (_event, details) => {
+    recoverPreviewRenderer('stage', stageDisplayWindow, details);
   });
 
   stageDisplayWindow.on('enter-full-screen', () => emitWindowViewState(stageDisplayWindow));
@@ -1234,6 +1250,17 @@ function registerIpcHandlers() {
   });
   ipc.handle('output:ready', () => {
     markOutputReady();
+    // A renderer that (re)loads mid-session — a re-opened window, or the
+    // reload after a crash — must show the live slide now, not on the next
+    // advance (plan C1).
+    if (outputWindow && !outputWindow.isDestroyed() && currentStageSlide) {
+      outputWindow.webContents.send('output:update', {
+        slide: currentStageSlide,
+        background: currentStageBackground,
+      });
+    }
+    syncOutputState();
+    syncCountdownState();
     return { success: true };
   });
   ipc.handle('stage:ready', () => {
@@ -1474,20 +1501,40 @@ function buildNativeMenu() {
 
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
 
-app.whenReady().then(() => {
-  const dockIconPath = resolveRuntimeAssetPath('public', 'icons', 'app-icon.png');
-  if (process.platform === 'darwin' && dockIconPath && app.dock?.setIcon) {
-    app.dock.setIcon(dockIconPath);
-  }
-  registerMediaProtocol();
-  const db = getDb();
-  runMigrations(db);
-  syncMediaCanonicalPaths(db);
-  seed(db);
-  registerIpcHandlers();
-  buildNativeMenu();
-  createMainWindow();
-});
+// One running copy per profile (plan C1). Two copies on the same database
+// meant two editors writing one SQLite file; now the second launch hands
+// focus to the first and exits. The lock is keyed by the user-data directory,
+// so E2E profiles stay independent.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
+
+  // GPU / utility process crashes are otherwise invisible in the logs.
+  app.on('child-process-gone', (_event, details) => {
+    console.error('[main] child process gone:', details?.type, details?.reason);
+  });
+
+  app.whenReady().then(() => {
+    const dockIconPath = resolveRuntimeAssetPath('public', 'icons', 'app-icon.png');
+    if (process.platform === 'darwin' && dockIconPath && app.dock?.setIcon) {
+      app.dock.setIcon(dockIconPath);
+    }
+    registerMediaProtocol();
+    const db = getDb();
+    runMigrations(db);
+    syncMediaCanonicalPaths(db);
+    seed(db);
+    registerIpcHandlers();
+    buildNativeMenu();
+    createMainWindow();
+  });
+}
 
 // Without this listener the window `close` handler's preventDefault() silently
 // cancelled every quit, so Cmd+Q closed the window but left the process alive

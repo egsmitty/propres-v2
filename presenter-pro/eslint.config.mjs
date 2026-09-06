@@ -21,6 +21,9 @@ import vitestRules from './eslint-vitest-rules.mjs';
 export default [
   {
     ignores: [
+      // macOS/iCloud sync duplicates ("name 2.ext"); never lint them.
+      '**/* 2',
+      '**/* 2.*',
       'node_modules/**',
       'out/**',
       'dist/**',
