@@ -547,7 +547,9 @@ and it produced "name 2.ext" duplicates of three brand-new test files while I
 worked. Vitest and ESLint now ignore that pattern; prettier's rule for it was
 silently inert (POSIX class) and is now a plain glob. If you ever see a
 "… 2.ts" file in git status, delete it — it is never a source of truth.
+
 ### 2026-09-06 — A4: the database layer now has real-SQLite unit tests
+
 The follow-up I suggested after U1, done: `tasks/plan-A4-real-sqlite-tests.md`.
 22 cases run the migration runner on the legacy schema (with a real backup
 directory) and every query module against real in-memory SQLite. They prove
@@ -556,3 +558,22 @@ provenance columns when the editor omits them, the journal really upserts,
 deleting a folder really removes its media, the backup really is the untouched
 original and a second run really writes nothing. All green first time — no
 production bug found, which is itself worth knowing. Coverage 7.4 → 8.3 %.
+
+### 2026-09-06 — D1: React Compiler immutability/memoization findings (5 of the 70 React items)
+
+`tasks/plan-D1-react-compiler-immutability.md`. Workstream D started with the
+"urgent subset" the charter named. Four fixed by code (Canvas body-cursor writes
+moved to a helper; `section` memoized; OutputRenderer's media helpers hoisted
+so nothing is used before it is declared). The fifth is the honest one: the
+compiler cannot prove a memo dependency immutable because it comes through a
+store selector. I verified nothing mutates it and left an explicit, reasoned
+`eslint-disable` block at the site. **Opinion:** that is what triage should
+produce sometimes — a documented decision at the line, not a silent entry in
+a JSON file. The suppressions file still only shrinks (56 → 51).
+
+This PR also adds the **first React component render test** (OutputRenderer:
+subscriptions, media-slide resolution, unsubscribe on unmount) — the pattern
+D2/D3 will reuse. Coverage jumped to 10 % because it reaches Canvas.
+
+Remaining in D: 16 `set-state-in-effect`, 15 `exhaustive-deps`, 34
+`no-unused-vars` (mostly dead code), 1 `no-unescaped-entities`.

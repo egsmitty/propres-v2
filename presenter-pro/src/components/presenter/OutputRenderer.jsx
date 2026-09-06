@@ -24,6 +24,12 @@ function formatRemaining(endAt) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+/** The media library, or an empty list when main reports a failure. Module scope on purpose (plan D1 #5). */
+async function fetchMedia() {
+  const result = await getMedia();
+  return result?.success ? result.data : [];
+}
+
 function PreviewCloseButton() {
   return (
     <button
@@ -111,7 +117,10 @@ export default function OutputRenderer() {
   }, []);
 
   useEffect(() => {
-    loadMedia();
+    fetchMedia().then((library) => {
+      setMedia(library);
+      mediaRef.current = library;
+    });
 
     notifyOutputReady();
     getWindowViewState()
@@ -177,17 +186,6 @@ export default function OutputRenderer() {
       offViewState?.();
     };
   }, []);
-
-  async function loadMedia() {
-    const library = await fetchMedia();
-    setMedia(library);
-    mediaRef.current = library;
-  }
-
-  async function fetchMedia() {
-    const result = await getMedia();
-    return result?.success ? result.data : [];
-  }
 
   if (isBlack) {
     return (

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
+import { beginBodyInteraction, endBodyInteraction } from '@/utils/bodyInteractionStyle';
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { getMedia } from '@/utils/ipc';
 import { getEffectiveBackgroundId, getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds';
@@ -358,9 +359,19 @@ export default function Canvas() {
   const suppressBlurCommitRef = useRef(false);
 
   const slide = getSelectedSlide(presentation, selectedSectionId, selectedSlideId);
-  const section = presentation?.sections?.find((item) => item.id === selectedSectionId) || null;
+  // Memoized so the song-section memo below has a stable dependency (plan D1 #3).
+  const section = useMemo(
+    () => presentation?.sections?.find((item) => item.id === selectedSectionId) || null,
+    [presentation, selectedSectionId]
+  );
   const mediaOnlySlide = isMediaSlide(slide);
   const resolvedSongId = section?.songId || slide?.songId || null;
+  // Triaged, plan D1 #3: the compiler cannot prove `resolvedSongId` is never
+  // mutated because it derives from a store-selected object, but it is a
+  // primitive and nothing in this file mutates slide/section/presentation
+  // (grep-verified). Dropping the memo would recompute groups every render
+  // and churn the two consumers below, so the memo stays.
+  /* eslint-disable react-hooks/preserve-manual-memoization -- see above */
   const songSectionData = useMemo(
     () =>
       section?.type === 'song' && resolvedSongId
@@ -368,6 +379,7 @@ export default function Canvas() {
         : null,
     [resolvedSongId, section]
   );
+  /* eslint-enable react-hooks/preserve-manual-memoization */
   const effectiveBackgroundId = getEffectiveBackgroundId(presentation, selectedSectionId, slide);
   const backgroundMedia = useMemo(
     () => media.find((item) => item.id === effectiveBackgroundId) || null,
@@ -733,8 +745,7 @@ export default function Canvas() {
       const state = interactionRef.current;
       if (!state) return;
       interactionRef.current = null;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      endBodyInteraction();
 
       if (state.type === 'marquee') {
         const rect = selectionRect;
@@ -1069,8 +1080,7 @@ export default function Canvas() {
       startClientY: event.clientY,
       ...options,
     };
-    document.body.style.cursor = handleCursor(type === 'resize' ? options.handle : type);
-    document.body.style.userSelect = 'none';
+    beginBodyInteraction(handleCursor(type === 'resize' ? options.handle : type));
   }
 
   function selectOnly(textBoxId) {
