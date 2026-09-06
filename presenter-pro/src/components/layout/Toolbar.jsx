@@ -1554,57 +1554,57 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
             </Group>
 
             <Group title="Insert">
-              <PopoverMenuButton
-                title="Song"
-                label="Song"
-                icon={Music}
-                width={88}
-                minButtonWidth={INSERT_BUTTON_MIN_WIDTH}
-                height={36}
-                active={songLibraryOpen || newSongEditorOpen}
-                collapseLabel={hideMostLabels}
-                popoverWidth={208}
-                buttonVariant="command"
-              >
-                {({ close }) => (
-                  <div className="flex flex-col gap-1">
-                    <MenuOption onClick={() => { openNewSongEditor(); close() }}>
-                      <span>New Song</span>
-                    </MenuOption>
-                    <MenuOption active={songLibraryOpen} onClick={() => { openSongLibrary(); close() }}>
-                      <span>Open Song Library</span>
-                    </MenuOption>
-                  </div>
-                )}
-              </PopoverMenuButton>
-              <PopoverMenuButton
-                title="Media"
-                label="Media"
-                icon={Image}
-                width={94}
-                minButtonWidth={INSERT_BUTTON_MIN_WIDTH}
-                height={36}
-                active={mediaLibraryOpen}
-                collapseLabel={hideMostLabels}
-                popoverWidth={214}
-                buttonVariant="command"
-              >
-                {({ close }) => (
-                  <div className="flex flex-col gap-1">
-                    <MenuOption onClick={() => { importMediaToSelectedSlide('image'); close() }}>
-                      <span>Insert Image</span>
-                    </MenuOption>
-                    <MenuOption onClick={() => { importMediaToSelectedSlide('video'); close() }}>
-                      <span>Insert Video</span>
-                    </MenuOption>
-                    <MenuOption active={mediaLibraryOpen} onClick={() => { openMediaLibrary(); close() }}>
-                      <span>Open Media Library</span>
-                    </MenuOption>
-                  </div>
-                )}
-              </PopoverMenuButton>
-              <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
-              <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
+                <PopoverMenuButton
+                  title="Song"
+                  label="Song"
+                  icon={Music}
+                  width={88}
+                  minButtonWidth={INSERT_BUTTON_MIN_WIDTH}
+                  height={36}
+                  active={songLibraryOpen || newSongEditorOpen}
+                  collapseLabel={hideMostLabels}
+                  popoverWidth={208}
+                  buttonVariant="command"
+                >
+                  {({ close }) => (
+                    <div className="flex flex-col gap-1">
+                      <MenuOption onClick={() => { openNewSongEditor(); close() }}>
+                        <span>New Song</span>
+                      </MenuOption>
+                      <MenuOption active={songLibraryOpen} onClick={() => { openSongLibrary(); close() }}>
+                        <span>Open Song Library</span>
+                      </MenuOption>
+                    </div>
+                  )}
+                </PopoverMenuButton>
+                <PopoverMenuButton
+                  title="Media"
+                  label="Media"
+                  icon={Image}
+                  width={94}
+                  minButtonWidth={INSERT_BUTTON_MIN_WIDTH}
+                  height={36}
+                  active={mediaLibraryOpen}
+                  collapseLabel={hideMostLabels}
+                  popoverWidth={214}
+                  buttonVariant="command"
+                >
+                  {({ close }) => (
+                    <div className="flex flex-col gap-1">
+                      <MenuOption onClick={() => { importMediaToSelectedSlide('image'); close() }}>
+                        <span>Insert Image</span>
+                      </MenuOption>
+                      <MenuOption onClick={() => { importMediaToSelectedSlide('video'); close() }}>
+                        <span>Insert Video</span>
+                      </MenuOption>
+                      <MenuOption active={mediaLibraryOpen} onClick={() => { openMediaLibrary(); close() }}>
+                        <span>Open Media Library</span>
+                      </MenuOption>
+                    </div>
+                  )}
+                </PopoverMenuButton>
+                <CommandButton icon={FileText} label="Announcement" title="Add Announcement Section" onClick={() => insertNewSectionIntoCurrentPresentation('announcement')} disabled={!hasPresentation} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
+                <CommandButton icon={BookOpen} label="Sermon" title="Add Sermon Section" onClick={() => insertNewSectionIntoCurrentPresentation('sermon')} disabled={!hasPresentation} collapseLabel={hideMostLabels} minWidth={INSERT_BUTTON_MIN_WIDTH} />
             </Group>
           </>
         )}

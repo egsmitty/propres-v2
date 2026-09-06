@@ -696,21 +696,30 @@ function HomeLibrary({
         </div>
 
         <div
-          className="grid gap-5"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
+          className="flex gap-5 overflow-x-auto pb-2"
+          style={{
+            flexWrap: 'nowrap',
+            scrollbarWidth: 'thin',
+          }}
         >
-          <TemplateCard
-            blank
-            variant="hero"
-            onSelect={onBlankPresentation}
-          />
-          {homeTemplates.map((template) => (
+          <div style={{ flex: '0 0 clamp(260px, calc((100% - 48px) / 4), 360px)' }}>
             <TemplateCard
-              key={template.id}
-              template={template}
+              blank
               variant="hero"
-              onSelect={() => onTemplate(template.id)}
+              onSelect={onBlankPresentation}
             />
+          </div>
+          {homeTemplates.map((template) => (
+            <div
+              key={template.id}
+              style={{ flex: '0 0 clamp(260px, calc((100% - 48px) / 4), 360px)' }}
+            >
+              <TemplateCard
+                template={template}
+                variant="hero"
+                onSelect={() => onTemplate(template.id)}
+              />
+            </div>
           ))}
         </div>
       </section>
@@ -870,6 +879,8 @@ function TemplateCard({ template, onSelect, variant = 'compact', blank = false, 
       onClick={onSelect}
       className={variant === 'hero' ? 'text-left rounded-[30px] p-4' : 'text-left rounded-[24px] p-3.5'}
       style={{
+        display: 'block',
+        width: '100%',
         background: 'var(--bg-surface)',
         border: selected ? '1px solid rgba(74,124,255,0.5)' : '1px solid var(--border-subtle)',
         boxShadow: selected ? '0 0 0 3px rgba(74,124,255,0.14), 0 14px 34px rgba(8, 14, 30, 0.07)' : '0 14px 34px rgba(8, 14, 30, 0.07)',
@@ -925,6 +936,7 @@ function TemplatePreview({ visual, blank, variant }) {
         style={{
           background: visual.card,
           boxShadow: '0 10px 24px rgba(17, 25, 40, 0.12)',
+          minHeight: blank ? (isHero ? 286 : 152) : undefined,
         }}
       >
         <div
