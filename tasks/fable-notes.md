@@ -472,3 +472,26 @@ Also: macOS 12+ is now the minimum (Electron 38 dropped 11). README updated.
 Node 24 would match Electron 44's bundled runtime exactly; I stayed on 22 per
 your decision (LTS until April 2027). Dependabot's `@electron/rebuild` ignore
 is removed; #26 (electron-vite 5) is superseded by this PR and will be closed.
+
+### 2026-09-06 — S1: disabled presenter window removed; phase7 sweep closed
+
+Working autonomously per your "keep working until a hard stop".
+
+**Why this before B1 (typed IPC):** the IPC drift guard had a hole — it matched
+`// ipcMain.handle(...)` inside comments — so seven `presenter:*` channels
+had preload wrappers and no handlers since Phase 3, and a 409-line
+`PresenterView.jsx` sat behind a hash no window loads. Typing a contract over
+dead channels would have enshrined them. Gone now; the guard strips comments.
+
+**Honest note:** my first deletion pass left three references to a removed
+constant in `App.jsx`. Lint caught it (3 errors) and the E2E suite failed 5 of
+16 because the renderer threw inside effects. Fixed before commit; 16/16. That
+is exactly why the harness exists, and why "provably no behaviour change"
+still gets the full run.
+
+**Gap recorded:** there is no E2E for the presenting flow (output/stage
+windows). C1 (lifecycle) should add one — windowed output on the primary
+display, then stop — since single-instance and teardown work touches it.
+
+Ratchets moved: lint warnings 16 → 15, suppressions 61 → 56. Phase 7 items
+1/2/10 were already fixed; 3/7/9 fixed here; 4/5/6/8 belong to workstream D.

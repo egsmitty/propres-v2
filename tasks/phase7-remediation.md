@@ -312,3 +312,16 @@ keyed hymn on launch, so a user's edit to a built-in hymn was lost. Now:
   a duplicate hymn after a user save.
 - Evidence: 11 seeder cases, 6 fingerprint cases, 3 query cases, migration 4 ×3,
   E2E `e2e/hymns.spec.ts` (edit survives relaunch, no row added).
+
+## Sweep (2026-09-06, plan S1) — remaining items re-verified against `main`
+
+| #          | Verdict       | Evidence                                                                                                                                                                                                                                             |
+| ---------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1          | already fixed | `Toolbar.jsx:70` imports `importMediaToSelectedSlide`                                                                                                                                                                                                |
+| 2          | already fixed | `presentationCommands.js:24` imports `DEFAULT_PLACEHOLDER_TEXT`                                                                                                                                                                                      |
+| 3          | **FIXED**     | `songSections.js` character class `[\[\].-]` → `[[\].-]`; six-shape characterization test pins behaviour                                                                                                                                             |
+| 7          | **FIXED**     | last `no-empty` (sample seeder) removed — its own JSON; a failure must surface                                                                                                                                                                       |
+| 9          | **FIXED**     | presenter window deleted on all three sides (main state + 17 dead branches + 2 comment blocks, 9 preload wrappers, `PresenterView.jsx`, `#/presenter` route, 3 `ipc.js` exports). Drift guard now strips comments — it had been fooled since Phase 3 |
+| 10         | already gone  | `npm run build` emits no font warning under Vite 7                                                                                                                                                                                                   |
+| 3b         | deferred      | Ethan, 2026-09-06                                                                                                                                                                                                                                    |
+| 4, 5, 6, 8 | open          | workstream D (React correctness), individually triaged                                                                                                                                                                                               |
