@@ -41,8 +41,10 @@ after — that is itself the verification.
          (`groups:` with `update-types: ["minor", "patch"]`). One PR a week, not
          twenty.
       3. Major updates ungrouped, so each arrives on its own and gets read.
-      4. `commit-message.prefix: "chore"` so Dependabot's commits satisfy the
-         commitlint hook. **Without this, its PRs fail the commit-msg check.**
+      4. `commit-message.prefix: "chore"` so Dependabot's commits follow the
+         Conventional Commits history. *(Corrected: husky hooks run only on the
+         local committing machine, so Dependabot is never blocked by commitlint.
+         The prefix is for a clean history, not a gate.)*
       5. `ignore` **must be empty**. Do not pre-emptively pin anything.
 
       *Verify:* `gh api repos/egsmitty/propres-v2/dependabot/alerts --silent`
@@ -96,9 +98,10 @@ after — that is itself the verification.
 
 ## Pitfall notes
 
-- **Dependabot's commits must pass commitlint.** The `commit-message.prefix`
-  setting in todo 1 is not cosmetic — without it every Dependabot PR fails the
-  `commit-msg` hook and the whole thing becomes noise.
+- **Dependabot is not subject to the local hooks.** Husky runs on the committing
+  machine; Dependabot commits on GitHub. The `commit-message.prefix` keeps the
+  history conventional but is not enforced — do not expect a failing PR if it
+  is wrong.
 - **Do not add an `ignore` list.** Pinning things away from updates is how a
   dependency file quietly rots. If a specific update genuinely must be held
   back, that is a separate decision with a recorded reason.
