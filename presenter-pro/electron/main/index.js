@@ -19,6 +19,7 @@ const { runMigrations } = require('../db/migrations');
 const songQueries = require('../db/queries/songs');
 const presentationQueries = require('../db/queries/presentations');
 const mediaQueries = require('../db/queries/media');
+const journalQueries = require('../db/queries/journal');
 
 const isDev = !app.isPackaged;
 
@@ -1040,6 +1041,29 @@ function registerIpcHandlers() {
   ipcMain.handle('db:presentations:update', (_, id, data) => {
     try {
       return { success: true, data: presentationQueries.updatePresentation(db, id, data) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  // Crash-recovery journal (plan A2). Same envelope as every other handler.
+  ipcMain.handle('db:journal:write', (_, data) => {
+    try {
+      return { success: true, data: journalQueries.writeJournal(db, data) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+  ipcMain.handle('db:journal:list', () => {
+    try {
+      return { success: true, data: journalQueries.listJournals(db) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+  ipcMain.handle('db:journal:delete', (_, presentationId) => {
+    try {
+      return { success: true, data: journalQueries.deleteJournal(db, presentationId) };
     } catch (e) {
       return { success: false, error: e.message };
     }

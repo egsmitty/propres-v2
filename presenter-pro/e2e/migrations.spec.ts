@@ -101,7 +101,7 @@ async function expectNoFatalStderr(launched: LaunchedApp): Promise<void> {
 }
 
 test.describe('database migrations', () => {
-  test('fresh install: creates the schema and records exactly migration 1', async ({
+  test('fresh install: creates the schema and records exactly migrations 1 and 2', async ({
     launched,
   }) => {
     await expectNoFatalStderr(launched);
@@ -109,14 +109,23 @@ test.describe('database migrations', () => {
 
     expect(query(db, 'SELECT version, name FROM schema_migrations ORDER BY version')).toEqual([
       { version: 1, name: 'baseline-schema' },
+      { version: 2, name: 'presentation-journal' },
     ]);
-    // All five application tables exist, by exact name.
+    // All six application tables exist, by exact name (presentation_journal
+    // arrived with migration 2 — a behaviour-change edit to this expectation).
     expect(
       query<{ name: string }>(
         db,
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name <> 'schema_migrations' ORDER BY name"
       ).map((r) => r.name)
-    ).toEqual(['media', 'media_folders', 'presentations', 'settings', 'songs']);
+    ).toEqual([
+      'media',
+      'media_folders',
+      'presentation_journal',
+      'presentations',
+      'settings',
+      'songs',
+    ]);
   });
 
   test('legacy database: upgraded in place, data intact, one backup written', async () => {
@@ -126,9 +135,10 @@ test.describe('database migrations', () => {
       const dir = launched.userDataDir;
       const db = dbPathIn(dir);
 
-      // Recorded as version 1 without a baseline special case.
+      // Recorded as versions 1 and 2 without a baseline special case.
       expect(query(db, 'SELECT version, name FROM schema_migrations')).toEqual([
         { version: 1, name: 'baseline-schema' },
+        { version: 2, name: 'presentation-journal' },
       ]);
 
       // The missing table was created and every missing column added by
@@ -194,6 +204,7 @@ test.describe('database migrations', () => {
       await expectNoFatalStderr(second);
       expect(query(dbPathIn(dir), 'SELECT version FROM schema_migrations')).toEqual([
         { version: 1 },
+        { version: 2 },
       ]);
       // Still exactly the one backup from the first launch.
       expect(listBackups(dir)).toHaveLength(1);

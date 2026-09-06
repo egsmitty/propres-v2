@@ -23,6 +23,17 @@ export async function deletePresentation(id) {
   return api().deletePresentation(id);
 }
 
+// Crash-recovery journal (plan A2)
+export async function writeJournal(data) {
+  return api().writeJournal(data);
+}
+export async function listJournals() {
+  return api().listJournals();
+}
+export async function deleteJournal(presentationId) {
+  return api().deleteJournal(presentationId);
+}
+
 // Songs
 export async function getSongs() {
   return api().getSongs();

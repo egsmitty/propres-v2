@@ -15,6 +15,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   touchPresentation: (id) => ipcRenderer.invoke('db:presentations:touch', id),
   deletePresentation: (id) => ipcRenderer.invoke('db:presentations:delete', id),
 
+  // Crash-recovery journal (plan A2)
+  writeJournal: (data) => ipcRenderer.invoke('db:journal:write', data),
+  listJournals: () => ipcRenderer.invoke('db:journal:list'),
+  deleteJournal: (presentationId) => ipcRenderer.invoke('db:journal:delete', presentationId),
+
   // Songs
   getSongs: () => ipcRenderer.invoke('db:songs:getAll'),
   createSong: (data) => ipcRenderer.invoke('db:songs:create', data),
