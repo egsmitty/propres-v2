@@ -16,11 +16,12 @@ Two facts make the obvious fixes wrong:
   hash of the payload differs every launch. The fingerprint must cover **text
   only** — title, artist, group type + label, slide bodies — never ids or styles.
 - `updateSong` currently writes `built_in_key = ?` from the caller's payload
-  with `?? null`. The song editor's save does not pass `builtInKey`, so **saving
-  an edited built-in hymn clears its key**, and the seeder then re-creates a
-  duplicate on the next launch. (Verified by reading `SongEditorModal.jsx`
-  before this plan was written.) Both columns must be preserved when the caller
-  does not supply them.
+  with `?? null`: any caller that omits the field **clears the key**, after
+  which the seeder re-creates a duplicate on the next launch. The song editor
+  happens to pass `song.builtInKey` today (`SongEditorModal.jsx:659`, verified
+  before this plan was written), so the bug is latent, one refactor away — and
+  nothing at all would preserve the new `built_in_revision`. Both columns must
+  be preserved when the caller does not supply them.
 
 ## Anti-weakening clause (verbatim, non-negotiable)
 
@@ -123,9 +124,8 @@ title change ⇒ different.
 - TDD proof: 7 failing + 2 unloadable files before implementation (fingerprint module absent).
 - Gate: 22 files / 197 tests green; E2E 16/16 twice; `verify:db` on the real
   library DB: migrations 1–4 recorded, `built_in_revision` added, counts identical.
-- Discovery 1 (fixed here): the song editor's save omitted `builtInKey`… no —
-  it passes `song.builtInKey`, but `updateSong` wrote `?? null` for any caller
-  that omits it, and nothing preserved `built_in_revision`. Both are now
+- Discovery 1 (fixed here): `updateSong` cleared `built_in_key` for any caller
+  that omitted it and had no way to carry `built_in_revision`. Both are now
   `COALESCE(?, column)`. Behaviour change, pinned by `songQueries.test.ts`.
 - Discovery 2 (not fixed, recorded in fable-notes): a fresh profile contains
   two "Amazing Grace" songs — the main process's sample seed
