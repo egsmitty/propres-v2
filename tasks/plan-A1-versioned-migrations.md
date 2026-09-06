@@ -50,14 +50,18 @@ Three defects, all load-bearing:
 | File | Action |
 |---|---|
 | `presenter-pro/electron/db/migrationPlanner.ts` | create |
+| `presenter-pro/electron/db/migrationRunner.ts` | create |
 | `presenter-pro/electron/db/migrations.js` | modify |
 | `presenter-pro/electron/db/__tests__/migrationPlanner.test.ts` | create |
-| `presenter-pro/electron.vite.config.js` | modify (add rollup input) |
+| `presenter-pro/electron/db/__tests__/migrationRunner.test.ts` | create |
+| `presenter-pro/electron/main/__tests__/lifecycleListeners.test.ts` | modify (guard test) |
+| `presenter-pro/electron.vite.config.js` | modify (two rollup inputs) |
+| `presenter-pro/vitest.config.mjs` | modify (raise thresholds only) |
 | `tasks/phase7-remediation.md` | modify (record outcome) |
 
-**Do NOT modify:** anything under `src/`, `electron/main/`, `electron/preload/`,
-`electron/db/queries/`, any existing test, `eslint-suppressions.json`, or the
-coverage thresholds in `vitest.config.mjs` — except as todo 7 directs.
+**Do NOT modify:** anything under `src/`, `electron/preload/`,
+`electron/db/queries/`, `electron/main/index.js`, any other existing test, or
+`eslint-suppressions.json`.
 
 Do not create new test directories beyond the one named above.
 
@@ -66,99 +70,114 @@ Do not create new test directories beyond the one named above.
 ## Design
 
 Same shape as `electron/main/closeController.ts`, which is the established
-pattern in this repo: **a pure decision module plus a thin imperative shell.**
+pattern in this repo: **pure decision code plus a thin shell, with the shell's
+dependencies injected so it can be tested with a fake.**
 
-`better-sqlite3` is a native module rebuilt for Electron's ABI and **must not be
-imported in a unit test** (see `.cursor/rules/testing-standards.mdc`
-"Mechanics"). So all logic that can be tested lives in the pure planner; the
-shell that actually touches SQLite is kept as small as possible and verified
-manually.
+`better-sqlite3` is built for Electron's ABI (121; Node 20 needs 115), so
+`new Database()` **throws under Vitest** locally. In CI the gate installs with
+`--ignore-scripts`, which leaves the Node prebuilt in place, so the same test
+would pass there. Tests therefore must not instantiate `better-sqlite3` in
+either environment. Everything is tested through a minimal interface and a fake
+that records calls; real SQLite is proven by the E2E launch test (plan P2) and
+the manual steps below.
 
-### `migrationPlanner.ts` — pure, fully tested
+*(Proofread correction — see `fable-notes.md` A1-1/A1-2/A1-3: the original
+"baseline and skip" design could strand a database that was missing columns,
+file-copying a WAL database is unsafe, and the runner itself had no tests.
+All three are fixed by the design below.)*
+
+### Files
+
+| Module | Role | Tested by |
+|---|---|---|
+| `electron/db/migrationPlanner.ts` | pure: version math, well-formedness | unit |
+| `electron/db/migrationRunner.ts` | shell logic against an injected `MigrationDb` interface | unit, with a fake |
+| `electron/db/migrations.js` | the migration list + `runMigrations(db)` wiring | guard test + E2E + manual |
+
+### `migrationPlanner.ts` — pure
 
 ```ts
 export interface Migration {
-  version: number;      // unique, ascending, starts at 1
-  name: string;         // short kebab-case description
-  sql: string[];        // statements applied in order, in one transaction
+  version: number;                 // unique, ascending, starts at 1
+  name: string;                    // short kebab-case description
+  up: (db: MigrationDb) => void;   // idempotent BY INSPECTION (see below)
 }
 
-/** Highest version already recorded as applied. 0 when none. */
+/** Highest recorded version. 0 when none. Input order must not matter. */
 export function currentVersion(appliedVersions: number[]): number;
 
-/**
- * Migrations to apply, ascending. Never returns an already-applied version.
- */
-export function selectPendingMigrations(
-  appliedVersions: number[],
-  migrations: Migration[]
-): Migration[];
+/** Migrations to apply, ascending; never includes an applied version. */
+export function selectPendingMigrations(applied: number[], all: Migration[]): Migration[];
 
-/**
- * A pre-existing database created before versioning existed. Detected by the
- * presence of legacy tables with no schema_migrations table. Returns the
- * version to baseline it at, or null when this is a fresh database.
- */
-export function detectBaselineVersion(
-  existingTableNames: string[],
-  migrations: Migration[]
-): number | null;
-
-/** Fails fast on a malformed migration list — duplicate or non-ascending versions. */
-export function assertMigrationsWellFormed(migrations: Migration[]): void;
+/** Throws on duplicate or non-ascending versions, or a version < 1. */
+export function assertMigrationsWellFormed(all: Migration[]): void;
 ```
 
-### The baseline problem — read this before writing code
+### `migrationRunner.ts` — injected interface
 
-An **existing** user database already has all ten historical schema changes
-applied, but no `schema_migrations` table. If the runner naively applies
-migration 1 to it, `CREATE TABLE` is harmless but any future data migration
-would re-run and could corrupt data.
+```ts
+/** The subset of better-sqlite3 the runner needs. A fake implements this in tests. */
+export interface MigrationDb {
+  exec(sql: string): void;
+  prepare(sql: string): { all(...p: unknown[]): unknown[]; get(...p: unknown[]): unknown; run(...p: unknown[]): unknown };
+  transaction<T>(fn: () => T): () => T;
+  backup(destinationPath: string): Promise<unknown>;
+}
 
-Rule: if `schema_migrations` is absent **and** legacy tables exist (`songs`,
-`presentations`, …), the database is baselined — record every migration up to
-and including the one representing today's schema as already applied, without
-executing it. If `schema_migrations` is absent and there are no legacy tables,
-it is a fresh install: apply everything from version 1.
+export interface RunOptions {
+  backupDir: string;            // where backups are written
+  now?: () => Date;             // injected for testable timestamps
+  keepBackups?: number;         // default 3
+}
 
-### `migrations.js` — thin shell
+export async function runMigrations(db: MigrationDb, migrations: Migration[], opts: RunOptions): Promise<{ applied: number[] }>;
+```
 
-1. Ensure `schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL,
-   applied_at INTEGER NOT NULL DEFAULT (unixepoch()))`.
-2. Read applied versions.
-3. If empty, call `detectBaselineVersion`; when non-null, insert baseline rows
-   and return without executing SQL.
-4. `selectPendingMigrations` → for each, **inside a single transaction**: run its
-   statements, then insert its `schema_migrations` row.
-5. Before applying **any** pending migration, copy the database file to
-   `presenterpro.backup-v<currentVersion>-<ISO timestamp>.db` in the same
-   directory. Keep the newest 3 backups; delete older ones.
-6. Errors propagate. **No bare `catch (_) {}` anywhere in this file.**
+Behaviour, in order — **all 6, exhaustive**:
+1. `assertMigrationsWellFormed(migrations)`.
+2. Ensure `schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL,
+   applied_at INTEGER NOT NULL)`.
+3. Read applied versions; compute pending.
+4. If pending is empty, return `{ applied: [] }` — **no backup is taken**.
+5. Otherwise `await db.backup(<backupDir>/presenterpro.backup-v<current>-<ISO>.db)`
+   **before any migration runs**, then prune to the newest `keepBackups`.
+6. For each pending migration, inside **one transaction per migration**: call
+   `up(db)`, then insert its `schema_migrations` row. A throw aborts that
+   transaction, records nothing for it, and propagates. Later migrations do
+   not run.
 
-Migration 1 is named `baseline-schema` and contains the current schema exactly
-as it exists today — the six `CREATE TABLE IF NOT EXISTS` statements plus the
-ten `ALTER TABLE` / `CREATE INDEX` statements, in their current order, with the
-`try/catch` wrappers removed.
+**No bare `catch (_) {}` anywhere.** Errors propagate to `app.whenReady` and
+surface; a failed migration must never look like success.
+
+### `migrations.js` — the list
+
+Migration 1, `baseline-schema`, reproduces today's schema **verbatim**, but each
+statement is guarded **by inspection, not by exception**:
+
+- `CREATE TABLE IF NOT EXISTS …` for the six tables (already idempotent).
+- Each `ALTER TABLE t ADD COLUMN c …` runs only if
+  `PRAGMA table_info(t)` does not already list `c`.
+- Each `CREATE INDEX IF NOT EXISTS …` (already idempotent).
+
+Because migration 1 is safe to run on any database, **there is no baseline
+special case.** A legacy database with no `schema_migrations` table simply runs
+migration 1 (which finds every column present and does nothing destructive) and
+records it. A fresh database runs the same code and creates everything. One
+path, no guessing.
 
 ### Sanctioned escape hatch
 
-Exactly one, and it starts empty:
+Exactly one, initially empty. Lives in `migrations.js`:
 
-```ts
+```js
 /**
- * Statements permitted to fail without aborting their migration. Every entry
- * REQUIRES a comment naming the exact error it tolerates and why.
- * Adding an entry must be reported in the final summary.
+ * Statements inside an `up` permitted to fail without aborting the migration.
+ * Every entry REQUIRES a comment naming the exact error tolerated and why, and
+ * must be reported in the final summary. Do not add entries to make something
+ * pass — STOP and report instead.
  */
-export const TOLERATED_STATEMENT_FAILURES: ReadonlyArray<{
-  version: number;
-  statement: string;
-  reason: string;
-}> = [];
+const TOLERATED_STATEMENT_FAILURES = [];
 ```
-
-Do not add entries to make something pass. If you believe one is needed, STOP
-and report it.
 
 ---
 
@@ -166,83 +185,91 @@ and report it.
 
 Work these in order. Each names the command that proves it done.
 
-- [ ] **1. Write the failing tests first (TDD — this todo must be completed
-      before todo 2).** Create
-      `presenter-pro/electron/db/__tests__/migrationPlanner.test.ts` covering
-      **all 12 of the following — this list is exhaustive:**
+- [ ] **1. Write the failing tests first (TDD — complete before todo 2).**
+      Two files.
+
+      `electron/db/__tests__/migrationPlanner.test.ts` — **all 9, exhaustive:**
       1. `currentVersion([])` is `0`
-      2. `currentVersion([1, 2, 3])` is `3`
-      3. `currentVersion([3, 1, 2])` is `3` (order of input must not matter)
-      4. `selectPendingMigrations` returns migrations ascending by version
-      5. it never returns an already-applied version
+      2. `currentVersion([1,2,3])` is `3`
+      3. `currentVersion([3,1,2])` is `3`
+      4. `selectPendingMigrations` returns ascending by version
+      5. it never returns an applied version
       6. it returns `[]` when everything is applied
-      7. it handles a gap (applied `[1, 3]`, pending must include `2`)
-      8. `detectBaselineVersion` returns `null` for a fresh DB (no legacy tables)
-      9. it returns the newest migration version when legacy tables exist
-      10. `assertMigrationsWellFormed` throws on duplicate versions
-      11. it throws on non-ascending versions
-      12. `TOLERATED_STATEMENT_FAILURES` is empty
-      *Verify: `npx vitest run electron/db/__tests__/migrationPlanner.test.ts`
-      — must FAIL (module does not exist yet). Paste the failure output into
-      your summary as proof of TDD ordering.*
+      7. it handles a gap (applied `[1,3]` → pending includes exactly `2`)
+      8. `assertMigrationsWellFormed` throws on duplicate versions
+      9. it throws on non-ascending versions
 
-      For every comparison above, **order and count and exactness all matter**:
-      use `toEqual` on the full array, never `toContain`, never `.sort()` on
-      both sides. Where a test iterates a list, assert its `length` too, so
-      under-implementation fails rather than passing quietly.
+      `electron/db/__tests__/migrationRunner.test.ts` using a **fake
+      `MigrationDb`** that records every `exec`/`prepare`/`transaction`/`backup`
+      call — **all 8, exhaustive:**
+      1. creates `schema_migrations` when absent
+      2. applies nothing and takes **no backup** when all versions are applied
+      3. takes exactly one backup **before** the first `up` runs (assert call
+         order on the fake's log, `toEqual` on the full sequence)
+      4. applies pending migrations in ascending order
+      5. records each version **after** its `up`, inside the same transaction
+      6. a throwing `up` leaves that version unrecorded and propagates the error
+      7. later migrations do not run after a failure
+      8. prunes backups to the newest 3 (fake filesystem list injected)
 
-- [ ] **2. Implement `presenter-pro/electron/db/migrationPlanner.ts`** to satisfy
-      todo 1. Pure module: no `require('electron')`, no `better-sqlite3`, no
-      filesystem access.
-      *Verify: same command — must now PASS, 12/12.*
+      *Verify:* `npx vitest run electron/db/` — must FAIL (modules absent).
+      Paste the failure output into your summary as proof of TDD ordering.
 
-- [ ] **3. Rewrite `presenter-pro/electron/db/migrations.js`** as the thin shell
-      described above, with migration 1 (`baseline-schema`) carrying today's
-      schema verbatim and no `try/catch` wrappers.
-      *Verify: `npx eslint electron/db/migrations.js` reports zero `no-empty`.*
+      For every comparison, **order, count, and exactness matter**: `toEqual`
+      on whole arrays; never `toContain`; never `.sort()` on both sides.
 
-- [ ] **4. Add the rollup input** for the new module in
-      `presenter-pro/electron.vite.config.js`, mirroring the existing
-      `main/closeController` entry. The main process is CommonJS, so a relative
+- [ ] **2. Implement `migrationPlanner.ts` and `migrationRunner.ts`** to satisfy
+      todo 1. No `require('electron')`, no `better-sqlite3`, no `fs` in the
+      planner. The runner receives `backupDir` and a `listBackups`/`removeBackup`
+      pair via `RunOptions` so pruning is testable — do not read the filesystem
+      directly inside the runner.
+      *Verify:* same command — 17/17 pass.
+
+- [ ] **3. Rewrite `migrations.js`**: migration 1 as described (inspection-
+      guarded), `TOLERATED_STATEMENT_FAILURES = []`, and
+      `runMigrations(db)` wiring the real `fs` helpers and
+      `path.dirname(db.name)` as `backupDir`. Remove all ten `try/catch`.
+      *Verify:* `npx eslint electron/db/migrations.js` — zero `no-empty`.
+
+- [ ] **4. Add BOTH rollup inputs** in `electron.vite.config.js`
+      (`db/migrationPlanner`, `db/migrationRunner`), mirroring
+      `main/closeController`. The main process is CommonJS; a relative
       `require` is left external and needs its own entry — **without this the
-      packaged app crashes on launch with "Cannot find module", and the build
-      still reports SUCCESS.**
-      *Verify: `npm run build && ls out/db/` shows `migrationPlanner.js`.*
+      packaged app crashes on launch and the build still reports SUCCESS.**
+      *Verify:* `npm run build && ls out/db/` shows both `.js` files.
 
-- [ ] **5. Add the backup-before-migrate step** (newest 3 retained).
-      *Verify: covered by the manual steps in todo 8 — no unit test may import
-      `better-sqlite3`.*
+- [ ] **5. Guard test.** Extend `lifecycleListeners.test.ts`'s "build wiring"
+      block with a test asserting both entries exist in the vite config, and
+      that `migrations.js` contains no `catch (_)`.
+      *Verify:* `npx vitest run electron/main/__tests__/lifecycleListeners.test.ts`.
 
-- [ ] **6. Record the outcome** in `tasks/phase7-remediation.md`: mark the
-      migration finding fixed, and note that the ten swallowed `catch (_) {}`
-      blocks in this file are now gone (they are part of the `no-empty` count of
-      11 — state the new count).
+- [ ] **6. Record the outcome** in `tasks/phase7-remediation.md`: migration
+      finding fixed; state the new `no-empty` count (was 11).
 
-- [ ] **7. Raise the coverage thresholds** in `presenter-pro/vitest.config.mjs`
-      to the new measured floor. Run `npm run test:coverage`, read the actual
-      numbers, and set thresholds just below them. Never lower a threshold.
+- [ ] **7. Raise coverage thresholds** in `vitest.config.mjs` to just below the
+      new measured floor (`npm run test:coverage`). Never lower one.
 
 - [ ] **8. Run the completion gate and report.**
-      *Verify: `npm run gate` — report `type-check`, `lint`, and vitest
-      `passed/total`, noting skipped counts.*
+      *Verify:* `npm run gate` — report `type-check`, `lint`, vitest
+      `passed/total`, skipped noted.
 
 ---
 
 ## Manual verification (required — this touches user data)
 
-A green gate is necessary but **not sufficient**; this changes how an existing
-database is opened. Perform all four and report the result of each:
+Perform all four and report each:
 
 1. **Fresh install.** Move `~/Library/Application Support/PresenterPro/presenterpro.db`
-   aside. `npm run dev`. App starts, creates a new DB, `schema_migrations`
-   contains every migration.
-2. **Existing database (the important one).** Restore the real DB. `npm run dev`.
-   App starts, all existing presentations, songs, and media are intact, and
-   `schema_migrations` shows baseline rows — **no migration SQL was executed**.
-3. **Backup created.** Confirm a `presenterpro.backup-*.db` appears only when a
-   migration actually runs, and that only the newest 3 are kept.
-4. **Second launch is a no-op.** Quit and relaunch. No new backup, no re-applied
-   migrations.
+   aside. `npm run dev`. App starts; `schema_migrations` has one row (v1).
+2. **Existing database.** Restore the real DB. `npm run dev`. All presentations,
+   songs, media intact; `schema_migrations` has one row (v1); a backup file was
+   written (because v1 was pending on that DB).
+3. **Second launch is a no-op.** Quit, relaunch. No new backup, still one row.
+4. **Pruning.** Temporarily set `keepBackups` to 1 in a scratch run *or*
+   place 4 dummy `presenterpro.backup-*.db` files and relaunch after forcing a
+   pending migration in a throwaway copy — confirm only the newest 3 remain.
+   If this cannot be exercised safely, say so in the report rather than
+   claiming it.
 
 Inspect with:
 ```bash
@@ -254,12 +281,10 @@ sqlite3 ~/Library/Application\ Support/PresenterPro/presenterpro.db \
 
 ## Required findings report
 
-End your summary with:
-
-1. Per-package gate results (`passed/total`, skipped noted)
+1. Gate results (`passed/total`, skipped noted)
 2. The todo-1 failure output, proving tests were written first
-3. Every `TOLERATED_STATEMENT_FAILURES` entry added, with justification — the
-   list must be empty unless you report otherwise
+3. Every `TOLERATED_STATEMENT_FAILURES` entry added, with justification — must
+   be empty unless reported
 4. Any file changed outside the blast radius, even if justified
 5. The result of each of the four manual steps
 6. Any suspected pre-existing regression discovered but NOT fixed
@@ -273,11 +298,11 @@ End your summary with:
 | Item | Disposition |
 |---|---|
 | Assertion weakening designed against | Anti-weakening clause verbatim above; todo 1 states order/count/exactness for every comparison |
-| List sampling designed against | Todo 1 enumerates **all 12** cases as a counted, exhaustive checklist |
-| Quantifier erosion designed against | Tests assert array `length` alongside contents; `assertMigrationsWellFormed` iterates the whole list |
+| List sampling designed against | Todo 1 enumerates **9 + 8 = 17** cases as counted, exhaustive checklists; runner behaviour is a counted list of 6 |
+| Quantifier erosion designed against | Whole-array `toEqual` on the fake's call log; `assertMigrationsWellFormed` iterates the whole list |
 | Sanctioned escape hatch | `TOLERATED_STATEMENT_FAILURES`, initially empty, entries require justification + report |
-| Bounded blast radius | Five-file table above, with an explicit do-not-touch list |
-| File-specific pitfall notes | Native-module ban; the CommonJS rollup-entry trap (todo 4); the baseline problem called out before implementation |
+| Bounded blast radius | Nine-file table above, with an explicit do-not-touch list |
+| File-specific pitfall notes | Electron-ABI native-module trap (and why CI differs); the CommonJS rollup-entry trap (todo 4, two entries); WAL-unsafe file copy replaced by `db.backup()` |
 | Exact paths, no improvisation | Every file given in full; "do not create new test directories" |
 | Per-todo verification | Each todo names its command |
 | Snapshot policy inline | `N/A — no snapshots in this plan` |
@@ -294,10 +319,10 @@ End your summary with:
 | 1 | TDD ordering | Todo 1 (tests, must fail) strictly precedes todo 2; failure output required as proof |
 | 2 | Behavior-change test edits | `N/A — no existing test is modified` |
 | 3 | No weakened assertions | Anti-weakening clause verbatim; `toEqual` mandated, `toContain` and `.sort()` forbidden |
-| 4 | Coverage floor | 12 cases across 4 exported functions |
+| 4 | Coverage floor | 17 cases across the planner's 3 functions and the runner's 6 behaviours |
 | 5 | Lint floor | No `.only`/`.skip`/assertion-free/conditional-expect; todo 3 verifies `no-empty` is clean |
 | 6 | Snapshot discipline | `N/A — no snapshots` |
 | 7 | Completion gate | Todo 8 runs `npm run gate` and reports passed/total |
-| 8 | Vitest/jsdom mechanics | Node environment; `better-sqlite3` explicitly banned from unit tests; no store or DOM involved |
+| 8 | Vitest/jsdom mechanics | Node environment; `better-sqlite3` never instantiated — runner tested via injected fake; no store or DOM involved |
 | 9 | Test placement | `electron/db/__tests__/` per the placement table |
-| 10 | Characterization before refactor | Migration 1 reproduces today's schema **verbatim**; manual step 2 proves an existing DB is untouched |
+| 10 | Characterization before refactor | Migration 1 reproduces today's schema **verbatim** and is inspection-guarded; manual step 2 proves an existing DB is untouched |
