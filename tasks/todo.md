@@ -91,13 +91,13 @@ Reference repo (read-only): `/Users/ethansmith/Desktop/ClaudeAccess/builder`
 - [ ] 17. Add `.github/workflows/build-release.yml` — mac + windows matrix
       `electron-builder`, artifacts uploaded, triggered on tag
 - [ ] 18. Add `.github/pull_request_template.md` requiring the Self-Review Report
-- [ ] 19. Add `.github/BRANCHING.md` adapted to this repo (no AWS accounts)
+- [x] 19. Add `.github/BRANCHING.md` adapted to this repo (no AWS accounts)
       *Verify: open a throwaway PR and confirm `PR Gate` reports*
 
 ### Phase 6E — Branch + commit discipline
 - [ ] 20. Document the `main` + short-lived-branch model (decision 3). No
       `staging` branch — releases are cut from tags, not a promotion branch.
-- [ ] 21. **AWAITING ETHAN** — Enable branch protection on `main` (PR required, `PR Gate` required,
+- [x] 21. Enable branch protection on `main` (PR required, `PR Gate` required,
       no force push) via `gh api`
 - [ ] 22. Adopt Conventional Commits + naming: `feature/*`, `fix/*`, `chore/*`,
       `hotfix/*`; document in `BRANCHING.md`
