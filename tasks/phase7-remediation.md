@@ -11,7 +11,7 @@ behavior · **P2** = dead code, cleanup, or risk without a known symptom.
 
 ## P0 — Confirmed runtime crashes
 
-### 0. The app cannot be quit with Cmd+Q
+### 0. The app cannot be quit with Cmd+Q — **FIXED** (branch `fix/app-quit-lifecycle`)
 
 - **Where:** `electron/main/index.js` — `close` handler at :664, menu
   `{ role: 'quit' }` at :1442, `window-all-closed` at :1541.
@@ -39,6 +39,12 @@ behavior · **P2** = dead code, cleanup, or risk without a known symptom.
   close. **Test first:** assert the close handler does not `preventDefault` once
   the quitting flag is set, and that a handshake that never resolves still
   closes after the timeout.
+- **Resolution:** the decision logic was extracted to a pure, tested state
+  machine at `electron/main/closeController.ts` (15 tests), `before-quit` and
+  `render-process-gone` listeners were added, and the renderer handshake now
+  expires after 5s instead of latching. A guard test
+  (`lifecycleListeners.test.ts`) fails if the listeners are ever removed or if
+  the inline boolean flags return — the mechanical rule, per Phase 8.
 
 ---
 
@@ -74,6 +80,38 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
 
 ---
 
+## P0 — Confirmed runtime crashes
+
+### 11. Unsaved changes silently vetoed every close — **FIXED**
+
+- **Reported by Ethan during Tier 2 verification.** Two symptoms, one cause:
+  (a) editing a presentation then pressing Cmd+Q or clicking the red X did
+  *nothing* — no save prompt, window stayed open; (b) Cmd+Q while presenting
+  closed the output window but left the app running and still "presenting".
+- **Where:** `src/pages/Editor.jsx` — a `beforeunload` listener calling
+  `window.confirm()`.
+- **What:** Chromium **suppresses `window.confirm()` inside a `beforeunload`
+  handler**, so it returned falsy, so the handler called `e.preventDefault()`
+  and silently vetoed the close with no dialog ever shown. It was also a
+  competing duplicate of the real guard: unsaved changes are owned by the
+  main-process handshake (`close` → `window:requestClose` →
+  `resolveUnsavedChanges()` → `DialogHost`).
+- **Why it produced symptom (b):** Electron fires the BrowserWindow `close`
+  event *before* `beforeunload`. So `before-quit` ran `closePreviewWindows()`
+  (killing the output window), main allowed the close, and then the renderer
+  vetoed it — leaving the app alive with presentation state intact. The failed
+  quit also latched the quitting flag, which is why every later close then did
+  nothing.
+- **Fix:** deleted the `beforeunload` guard. `before-quit` no longer marks
+  shutdown immediately — that would discard unsaved work silently — it defers:
+  cancels the quit, runs the normal handshake, and re-issues the quit from the
+  `closed` handler once the renderer approves. Cancelling the prompt clears the
+  deferred quit.
+- **Rule added:** `src/pages/__tests__/unsavedChangesGuard.test.ts` fails if any
+  renderer page reintroduces a `beforeunload` listener or `window.confirm`.
+
+---
+
 ## P1 — Suspicious behavior
 
 ### 3. `songSections.js:32` — unnecessary regex escape
@@ -83,6 +121,27 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
   character class is a common source of a pattern that silently matches the
   wrong thing. **Verify what it currently matches before changing it** — write
   a characterization test first, then fix only if behavior is genuinely wrong.
+
+### 3b. `.mov` video imports render upside down — **DEFERRED (Ethan, 2026-09-06)**
+
+- **Reported by Ethan during Tier 1 verification.** Importing a `.mov` displayed
+  it flipped vertically; `.mp4` files were fine.
+- **Likely cause:** QuickTime `.mov` files (especially from iPhones) carry a
+  rotation/orientation matrix in their metadata. Chromium honors it
+  inconsistently depending on how the video element is sized and transformed —
+  and this app applies its own CSS transforms for slide scaling, which can
+  compose badly with the container's display matrix.
+- **Where to look:** `src/components/presenter/OutputRenderer.jsx` and
+  `src/components/shared/SlidePreviewSurface.jsx` (the video render paths), plus
+  any `transform: scale(...)` applied to the video element rather than a wrapper.
+- **Investigate first:** confirm whether the source `.mov` actually carries a
+  90/180° rotation matrix (`ffprobe -show_streams` → `side_data` / `rotation`)
+  before changing render code. If it does, the fix is to read the orientation
+  and normalize it, not to blanket-flip `.mov`.
+- **Decision: not fixing for now.** Ethan: "if people are uploading weird .mov
+  thats on them for now." `.mp4` is the expected format and works correctly.
+  Revisit only if it comes up in real use — the investigation notes above stay
+  here so nobody re-derives them.
 
 ### 4. 17 × `react-hooks/set-state-in-effect`
 

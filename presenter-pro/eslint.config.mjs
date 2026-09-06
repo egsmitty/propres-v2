@@ -11,6 +11,7 @@
 // Prettier owns all formatting; eslint-config-prettier is applied last to turn
 // off every stylistic rule that would fight it.
 import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
 import globals from 'globals';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -31,6 +32,27 @@ export default [
   },
 
   js.configs.recommended,
+
+  // TypeScript ---------------------------------------------------------------
+  // New files are .ts/.tsx (see AGENTS.md language policy), and the base parser
+  // cannot read type annotations. Not type-aware linting — `npm run type-check`
+  // owns types; this is only so TS files can be parsed and linted at all.
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: ['**/*.{ts,tsx}'],
+  })),
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      // Mirrors the JS rule below: allow the conventional underscore escape.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
+      ],
+      // The base rule misfires on TS constructs; the plugin version replaces it.
+      'no-unused-vars': 'off',
+    },
+  },
 
   // Renderer (React) ---------------------------------------------------------
   {
