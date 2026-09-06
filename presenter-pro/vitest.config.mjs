@@ -43,13 +43,13 @@ export default defineConfig({
       // they are raised as tests are added. Never set an aspirational number
       // here; a threshold that fails on day one gets deleted rather than met.
       //
-      // Measured 2026-09-06 after plan B1: 7.41/5.87/6.75/7.79 (previously after A3:
+      // Measured 2026-09-06 after plan A4: 8.25/7.00/7.66/8.72 (previously after A3:
       //   statements 5.99% · branches 4.46% · functions 5.41% · lines 6.33%
       thresholds: {
-        statements: 7.2,
-        branches: 5.6,
-        functions: 6.5,
-        lines: 7.5,
+        statements: 8.0,
+        branches: 6.8,
+        functions: 7.4,
+        lines: 8.5,
       },
     },
   },
