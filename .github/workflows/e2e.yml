@@ -1,0 +1,63 @@
+name: E2E
+
+# Drives the REAL built Electron app with Playwright. Covers what unit tests
+# cannot: launch, quit, and the unsaved-changes handshake — where most of this
+# project's real bugs have lived.
+#
+# Deliberately NOT part of the required `PR Gate` yet. E2E is flaky-prone on
+# day one, and a flaky required check trains people to ignore red. Promote it
+# into pr-checks.yml's pr-gate `needs` once it has proven stable.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: presenter-pro
+
+jobs:
+  e2e:
+    name: E2E (macOS)
+    if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
+    # macOS runs Electron headed with no display-server setup. Linux would need
+    # xvfb; Windows works but is slower. One platform is enough for now.
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: presenter-pro/package-lock.json
+
+      # FULL install — unlike the gate job. The app opens SQLite on launch, so
+      # better-sqlite3 must be rebuilt for Electron's ABI or every launch fails.
+      - name: Install dependencies
+        run: npm ci
+
+      # Builds out/ then runs Playwright against it. Electron does not need
+      # `playwright install`: it uses the electron binary from node_modules.
+      - name: Run E2E
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            presenter-pro/playwright-report/
+            presenter-pro/e2e/.artifacts/
+          retention-days: 7
+          if-no-files-found: ignore

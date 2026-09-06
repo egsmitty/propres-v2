@@ -121,7 +121,6 @@ export interface MigrationDb {
   exec(sql: string): void;
   prepare(sql: string): { all(...p: unknown[]): unknown[]; get(...p: unknown[]): unknown; run(...p: unknown[]): unknown };
   transaction<T>(fn: () => T): () => T;
-  backup(destinationPath: string): Promise<unknown>;
 }
 
 export interface RunOptions {
@@ -130,17 +129,25 @@ export interface RunOptions {
   keepBackups?: number;         // default 3
 }
 
-export async function runMigrations(db: MigrationDb, migrations: Migration[], opts: RunOptions): Promise<{ applied: number[] }>;
+export function runMigrations(db: MigrationDb, migrations: Migration[], opts: RunOptions): { applied: number[]; backupPath: string | null };
+// Synchronous: backup is `VACUUM INTO` (WAL-consistent), so the main-process
+// startup sequence is unchanged. `db.backup()` is async and would have forced a
+// change outside this plan's blast radius.
 ```
 
-Behaviour, in order — **all 6, exhaustive**:
+Behaviour, in order — **all 6, exhaustive** *(final order; step 2/5 swapped
+from the first draft after the legacy-database E2E showed backups carrying an
+empty `schema_migrations` table)*:
 1. `assertMigrationsWellFormed(migrations)`.
-2. Ensure `schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL,
+2. Read applied versions **only if** `schema_migrations` exists (checked via
+   `sqlite_master`); otherwise none. Nothing is written yet.
+3. Compute pending. If empty, return `{ applied: [] }` with **zero writes** —
+   no table creation, no backup.
+4. Prune old backups to `keepBackups - 1`, then `VACUUM INTO`
+   `<backupDir>/presenterpro.backup-v<current>-<timestamp>.db`. The database
+   is still untouched, so the backup is exactly what the user had.
+5. Ensure `schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL,
    applied_at INTEGER NOT NULL)`.
-3. Read applied versions; compute pending.
-4. If pending is empty, return `{ applied: [] }` — **no backup is taken**.
-5. Otherwise `await db.backup(<backupDir>/presenterpro.backup-v<current>-<ISO>.db)`
-   **before any migration runs**, then prune to the newest `keepBackups`.
 6. For each pending migration, inside **one transaction per migration**: call
    `up(db)`, then insert its `schema_migrations` row. A throw aborts that
    transaction, records nothing for it, and propagates. Later migrations do
@@ -185,7 +192,7 @@ const TOLERATED_STATEMENT_FAILURES = [];
 
 Work these in order. Each names the command that proves it done.
 
-- [ ] **1. Write the failing tests first (TDD — complete before todo 2).**
+- [x] **1. Write the failing tests first (TDD — complete before todo 2).**
       Two files.
 
       `electron/db/__tests__/migrationPlanner.test.ts` — **all 9, exhaustive:**
@@ -218,38 +225,38 @@ Work these in order. Each names the command that proves it done.
       For every comparison, **order, count, and exactness matter**: `toEqual`
       on whole arrays; never `toContain`; never `.sort()` on both sides.
 
-- [ ] **2. Implement `migrationPlanner.ts` and `migrationRunner.ts`** to satisfy
+- [x] **2. Implement `migrationPlanner.ts` and `migrationRunner.ts`** to satisfy
       todo 1. No `require('electron')`, no `better-sqlite3`, no `fs` in the
       planner. The runner receives `backupDir` and a `listBackups`/`removeBackup`
       pair via `RunOptions` so pruning is testable — do not read the filesystem
       directly inside the runner.
       *Verify:* same command — 17/17 pass.
 
-- [ ] **3. Rewrite `migrations.js`**: migration 1 as described (inspection-
+- [x] **3. Rewrite `migrations.js`**: migration 1 as described (inspection-
       guarded), `TOLERATED_STATEMENT_FAILURES = []`, and
       `runMigrations(db)` wiring the real `fs` helpers and
       `path.dirname(db.name)` as `backupDir`. Remove all ten `try/catch`.
       *Verify:* `npx eslint electron/db/migrations.js` — zero `no-empty`.
 
-- [ ] **4. Add BOTH rollup inputs** in `electron.vite.config.js`
+- [x] **4. Add BOTH rollup inputs** in `electron.vite.config.js`
       (`db/migrationPlanner`, `db/migrationRunner`), mirroring
       `main/closeController`. The main process is CommonJS; a relative
       `require` is left external and needs its own entry — **without this the
       packaged app crashes on launch and the build still reports SUCCESS.**
       *Verify:* `npm run build && ls out/db/` shows both `.js` files.
 
-- [ ] **5. Guard test.** Extend `lifecycleListeners.test.ts`'s "build wiring"
+- [x] **5. Guard test.** Extend `lifecycleListeners.test.ts`'s "build wiring"
       block with a test asserting both entries exist in the vite config, and
       that `migrations.js` contains no `catch (_)`.
       *Verify:* `npx vitest run electron/main/__tests__/lifecycleListeners.test.ts`.
 
-- [ ] **6. Record the outcome** in `tasks/phase7-remediation.md`: migration
+- [x] **6. Record the outcome** in `tasks/phase7-remediation.md`: migration
       finding fixed; state the new `no-empty` count (was 11).
 
-- [ ] **7. Raise coverage thresholds** in `vitest.config.mjs` to just below the
+- [x] **7. Raise coverage thresholds** in `vitest.config.mjs` to just below the
       new measured floor (`npm run test:coverage`). Never lower one.
 
-- [ ] **8. Run the completion gate and report.**
+- [x] **8. Run the completion gate and report.**
       *Verify:* `npm run gate` — report `type-check`, `lint`, vitest
       `passed/total`, skipped noted.
 

@@ -1,9 +1,4 @@
 {
-  "electron/db/migrations.js": {
-    "no-empty": {
-      "count": 10
-    }
-  },
   "electron/main/index.js": {
     "no-empty": {
       "count": 1
