@@ -122,8 +122,14 @@ async function main() {
         failed = true;
       }
     }
-    if (migrations.length !== 1 || migrations[0].version !== 1) {
-      console.error(`expected exactly migration 1 recorded, got ${JSON.stringify(migrations)}`);
+    // Whatever the app currently defines must be recorded as a contiguous run
+    // 1..N. (An earlier version of this check hard-coded "exactly migration 1"
+    // and went stale the moment migration 2 shipped — a check must not know
+    // which migrations exist.)
+    const versions = migrations.map((m) => m.version);
+    const contiguous = versions.length > 0 && versions.every((v, i) => v === i + 1);
+    if (!contiguous) {
+      console.error(`expected migrations recorded as 1..N, got ${JSON.stringify(versions)}`);
       failed = true;
     }
     if (backups.length !== 1) {
