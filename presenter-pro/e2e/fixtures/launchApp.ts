@@ -228,6 +228,18 @@ export async function closeApp(launched: LaunchedApp, options: CloseOptions = {}
 }
 
 /**
+ * Simulate a crash: kill the main process outright and wait for it to die,
+ * leaving the profile on disk so a relaunch can find whatever the app had
+ * journaled. This is the one legitimate use of SIGKILL in this harness —
+ * it is the failure mode the crash-recovery journal exists for.
+ */
+export async function crashApp(launched: LaunchedApp): Promise<void> {
+  const proc = launched.process;
+  if (proc.exitCode === null && proc.signalCode === null) proc.kill('SIGKILL');
+  await waitForExit(proc, EXIT_WAIT_MS);
+}
+
+/**
  * Playwright fixture: every spec receives a freshly launched, isolated app and
  * it is torn down (process + temp profile) whether the spec passes or fails.
  */

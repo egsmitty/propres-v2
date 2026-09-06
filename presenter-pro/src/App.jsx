@@ -11,6 +11,7 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import ShortcutsOverlay from '@/components/shared/ShortcutsOverlay';
 import OnboardingTutorial from '@/components/shared/OnboardingTutorial';
 import DialogHost from '@/components/shared/Dialog';
+import { offerRecoveryOnStartup, startRecoveryJournalSync } from '@/utils/recoveryJournalSync';
 import { runAppCommand } from '@/utils/appCommands';
 import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
 import { getSettings, setSetting } from '@/utils/ipc';
@@ -34,6 +35,18 @@ export default function App() {
     return api.onAppCommand((command) => {
       runAppCommand(command);
     });
+  }, []);
+
+  // Crash-recovery journal (plan A2): main window only. Journal unsaved edits
+  // while the document is dirty, and offer recovery of any journal left by a
+  // previous session. Output/stage windows never edit, so never journal.
+  React.useEffect(() => {
+    if (isPresenterWindow || isOutputWindow || isStageDisplayWindow) return;
+    const stop = startRecoveryJournalSync();
+    offerRecoveryOnStartup().catch((error) => {
+      console.error('[recovery] failed to check for unsaved work:', error);
+    });
+    return stop;
   }, []);
 
   React.useEffect(() => {
