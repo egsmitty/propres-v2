@@ -1,0 +1,6 @@
+#!/bin/sh
+# Format and lint only the staged files. Runs from presenter-pro because that
+# is where package.json, node_modules, and eslint.config.mjs live; lint-staged
+# then only considers staged files under that directory.
+cd presenter-pro || exit 1
+npx lint-staged

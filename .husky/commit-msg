@@ -1,0 +1,8 @@
+#!/bin/sh
+# Enforce Conventional Commits (see .github/BRANCHING.md).
+#
+# Git invokes this hook from the repository root and passes the message path
+# relative to it, so resolve it to an absolute path BEFORE changing directory.
+MSG_FILE="$PWD/$1"
+cd presenter-pro || exit 1
+npx commitlint --edit "$MSG_FILE"
