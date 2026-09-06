@@ -47,15 +47,12 @@ export default function OnboardingTutorial({ onComplete }) {
   const setCurrentView = useAppStore((s) => s.setCurrentView);
   const tutorialStepIndex = useAppStore((s) => s.tutorialStepIndex);
   const setTutorialStepIndex = useAppStore((s) => s.setTutorialStepIndex);
-  const [stepIndex, setStepIndex] = useState(tutorialStepIndex);
+  // The store is the single owner of the step (plan D2 #3); no local mirror.
+  const stepIndex = tutorialStepIndex;
   const [targetRect, setTargetRect] = useState(null);
   const [isWorking, setIsWorking] = useState(false);
 
   const step = STEPS[stepIndex];
-
-  useEffect(() => {
-    setStepIndex(tutorialStepIndex);
-  }, [tutorialStepIndex]);
 
   useEffect(() => {
     function measureTarget() {
@@ -127,21 +124,17 @@ export default function OnboardingTutorial({ onComplete }) {
     try {
       await createPresentationFromTemplate('featured-sunday-example');
       setTutorialStepIndex(2);
-      setStepIndex(2);
     } finally {
       setIsWorking(false);
     }
   }
 
   function handleBack() {
-    setStepIndex((index) => {
-      const nextIndex = Math.max(0, index - 1);
-      if (nextIndex === 0 && currentView === 'editor') {
-        setCurrentView('home');
-      }
-      setTutorialStepIndex(nextIndex);
-      return nextIndex;
-    });
+    const nextIndex = Math.max(0, stepIndex - 1);
+    if (nextIndex === 0 && currentView === 'editor') {
+      setCurrentView('home');
+    }
+    setTutorialStepIndex(nextIndex);
   }
 
   function handleNext() {
@@ -149,11 +142,7 @@ export default function OnboardingTutorial({ onComplete }) {
       onComplete();
       return;
     }
-    setStepIndex((index) => {
-      const nextIndex = index + 1;
-      setTutorialStepIndex(nextIndex);
-      return nextIndex;
-    });
+    setTutorialStepIndex(stepIndex + 1);
   }
 
   return (

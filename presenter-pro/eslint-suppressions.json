@@ -33,11 +33,6 @@
       "count": 3
     }
   },
-  "src/components/editor/FormattingToolbar.jsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 2
-    }
-  },
   "src/components/layout/StatusBar.jsx": {
     "no-unused-vars": {
       "count": 1
@@ -78,11 +73,6 @@
   },
   "src/components/presenter/PresenterPanel.jsx": {
     "no-unused-vars": {
-      "count": 1
-    }
-  },
-  "src/components/shared/OnboardingTutorial.jsx": {
-    "react-hooks/set-state-in-effect": {
       "count": 1
     }
   },
