@@ -2,7 +2,11 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [main]
+    # NO `branches:` filter, deliberately. Restricting this to `main` meant a
+    # stacked PR (one targeting another feature branch) reported "no checks
+    # reported" — a silent zero-signal merge, which is precisely what this
+    # pipeline exists to prevent. Every PR gets the gate, whatever its base.
+    #
     # Default activity types are opened/synchronize/reopened. `ready_for_review`
     # is NOT a default — it must be listed explicitly so the draft→ready
     # transition triggers a run. Per-job `if` skips work while the PR is still

@@ -22,7 +22,7 @@ import {
   saveCurrentPresentationAs,
 } from '@/utils/presentationCommands';
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
-import { alertDialog } from '@/utils/dialog';
+import { alertDialog, confirmDialog } from '@/utils/dialog';
 
 export async function runAppCommand(command) {
   const appState = useAppStore.getState();
@@ -59,6 +59,35 @@ export async function runAppCommand(command) {
       return canClose;
     }
     case 'window:requestClose': {
+      // Guard 1: a live presentation. Quitting mid-service cuts the projector
+      // to the desktop in front of the room, so confirm first and tear the
+      // session down cleanly rather than yanking it.
+      //
+      // Deliberately a confirm, not a hard block: `isPresenting` getting stuck
+      // true is exactly how this app became unquittable once already
+      // (phase7 #11), and Force Quit mid-service is worse than the accident
+      // this guards against.
+      if (presenterState.isPresenting) {
+        const stopAndClose = await confirmDialog(
+          'A presentation is live on the output display. Stop presenting before you quit?',
+          {
+            title: 'Still Presenting',
+            confirmLabel: 'Stop Presenting & Quit',
+            cancelLabel: 'Cancel',
+          }
+        );
+
+        if (!stopAndClose) {
+          window.electronAPI?.resolveWindowCloseRequest?.();
+          return false;
+        }
+
+        // Stop before the window goes away so the output windows close in
+        // order and the session ends properly.
+        await stopPresentationSession();
+      }
+
+      // Guard 2: unsaved changes.
       const canClose = await resolveUnsavedChanges({
         presentation: editorState.presentation,
         isDirty: editorState.isDirty,

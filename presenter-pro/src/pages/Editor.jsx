@@ -77,8 +77,6 @@ export default function Editor() {
   const presentationSettingsOpen = useAppStore((s) => s.presentationSettingsOpen);
   const outputSettingsOpen = useAppStore((s) => s.outputSettingsOpen);
   const filmstripVisible = useAppStore((s) => s.filmstripVisible);
-  const allowWindowClose = useAppStore((s) => s.allowWindowClose);
-  const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose);
   const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen);
   const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen);
   const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen);
@@ -222,26 +220,16 @@ export default function Editor() {
     syncPresentationSession(presentation).catch(() => {});
   }, [presentation, isPresenting, liveSlideId]);
 
-  useEffect(() => {
-    function handleBeforeUnload(e) {
-      if (!presentation || (!isDirty && !requiresInitialSave)) return;
-
-      if (useAppStore.getState().allowWindowClose) {
-        setAllowWindowClose(false);
-        return;
-      }
-
-      const shouldClose = window.confirm('You have unsaved changes. Close without saving?');
-      if (!shouldClose) {
-        e.preventDefault();
-        e.returnValue = false;
-        return false;
-      }
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [presentation, isDirty, requiresInitialSave, allowWindowClose, setAllowWindowClose]);
+  // Unsaved changes are guarded by the main-process handshake — BrowserWindow
+  // 'close' → 'window:requestClose' → resolveUnsavedChanges() → DialogHost.
+  //
+  // A second `beforeunload` guard used to live here and broke closing entirely:
+  // Chromium suppresses window.confirm() inside beforeunload, so it returned
+  // falsy and the handler called preventDefault(), silently vetoing every close
+  // with no dialog. Electron fires 'close' BEFORE beforeunload, so it also
+  // overrode a close the main process had already approved — including a quit.
+  //
+  // Guarded by src/pages/__tests__/unsavedChangesGuard.test.ts.
 
   useEffect(() => {
     function handleKeyDown(e) {
