@@ -98,12 +98,23 @@ Configured rules:
 - ✅ Require branches to be up to date before merging
 - ✅ Block force pushes
 - ✅ Block deletions
+- ✅ **Enforce for administrators** — the repository owner is bound by all of the above
 - ❌ Require approving reviews — **intentionally off**
 
 > Required approvals are disabled because this is a single-maintainer repo:
 > GitHub will not let you approve your own PR, so requiring one approval would
 > make every PR unmergeable. The `PR Gate` status check is what actually
 > enforces quality here. **Turn approvals on the moment a second person joins.**
+
+> **Admin enforcement is on.** Without it, protection was advisory for the
+> owner: a direct push to `main` succeeded and GitHub merely logged
+> `Bypassed rule violations`. Now every change — including yours — goes through
+> a PR and a green `PR Gate`.
+>
+> **Emergency escape hatch:** Settings → Branches → edit the `main` rule →
+> untick *Do not allow bypassing the above settings*, push the fix, then
+> re-enable it. This should be rare and deliberate; if you find yourself doing
+> it more than once in a while, the process is wrong, not the rule.
 
 ## Releases
 

@@ -1,0 +1,42 @@
+# Automated dependency updates. Every PR still runs the full PR Gate, so
+# nothing lands unverified.
+#
+# Non-major updates are grouped into one PR per ecosystem per week so the PR
+# list is not buried; majors arrive individually so each gets read. There is
+# deliberately no `ignore` list — pinning things away from updates is how a
+# dependency file quietly rots. Hold a specific update back only as a recorded
+# decision, not here.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /presenter-pro
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      # Keeps history Conventional-Commits shaped. Not enforced for Dependabot
+      # (husky runs locally, not on GitHub) — this is for readable history.
+      prefix: chore
+      include: scope
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    # Electron majors are intentionally NOT grouped: an Electron upgrade is a
+    # real migration with breakage risk and deserves its own plan and PR.
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch
