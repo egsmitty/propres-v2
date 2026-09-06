@@ -1,26 +1,17 @@
-import { createSong, deleteSong, getSongs, updateSong } from '@/utils/ipc';
+import { createSong, getSongs, updateSong } from '@/utils/ipc';
 import { buildSongRecordFromBuiltInHymn, getBuiltInHymns } from '@/utils/builtInHymns';
 
+// Keeps the built-in public-domain hymns present in the song library.
+//
+// A row belongs to this seeder ONLY if its built_in_key matches a hymn id.
+// Title or tag coincidence is not a match: a user's own arrangement of
+// "Amazing Grace" is theirs, whatever it is called or tagged. Earlier versions
+// matched by title + tag and deleted "duplicates", which could overwrite or
+// delete a user's song on every launch (phase7 #14). Rows written by those
+// versions before built_in_key existed are adopted once by migration 3, not
+// here. This module never deletes anything.
+
 let seedPromise = null;
-
-function parseTags(rawTags) {
-  if (Array.isArray(rawTags)) return rawTags;
-  if (typeof rawTags !== 'string') return [];
-  try {
-    const parsed = JSON.parse(rawTags);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function isBuiltInCandidate(song, hymn) {
-  if (!song) return false;
-  if (song.builtInKey === hymn.id) return true;
-  if (song.title !== hymn.title) return false;
-  const tags = parseTags(song.tags);
-  return tags.includes('built-in') || tags.includes('hymn');
-}
 
 export async function ensureBuiltInSongsSeeded() {
   if (seedPromise) return seedPromise;
@@ -38,30 +29,19 @@ async function ensureBuiltInSongsSeededInner() {
   const existingResult = await getSongs();
   if (!existingResult?.success) return;
 
-  let songs = existingResult.data || [];
+  const songs = existingResult.data || [];
   for (const hymn of hymnSources) {
     const payload = buildSongRecordFromBuiltInHymn(hymn);
-    const matches = songs.filter((song) => isBuiltInCandidate(song, hymn));
-    const existing = matches.find((song) => song.builtInKey === hymn.id) || matches[0] || null;
+    const existing = songs.find((song) => song?.builtInKey === hymn.id) || null;
 
     if (existing) {
       await updateSong(existing.id, {
         ...payload,
         ccli: existing.ccli || '',
       });
-      const duplicates = matches.filter((song) => song.id !== existing.id);
-      for (const duplicate of duplicates) {
-        await deleteSong(duplicate.id);
-      }
-      songs = songs
-        .filter((song) => song.id === existing.id || !matches.some((match) => match.id === song.id))
-        .map((song) => (song.id === existing.id ? { ...song, ...payload } : song));
       continue;
     }
 
-    const created = await createSong(payload);
-    if (created?.success && created.data) {
-      songs = [...songs, created.data];
-    }
+    await createSong(payload);
   }
 }

@@ -23,6 +23,7 @@ export default defineConfig({
           // each needs its own entry — same reason as main/closeController.
           'db/migrationPlanner': resolve(__dirname, 'electron/db/migrationPlanner.ts'),
           'db/migrationRunner': resolve(__dirname, 'electron/db/migrationRunner.ts'),
+          'db/migrationList': resolve(__dirname, 'electron/db/migrationList.ts'),
           'db/queries/songs': resolve(__dirname, 'electron/db/queries/songs.js'),
           'db/queries/presentations': resolve(__dirname, 'electron/db/queries/presentations.js'),
           'db/queries/media': resolve(__dirname, 'electron/db/queries/media.js'),

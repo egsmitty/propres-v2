@@ -83,6 +83,25 @@ function createLegacyDb(userDataDir: string): void {
   execFileSync('sqlite3', [dbPathIn(userDataDir)], { input: LEGACY_DDL });
 }
 
+/**
+ * Legacy database that ALSO holds two "Amazing Grace" rows, as an old build
+ * could leave them: one the old seeder wrote (tagged "built-in", no key —
+ * the column did not exist yet) and one the user imported themselves, tagged
+ * only "hymn". Migration 3 must claim the first and never touch the second;
+ * the key-only seeder must then create nothing extra.
+ */
+const USER_HYMN_TAGS = '["hymn"]';
+const OLD_SEEDER_TAGS = '["hymn","public-domain","built-in"]';
+function createLegacyDbWithHymns(userDataDir: string): void {
+  createLegacyDb(userDataDir);
+  execFileSync('sqlite3', [dbPathIn(userDataDir)], {
+    input: `
+      INSERT INTO songs (title, slides, tags) VALUES ('Amazing Grace', '[]', '${OLD_SEEDER_TAGS}');
+      INSERT INTO songs (title, slides, tags) VALUES ('Amazing Grace', '[]', '${USER_HYMN_TAGS}');
+    `,
+  });
+}
+
 /** Columns migration 1 must ADD to the legacy database above. Exhaustive for that fixture. */
 const COLUMNS_LEGACY_LACKS: ReadonlyArray<[table: string, column: string]> = [
   ['presentations', 'custom_aspect_width'],
@@ -101,7 +120,7 @@ async function expectNoFatalStderr(launched: LaunchedApp): Promise<void> {
 }
 
 test.describe('database migrations', () => {
-  test('fresh install: creates the schema and records exactly migrations 1 and 2', async ({
+  test('fresh install: creates the schema and records exactly migrations 1, 2 and 3', async ({
     launched,
   }) => {
     await expectNoFatalStderr(launched);
@@ -110,6 +129,7 @@ test.describe('database migrations', () => {
     expect(query(db, 'SELECT version, name FROM schema_migrations ORDER BY version')).toEqual([
       { version: 1, name: 'baseline-schema' },
       { version: 2, name: 'presentation-journal' },
+      { version: 3, name: 'claim-legacy-built-in-hymns' },
     ]);
     // All six application tables exist, by exact name (presentation_journal
     // arrived with migration 2 — a behaviour-change edit to this expectation).
@@ -135,10 +155,11 @@ test.describe('database migrations', () => {
       const dir = launched.userDataDir;
       const db = dbPathIn(dir);
 
-      // Recorded as versions 1 and 2 without a baseline special case.
+      // Recorded as versions 1, 2 and 3 without a baseline special case.
       expect(query(db, 'SELECT version, name FROM schema_migrations')).toEqual([
         { version: 1, name: 'baseline-schema' },
         { version: 2, name: 'presentation-journal' },
+        { version: 3, name: 'claim-legacy-built-in-hymns' },
       ]);
 
       // The missing table was created and every missing column added by
@@ -205,6 +226,7 @@ test.describe('database migrations', () => {
       expect(query(dbPathIn(dir), 'SELECT version FROM schema_migrations')).toEqual([
         { version: 1 },
         { version: 2 },
+        { version: 3 },
       ]);
       // Still exactly the one backup from the first launch.
       expect(listBackups(dir)).toHaveLength(1);
@@ -236,6 +258,38 @@ test.describe('database migrations', () => {
       expect(remaining[2]).toMatch(/^presenterpro\.backup-v0-\d{8}T\d{6}Z\.db$/);
       expect(remaining).not.toContain(stale[0]);
       expect(remaining).not.toContain(stale[1]);
+    } finally {
+      await closeApp(launched);
+    }
+  });
+  test('legacy hymn rows: migration 3 claims the old seeder row by key and leaves the user song alone', async () => {
+    const launched = await launchApp({ prepareUserData: createLegacyDbWithHymns });
+    try {
+      await expectNoFatalStderr(launched);
+      // The renderer's key-only seeder runs ~1s after load; let it settle so
+      // the assertion also proves it created nothing extra.
+      await launched.window.waitForTimeout(3_000);
+      const db = dbPathIn(launched.userDataDir);
+
+      const rows = query<{ id: number; built_in_key: string | null; tags: string }>(
+        db,
+        "SELECT id, built_in_key, tags FROM songs WHERE title = 'Amazing Grace' ORDER BY id"
+      );
+      // Exactly two: the old-seeder row (older id) now keyed, the user's row
+      // untouched. No third row from the seeder, nothing deleted.
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toEqual({
+        id: rows[0]!.id,
+        built_in_key: 'amazing-grace',
+        tags: OLD_SEEDER_TAGS,
+      });
+      expect(rows[1]).toEqual({ id: rows[1]!.id, built_in_key: null, tags: USER_HYMN_TAGS });
+      expect(rows[0]!.id).toBeLessThan(rows[1]!.id);
+
+      // The user's other song survived too.
+      expect(query(db, "SELECT title FROM songs WHERE title = 'Legacy Hymn'")).toEqual([
+        { title: LEGACY_SONG_TITLE },
+      ]);
     } finally {
       await closeApp(launched);
     }

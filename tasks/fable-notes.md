@@ -352,3 +352,26 @@ grep hits are leads, not verdicts.
 Dependabot: #24 and #27 (npm) and #19–#23 (Actions) merged after branch
 updates; #25/#28 closed as recorded holds; **#26 (electron-vite 2 → 5) left
 open on purpose** as the reminder for plan U1.
+
+### 2026-09-06 — A3 (seeder key-only + migration 3) implemented
+
+- **The migration list moved to TypeScript** (`electron/db/migrationList.ts`).
+  Not planned: the first unit test that imported `migrations.js` failed to load
+  because its CommonJS `require('./migrationRunner')` cannot resolve a `.ts`
+  module under Vitest. Extracting the typed list (leaving `migrations.js` as
+  the thin fs-wiring shell) is what A1 should have done from the start; the
+  guard tests now cover both files and the new rollup entry.
+- **Migration 3 is the first data migration** and the hymn list is frozen
+  inside it on purpose — a data migration must mean the same thing on every
+  database it ever runs on, even if `shared/hymns.json` changes.
+- **The verify tool had gone stale** — it hard-coded "exactly migration 1",
+  which was wrong the moment migration 2 shipped. Now checks a contiguous
+  1..N. A check must not know which migrations exist.
+- **Open question for Ethan, not changed:** the seeder still *refreshes* a
+  keyed row's content on every launch (`updateSong`, `ccli` preserved). That
+  means a user who edits a built-in hymn — reorders verses, fixes a line —
+  loses the edit on next launch. Same family as #14, but outside today's
+  decision. Two honest options: never update after creation (ship hymn text
+  fixes as data migrations), or add an `edited_by_user` flag. Asking.
+- Behaviour-change edits, stated: `migrations.spec.ts` version lists `[1,2]` →
+  `[1,2,3]`. Real DB copies: counts identical; migrations 1–3 recorded.
