@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useCollapsedSections } from '@/hooks/useCollapsedSections';
 import { Film } from 'lucide-react';
 import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
@@ -365,7 +366,8 @@ export default function Filmstrip({ width = 224 }) {
   const setSelectedSlideIds = useEditorStore((s) => s.setSelectedSlideIds);
   const setSuppressAutoEditSlideId = useEditorStore((s) => s.setSuppressAutoEditSlideId);
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide);
-  const [collapsed, setCollapsed] = useState({});
+  // All sections collapsed per presentation; reset when the presentation changes (plan D2 #9).
+  const [collapsed, setCollapsed] = useCollapsedSections(presentation?.id, presentation?.sections);
   const [editSong, setEditSong] = useState(null);
   const [mediaLibrary, setMediaLibrary] = useState([]);
   const [dragCandidate, setDragCandidate] = useState(null);
@@ -416,20 +418,6 @@ export default function Filmstrip({ width = 224 }) {
     container.scrollTop = nextScrollTop;
     return delta;
   }
-
-  useEffect(() => {
-    const sections = presentation?.sections || [];
-    if (!sections.length) {
-      setCollapsed({});
-      return;
-    }
-
-    const next = {};
-    sections.forEach((section) => {
-      next[section.id] = true;
-    });
-    setCollapsed(next);
-  }, [presentation?.id]);
 
   useEffect(() => {
     getMedia()

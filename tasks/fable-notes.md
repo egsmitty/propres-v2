@@ -609,3 +609,14 @@ line to fix; it is a behaviour change, so I did not fold it into a lint PR.
 
 Left in D2: Filmstrip, MediaLibraryPanel, Home (three "clear the selection
 when it vanishes" effects) and four in Canvas.
+
+### 2026-09-06 — D2 slice 3: the three "clear it when it vanishes" effects (4 remain, all in Canvas)
+
+Filmstrip's collapsed map, the media panel's selection and the home page's
+selection each had an effect that noticed something had disappeared and set
+state _after_ a render had already shown the stale value. They now use React's
+"adjust state while rendering" pattern via two tiny hooks in `src/hooks/`, so
+the stale frame never commits. Two `exhaustive-deps` warnings died with the
+effects (12 left). What is left in D2 is Canvas, whose four effects exist
+because text-box selection and "editing slide" live in both Canvas state and
+the editor store; that is a small store-ownership refactor with its own plan.

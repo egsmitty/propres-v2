@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useClearWhenMissing } from '@/hooks/useClearWhenMissing';
 import {
   Home as HomeIcon,
   PlusCircle,
@@ -414,14 +415,16 @@ export default function Home() {
           ? filteredPresentations
           : [];
 
-  useEffect(() => {
-    if (!activePresentationTab) return;
-    if (!selectedPresentationId) return;
-    if (!visiblePresentations.some((pres) => pres.id === selectedPresentationId)) {
+  // A selection that is no longer visible on the active tab is cleared, and
+  // its context menu with it (plan D2 #16).
+  useClearWhenMissing(
+    activePresentationTab ? selectedPresentationId : null,
+    visiblePresentations.some((pres) => pres.id === selectedPresentationId),
+    () => {
       setSelectedPresentationIdForTab(activePresentationTab, null);
       setMenu((current) => (current?.pres?.id === selectedPresentationId ? null : current));
     }
-  }, [activePresentationTab, visiblePresentations, selectedPresentationId]);
+  );
 
   const pageTitle =
     homeTab === 'home'
