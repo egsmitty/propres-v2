@@ -70,12 +70,14 @@ A volunteer building a service order loses everything to one crash. Every other
 item here is about code health; this one is about someone's Sunday morning. It
 is also the item most likely to be discovered the worst possible way.
 
-**4. `CREATE TABLE IF NOT EXISTS` is not a migration system.**
-Columns can never be added or altered on an existing install. `CLAUDE.md`
-already records the symptom — "older rows may not have `default_background_id`
-populated" — without naming the cause. Any future schema change silently
-no-ops on every existing user's database. This is a data-integrity bug waiting
-for its trigger.
+**4. Migrations are idempotent-by-exception, which is not a migration system.**
+Columns *can* be added — there are ten `ALTER TABLE` statements — but each is
+wrapped in `try {} catch (_) {}`, so "column already exists" is indistinguishable
+from "database locked", "disk full", or "file corrupt". A genuinely failed
+migration reports success. There is no version record, so nothing can be
+reordered, removed, or reasoned about, and data transforms are impossible —
+which is exactly why `default_background_id` was never backfilled on old rows,
+the symptom `CLAUDE.md` records without naming the cause.
 
 **5. Accessibility is effectively absent.** 8 `aria-*` attributes against 163
 click handlers. For volunteers operating live under pressure — often not
@@ -108,8 +110,10 @@ Each ships as its own PR. **One category per plan** — a plan spanning two
 categories gets its second half sampled.
 
 ### A. Data safety *(highest product value)*
-- Autosave / crash recovery for in-progress presentations
 - A real versioned migration system with an applied-migrations table
+  (**A1 — prerequisite**, planned in `plan-A1-versioned-migrations.md`; the
+  recovery journal needs a new table, which cannot ship safely before this)
+- Autosave **and** a crash-recovery journal (**A2**, decided 2026-09-06)
 - Backup-before-migrate on first launch of a new schema version
 - Audit the 11 empty `catch` blocks: each is a real handler, an explicit
   justified comment, or a bug
@@ -188,11 +192,24 @@ Strict. Each stage unblocks the next.
 
 ---
 
-## Open decisions
+## Decisions (Ethan, 2026-09-06)
 
-Recorded in the follow-up conversation; this section is filled in once answered.
+1. **Data safety — autosave AND a recovery journal.** Autosave writes to the
+   real record; the journal makes a crash mid-write recoverable. **Consequence
+   to plan for:** with autosave writing continuously, "discard my changes" stops
+   being possible without version history, so A2 must include either a version
+   history or an explicit revert path. Flagged rather than assumed.
+2. **Risk-first sequencing**, as ordered below. Slowest to show visible change;
+   fixes what can break a live service first.
+3. **Design — tokens + keyboard operability.** Convert the 542 inline styles and
+   162 hex values to tokens, add a lint rule banning raw hex, and make every
+   control keyboard-reachable. No visual redesign.
+4. **Process — three of four:** enforce branch protection on admins, Playwright
+   E2E for the live paths, automated dependency updates. One-command release
+   was declined; releases stay a deliberate multi-step action.
 
-- Autosave model and scope
-- What the pass optimizes for, and how visible it should be to users
-- Design-system ambition
-- Process tightening (admin bypass, E2E, dependency automation)
+## Execution
+
+Plans are written one workstream at a time (never two — a plan spanning
+categories gets its second half sampled) and handed to the Executor. The first
+is `plan-A1-versioned-migrations.md`.
