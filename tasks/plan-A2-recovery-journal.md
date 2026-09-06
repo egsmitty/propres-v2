@@ -16,7 +16,7 @@ Compliance Manifest.
 A volunteer building a service order loses everything to one crash. After
 this plan: while a presentation has unsaved edits, the app continuously writes
 a **journal** snapshot to SQLite; on the next launch after a crash it asks
-**"Recover unsaved work for 'Sunday Morning'?" — [Discard] [Recover]**. Save
+**"Recover unsaved work for 'Sunday Morning'?" — [Later] [Discard] [Recover]**. Save
 still means save; nothing is written to the real record without the user.
 
 Facts this design rests on (verified in code, 2026-09-06):
