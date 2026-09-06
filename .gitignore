@@ -24,3 +24,8 @@ presenter-pro/coverage/
 # One of these slipped past a narrower pattern and broke CI.
 *[[:space:]]2
 *[[:space:]]2.*
+
+# Playwright output — generated per run, never committed.
+presenter-pro/playwright-report/
+presenter-pro/test-results/
+presenter-pro/e2e/.artifacts/
