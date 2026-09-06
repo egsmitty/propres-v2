@@ -211,5 +211,17 @@ Strict. Each stage unblocks the next.
 ## Execution
 
 Plans are written one workstream at a time (never two — a plan spanning
-categories gets its second half sampled) and handed to the Executor. The first
-is `plan-A1-versioned-migrations.md`.
+categories gets its second half sampled) and handed to the Executor.
+
+### Status (2026-09-06)
+
+| Plan | Outcome | PR |
+|---|---|---|
+| P1 process hardening | done — Dependabot, `enforce_admins` on | #17 |
+| P2 E2E harness | done — 7 specs, launch/quit/unsaved-changes, `e2e.yml` (not yet in `PR Gate`) | #18 |
+| A1 versioned migrations | done — 17 unit + 4 E2E, verified on copies of both real DBs, `npm run verify:db` | #29 |
+| A2 autosave + recovery journal | **not started — needs a plan and a product decision** (see `fable-notes.md` R3: journal-first vs both) | — |
+
+Gate on `main`: 149 unit tests, E2E 11/11. `eslint-suppressions.json` 71 → 61.
+Everything learned along the way, including corrections to these plans, is in
+`fable-notes.md`.
