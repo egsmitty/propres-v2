@@ -102,3 +102,19 @@ gets a render test that pins current behaviour before the change.
   now read the normalised selection.
 - Suppressions 48 → **41**; gate 32 files / 275 tests; E2E 19/19.
 - Coverage 11.39/9.26/10.21/12.06 → 14.27/12.09/13.11/15.18; thresholds raised.
+
+## Findings — slice 3 (2026-09-06): findings 9, 10, 16
+
+- Two small hooks under `src/hooks/` carry React's documented
+  "adjust state while rendering" pattern, unit-tested with `renderHook`
+  (10 cases): `useCollapsedSections` (all collapsed per presentation id;
+  sections changing under the same id keep the map; updater and plain map)
+  and `useClearWhenMissing` (clears only when something is selected and it
+  is gone; reacts on a later render).
+- The three components lost their effects and two `exhaustive-deps`
+  warnings with them: suppressions 41 → **38**, lint warnings 14 → **12**
+  (ceiling ratcheted).
+- Gate 34 files / 285 tests; E2E 19/19 (Home renders on every launch).
+- Coverage 14.27/12.09/13.11/15.18 → 14.51/12.29/13.36/15.39; thresholds raised.
+- Remaining in D2: the four Canvas findings (slice 4, its own plan: the
+  selection/editing state duplicated between Canvas and the editor store).

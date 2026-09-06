@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useClearWhenMissing } from '@/hooks/useClearWhenMissing';
 import {
   ArrowLeft,
   Film,
@@ -225,11 +226,12 @@ export default function MediaLibraryPanel() {
     media.find((item) => item.id === selectedMediaId) ||
     null;
 
-  useEffect(() => {
-    if (!selectedMediaId) return;
-    if (media.some((item) => item.id === selectedMediaId)) return;
-    setSelectedMediaId(null);
-  }, [media, selectedMediaId]);
+  // A deleted or filtered-away item cannot stay selected (plan D2 #10).
+  useClearWhenMissing(
+    selectedMediaId,
+    media.some((item) => item.id === selectedMediaId),
+    () => setSelectedMediaId(null)
+  );
 
   function buildUseMenuItems(item) {
     return [

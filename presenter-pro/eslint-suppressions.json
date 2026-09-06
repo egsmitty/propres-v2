@@ -15,9 +15,6 @@
   "src/components/editor/Filmstrip.jsx": {
     "no-unused-vars": {
       "count": 4
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 1
     }
   },
   "src/components/editor/FilmstripSlide.jsx": {
@@ -33,11 +30,6 @@
   "src/components/layout/Toolbar.jsx": {
     "no-unused-vars": {
       "count": 12
-    }
-  },
-  "src/components/library/MediaLibraryPanel.jsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1
     }
   },
   "src/components/library/SongCard.jsx": {
@@ -63,11 +55,6 @@
   "src/pages/Editor.jsx": {
     "no-unused-vars": {
       "count": 2
-    }
-  },
-  "src/pages/Home.jsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1
     }
   },
   "src/utils/backgrounds.js": {

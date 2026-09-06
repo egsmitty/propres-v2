@@ -43,13 +43,13 @@ export default defineConfig({
       // they are raised as tests are added. Never set an aspirational number
       // here; a threshold that fails on day one gets deleted rather than met.
       //
-      // Measured 2026-09-06 after plan D2 slice 2: 14.27/12.09/13.11/15.18 (previously after A3:
+      // Measured 2026-09-06 after plan D2 slice 3: 14.51/12.29/13.36/15.39 (previously after A3:
       //   statements 5.99% · branches 4.46% · functions 5.41% · lines 6.33%
       thresholds: {
-        statements: 14.0,
-        branches: 11.8,
-        functions: 12.9,
-        lines: 14.9,
+        statements: 14.3,
+        branches: 12.0,
+        functions: 13.1,
+        lines: 15.1,
       },
     },
   },
