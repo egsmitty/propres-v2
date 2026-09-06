@@ -1,9 +1,9 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer } = require('electron');
 
 function subscribe(channel, cb) {
-  const handler = (_, data) => cb(data)
-  ipcRenderer.on(channel, handler)
-  return () => ipcRenderer.removeListener(channel, handler)
+  const handler = (_, data) => cb(data);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -41,10 +41,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeOutputWindow: () => ipcRenderer.invoke('output:close'),
   closeStageDisplayWindow: () => ipcRenderer.invoke('stage:close'),
   sendSlide: (slide, background) => ipcRenderer.invoke('output:sendSlide', { slide, background }),
-  setPresentationSessionSlides: (slides) => ipcRenderer.invoke('output:setSessionSlides', { slides }),
+  setPresentationSessionSlides: (slides) =>
+    ipcRenderer.invoke('output:setSessionSlides', { slides }),
   sendBlack: () => ipcRenderer.invoke('output:black'),
   sendLogo: () => ipcRenderer.invoke('output:logo'),
-  startCountdown: (durationSeconds) => ipcRenderer.invoke('output:countdownStart', { durationSeconds }),
+  startCountdown: (durationSeconds) =>
+    ipcRenderer.invoke('output:countdownStart', { durationSeconds }),
   stopCountdown: () => ipcRenderer.invoke('output:countdownStop'),
   stopPresenting: () => ipcRenderer.invoke('output:stop'),
 
@@ -60,7 +62,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Presenter window navigating to a slide
   presenterGoToSlide: (slide) => ipcRenderer.invoke('presenter:goToSlide', { slide }),
-  refreshLiveSlide: (slide, background) => ipcRenderer.invoke('output:refreshSlide', { slide, background }),
+  refreshLiveSlide: (slide, background) =>
+    ipcRenderer.invoke('output:refreshSlide', { slide, background }),
 
   // Window controls
   windowClose: () => ipcRenderer.invoke('window:close'),
@@ -93,4 +96,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onWindowViewState: (cb) => subscribe('window:viewState', cb),
   onPreviewWindowClosed: (cb) => subscribe('preview:windowClosed', cb),
   onPreviewWindowState: (cb) => subscribe('preview:windowState', cb),
-})
+});

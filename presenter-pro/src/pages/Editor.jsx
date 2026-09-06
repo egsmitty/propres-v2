@@ -1,325 +1,350 @@
-import React, { useEffect, useRef, useState } from 'react'
-import Toolbar from '@/components/layout/Toolbar'
-import StatusBar from '@/components/layout/StatusBar'
-import Filmstrip from '@/components/editor/Filmstrip'
-import Canvas from '@/components/editor/Canvas'
-import SongLibraryPanel from '@/components/library/SongLibraryPanel'
-import MediaLibraryPanel from '@/components/library/MediaLibraryPanel'
-import SongEditorModal from '@/components/library/SongEditorModal'
-import PresenterPanel from '@/components/presenter/PresenterPanel'
-import ErrorBoundary from '@/components/shared/ErrorBoundary'
-import PresentationSettingsModal from '@/components/editor/PresentationSettingsModal'
-import OutputSettingsModal from '@/components/editor/OutputSettingsModal'
-import { useAppStore } from '@/store/appStore'
-import { useEditorStore } from '@/store/editorStore'
-import { usePresenterStore } from '@/store/presenterStore'
-import { updatePresentation } from '@/utils/ipc'
-import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentationCommands'
-import { startSidebarPresentationSession, stopPresentationSession, syncPresentationSession } from '@/utils/presenterFlow'
-import { alertDialog } from '@/utils/dialog'
+import React, { useEffect, useRef, useState } from 'react';
+import Toolbar from '@/components/layout/Toolbar';
+import StatusBar from '@/components/layout/StatusBar';
+import Filmstrip from '@/components/editor/Filmstrip';
+import Canvas from '@/components/editor/Canvas';
+import SongLibraryPanel from '@/components/library/SongLibraryPanel';
+import MediaLibraryPanel from '@/components/library/MediaLibraryPanel';
+import SongEditorModal from '@/components/library/SongEditorModal';
+import PresenterPanel from '@/components/presenter/PresenterPanel';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import PresentationSettingsModal from '@/components/editor/PresentationSettingsModal';
+import OutputSettingsModal from '@/components/editor/OutputSettingsModal';
+import { useAppStore } from '@/store/appStore';
+import { useEditorStore } from '@/store/editorStore';
+import { usePresenterStore } from '@/store/presenterStore';
+import { updatePresentation } from '@/utils/ipc';
+import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentationCommands';
+import {
+  startSidebarPresentationSession,
+  stopPresentationSession,
+  syncPresentationSession,
+} from '@/utils/presenterFlow';
+import { alertDialog } from '@/utils/dialog';
 
-const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth'
-const FILMSTRIP_MIN_WIDTH = 276
-const FILMSTRIP_MAX_WIDTH = 352
-const PRESENTER_PANEL_MIN_WIDTH = 240
-const PRESENTER_PANEL_MAX_WIDTH_RATIO = 0.75
-const PRESENTER_RAIL_WIDTH = 48
-const RESIZE_HANDLE_WIDTH = 4
-const EDITOR_CENTER_MIN_WIDTH = 420
-const COLLAPSE_SLIVER_WIDTH = 20
+const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth';
+const FILMSTRIP_MIN_WIDTH = 276;
+const FILMSTRIP_MAX_WIDTH = 352;
+const PRESENTER_PANEL_MIN_WIDTH = 240;
+const PRESENTER_PANEL_MAX_WIDTH_RATIO = 0.75;
+const PRESENTER_RAIL_WIDTH = 48;
+const RESIZE_HANDLE_WIDTH = 4;
+const EDITOR_CENTER_MIN_WIDTH = 420;
+const COLLAPSE_SLIVER_WIDTH = 20;
 
 function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value))
+  return Math.min(max, Math.max(min, value));
 }
 
 function getFilmstripWidthBounds(viewportWidth) {
-  const width = Number.isFinite(viewportWidth) ? viewportWidth : 1440
+  const width = Number.isFinite(viewportWidth) ? viewportWidth : 1440;
   const max = Math.max(
     FILMSTRIP_MIN_WIDTH,
     Math.min(FILMSTRIP_MAX_WIDTH, Math.floor(width * 0.26))
-  )
-  return { min: FILMSTRIP_MIN_WIDTH, max }
+  );
+  return { min: FILMSTRIP_MIN_WIDTH, max };
 }
 
-function getPresenterPanelWidthBounds(viewportWidth, {
-  filmstripVisible = true,
-  filmstripWidth = FILMSTRIP_MIN_WIDTH,
-  presenterPanelOpen = true,
-} = {}) {
-  const width = Number.isFinite(viewportWidth) ? viewportWidth : 1440
-  const leftReservedWidth = filmstripVisible ? filmstripWidth + RESIZE_HANDLE_WIDTH : COLLAPSE_SLIVER_WIDTH
-  const rightReservedWidth = presenterPanelOpen ? RESIZE_HANDLE_WIDTH : PRESENTER_RAIL_WIDTH
-  const maxByRatio = Math.floor(width * PRESENTER_PANEL_MAX_WIDTH_RATIO)
-  const maxByLayout = width - leftReservedWidth - rightReservedWidth - EDITOR_CENTER_MIN_WIDTH
-  const max = Math.max(
-    PRESENTER_PANEL_MIN_WIDTH,
-    Math.min(maxByRatio, maxByLayout)
-  )
-  return { min: PRESENTER_PANEL_MIN_WIDTH, max }
+function getPresenterPanelWidthBounds(
+  viewportWidth,
+  { filmstripVisible = true, filmstripWidth = FILMSTRIP_MIN_WIDTH, presenterPanelOpen = true } = {}
+) {
+  const width = Number.isFinite(viewportWidth) ? viewportWidth : 1440;
+  const leftReservedWidth = filmstripVisible
+    ? filmstripWidth + RESIZE_HANDLE_WIDTH
+    : COLLAPSE_SLIVER_WIDTH;
+  const rightReservedWidth = presenterPanelOpen ? RESIZE_HANDLE_WIDTH : PRESENTER_RAIL_WIDTH;
+  const maxByRatio = Math.floor(width * PRESENTER_PANEL_MAX_WIDTH_RATIO);
+  const maxByLayout = width - leftReservedWidth - rightReservedWidth - EDITOR_CENTER_MIN_WIDTH;
+  const max = Math.max(PRESENTER_PANEL_MIN_WIDTH, Math.min(maxByRatio, maxByLayout));
+  return { min: PRESENTER_PANEL_MIN_WIDTH, max };
 }
 
 function getInitialFilmstripWidth() {
-  if (typeof window === 'undefined') return 224
-  const bounds = getFilmstripWidthBounds(window.innerWidth)
-  const saved = Number(window.localStorage.getItem(FILMSTRIP_WIDTH_KEY))
+  if (typeof window === 'undefined') return 224;
+  const bounds = getFilmstripWidthBounds(window.innerWidth);
+  const saved = Number(window.localStorage.getItem(FILMSTRIP_WIDTH_KEY));
   if (Number.isFinite(saved)) {
-    return clamp(saved, bounds.min, bounds.max)
+    return clamp(saved, bounds.min, bounds.max);
   }
-  return clamp(276, bounds.min, bounds.max)
+  return clamp(276, bounds.min, bounds.max);
 }
 
 export default function Editor() {
-  const songLibraryOpen = useAppStore((s) => s.songLibraryOpen)
-  const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen)
-  const newSongEditorOpen = useAppStore((s) => s.newSongEditorOpen)
-  const presentationSettingsOpen = useAppStore((s) => s.presentationSettingsOpen)
-  const outputSettingsOpen = useAppStore((s) => s.outputSettingsOpen)
-  const filmstripVisible = useAppStore((s) => s.filmstripVisible)
-  const allowWindowClose = useAppStore((s) => s.allowWindowClose)
-  const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose)
-  const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen)
-  const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
-  const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen)
-  const isPresenting = usePresenterStore((s) => s.isPresenting)
-  const stopPresenting = usePresenterStore((s) => s.stopPresenting)
-  const setLiveSlide = usePresenterStore((s) => s.setLiveSlide)
-  const setBlack = usePresenterStore((s) => s.setBlack)
-  const setLogo = usePresenterStore((s) => s.setLogo)
-  const liveSlideId = usePresenterStore((s) => s.liveSlideId)
-  const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen)
-  const setPresenterPanelOpen = usePresenterStore((s) => s.setPresenterPanelOpen)
-  const setPresenterPanelWidth = usePresenterStore((s) => s.setPresenterPanelWidth)
-  const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth)
+  const songLibraryOpen = useAppStore((s) => s.songLibraryOpen);
+  const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen);
+  const newSongEditorOpen = useAppStore((s) => s.newSongEditorOpen);
+  const presentationSettingsOpen = useAppStore((s) => s.presentationSettingsOpen);
+  const outputSettingsOpen = useAppStore((s) => s.outputSettingsOpen);
+  const filmstripVisible = useAppStore((s) => s.filmstripVisible);
+  const allowWindowClose = useAppStore((s) => s.allowWindowClose);
+  const setAllowWindowClose = useAppStore((s) => s.setAllowWindowClose);
+  const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen);
+  const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen);
+  const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen);
+  const isPresenting = usePresenterStore((s) => s.isPresenting);
+  const stopPresenting = usePresenterStore((s) => s.stopPresenting);
+  const setLiveSlide = usePresenterStore((s) => s.setLiveSlide);
+  const setBlack = usePresenterStore((s) => s.setBlack);
+  const setLogo = usePresenterStore((s) => s.setLogo);
+  const liveSlideId = usePresenterStore((s) => s.liveSlideId);
+  const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen);
+  const setPresenterPanelOpen = usePresenterStore((s) => s.setPresenterPanelOpen);
+  const setPresenterPanelWidth = usePresenterStore((s) => s.setPresenterPanelWidth);
+  const presenterPanelWidth = usePresenterStore((s) => s.presenterPanelWidth);
 
   function setPresenterPanelVisible(nextOpen) {
     if (isPresenting) {
-      setPresenterPanelOpen(true)
-      return
+      setPresenterPanelOpen(true);
+      return;
     }
-    setPresenterPanelOpen(nextOpen)
+    setPresenterPanelOpen(nextOpen);
   }
 
   function togglePresenterPanel() {
     if (isPresenting) {
-      setPresenterPanelOpen(true)
-      return
+      setPresenterPanelOpen(true);
+      return;
     }
-    setPresenterPanelOpen(!presenterPanelOpen)
+    setPresenterPanelOpen(!presenterPanelOpen);
   }
 
-  const [filmstripWidth, setFilmstripWidth] = useState(getInitialFilmstripWidth)
-  const dragRef = useRef(null) // { side: 'filmstrip'|'panel', startX, startWidth }
+  const [filmstripWidth, setFilmstripWidth] = useState(getInitialFilmstripWidth);
+  const dragRef = useRef(null); // { side: 'filmstrip'|'panel', startX, startWidth }
 
   useEffect(() => {
-    window.localStorage.setItem(FILMSTRIP_WIDTH_KEY, String(filmstripWidth))
-  }, [filmstripWidth])
+    window.localStorage.setItem(FILMSTRIP_WIDTH_KEY, String(filmstripWidth));
+  }, [filmstripWidth]);
 
   useEffect(() => {
     if (isPresenting && !presenterPanelOpen) {
-      setPresenterPanelOpen(true)
+      setPresenterPanelOpen(true);
     }
-  }, [isPresenting, presenterPanelOpen, setPresenterPanelOpen])
+  }, [isPresenting, presenterPanelOpen, setPresenterPanelOpen]);
 
   useEffect(() => {
     function clampEditorSideWidths() {
-      const filmstripBounds = getFilmstripWidthBounds(window.innerWidth)
-      const nextFilmstripWidth = clamp(filmstripWidth, filmstripBounds.min, filmstripBounds.max)
+      const filmstripBounds = getFilmstripWidthBounds(window.innerWidth);
+      const nextFilmstripWidth = clamp(filmstripWidth, filmstripBounds.min, filmstripBounds.max);
       const presenterBounds = getPresenterPanelWidthBounds(window.innerWidth, {
         filmstripVisible,
         filmstripWidth: nextFilmstripWidth,
         presenterPanelOpen,
-      })
+      });
 
-      setFilmstripWidth(nextFilmstripWidth)
+      setFilmstripWidth(nextFilmstripWidth);
 
-      const presenterState = usePresenterStore.getState()
+      const presenterState = usePresenterStore.getState();
       const clampedPresenterWidth = clamp(
         presenterState.presenterPanelWidth,
         presenterBounds.min,
         presenterBounds.max
-      )
+      );
 
       if (clampedPresenterWidth !== presenterState.presenterPanelWidth) {
-        presenterState.setPresenterPanelWidth(clampedPresenterWidth)
+        presenterState.setPresenterPanelWidth(clampedPresenterWidth);
       }
     }
 
-    clampEditorSideWidths()
-    window.addEventListener('resize', clampEditorSideWidths)
-    return () => window.removeEventListener('resize', clampEditorSideWidths)
-  }, [filmstripVisible, filmstripWidth, presenterPanelOpen, setPresenterPanelWidth])
+    clampEditorSideWidths();
+    window.addEventListener('resize', clampEditorSideWidths);
+    return () => window.removeEventListener('resize', clampEditorSideWidths);
+  }, [filmstripVisible, filmstripWidth, presenterPanelOpen, setPresenterPanelWidth]);
 
   useEffect(() => {
     function onMove(e) {
-      if (!dragRef.current) return
-      const { side, startX, startWidth } = dragRef.current
-      const dx = e.clientX - startX
+      if (!dragRef.current) return;
+      const { side, startX, startWidth } = dragRef.current;
+      const dx = e.clientX - startX;
       if (side === 'filmstrip') {
-        const bounds = getFilmstripWidthBounds(window.innerWidth)
-        setFilmstripWidth(
-          clamp(startWidth + dx, bounds.min, bounds.max)
-        )
+        const bounds = getFilmstripWidthBounds(window.innerWidth);
+        setFilmstripWidth(clamp(startWidth + dx, bounds.min, bounds.max));
       } else {
         const bounds = getPresenterPanelWidthBounds(window.innerWidth, {
           filmstripVisible,
           filmstripWidth,
           presenterPanelOpen: true,
-        })
-        setPresenterPanelWidth(clamp(startWidth - dx, bounds.min, bounds.max))
+        });
+        setPresenterPanelWidth(clamp(startWidth - dx, bounds.min, bounds.max));
       }
     }
-    function onUp() { dragRef.current = null; document.body.style.cursor = '' }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+    function onUp() {
+      dragRef.current = null;
+      document.body.style.cursor = '';
     }
-  }, [filmstripVisible, filmstripWidth, setPresenterPanelWidth])
-  const presentation = useEditorStore((s) => s.presentation)
-  const isDirty = useEditorStore((s) => s.isDirty)
-  const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave)
-  const setDirty = useEditorStore((s) => s.setDirty)
-  const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave)
-  const editingSlideId = useEditorStore((s) => s.editingSlideId)
-  const panelOpen = songLibraryOpen || mediaLibraryOpen || newSongEditorOpen
-  const libraryPanelOpen = songLibraryOpen || mediaLibraryOpen
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [filmstripVisible, filmstripWidth, setPresenterPanelWidth]);
+  const presentation = useEditorStore((s) => s.presentation);
+  const isDirty = useEditorStore((s) => s.isDirty);
+  const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave);
+  const setDirty = useEditorStore((s) => s.setDirty);
+  const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave);
+  const editingSlideId = useEditorStore((s) => s.editingSlideId);
+  const panelOpen = songLibraryOpen || mediaLibraryOpen || newSongEditorOpen;
+  const libraryPanelOpen = songLibraryOpen || mediaLibraryOpen;
 
   // Listen for stop signal from output window (when presenter closes)
   useEffect(() => {
-    const api = window.electronAPI
-    if (!api?.onPresenterStop) return
-    return api.onPresenterStop(() => stopPresenting())
-  }, [stopPresenting])
+    const api = window.electronAPI;
+    if (!api?.onPresenterStop) return;
+    return api.onPresenterStop(() => stopPresenting());
+  }, [stopPresenting]);
 
   // Listen for slide advance from presenter window → sync live slide in editor
   useEffect(() => {
-    const api = window.electronAPI
-    if (!api?.onSlideAdvance) return
+    const api = window.electronAPI;
+    if (!api?.onSlideAdvance) return;
     return api.onSlideAdvance(({ slide }) => {
-      if (slide?.sectionId) setLiveSlide(slide.sectionId, slide.id)
-    })
-  }, [setLiveSlide])
+      if (slide?.sectionId) setLiveSlide(slide.sectionId, slide.id);
+    });
+  }, [setLiveSlide]);
 
   useEffect(() => {
-    const api = window.electronAPI
-    if (!api?.onOutputBlack || !api?.onOutputLogo) return
+    const api = window.electronAPI;
+    if (!api?.onOutputBlack || !api?.onOutputLogo) return;
 
-    const offBlack = api.onOutputBlack(({ active }) => setBlack(Boolean(active)))
-    const offLogo = api.onOutputLogo(({ active }) => setLogo(Boolean(active)))
+    const offBlack = api.onOutputBlack(({ active }) => setBlack(Boolean(active)));
+    const offLogo = api.onOutputLogo(({ active }) => setLogo(Boolean(active)));
     return () => {
-      offBlack?.()
-      offLogo?.()
-    }
-  }, [setBlack, setLogo])
+      offBlack?.();
+      offLogo?.();
+    };
+  }, [setBlack, setLogo]);
 
   useEffect(() => {
-    if (!isPresenting || !presentation || !liveSlideId) return
+    if (!isPresenting || !presentation || !liveSlideId) return;
 
-    syncPresentationSession(presentation).catch(() => {})
-  }, [presentation, isPresenting, liveSlideId])
+    syncPresentationSession(presentation).catch(() => {});
+  }, [presentation, isPresenting, liveSlideId]);
 
   useEffect(() => {
     function handleBeforeUnload(e) {
-      if (!presentation || (!isDirty && !requiresInitialSave)) return
+      if (!presentation || (!isDirty && !requiresInitialSave)) return;
 
       if (useAppStore.getState().allowWindowClose) {
-        setAllowWindowClose(false)
-        return
+        setAllowWindowClose(false);
+        return;
       }
 
-      const shouldClose = window.confirm('You have unsaved changes. Close without saving?')
+      const shouldClose = window.confirm('You have unsaved changes. Close without saving?');
       if (!shouldClose) {
-        e.preventDefault()
-        e.returnValue = false
-        return false
+        e.preventDefault();
+        e.returnValue = false;
+        return false;
       }
     }
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [presentation, isDirty, requiresInitialSave, allowWindowClose, setAllowWindowClose])
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [presentation, isDirty, requiresInitialSave, allowWindowClose, setAllowWindowClose]);
 
   useEffect(() => {
     function handleKeyDown(e) {
-      if (panelOpen) return
-      if (editingSlideId) return
-      const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return
+      if (panelOpen) return;
+      if (editingSlideId) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable)
+        return;
 
-      const meta = e.metaKey || e.ctrlKey
+      const meta = e.metaKey || e.ctrlKey;
 
-      if (meta && e.key === 's') { e.preventDefault(); handleSave(); return }
+      if (meta && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
       if (!meta && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        e.preventDefault()
-        const state = useEditorStore.getState()
-        const pres = state.presentation
-        if (!pres) return
-        const allSlides = pres.sections.flatMap((sec) => sec.slides.map((sl) => ({ ...sl, sectionId: sec.id })))
-        const idx = allSlides.findIndex((sl) => sl.id === state.selectedSlideId)
-        const next = e.key === 'ArrowUp' ? allSlides[idx - 1] : allSlides[idx + 1]
-        if (next) state.setSelectedSlide(next.sectionId, next.id)
-        return
+        e.preventDefault();
+        const state = useEditorStore.getState();
+        const pres = state.presentation;
+        if (!pres) return;
+        const allSlides = pres.sections.flatMap((sec) =>
+          sec.slides.map((sl) => ({ ...sl, sectionId: sec.id }))
+        );
+        const idx = allSlides.findIndex((sl) => sl.id === state.selectedSlideId);
+        const next = e.key === 'ArrowUp' ? allSlides[idx - 1] : allSlides[idx + 1];
+        if (next) state.setSelectedSlide(next.sectionId, next.id);
+        return;
       }
       if (!meta && (e.key === 'Delete' || e.key === 'Backspace')) {
-        e.preventDefault()
-        deleteSelectedSlideFromCurrentPresentation()
-        return
+        e.preventDefault();
+        deleteSelectedSlideFromCurrentPresentation();
+        return;
       }
-      if (e.key === 'F5') { e.preventDefault(); handlePresent(); return }
-      if (e.key === 'Escape' && isPresenting) { e.preventDefault(); handleStopPresenting(); return }
+      if (e.key === 'F5') {
+        e.preventDefault();
+        handlePresent();
+        return;
+      }
+      if (e.key === 'Escape' && isPresenting) {
+        e.preventDefault();
+        handleStopPresenting();
+        return;
+      }
       if (e.key === '?' && !meta) {
-        useAppStore.getState().setShortcutsOpen(!useAppStore.getState().shortcutsOpen)
-        return
+        useAppStore.getState().setShortcutsOpen(!useAppStore.getState().shortcutsOpen);
+        return;
       }
       if ((e.key === 'b' || e.key === 'B') && isPresenting && !meta) {
-        window.electronAPI?.sendBlack(); return
+        window.electronAPI?.sendBlack();
+        return;
       }
       if ((e.key === 'l' || e.key === 'L') && isPresenting && !meta) {
-        window.electronAPI?.sendLogo(); return
+        window.electronAPI?.sendLogo();
+        return;
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [editingSlideId, isPresenting, presentation, isDirty, requiresInitialSave, panelOpen])
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingSlideId, isPresenting, presentation, isDirty, requiresInitialSave, panelOpen]);
 
   async function handleSave() {
-    if (!presentation || (!isDirty && !requiresInitialSave)) return
-    const result = await updatePresentation(presentation.id, presentation)
+    if (!presentation || (!isDirty && !requiresInitialSave)) return;
+    const result = await updatePresentation(presentation.id, presentation);
     if (result?.success) {
-      setDirty(false)
-      setRequiresInitialSave(false)
-      return
+      setDirty(false);
+      setRequiresInitialSave(false);
+      return;
     }
 
-    await alertDialog(result?.error || 'Failed to save your presentation.', { title: 'Save Failed' })
+    await alertDialog(result?.error || 'Failed to save your presentation.', {
+      title: 'Save Failed',
+    });
   }
 
   async function handlePresent() {
-    if (!presentation) return
+    if (!presentation) return;
     if (panelOpen) {
-      await alertDialog('Close any open library or editor panels before presenting.', { title: 'Cannot Present' })
-      return
+      await alertDialog('Close any open library or editor panels before presenting.', {
+        title: 'Cannot Present',
+      });
+      return;
     }
     if (isPresenting) {
-      handleStopPresenting()
-      return
+      handleStopPresenting();
+      return;
     }
 
-    const started = await startSidebarPresentationSession(presentation)
+    const started = await startSidebarPresentationSession(presentation);
     if (!started) {
-      await alertDialog('Add at least one slide before presenting.', { title: 'Nothing to Present' })
+      await alertDialog('Add at least one slide before presenting.', {
+        title: 'Nothing to Present',
+      });
     }
   }
 
   function handleStopPresenting() {
-    stopPresentationSession()
-      .catch(() => stopPresenting())
+    stopPresentationSession().catch(() => stopPresenting());
   }
 
   function closeLibraryPanels() {
-    setSongLibraryOpen(false)
-    setMediaLibraryOpen(false)
+    setSongLibraryOpen(false);
+    setMediaLibraryOpen(false);
   }
 
   return (
@@ -346,12 +371,20 @@ export default function Editor() {
           <div className="shrink-0 flex h-full overflow-hidden">
             {filmstripVisible ? (
               <>
-                <ErrorBoundary label="Filmstrip error"><Filmstrip width={filmstripWidth} /></ErrorBoundary>
-                <ResizeHandle onMouseDown={(e) => {
-                  e.preventDefault()
-                  dragRef.current = { side: 'filmstrip', startX: e.clientX, startWidth: filmstripWidth }
-                  document.body.style.cursor = 'col-resize'
-                }} />
+                <ErrorBoundary label="Filmstrip error">
+                  <Filmstrip width={filmstripWidth} />
+                </ErrorBoundary>
+                <ResizeHandle
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    dragRef.current = {
+                      side: 'filmstrip',
+                      startX: e.clientX,
+                      startWidth: filmstripWidth,
+                    };
+                    document.body.style.cursor = 'col-resize';
+                  }}
+                />
               </>
             ) : (
               <CollapseSliver
@@ -361,15 +394,23 @@ export default function Editor() {
             )}
           </div>
           <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-            <ErrorBoundary label="Canvas error"><Canvas onSave={handleSave} /></ErrorBoundary>
+            <ErrorBoundary label="Canvas error">
+              <Canvas onSave={handleSave} />
+            </ErrorBoundary>
           </div>
           <div className="shrink-0 flex h-full overflow-hidden">
             {presenterPanelOpen ? (
-              <ResizeHandle onMouseDown={(e) => {
-                e.preventDefault()
-                dragRef.current = { side: 'panel', startX: e.clientX, startWidth: presenterPanelWidth }
-                document.body.style.cursor = 'col-resize'
-              }} />
+              <ResizeHandle
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  dragRef.current = {
+                    side: 'panel',
+                    startX: e.clientX,
+                    startWidth: presenterPanelWidth,
+                  };
+                  document.body.style.cursor = 'col-resize';
+                }}
+              />
             ) : null}
             <PresenterPanel onSetOpen={setPresenterPanelVisible} />
           </div>
@@ -377,7 +418,7 @@ export default function Editor() {
       </div>
       <StatusBar />
     </div>
-  )
+  );
 }
 
 function CollapseSliver({ direction, onClick }) {
@@ -394,13 +435,19 @@ function CollapseSliver({ direction, onClick }) {
         fontSize: 12,
         userSelect: 'none',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-filmstrip)'; e.currentTarget.style.color = 'var(--text-tertiary)' }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'var(--bg-hover)';
+        e.currentTarget.style.color = 'var(--text-primary)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'var(--bg-filmstrip)';
+        e.currentTarget.style.color = 'var(--text-tertiary)';
+      }}
       title={direction === 'right' ? 'Show service order' : 'Show presenter panel'}
     >
       {direction === 'right' ? '›' : '‹'}
     </div>
-  )
+  );
 }
 
 function ResizeHandle({ onMouseDown }) {
@@ -414,25 +461,29 @@ function ResizeHandle({ onMouseDown }) {
         background: 'transparent',
         zIndex: 10,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--border-default)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'var(--border-default)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent';
+      }}
     />
-  )
+  );
 }
 
 function LiveBanner() {
-  const presentation = useEditorStore((s) => s.presentation)
-  const liveSlideId = usePresenterStore((s) => s.liveSlideId)
+  const presentation = useEditorStore((s) => s.presentation);
+  const liveSlideId = usePresenterStore((s) => s.liveSlideId);
 
-  let slideNum = 0
-  let totalSlides = 0
+  let slideNum = 0;
+  let totalSlides = 0;
   if (presentation) {
-    let i = 0
+    let i = 0;
     for (const sec of presentation.sections) {
       for (const sl of sec.slides) {
-        i++
-        totalSlides++
-        if (sl.id === liveSlideId) slideNum = i
+        i++;
+        totalSlides++;
+        if (sl.id === liveSlideId) slideNum = i;
       }
     }
   }
@@ -451,5 +502,5 @@ function LiveBanner() {
         Presenting{slideNum > 0 && ` — Slide ${slideNum} of ${totalSlides}`}
       </span>
     </div>
-  )
+  );
 }

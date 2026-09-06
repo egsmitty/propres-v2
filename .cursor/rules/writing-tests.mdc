@@ -1,0 +1,274 @@
+---
+description: Copy-paste skeletons and anti-patterns for writing Vitest tests in PresenterPro. Policy (TDD, never weaken, snapshot triage, completion gate) lives in testing-standards.mdc — this file is the mechanical "how to write one".
+globs: "**/__tests__/**/*.{js,jsx,ts,tsx},**/*.test.{js,jsx,ts,tsx}"
+alwaysApply: false
+---
+
+# Writing tests: skeletons and anti-patterns
+
+Start from the matching skeleton below. Do not invent a new setup shape when one
+of these fits — copy it, then change only what your test needs.
+
+| You are testing… | Use skeleton |
+| --- | --- |
+| A pure util (`parseSlides`, `mergeTextStyle`, `getEffectiveBackgroundId`) | A |
+| A Zustand store action | B |
+| A React component | C |
+| Anything that calls `window.electronAPI` through `src/utils/ipc.js` | D |
+| An Electron main-process / IPC contract | E |
+| Anything with a snapshot | F |
+| Time-dependent behavior (countdown, background continuity) | G |
+
+New test files are written in **TypeScript** (`.ts` / `.tsx`). Import from the
+`@` alias (`@/utils/...`), which resolves to `presenter-pro/src`.
+
+## A — Pure util test
+
+The cheapest and highest-value tests in this repo. No mocking, no DOM.
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { parseSlides, parseSongGroups } from '@/utils/slideParser';
+
+describe('parseSlides', () => {
+  it('splits on blank lines and preserves newlines inside a slide', () => {
+    const slides = parseSlides('line one\nline two\n\nsecond slide');
+    // Exactness matters: count AND order AND content.
+    expect(slides).toEqual(['line one\nline two', 'second slide']);
+  });
+});
+```
+
+**Derive expectations from the production constant, never a parallel copy:**
+
+```ts
+import { DEFAULT_TEXT_STYLE, mergeTextStyle } from '@/utils/textBoxes';
+
+it('fills unset fields from the default style', () => {
+  expect(mergeTextStyle({ bold: true })).toEqual({
+    ...DEFAULT_TEXT_STYLE, // not a hardcoded literal that can drift
+    bold: true,
+  });
+});
+```
+
+## B — Zustand store test
+
+**Stores in this repo are module singletons created with `create((set) => …)`.**
+There is no built-in reset, so state leaks between tests. Capture the initial
+state once at import time and restore it in `beforeEach` — never rely on test
+order.
+
+```ts
+import { describe, it, expect, beforeEach } from 'vitest';
+import { useEditorStore } from '@/store/editorStore';
+
+const INITIAL_STATE = useEditorStore.getState();
+
+beforeEach(() => {
+  // `true` replaces state rather than merging — a merge would leave mutations
+  // from the previous test behind.
+  useEditorStore.setState(INITIAL_STATE, true);
+});
+
+describe('editorStore selection', () => {
+  it('selects a slide and clears any multi-selection', () => {
+    useEditorStore.getState().selectSlide('sec-1', 'slide-2');
+    const { selectedSlideId, selectedSlideIds } = useEditorStore.getState();
+    expect(selectedSlideId).toBe('slide-2');
+    expect(selectedSlideIds).toEqual(['slide-2']);
+  });
+});
+```
+
+Undo/redo is history-based (`HISTORY_LIMIT = 50`). When testing history, assert
+the *depth* as well as the contents, so an off-by-one push doesn't pass.
+
+## C — Component test
+
+```tsx
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { useEditorStore } from '@/store/editorStore';
+import { Filmstrip } from '@/components/editor/Filmstrip';
+
+const INITIAL_STATE = useEditorStore.getState();
+beforeEach(() => useEditorStore.setState(INITIAL_STATE, true));
+
+it('renders one thumbnail per slide in section order', () => {
+  useEditorStore.setState({ presentation: presentationFixture() });
+  render(<Filmstrip />);
+  const thumbs = screen.getAllByTestId('filmstrip-slide');
+  // Quantifier: assert the full count, not "at least one".
+  expect(thumbs).toHaveLength(3);
+});
+```
+
+**Read the component's gate condition before asserting a control is absent.**
+The floating formatting toolbar only renders with a selected text box; media
+controls depend on section type; Output Settings depends on detected displays.
+A control missing because you didn't seed its precondition is a false failure.
+
+## D — Mocking the IPC layer
+
+`src/utils/ipc.js` is a thin wrapper over `window.electronAPI`, and every
+function returns `{ success, data, error }`. **Mock that module — never import
+`electron` in a renderer test.**
+
+```ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('@/utils/ipc', () => ({
+  getPresentations: vi.fn(),
+  getPresentation: vi.fn(),
+  updatePresentation: vi.fn(),
+}));
+
+import { getPresentations } from '@/utils/ipc';
+import { loadRecentPresentations } from '@/utils/presentationCommands';
+
+beforeEach(() => vi.clearAllMocks());
+
+it('surfaces the error message when the IPC call fails', async () => {
+  vi.mocked(getPresentations).mockResolvedValue({
+    success: false,
+    error: 'db locked',
+  });
+  await expect(loadRecentPresentations()).resolves.toEqual({
+    ok: false,
+    message: 'db locked',
+  });
+});
+```
+
+Alternatively, stub the global directly when testing `ipc.js` itself:
+
+```ts
+beforeEach(() => {
+  vi.stubGlobal('electronAPI', { getPresentations: vi.fn() });
+});
+```
+
+## E — Electron main / IPC contract test
+
+The main↔renderer seam is this app's highest-risk surface. Test the **payload
+shape on both sides**, so a handler and its caller cannot drift apart.
+
+```ts
+import { describe, it, expect, vi } from 'vitest';
+
+// Never load better-sqlite3 in a unit test — it is a native module.
+vi.mock('../db/queries/presentations', () => ({
+  listPresentations: vi.fn(() => [{ id: 'p1', title: 'Sunday' }]),
+}));
+
+import { handleGetPresentations } from '../index';
+
+it('returns the { success, data } envelope the renderer expects', async () => {
+  const result = await handleGetPresentations();
+  // Exactness matters: the renderer destructures these exact keys.
+  expect(result).toEqual({
+    success: true,
+    data: [{ id: 'p1', title: 'Sunday' }],
+  });
+});
+```
+
+If a handler is not currently exported, export it — do **not** reach into module
+internals or duplicate its logic in the test.
+
+## F — Snapshot test
+
+Every snapshot needs a structural floor in the same test, so an empty or garbage
+baseline can never pass:
+
+```ts
+it('normalizes a legacy presentation into the current shape', () => {
+  const normalized = normalizePresentation(legacyFixture());
+  // Floor: an empty result means the fixture or harness failed, not that the
+  // presentation legitimately has no sections. Never snapshot without one.
+  expect(normalized.sections.length).toBeGreaterThan(0);
+  expect(normalized).toMatchSnapshot();
+});
+```
+
+If this snapshot ever fails, follow the triage in `testing-standards.mdc` before
+touching it. Never run `vitest -u` across more than the cell you intentionally
+changed, and **never combine `-u` with a `-t` filter** — a filtered update can
+drop baselines for cells that didn't run.
+
+## G — Time-dependent behavior
+
+Countdown overlays and continuous background playback are time-driven. Use fake
+timers and advance explicitly; never `await` a real delay.
+
+```ts
+import { vi, it, expect, afterEach } from 'vitest';
+
+afterEach(() => vi.useRealTimers());
+
+it('stops the countdown exactly at zero', () => {
+  vi.useFakeTimers();
+  const countdown = startCountdown({ seconds: 3 });
+  vi.advanceTimersByTime(3000);
+  expect(countdown.remaining).toBe(0);
+  // Assert it does not go negative on the next tick.
+  vi.advanceTimersByTime(1000);
+  expect(countdown.remaining).toBe(0);
+});
+```
+
+## Canvas and measurement
+
+jsdom returns **zeros** from `getBoundingClientRect()`. Components that scale
+from measured geometry — `Canvas.jsx`, the floating formatting toolbar,
+`presentationSizing` — cannot be asserted through real layout. Extract the
+computation into a pure function and test that, or stub the measurement seam and
+assert on the computed output. Never assert on a pixel value jsdom produced.
+
+## Anti-patterns (lint-enforced by `eslint-plugin-vitest`)
+
+When one of these rules fires, **fix the test structure — do not disable the
+rule**:
+
+- `vitest/no-focused-tests` — a leftover `.only` silently disables every other
+  test in the run. Remove it.
+- `vitest/no-disabled-tests` — `it.skip` / `xit` is deleted coverage. Fix the
+  test or fix the code; a genuinely required skip needs a line-scoped disable
+  with a justifying comment.
+- `vitest/expect-expect` — a test body with no assertion is permanently green.
+  Add a real `expect`; if your assertions live in a helper, name it `expect*` so
+  the rule recognizes it.
+- `vitest/no-conditional-expect` — an `expect` inside `if` / `catch` silently
+  skips. Assert the precondition first, or use a throw-narrowing helper.
+
+Also never:
+
+- **Assert on your own mock.** `expect(myMock()).toBe(mockReturnValue)` tests the
+  mock, not the code. Assert on what the component or function *did with* the
+  mock (calls, rendered output).
+- **Loosen a comparison to go green** — sorting both sides, set-compares,
+  `toContain` where `toEqual` failed. The order/content difference IS the signal;
+  triage it.
+- **Hardcode expectations that mirror production constants.** Import the constant
+  (`DEFAULT_TEXT_STYLE`, `SECTION_COLORS`, `FONT_SIZE_DISPLAY_PRESETS`) so the
+  test fails when reality changes rather than drifting.
+- **Forget to reset a Zustand store.** A passing test that only passes when run
+  first is worse than no test.
+- **Load `better-sqlite3` or `electron` in a unit test.** Both are native/host
+  modules; cover real database and window behavior in Playwright E2E instead.
+
+For thrown errors, capture-then-assert — `expect` inside `catch` passes
+vacuously when nothing throws:
+
+```ts
+let thrown: unknown;
+try {
+  parsePresentation(bad);
+} catch (e) {
+  thrown = e;
+}
+expect(thrown).toBeInstanceOf(ValidationError);
+```

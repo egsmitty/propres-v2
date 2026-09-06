@@ -1,40 +1,41 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { getPresentationScale } from '@/utils/presentationSizing'
-import { DEFAULT_TEXT_STYLE, getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes'
-import { slideBodyToHtml } from '@/utils/slideMarkup'
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getPresentationScale } from '@/utils/presentationSizing';
+import { DEFAULT_TEXT_STYLE, getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes';
+import { slideBodyToHtml } from '@/utils/slideMarkup';
 
 function resolveVerticalAlignment(box) {
-  const valign = box?.textStyle?.valign || 'middle'
-  if (valign === 'top') return { justifyContent: 'flex-start' }
-  if (valign === 'bottom') return { justifyContent: 'flex-end' }
-  if (valign === 'center') return { justifyContent: 'center' }
-  return { justifyContent: 'center' }
+  const valign = box?.textStyle?.valign || 'middle';
+  if (valign === 'top') return { justifyContent: 'flex-start' };
+  if (valign === 'bottom') return { justifyContent: 'flex-end' };
+  if (valign === 'center') return { justifyContent: 'center' };
+  return { justifyContent: 'center' };
 }
 
 function renderOutline(box, scale) {
-  const width = (box.outlineWidth || 0) * scale
-  if (!width || box.outlineColor === 'transparent') return 'none'
-  const style = box.outlineStyle || 'solid'
-  return `${Math.max(1, width)}px ${style} ${box.outlineColor}`
+  const width = (box.outlineWidth || 0) * scale;
+  if (!width || box.outlineColor === 'transparent') return 'none';
+  const style = box.outlineStyle || 'solid';
+  return `${Math.max(1, width)}px ${style} ${box.outlineColor}`;
 }
 
 function renderShadow(box, scale, fallbackShadow) {
   if (box.shadowEnabled) {
-    return `${(box.shadowOffsetX || 0) * scale}px ${(box.shadowOffsetY || 10) * scale}px ${Math.max(4, (box.shadowBlur || 18) * scale)}px ${box.shadowColor || 'rgba(0,0,0,0.35)'}`
+    return `${(box.shadowOffsetX || 0) * scale}px ${(box.shadowOffsetY || 10) * scale}px ${Math.max(4, (box.shadowBlur || 18) * scale)}px ${box.shadowColor || 'rgba(0,0,0,0.35)'}`;
   }
-  return fallbackShadow
+  return fallbackShadow;
 }
 
 function renderTextDecoration(style) {
-  return [
-    style?.underline ? 'underline' : null,
-    style?.strikethrough ? 'line-through' : null,
-  ].filter(Boolean).join(' ') || 'none'
+  return (
+    [style?.underline ? 'underline' : null, style?.strikethrough ? 'line-through' : null]
+      .filter(Boolean)
+      .join(' ') || 'none'
+  );
 }
 
 function baseHighlightStyle(style) {
-  const color = style?.highlightColor
-  if (!color || color === 'transparent') return null
+  const color = style?.highlightColor;
+  if (!color || color === 'transparent') return null;
   return {
     display: 'inline-block',
     maxWidth: '100%',
@@ -42,39 +43,46 @@ function baseHighlightStyle(style) {
     boxDecorationBreak: 'clone',
     WebkitBoxDecorationBreak: 'clone',
     padding: '0 0.05em',
-  }
+  };
 }
 
 function renderTextBody(html, style) {
-  const highlightStyle = baseHighlightStyle(style)
+  const highlightStyle = baseHighlightStyle(style);
   if (!highlightStyle) {
-    return <div dangerouslySetInnerHTML={{ __html: html }} />
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
   }
 
   return (
     <div style={{ width: '100%', textAlign: style?.align || 'center' }}>
       <span style={highlightStyle} dangerouslySetInnerHTML={{ __html: html }} />
     </div>
-  )
+  );
 }
 
 function renderBody(box, empty, showPlaceholder) {
-  if (box.body) return { html: slideBodyToHtml(box.body), placeholder: false }
-  if (!showPlaceholder) return { html: '', placeholder: false }
-  return { html: resolvePlaceholderText(box.placeholderText, empty), placeholder: true }
+  if (box.body) return { html: slideBodyToHtml(box.body), placeholder: false };
+  if (!showPlaceholder) return { html: '', placeholder: false };
+  return { html: resolvePlaceholderText(box.placeholderText, empty), placeholder: true };
 }
 
 function scaleInlineHtml(html, scale) {
-  if (!html || scale === 1) return html
+  if (!html || scale === 1) return html;
 
   const scalePx = (_, value) => {
-    const next = Math.max(1, Number.parseFloat(value || '0') * scale)
-    return `${next.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')}px`
-  }
+    const next = Math.max(1, Number.parseFloat(value || '0') * scale);
+    return `${next
+      .toFixed(2)
+      .replace(/\.00$/, '')
+      .replace(/(\.\d*[1-9])0+$/, '$1')}px`;
+  };
 
   return String(html)
-    .replace(/font-size\s*:\s*([\d.]+)px/gi, (match, value) => match.replace(value + 'px', scalePx('', value)))
-    .replace(/line-height\s*:\s*([\d.]+)px/gi, (match, value) => match.replace(value + 'px', scalePx('', value)))
+    .replace(/font-size\s*:\s*([\d.]+)px/gi, (match, value) =>
+      match.replace(value + 'px', scalePx('', value))
+    )
+    .replace(/line-height\s*:\s*([\d.]+)px/gi, (match, value) =>
+      match.replace(value + 'px', scalePx('', value))
+    );
 }
 
 export default function ScaledSlideText({
@@ -86,39 +94,39 @@ export default function ScaledSlideText({
   minPaddingY = 4,
   showPlaceholder = true,
 }) {
-  const frameRef = useRef(null)
-  const [size, setSize] = useState({ width: 0, height: 0 })
+  const frameRef = useRef(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (!frameRef.current) return undefined
+    if (!frameRef.current) return undefined;
 
     const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (!entry) return
-      setSize({ width: entry.contentRect.width, height: entry.contentRect.height })
-    })
+      const entry = entries[0];
+      if (!entry) return;
+      setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
 
-    observer.observe(frameRef.current)
-    return () => observer.disconnect()
-  }, [])
+    observer.observe(frameRef.current);
+    return () => observer.disconnect();
+  }, []);
 
-  const scale = getPresentationScale(presentation, size.width, size.height)
-  const textBoxes = useMemo(() => getSlideTextBoxes(slide), [slide])
+  const scale = getPresentationScale(presentation, size.width, size.height);
+  const textBoxes = useMemo(() => getSlideTextBoxes(slide), [slide]);
 
   return (
     <div ref={frameRef} className="relative w-full h-full overflow-hidden">
       {textBoxes.map((box) => {
-        const fontSize = (box?.textStyle?.size || DEFAULT_TEXT_STYLE.size) * scale
-        const body = renderBody(box, empty, showPlaceholder)
-        const renderedHtml = body.placeholder ? body.html : scaleInlineHtml(body.html, scale)
-        const paddingX = Math.max(minPaddingX, (box.paddingLeft || 28) * scale)
-        const paddingRight = Math.max(minPaddingX, (box.paddingRight || 28) * scale)
-        const paddingY = Math.max(minPaddingY, (box.paddingTop || 22) * scale)
-        const paddingBottom = Math.max(minPaddingY, (box.paddingBottom || 22) * scale)
-        const textDirection = box.textDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb'
-        const writingMode = textDirection === 'vertical-rl' ? 'vertical-rl' : 'horizontal-tb'
-        const transform = box.rotation ? `rotate(${box.rotation}deg)` : 'none'
-        const verticalStyle = resolveVerticalAlignment(box)
+        const fontSize = (box?.textStyle?.size || DEFAULT_TEXT_STYLE.size) * scale;
+        const body = renderBody(box, empty, showPlaceholder);
+        const renderedHtml = body.placeholder ? body.html : scaleInlineHtml(body.html, scale);
+        const paddingX = Math.max(minPaddingX, (box.paddingLeft || 28) * scale);
+        const paddingRight = Math.max(minPaddingX, (box.paddingRight || 28) * scale);
+        const paddingY = Math.max(minPaddingY, (box.paddingTop || 22) * scale);
+        const paddingBottom = Math.max(minPaddingY, (box.paddingBottom || 22) * scale);
+        const textDirection = box.textDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb';
+        const writingMode = textDirection === 'vertical-rl' ? 'vertical-rl' : 'horizontal-tb';
+        const transform = box.rotation ? `rotate(${box.rotation}deg)` : 'none';
+        const verticalStyle = resolveVerticalAlignment(box);
 
         return (
           <div
@@ -136,7 +144,7 @@ export default function ScaledSlideText({
               color: body.placeholder ? '#888888' : box?.textStyle?.color || '#ffffff',
               fontSize,
               fontWeight: box?.textStyle?.bold ? 700 : 400,
-              fontStyle: body.placeholder ? 'italic' : (box?.textStyle?.italic ? 'italic' : 'normal'),
+              fontStyle: body.placeholder ? 'italic' : box?.textStyle?.italic ? 'italic' : 'normal',
               textDecoration: renderTextDecoration(box?.textStyle),
               lineHeight: box?.textStyle?.lineHeight || DEFAULT_TEXT_STYLE.lineHeight,
               fontFamily: box?.textStyle?.fontFamily || 'Arial, sans-serif',
@@ -163,8 +171,8 @@ export default function ScaledSlideText({
               renderTextBody(renderedHtml, box?.textStyle)
             )}
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

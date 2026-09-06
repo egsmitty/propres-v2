@@ -1,92 +1,92 @@
-import { SECTION_COLORS } from '@/utils/backgrounds'
+import { SECTION_COLORS } from '@/utils/backgrounds';
 
 // ── Song slide section types ──────────────────────────────────────────────────
 
 export const SECTION_TYPES = [
-  { id: 'verse',       label: 'Verse',       abbr: 'V',  color: '#2563eb' },
-  { id: 'chorus',      label: 'Chorus',      abbr: 'C',  color: '#16a34a' },
-  { id: 'bridge',      label: 'Bridge',      abbr: 'B',  color: '#9333ea' },
-  { id: 'pre-chorus',  label: 'Pre-Chorus',  abbr: 'PC', color: '#ea580c' },
-  { id: 'intro',       label: 'Intro',       abbr: 'I',  color: '#0f766e' },
-  { id: 'outro',       label: 'Outro',       abbr: 'O',  color: '#64748b' },
-  { id: 'tag',         label: 'Tag',         abbr: 'T',  color: '#db2777' },
-  { id: 'turnaround',  label: 'Turnaround',  abbr: 'Tu', color: '#ca8a04' },
-  { id: 'blank',       label: 'Blank',       abbr: '--', color: '#6b7280' },
-  { id: 'custom',      label: 'Custom',      abbr: '?',  color: '#0891b2' },
-]
+  { id: 'verse', label: 'Verse', abbr: 'V', color: '#2563eb' },
+  { id: 'chorus', label: 'Chorus', abbr: 'C', color: '#16a34a' },
+  { id: 'bridge', label: 'Bridge', abbr: 'B', color: '#9333ea' },
+  { id: 'pre-chorus', label: 'Pre-Chorus', abbr: 'PC', color: '#ea580c' },
+  { id: 'intro', label: 'Intro', abbr: 'I', color: '#0f766e' },
+  { id: 'outro', label: 'Outro', abbr: 'O', color: '#64748b' },
+  { id: 'tag', label: 'Tag', abbr: 'T', color: '#db2777' },
+  { id: 'turnaround', label: 'Turnaround', abbr: 'Tu', color: '#ca8a04' },
+  { id: 'blank', label: 'Blank', abbr: '--', color: '#6b7280' },
+  { id: 'custom', label: 'Custom', abbr: '?', color: '#0891b2' },
+];
 
 export function getSectionType(id) {
-  return SECTION_TYPES.find((t) => t.id === id) || SECTION_TYPES[0]
+  return SECTION_TYPES.find((t) => t.id === id) || SECTION_TYPES[0];
 }
 
 function hexToHsl(hex) {
-  const normalized = String(hex || '').replace('#', '')
-  const bigint = Number.parseInt(normalized, 16)
-  const r = ((bigint >> 16) & 255) / 255
-  const g = ((bigint >> 8) & 255) / 255
-  const b = (bigint & 255) / 255
+  const normalized = String(hex || '').replace('#', '');
+  const bigint = Number.parseInt(normalized, 16);
+  const r = ((bigint >> 16) & 255) / 255;
+  const g = ((bigint >> 8) & 255) / 255;
+  const b = (bigint & 255) / 255;
 
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  let h = 0
-  let s = 0
-  const l = (max + min) / 2
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
 
   if (max !== min) {
-    const delta = max - min
-    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min)
+    const delta = max - min;
+    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
     switch (max) {
       case r:
-        h = (g - b) / delta + (g < b ? 6 : 0)
-        break
+        h = (g - b) / delta + (g < b ? 6 : 0);
+        break;
       case g:
-        h = (b - r) / delta + 2
-        break
+        h = (b - r) / delta + 2;
+        break;
       default:
-        h = (r - g) / delta + 4
-        break
+        h = (r - g) / delta + 4;
+        break;
     }
-    h /= 6
+    h /= 6;
   }
 
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) }
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
 function hexToRgb(hex) {
-  const normalized = String(hex || '').replace('#', '')
-  const bigint = Number.parseInt(normalized, 16)
+  const normalized = String(hex || '').replace('#', '');
+  const bigint = Number.parseInt(normalized, 16);
   return {
     r: (bigint >> 16) & 255,
     g: (bigint >> 8) & 255,
     b: bigint & 255,
-  }
+  };
 }
 
 export function getSectionColor(id, occurrence = 1) {
-  const baseColor = getSectionType(id).color
-  const { h, s, l } = hexToHsl(baseColor)
-  const shadeIndex = Math.max(0, Number(occurrence || 1) - 1)
-  const nextLightness = Math.max(20, l - shadeIndex * 5)
-  return `hsl(${h} ${s}% ${nextLightness}%)`
+  const baseColor = getSectionType(id).color;
+  const { h, s, l } = hexToHsl(baseColor);
+  const shadeIndex = Math.max(0, Number(occurrence || 1) - 1);
+  const nextLightness = Math.max(20, l - shadeIndex * 5);
+  return `hsl(${h} ${s}% ${nextLightness}%)`;
 }
 
 export function withColorAlpha(color, alpha = 1) {
-  const normalized = String(color || '').trim()
-  const clampedAlpha = Math.max(0, Math.min(1, alpha))
+  const normalized = String(color || '').trim();
+  const clampedAlpha = Math.max(0, Math.min(1, alpha));
 
   if (normalized.startsWith('hsl(') && normalized.endsWith(')')) {
-    return normalized.replace(/\)$/, ` / ${clampedAlpha})`)
+    return normalized.replace(/\)$/, ` / ${clampedAlpha})`);
   }
 
   if (normalized.startsWith('#')) {
-    const { r, g, b } = hexToRgb(normalized)
-    return `rgba(${r}, ${g}, ${b}, ${clampedAlpha})`
+    const { r, g, b } = hexToRgb(normalized);
+    return `rgba(${r}, ${g}, ${b}, ${clampedAlpha})`;
   }
 
-  return normalized
+  return normalized;
 }
-import { uuid } from '@/utils/uuid'
-import { showDialog } from '@/utils/dialog'
+import { uuid } from '@/utils/uuid';
+import { showDialog } from '@/utils/dialog';
 import {
   DEFAULT_PLACEHOLDER_TEXT,
   DEFAULT_TEXT_BOX,
@@ -96,7 +96,7 @@ import {
   mergeTextStyle,
   resolvePlaceholderText,
   syncLegacyTextFields,
-} from '@/utils/textBoxes'
+} from '@/utils/textBoxes';
 
 export {
   DEFAULT_PLACEHOLDER_TEXT,
@@ -105,7 +105,7 @@ export {
   mergeTextBox,
   mergeTextStyle,
   resolvePlaceholderText,
-}
+};
 
 export const SECTION_TYPE_META = {
   song: {
@@ -126,32 +126,32 @@ export const SECTION_TYPE_META = {
     defaultSectionTitle: 'New Sermon',
     defaultSlideLabel: 'Notes',
   },
-}
+};
 
 export function normalizeSectionType(type) {
-  if (SECTION_TYPE_META[type]) return type
-  if (type === 'custom') return 'announcement'
-  return 'announcement'
+  if (SECTION_TYPE_META[type]) return type;
+  if (type === 'custom') return 'announcement';
+  return 'announcement';
 }
 
 export function isKnownSectionType(type) {
-  return Boolean(SECTION_TYPE_META[type])
+  return Boolean(SECTION_TYPE_META[type]);
 }
 
 export function getSectionTypeMeta(type) {
-  return SECTION_TYPE_META[normalizeSectionType(type)]
+  return SECTION_TYPE_META[normalizeSectionType(type)];
 }
 
 export function getSectionTypeLabel(type) {
-  return getSectionTypeMeta(type).label
+  return getSectionTypeMeta(type).label;
 }
 
 export function getSectionContentLabel(type) {
-  return getSectionTypeMeta(type).contentLabel
+  return getSectionTypeMeta(type).contentLabel;
 }
 
 export function createTextSlide(sectionType = 'announcement', overrides = {}) {
-  const meta = getSectionTypeMeta(sectionType)
+  const meta = getSectionTypeMeta(sectionType);
   const baseSlide = {
     id: uuid(),
     type: overrides.type || normalizeSectionType(sectionType),
@@ -164,18 +164,27 @@ export function createTextSlide(sectionType = 'announcement', overrides = {}) {
     textBox: mergeTextBox(overrides.textBox),
     textBoxes: overrides.textBoxes,
     ...overrides,
-  }
+  };
 
-  const normalizedBoxes = Array.isArray(overrides.textBoxes) && overrides.textBoxes.length
-    ? overrides.textBoxes
-    : [createDefaultTextBoxForSlide({ ...baseSlide, type: normalizeSectionType(sectionType) }, {
-        body: baseSlide.body,
-        placeholderText: baseSlide.placeholderText,
-        textStyle: baseSlide.textStyle,
-        ...baseSlide.textBox,
-      })]
+  const normalizedBoxes =
+    Array.isArray(overrides.textBoxes) && overrides.textBoxes.length
+      ? overrides.textBoxes
+      : [
+          createDefaultTextBoxForSlide(
+            { ...baseSlide, type: normalizeSectionType(sectionType) },
+            {
+              body: baseSlide.body,
+              placeholderText: baseSlide.placeholderText,
+              textStyle: baseSlide.textStyle,
+              ...baseSlide.textBox,
+            }
+          ),
+        ];
 
-  return syncLegacyTextFields({ ...baseSlide, type: normalizeSectionType(sectionType) }, normalizedBoxes)
+  return syncLegacyTextFields(
+    { ...baseSlide, type: normalizeSectionType(sectionType) },
+    normalizedBoxes
+  );
 }
 
 export function createMediaSlide(media, overrides = {}) {
@@ -192,11 +201,11 @@ export function createMediaSlide(media, overrides = {}) {
     textBox: mergeTextBox(overrides.textBox),
     textBoxes: [],
     ...overrides,
-  }
+  };
 }
 
 export function createSection(sectionType = 'announcement', index = 0, overrides = {}) {
-  const meta = getSectionTypeMeta(sectionType)
+  const meta = getSectionTypeMeta(sectionType);
   return {
     id: uuid(),
     title: overrides.title || meta.defaultSectionTitle,
@@ -206,19 +215,19 @@ export function createSection(sectionType = 'announcement', index = 0, overrides
     slides: overrides.slides || [],
     backgroundId: overrides.backgroundId ?? null,
     ...overrides,
-  }
+  };
 }
 
 export function isMediaSlide(slide) {
-  return slide?.type === 'media' && Boolean(slide?.mediaId)
+  return slide?.type === 'media' && Boolean(slide?.mediaId);
 }
 
 export async function promptForSectionSetup(preferredType = null) {
-  const resolvedType = preferredType ? normalizeSectionType(preferredType) : 'announcement'
-  const meta = getSectionTypeMeta(resolvedType)
-  const typeLocked = Boolean(preferredType)
+  const resolvedType = preferredType ? normalizeSectionType(preferredType) : 'announcement';
+  const meta = getSectionTypeMeta(resolvedType);
+  const typeLocked = Boolean(preferredType);
 
-  const fields = []
+  const fields = [];
   if (!typeLocked) {
     fields.push({
       name: 'type',
@@ -229,7 +238,7 @@ export async function promptForSectionSetup(preferredType = null) {
         value: key,
         label: SECTION_TYPE_META[key].label,
       })),
-    })
+    });
   }
   fields.push({
     name: 'title',
@@ -237,7 +246,7 @@ export async function promptForSectionSetup(preferredType = null) {
     type: 'text',
     defaultValue: meta.defaultSectionTitle,
     autoFocus: typeLocked,
-  })
+  });
 
   const result = await showDialog({
     title: typeLocked ? `New ${meta.label} Section` : 'New Section',
@@ -246,13 +255,13 @@ export async function promptForSectionSetup(preferredType = null) {
       { label: 'Cancel', value: null, cancel: true },
       { label: 'Create', value: 'confirm', primary: true },
     ],
-  })
+  });
 
-  if (!result || result.action !== 'confirm') return null
+  if (!result || result.action !== 'confirm') return null;
 
-  const chosenType = typeLocked ? resolvedType : normalizeSectionType(result.values.type)
-  const chosenMeta = getSectionTypeMeta(chosenType)
-  const title = (result.values.title || '').trim() || chosenMeta.defaultSectionTitle
+  const chosenType = typeLocked ? resolvedType : normalizeSectionType(result.values.type);
+  const chosenMeta = getSectionTypeMeta(chosenType);
+  const title = (result.values.title || '').trim() || chosenMeta.defaultSectionTitle;
 
-  return { type: chosenType, title }
+  return { type: chosenType, title };
 }

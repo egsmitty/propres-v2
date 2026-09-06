@@ -1,30 +1,30 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, Pencil } from 'lucide-react'
-import { useEditorStore } from '@/store/editorStore'
-import { useAppStore } from '@/store/appStore'
-import { touchPresentation } from '@/utils/ipc'
-import { resolveUnsavedChanges } from '@/utils/unsavedChanges'
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, Pencil } from 'lucide-react';
+import { useEditorStore } from '@/store/editorStore';
+import { useAppStore } from '@/store/appStore';
+import { touchPresentation } from '@/utils/ipc';
+import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
 
 export default function TitleBar() {
-  const presentation = useEditorStore((s) => s.presentation)
-  const isDirty = useEditorStore((s) => s.isDirty)
-  const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave)
-  const setDirty = useEditorStore((s) => s.setDirty)
-  const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave)
-  const setPresentation = useEditorStore((s) => s.setPresentation)
-  const currentView = useAppStore((s) => s.currentView)
-  const setCurrentView = useAppStore((s) => s.setCurrentView)
-  const setHomeTab = useAppStore((s) => s.setHomeTab)
-  const [renaming, setRenaming] = useState(false)
-  const [renameVal, setRenameVal] = useState('')
-  const renameRef = useRef(null)
+  const presentation = useEditorStore((s) => s.presentation);
+  const isDirty = useEditorStore((s) => s.isDirty);
+  const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave);
+  const setDirty = useEditorStore((s) => s.setDirty);
+  const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave);
+  const setPresentation = useEditorStore((s) => s.setPresentation);
+  const currentView = useAppStore((s) => s.currentView);
+  const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const setHomeTab = useAppStore((s) => s.setHomeTab);
+  const [renaming, setRenaming] = useState(false);
+  const [renameVal, setRenameVal] = useState('');
+  const renameRef = useRef(null);
 
   useEffect(() => {
     if (renaming && renameRef.current) {
-      renameRef.current.focus()
-      renameRef.current.select()
+      renameRef.current.focus();
+      renameRef.current.select();
     }
-  }, [renaming])
+  }, [renaming]);
 
   async function handleBack() {
     const canLeave = await resolveUnsavedChanges({
@@ -34,37 +34,37 @@ export default function TitleBar() {
       setDirty,
       setRequiresInitialSave,
       actionLabel: 'go back home',
-    })
-    if (!canLeave) return
+    });
+    if (!canLeave) return;
 
     if (presentation?.id) {
-      await touchPresentation(presentation.id)
+      await touchPresentation(presentation.id);
     }
-    setHomeTab('home')
-    setCurrentView('home')
+    setHomeTab('home');
+    setCurrentView('home');
   }
 
   function startRename() {
-    setRenameVal(presentation.title)
-    setRenaming(true)
+    setRenameVal(presentation.title);
+    setRenaming(true);
   }
 
   function commitRename() {
-    const title = renameVal.trim() || presentation.title
+    const title = renameVal.trim() || presentation.title;
     if (title !== presentation.title) {
-      setPresentation({ ...presentation, title })
-      setDirty(true)
+      setPresentation({ ...presentation, title });
+      setDirty(true);
     }
-    setRenaming(false)
+    setRenaming(false);
   }
 
   function handleRenameKey(e) {
-    if (e.key === 'Enter') commitRename()
-    if (e.key === 'Escape') setRenaming(false)
+    if (e.key === 'Enter') commitRename();
+    if (e.key === 'Escape') setRenaming(false);
   }
 
   if (currentView !== 'editor' || !presentation) {
-    return null
+    return null;
   }
 
   return (
@@ -85,8 +85,12 @@ export default function TitleBar() {
             border: '1px solid var(--border-default)',
           }}
           title="Back to Home"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--bg-hover)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--bg-surface)';
+          }}
         >
           <ChevronLeft size={13} />
           Home
@@ -94,7 +98,10 @@ export default function TitleBar() {
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             {!renaming ? (
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+              <p
+                className="text-sm font-semibold truncate"
+                style={{ color: 'var(--text-primary)' }}
+              >
                 {presentation.title}
               </p>
             ) : null}
@@ -108,8 +115,12 @@ export default function TitleBar() {
                   background: 'var(--bg-surface)',
                   border: '1px solid var(--border-default)',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-surface)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--bg-hover)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--bg-surface)';
+                }}
               >
                 <Pencil size={12} />
                 Rename
@@ -142,7 +153,8 @@ export default function TitleBar() {
           className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
           style={{
             color: isDirty || requiresInitialSave ? '#9a3412' : 'var(--text-secondary)',
-            background: isDirty || requiresInitialSave ? 'rgba(249,115,22,0.12)' : 'var(--bg-surface)',
+            background:
+              isDirty || requiresInitialSave ? 'rgba(249,115,22,0.12)' : 'var(--bg-surface)',
             border: `1px solid ${isDirty || requiresInitialSave ? 'rgba(249,115,22,0.22)' : 'var(--border-default)'}`,
           }}
           title={isDirty || requiresInitialSave ? 'Unsaved changes' : 'Saved'}
@@ -155,5 +167,5 @@ export default function TitleBar() {
         </span>
       </div>
     </div>
-  )
+  );
 }

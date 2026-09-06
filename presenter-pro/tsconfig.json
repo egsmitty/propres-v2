@@ -1,0 +1,46 @@
+{
+  // Type-checking strategy for PresenterPro.
+  //
+  // `checkJs` is deliberately FALSE. Turning it on across ~18.9k lines of
+  // untyped JSX would emit hundreds of errors on day one, which means the gate
+  // could never go green and would be ignored — the opposite of a guardrail.
+  //
+  // Instead this is a RATCHET:
+  //   - Every new file is .ts/.tsx and is fully checked.
+  //   - An existing .js/.jsx file opts in by adding `// @ts-check` at the top,
+  //     which is done as part of touching that file (see AGENTS.md language
+  //     policy). Once opted in, it can never silently regress.
+  //   - The IPC seam (electron/main, electron/preload, src/utils/ipc) is the
+  //     first target, since untyped payloads there cause the most bugs.
+  //
+  // `npm run type-check` runs this config with --noEmit and is part of the
+  // completion gate, so the checked surface only ever grows.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "types": ["vitest/globals", "@testing-library/jest-dom"],
+
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*", "electron/**/*", "shared/**/*", "vitest.config.*"],
+  "exclude": ["node_modules", "out", "dist", "release", "coverage"]
+}

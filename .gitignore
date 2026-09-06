@@ -12,3 +12,7 @@ tmp/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Test media is large binary content — tracked history is left intact, but
+# new media is not versioned. See tasks/todo.md decision 2.
+test-media/

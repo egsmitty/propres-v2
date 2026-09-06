@@ -1,0 +1,156 @@
+---
+description: "Canonical testing standards for PresenterPro: TDD policy, completion gate, snapshot discipline, jsdom/Vitest mechanics, and test placement. Single source of truth — AGENTS.md links here instead of restating."
+alwaysApply: true
+---
+
+# Testing Standards
+
+Writing a new test? Start from the copy-paste skeletons in `writing-tests.mdc`
+(auto-attaches when editing test files) — this file is **policy**, that one is
+**mechanics**.
+
+## Policy
+
+- **TDD for new features**: write a failing test first, then implement to pass,
+  then refactor.
+- **Existing code**: modify a test only when your change intentionally alters the
+  tested behavior. Update the test so it fails under the old code and passes
+  under the new — and say so explicitly in your summary.
+- **Never weaken to pass.** If an assertion fails, the bug is elsewhere — fix the
+  root cause or record a suspected regression. Never resolve a failure by
+  deleting features, code, tests, or assertions; never loosen a comparison
+  (sorting both sides, set-compare, `toContain` instead of `toEqual`) to go
+  green.
+- **Coverage**: at least one test per new function or edge case.
+- **Lint-enforced floor** (`eslint-plugin-vitest`): no `.only`, no `.skip`, no
+  assertion-free tests, no `expect` inside `if`/`catch`. When a rule fires,
+  restructure the test (recipes in `writing-tests.mdc`) — never disable the rule
+  file-wide.
+- **Characterization tests before refactors.** This codebase has large untested
+  files (`Toolbar.jsx`, `Canvas.jsx`, `electron/main/index.js`,
+  `SongEditorModal.jsx`, `Home.jsx`, `Filmstrip.jsx`). Before extracting or
+  restructuring any of them, first write tests that pin current behavior. A
+  refactor with no test underneath it is a rewrite with extra steps.
+
+## Completion gate
+
+Before marking any code task complete, from `presenter-pro/`:
+
+```bash
+npm run gate
+```
+
+The gate runs, in order: `type-check` (`tsc --noEmit` over the JSDoc-typed JS and
+any TS), `lint`, then `vitest run`. This is the same sequence CI runs.
+
+- **Report the result** as one line, noting skipped counts:
+  ```
+  gate: type-check ✓ · lint ✓ · vitest 128/128 passed (0 skipped)
+  ```
+- **If any step fails**, a targeted single-file run is never sufficient —
+  diagnose why your change broke it, fix the root cause, and re-run the full
+  gate until green.
+- A green gate is **necessary but not sufficient** for user-facing changes. See
+  the desktop-app addendum in `AI_OPERATING_MANUAL.md` §2: verify in a running
+  window before merge.
+
+## Snapshot discipline
+
+- Pair every snapshot with a **structural floor** asserted in the same test
+  (`slides.length > 0`, a `[data-slide-id]` node exists) so an empty or garbage
+  baseline cannot pass. An empty artifact means the harness failed — fix the
+  harness, never the snapshot.
+- **Never blanket `vitest -u`.** Refresh only the cells you intentionally
+  changed and name the change in the commit message.
+
+### Snapshot failure triage (mandatory, in order)
+
+A failing snapshot means exactly one of three things. Before ANY refresh, run the
+test **without** `-u`, read the diff, and classify every changed line:
+
+1. **Intended** — you can trace the diff line to a deliberate edit you made.
+   Refresh *that cell only* (scope with `-t "<test name>"`), and name the change
+   in the commit message.
+2. **Unintended side effect** — your edit leaked into a render it shouldn't
+   touch. The snapshot is correct and **your code is wrong**. Fix the change; do
+   not refresh.
+3. **Unexplainable** — you cannot articulate the causal chain from your edit to
+   the diff. **Stop.** Do not refresh, do not weaken the comparison. Report it as
+   a suspected regression and let the Architect decide.
+
+The test of compliance: for every refreshed snapshot you must be able to state
+"my edit to X changed Y, which renders as Z" — if you can't say that sentence,
+you're in case 3.
+
+## Mechanics (Vitest/jsdom in this repo)
+
+- DOM tests need `// @vitest-environment jsdom` at the top of the file and
+  `import '@testing-library/jest-dom/vitest'`.
+- **Zustand stores are module singletons.** State leaks between tests unless you
+  reset it. Call the store's reset in `beforeEach` — never rely on test order.
+- **Never import `electron` in a renderer unit test.** The renderer talks to main
+  through `src/utils/ipc.js`; mock that module, not `electron` itself.
+- **`better-sqlite3` is a native module.** Do not load it in unit tests. Test the
+  query-building and data-shaping logic as pure functions; cover real database
+  behavior in E2E.
+- **Timers and video playback**: background continuity and countdown logic depend
+  on time. Use `vi.useFakeTimers()` and advance explicitly — never `await` a real
+  delay.
+- **Canvas measurement**: jsdom returns zeros from `getBoundingClientRect()`.
+  Components that scale from measured geometry (`Canvas.jsx`, the floating
+  toolbar, `presentationSizing`) must have their measurement seam stubbed; assert
+  on the computed result, not on layout jsdom cannot produce.
+
+## Test placement
+
+| What you're testing | Where the test lives |
+| --- | --- |
+| Pure util | `src/utils/__tests__/<name>.test.ts` |
+| Zustand store | `src/store/__tests__/<name>.test.ts` |
+| React component | `src/components/<area>/__tests__/<Name>.test.tsx` |
+| Page-level wiring | `src/pages/__tests__/<Name>.test.tsx` |
+| Electron main / IPC contract | `electron/main/__tests__/<name>.test.ts` |
+| Code shared across processes | `shared/__tests__/<name>.test.ts` |
+| Full user flow in a real window | `e2e/<flow>.spec.ts` (Playwright `_electron`) |
+
+Do not create new test directories outside this table.
+
+## Plan compliance checklist
+
+Every implementation plan changes — or should change — tests, so this checklist
+**always** applies. A plan must embed it in its Compliance Manifest (see
+`writing-executable-plans.mdc`) and give each of the **10 items** a disposition:
+either the todo / plan section that upholds it, or `N/A — <reason>`. No item may
+be left blank, and `N/A` requires a reason.
+
+1. **TDD ordering** — for every new feature or edge case, a failing test is
+   written before the implementation, and a named todo enforces that order.
+2. **Behavior-change test edits** — any modified existing test is changed *only*
+   because the tested behavior intentionally changed; the plan states the test
+   must fail under the old code and pass under the new, and the final summary
+   calls this out explicitly.
+3. **No weakened assertions** — the plan carries the anti-weakening clause
+   verbatim and states, per comparison, whether order / count / exactness matter.
+   No `.sort()` on both sides, set-compare, or `toContain` substituted where
+   exact equality is meant.
+4. **Coverage floor** — at least one test per new function or edge case.
+5. **Lint floor** — no `.only`, no `.skip`, no assertion-free tests, no `expect`
+   inside `if` / `catch`; the plan restructures the test rather than disabling
+   the rule file-wide.
+6. **Snapshot discipline** — every snapshot is paired with a structural floor
+   asserted in the same test; the plan forbids blanket `vitest -u`, mandates the
+   intended / unintended-side-effect / unexplainable triage *before* any refresh,
+   and names each intentional refresh in the commit message.
+7. **Completion gate** — the final todo runs `npm run gate` and reports
+   `type-check`, `lint`, and `passed/total` for vitest, noting skipped counts.
+8. **Vitest / jsdom mechanics** — DOM tests use the `@vitest-environment jsdom`
+   comment + `@testing-library/jest-dom/vitest`; Zustand stores are reset in
+   `beforeEach`; `src/utils/ipc.js` is mocked rather than `electron`;
+   `better-sqlite3` is not loaded in unit tests; time-dependent behavior uses
+   fake timers; measurement seams are stubbed rather than asserted through jsdom.
+9. **Test placement** — each new or moved test lives in the directory named by
+   the Test placement table above.
+10. **Characterization before refactor** — if the plan restructures an existing
+    file, tests pinning current behavior land in an earlier todo than the
+    extraction, and the plan states that those tests must pass unchanged before
+    and after.

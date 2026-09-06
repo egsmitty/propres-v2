@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { X } from 'lucide-react'
-import { getMedia } from '@/utils/ipc'
-import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds'
-import { isMediaSlide } from '@/utils/sectionTypes'
-import { getPresentationDimensions, getPresentationScale } from '@/utils/presentationSizing'
-import ScaledSlideText from '@/components/shared/ScaledSlideText'
+import React, { useState, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
+import { getMedia } from '@/utils/ipc';
+import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds';
+import { isMediaSlide } from '@/utils/sectionTypes';
+import { getPresentationDimensions, getPresentationScale } from '@/utils/presentationSizing';
+import ScaledSlideText from '@/components/shared/ScaledSlideText';
 
 function formatRemaining(endAt) {
-  if (!endAt) return '00:00'
-  const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
-  const minutes = Math.floor(remaining / 60)
-  const seconds = remaining % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  if (!endAt) return '00:00';
+  const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 function PreviewCloseButton() {
@@ -42,142 +42,145 @@ function PreviewCloseButton() {
       <X size={16} />
       <span>Close Preview</span>
     </button>
-  )
+  );
 }
 
 export default function OutputRenderer() {
-  const [slide, setSlide] = useState(null)
-  const [background, setBackground] = useState(null)
-  const [mediaSlideItem, setMediaSlideItem] = useState(null)
-  const [media, setMedia] = useState([])
-  const [isBlack, setIsBlack] = useState(false)
-  const [isLogo, setIsLogo] = useState(false)
-  const [isPreviewWindow, setIsPreviewWindow] = useState(true)
-  const [countdown, setCountdown] = useState({ active: false, endAt: null, durationSeconds: 0 })
-  const [remaining, setRemaining] = useState('00:00')
-  const mediaRef = useRef([])
-  const backgroundRef = useRef(null)
-  const backgroundIdRef = useRef(null)
-  const viewportRef = useRef(null)
+  const [slide, setSlide] = useState(null);
+  const [background, setBackground] = useState(null);
+  const [mediaSlideItem, setMediaSlideItem] = useState(null);
+  const [media, setMedia] = useState([]);
+  const [isBlack, setIsBlack] = useState(false);
+  const [isLogo, setIsLogo] = useState(false);
+  const [isPreviewWindow, setIsPreviewWindow] = useState(true);
+  const [countdown, setCountdown] = useState({ active: false, endAt: null, durationSeconds: 0 });
+  const [remaining, setRemaining] = useState('00:00');
+  const mediaRef = useRef([]);
+  const backgroundRef = useRef(null);
+  const backgroundIdRef = useRef(null);
+  const viewportRef = useRef(null);
   const [viewportSize, setViewportSize] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 0,
     height: typeof window !== 'undefined' ? window.innerHeight : 0,
-  })
+  });
 
   useEffect(() => {
-    mediaRef.current = media
-  }, [media])
+    mediaRef.current = media;
+  }, [media]);
 
   useEffect(() => {
-    backgroundRef.current = background
-  }, [background])
+    backgroundRef.current = background;
+  }, [background]);
 
   useEffect(() => {
     if (!countdown.active || !countdown.endAt) {
-      setRemaining('00:00')
-      return
+      setRemaining('00:00');
+      return;
     }
 
-    const sync = () => setRemaining(formatRemaining(countdown.endAt))
-    sync()
-    const interval = window.setInterval(sync, 250)
-    return () => window.clearInterval(interval)
-  }, [countdown])
+    const sync = () => setRemaining(formatRemaining(countdown.endAt));
+    sync();
+    const interval = window.setInterval(sync, 250);
+    return () => window.clearInterval(interval);
+  }, [countdown]);
 
   useEffect(() => {
-    if (!viewportRef.current) return undefined
+    if (!viewportRef.current) return undefined;
 
     const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (!entry) return
+      const entry = entries[0];
+      if (!entry) return;
       setViewportSize({
         width: entry.contentRect.width,
         height: entry.contentRect.height,
-      })
-    })
+      });
+    });
 
-    observer.observe(viewportRef.current)
-    return () => observer.disconnect()
-  }, [])
+    observer.observe(viewportRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
-    loadMedia()
+    loadMedia();
 
-    const api = window.electronAPI
-    if (!api) return
+    const api = window.electronAPI;
+    if (!api) return;
 
-    api.notifyOutputReady?.()
-    api.getWindowViewState?.().then((result) => {
-      if (result?.success) setIsPreviewWindow(!result.data?.isFullScreen)
-    }).catch(() => {})
+    api.notifyOutputReady?.();
+    api
+      .getWindowViewState?.()
+      .then((result) => {
+        if (result?.success) setIsPreviewWindow(!result.data?.isFullScreen);
+      })
+      .catch(() => {});
 
     const offUpdate = api.onOutputUpdate(async ({ slide: s, background: bg }) => {
-      setSlide(s)
-      setIsBlack(false)
-      setIsLogo(false)
+      setSlide(s);
+      setIsBlack(false);
+      setIsLogo(false);
 
       if (isMediaSlide(s)) {
-        const library = mediaRef.current.length ? mediaRef.current : await fetchMedia()
-        const mediaItem = library.find((item) => item.id === s.mediaId) || null
-        setMediaSlideItem(mediaItem)
-        setBackground(null)
-        backgroundIdRef.current = null
-        return
+        const library = mediaRef.current.length ? mediaRef.current : await fetchMedia();
+        const mediaItem = library.find((item) => item.id === s.mediaId) || null;
+        setMediaSlideItem(mediaItem);
+        setBackground(null);
+        backgroundIdRef.current = null;
+        return;
       }
 
-      setMediaSlideItem(null)
+      setMediaSlideItem(null);
 
-      const nextBackgroundId = bg?.id || s?.effectiveBackgroundId || null
+      const nextBackgroundId = bg?.id || s?.effectiveBackgroundId || null;
       if (!nextBackgroundId) {
-        setBackground(null)
-        backgroundIdRef.current = null
-        return
+        setBackground(null);
+        backgroundIdRef.current = null;
+        return;
       }
 
       if (backgroundIdRef.current === nextBackgroundId && backgroundRef.current) {
-        return
+        return;
       }
 
-      const library = mediaRef.current.length ? mediaRef.current : await fetchMedia()
-      const nextBackground = bg || library.find((item) => item.id === nextBackgroundId) || null
-      setBackground(nextBackground)
-      backgroundIdRef.current = nextBackgroundId
-    })
+      const library = mediaRef.current.length ? mediaRef.current : await fetchMedia();
+      const nextBackground = bg || library.find((item) => item.id === nextBackgroundId) || null;
+      setBackground(nextBackground);
+      backgroundIdRef.current = nextBackgroundId;
+    });
 
     const offBlack = api.onOutputBlack(({ active }) => {
-      setIsBlack(Boolean(active))
-      if (active) setIsLogo(false)
-    })
+      setIsBlack(Boolean(active));
+      if (active) setIsLogo(false);
+    });
 
     const offLogo = api.onOutputLogo(({ active }) => {
-      setIsLogo(Boolean(active))
-      if (active) setIsBlack(false)
-    })
+      setIsLogo(Boolean(active));
+      if (active) setIsBlack(false);
+    });
     const offCountdown = api.onOutputCountdown((state) => {
-      setCountdown(state || { active: false, endAt: null, durationSeconds: 0 })
-    })
+      setCountdown(state || { active: false, endAt: null, durationSeconds: 0 });
+    });
     const offViewState = api.onWindowViewState?.(({ isFullScreen }) => {
-      setIsPreviewWindow(!isFullScreen)
-    })
+      setIsPreviewWindow(!isFullScreen);
+    });
 
     return () => {
-      offUpdate?.()
-      offBlack?.()
-      offLogo?.()
-      offCountdown?.()
-      offViewState?.()
-    }
-  }, [])
+      offUpdate?.();
+      offBlack?.();
+      offLogo?.();
+      offCountdown?.();
+      offViewState?.();
+    };
+  }, []);
 
   async function loadMedia() {
-    const library = await fetchMedia()
-    setMedia(library)
-    mediaRef.current = library
+    const library = await fetchMedia();
+    setMedia(library);
+    mediaRef.current = library;
   }
 
   async function fetchMedia() {
-    const result = await getMedia()
-    return result?.success ? result.data : []
+    const result = await getMedia();
+    return result?.success ? result.data : [];
   }
 
   if (isBlack) {
@@ -185,29 +188,58 @@ export default function OutputRenderer() {
       <div style={{ width: '100vw', height: '100vh', background: '#000', position: 'relative' }}>
         {isPreviewWindow ? <PreviewCloseButton /> : null}
       </div>
-    )
+    );
   }
 
   if (isLogo) {
     return (
-      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          background: '#000',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+        }}
+      >
         {isPreviewWindow ? <PreviewCloseButton /> : null}
         <div
           style={{
-            width: 120, height: 120, background: '#4a7cff', borderRadius: 24,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 48, fontWeight: 700, color: '#fff', fontFamily: 'Inter, sans-serif',
+            width: 120,
+            height: 120,
+            background: '#4a7cff',
+            borderRadius: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 48,
+            fontWeight: 700,
+            color: '#fff',
+            fontFamily: 'Inter, sans-serif',
           }}
         >
           P
         </div>
       </div>
-    )
+    );
   }
 
   if (!slide) {
     return (
-      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6vw', position: 'relative' }}>
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          background: '#000',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '6vw',
+          position: 'relative',
+        }}
+      >
         {isPreviewWindow ? <PreviewCloseButton /> : null}
         <span
           style={{
@@ -222,21 +254,26 @@ export default function OutputRenderer() {
           Main Output Display
         </span>
       </div>
-    )
+    );
   }
 
-  const { width: nativeWidth, height: nativeHeight } = getPresentationDimensions(slide)
-  const stageScale = getPresentationScale(slide, viewportSize.width, viewportSize.height)
-  const stageWidth = nativeWidth * stageScale
-  const stageHeight = nativeHeight * stageScale
-  const stageLeft = Math.max(0, (viewportSize.width - stageWidth) / 2)
-  const stageTop = Math.max(0, (viewportSize.height - stageHeight) / 2)
+  const { width: nativeWidth, height: nativeHeight } = getPresentationDimensions(slide);
+  const stageScale = getPresentationScale(slide, viewportSize.width, viewportSize.height);
+  const stageWidth = nativeWidth * stageScale;
+  const stageHeight = nativeHeight * stageScale;
+  const stageLeft = Math.max(0, (viewportSize.width - stageWidth) / 2);
+  const stageTop = Math.max(0, (viewportSize.height - stageHeight) / 2);
   return (
     <div
       ref={viewportRef}
       style={{
-        width: '100vw', height: '100vh', background: '#000',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+        width: '100vw',
+        height: '100vh',
+        background: '#000',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
         position: 'relative',
       }}
     >
@@ -296,7 +333,14 @@ export default function OutputRenderer() {
             boxShadow: '0 12px 28px rgba(0,0,0,0.28)',
           }}
         >
-          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.72 }}>
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              opacity: 0.72,
+            }}
+          >
             Countdown
           </div>
           <div style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1, marginTop: 6 }}>
@@ -305,11 +349,11 @@ export default function OutputRenderer() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function OutputBackground({ media }) {
-  const src = getMediaAssetUrl(media)
+  const src = getMediaAssetUrl(media);
   if (!src || media.file_exists === false) {
     return (
       <div
@@ -328,7 +372,7 @@ function OutputBackground({ media }) {
       >
         Missing media file
       </div>
-    )
+    );
   }
 
   if (isVideoMedia(media)) {
@@ -347,7 +391,7 @@ function OutputBackground({ media }) {
           objectFit: 'cover',
         }}
       />
-    )
+    );
   }
 
   return (
@@ -362,5 +406,5 @@ function OutputBackground({ media }) {
         objectFit: 'cover',
       }}
     />
-  )
+  );
 }

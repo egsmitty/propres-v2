@@ -1,0 +1,135 @@
+---
+description: Apply when writing or reviewing an implementation plan that another agent (especially a smaller/faster model) will execute. Codifies plan-authoring patterns that prevent the known weak-executor failure modes — assertion weakening, list sampling, and quantifier erosion.
+alwaysApply: true
+---
+
+# Writing Plans Another Agent Will Execute
+
+Plans are executed literally by models that satisfice under friction. Every
+requirement that depends on the executor's judgment will degrade. Write plans so
+drift fails **mechanically**, not socially.
+
+**This rule is always applied.** Any time you produce, revise, or review an
+implementation plan in this repo, you must follow it and emit the **Compliance
+Manifest** below — do not wait to be asked. The same principle that governs
+executors governs plan-authoring and plan-review themselves: "did this plan
+follow the rules?" is a judgment task that samples, so it is replaced here by a
+mechanical, itemized manifest that a reviewer ticks line-by-line.
+
+## The three failure modes to design against
+
+1. **Assertion weakening** — when a comparison fails, the executor loosens it
+   (sorts both sides, switches to set-compare, drops a field) instead of finding
+   the root cause.
+   - For every comparison, state explicitly whether **order, count, and
+     exactness** matter.
+   - Include an anti-weakening clause verbatim: *"If an assertion fails, the bug
+     is elsewhere — never loosen the assertion to pass. Fix the root cause or
+     record it as a suspected regression."*
+
+2. **List sampling** — a prose enumeration of N requirements gets implemented as
+   ~70% of N.
+   - Never enumerate requirements in a sentence. Use an itemized checklist with
+     an explicit count: *"all 13 of the following — this table is exhaustive."*
+   - Where possible, make the count **self-enforcing**: have the test iterate a
+     collected list and assert its length, so under-implementation fails CI
+     instead of relying on diligence.
+
+3. **Quantifier erosion** — "every X" silently becomes "the first X."
+   - Replace universal quantifiers with mechanically checkable criteria: iterate
+     `querySelectorAll(...)` / registry values and assert non-trivial coverage,
+     or fail loudly when the iterated set is empty.
+
+## Patterns that work (include them)
+
+- **Sanctioned escape hatches.** Executors will hit blockers. Give exactly one
+  auditable way out: an explicit, initially-empty allowlist constant
+  (`EXPECTED_MISSING`, `SWEEP_EXEMPT`) where every entry requires a justifying
+  comment. This prevents invented silent skips.
+- **Bounded blast radius.** Name what may NOT be modified to make tests pass
+  (e.g. *"do not touch `backgrounds.js` or `appCommands.js` — these tests
+  DESCRIBE current behavior"*) and what to do instead (record as a suspected
+  regression in the final summary).
+- **File-specific pitfall notes.** Concrete warnings ("jsdom returns zeros from
+  `getBoundingClientRect()`, so stub the measurement seam in `Canvas.jsx` tests";
+  "reset the Zustand store in `beforeEach` — it is a module singleton") are the
+  most-followed part of any plan. Abstract advice is the least.
+- **Exact paths, no improvisation.** List every file to create/touch with full
+  paths; state "do not create new test directories."
+- **Per-todo verification.** Each todo names the command that proves it done
+  (`npx vitest run src/utils/__tests__/slideParser.test.ts`), plus the repo-wide
+  gate at the end (`npm run gate`).
+- **Snapshot policy inline.** If snapshots are involved, state the update policy
+  in the plan AND require it as a header comment in the test file (never blanket
+  `vitest -u`; name intentional refreshes in the commit message).
+- **Preconditions for conditional UI.** Controls gated on state are the top
+  source of false "missing control" failures — the formatting toolbar only
+  renders with a selected text box; media controls depend on section type;
+  output settings depend on detected displays. For each assertion, the plan
+  states the seed state needed to make the target reachable, or instructs the
+  executor to read the gate condition in the component before concluding a
+  control is absent.
+- **Structural floor under every snapshot.** Pair each snapshot with a cheap
+  invariant asserted in the same test, so an empty or garbage baseline cannot be
+  committed as "passing." State explicitly: an empty artifact means the harness
+  failed — fix the harness, never the snapshot.
+- **IPC contract pinning.** If the plan touches any `ipcMain` / `ipcRenderer`
+  channel, it must name the channel and require a test asserting the exact
+  payload shape on both sides. This seam is this app's highest-risk surface.
+- **Manual verification steps.** This is a desktop app. If the change is
+  user-facing, the plan's final todo lists the exact click-path to verify in a
+  running window (`npm run dev`), including which display configuration to test
+  when output assignment is involved.
+- **Required findings report.** The plan's final todo mandates a structured
+  summary: suspected pre-existing regressions, every allowlist/exemption entry
+  added (with justification), every intentional snapshot refresh, and any
+  discovered behavior the plan didn't anticipate. Escape hatches are only
+  auditable if their use must be reported.
+
+## Required output: the Compliance Manifest
+
+Every plan ends with a **Compliance Manifest** — the mechanism that makes rule
+compliance fail loudly at authoring time instead of being rediscovered after the
+work is done. A plan without a complete manifest is not finished.
+
+For each project rule whose scope the plan's work touches, copy that rule's
+**"Plan compliance checklist"** into the manifest and give **every** item a
+disposition — no item may be blank:
+
+- the **todo number / plan section** that upholds it, or
+- `N/A — <one-line reason>` (the reason is mandatory; a bare `N/A` is a blank).
+
+Which checklists apply:
+
+- **This rule** — *always*. Confirm the three failure modes are designed against
+  and each "Patterns that work" item is used or `N/A`.
+- **Testing** — *always* (every plan changes, or should change, tests):
+  `testing-standards.mdc` → "Plan compliance checklist" (all 10 items).
+
+The manifest is the itemized, counted checklist itself (the anti-list-sampling
+rule, applied to the plan) — never a prose paragraph claiming "this plan follows
+the rules." If a rule later gains an item, the manifest's count is wrong and the
+gap is visible; that is the point.
+
+## Reviewer checklist (for auditing an implementation against its plan)
+
+This checklist is the mechanical backing of the **Self-Review Report** gate
+defined in `AI_OPERATING_MANUAL.md` §3.2. Run it in a **fresh context — you did
+not write this code** — and end with an explicit **PASS / FAIL verdict** naming
+the top issues the architect must check locally. No change merges without a clean
+pass plus an architect-run completion gate (Operating Manual Non-Negotiable #2).
+
+- **First, audit the Compliance Manifest.** A missing manifest is an automatic
+  fail — send it back. For every manifest item, open the cited todo/section and
+  confirm it actually upholds the item; reject any blank entry or any `N/A`
+  without a justifying reason. Re-derive which checklists *should* apply from the
+  plan's file list and confirm none was omitted.
+- Diff every "all/every/each" claim in the plan against the implementation —
+  count, don't trust.
+- Search the tests for `.sort()`, set-compares, `toContain` where the plan
+  implied exact equality — each is a candidate weakened assertion.
+- Verify allowlists are empty or every entry has a justifying comment.
+- Confirm no out-of-scope source files changed (`git diff --stat` against the
+  plan's file list); flag any, even if justified, in the review summary.
+- Confirm every touched IPC channel has a payload-shape test on both sides.
+- Re-run the plan's gate command yourself; never accept a reported result.

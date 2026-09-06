@@ -1,36 +1,36 @@
-import React, { useState, useEffect } from 'react'
-import { X, Search, Music, Plus } from 'lucide-react'
-import { useAppStore } from '@/store/appStore'
-import { useEditorStore } from '@/store/editorStore'
-import { getSongs } from '@/utils/ipc'
-import SongCard from './SongCard'
-import SongEditorModal from './SongEditorModal'
+import React, { useState, useEffect } from 'react';
+import { X, Search, Music, Plus } from 'lucide-react';
+import { useAppStore } from '@/store/appStore';
+import { useEditorStore } from '@/store/editorStore';
+import { getSongs } from '@/utils/ipc';
+import SongCard from './SongCard';
+import SongEditorModal from './SongEditorModal';
 
 export default function SongLibraryPanel() {
-  const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen)
-  const [songs, setSongs] = useState([])
-  const [query, setQuery] = useState('')
-  const [showEditor, setShowEditor] = useState(false)
-  const [editSong, setEditSong] = useState(null)
+  const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen);
+  const [songs, setSongs] = useState([]);
+  const [query, setQuery] = useState('');
+  const [showEditor, setShowEditor] = useState(false);
+  const [editSong, setEditSong] = useState(null);
 
   useEffect(() => {
-    loadSongs()
-  }, [])
+    loadSongs();
+  }, []);
 
   async function loadSongs() {
-    const result = await getSongs()
-    if (result?.success) setSongs(result.data)
+    const result = await getSongs();
+    if (result?.success) setSongs(result.data);
   }
 
   function handleInsert() {
-    setSongLibraryOpen(false)
+    setSongLibraryOpen(false);
   }
 
   const filtered = songs.filter(
     (s) =>
       s.title.toLowerCase().includes(query.toLowerCase()) ||
       (s.artist || '').toLowerCase().includes(query.toLowerCase())
-  )
+  );
 
   return (
     <>
@@ -66,7 +66,10 @@ export default function SongLibraryPanel() {
         </div>
 
         {/* Search */}
-        <div className="px-3 py-2 shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <div
+          className="px-3 py-2 shrink-0"
+          style={{ borderBottom: '1px solid var(--border-subtle)' }}
+        >
           <div
             className="flex items-center gap-2 px-2 py-1 rounded"
             style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
@@ -98,8 +101,8 @@ export default function SongLibraryPanel() {
                 song={song}
                 onInsert={handleInsert}
                 onEdit={() => {
-                  setEditSong(song)
-                  setShowEditor(true)
+                  setEditSong(song);
+                  setShowEditor(true);
                 }}
                 onRefresh={loadSongs}
               />
@@ -108,12 +111,12 @@ export default function SongLibraryPanel() {
         </div>
 
         {/* Footer */}
-        <div
-          className="px-3 py-2 shrink-0"
-          style={{ borderTop: '1px solid var(--border-subtle)' }}
-        >
+        <div className="px-3 py-2 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <button
-            onClick={() => { setEditSong(null); setShowEditor(true) }}
+            onClick={() => {
+              setEditSong(null);
+              setShowEditor(true);
+            }}
             className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded text-xs font-medium"
             style={{
               background: 'var(--bg-surface)',
@@ -132,10 +135,13 @@ export default function SongLibraryPanel() {
       {showEditor && (
         <SongEditorModal
           song={editSong}
-          onClose={() => { setShowEditor(false); setEditSong(null) }}
+          onClose={() => {
+            setShowEditor(false);
+            setEditSong(null);
+          }}
           onSave={loadSongs}
         />
       )}
     </>
-  )
+  );
 }

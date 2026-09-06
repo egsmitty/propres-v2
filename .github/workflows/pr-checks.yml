@@ -1,0 +1,117 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+    # Default activity types are opened/synchronize/reopened. `ready_for_review`
+    # is NOT a default — it must be listed explicitly so the draft→ready
+    # transition triggers a run. Per-job `if` skips work while the PR is still
+    # a draft.
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Allow running the same checks manually against a branch.
+  workflow_dispatch:
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: presenter-pro
+
+jobs:
+  gate:
+    name: Gate (type-check, lint, test)
+    if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: presenter-pro/package-lock.json
+
+      # --ignore-scripts skips the electron-rebuild postinstall, which compiles
+      # better-sqlite3 natively. Unit tests never load better-sqlite3 (see
+      # .cursor/rules/testing-standards.mdc "Mechanics"), so rebuilding it here
+      # would cost minutes for nothing. The build job below does a full install.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Runs type-check → lint → vitest, the same command the architect runs
+      # locally. Keep this as one step so a failure points at the same gate.
+      - name: Completion gate
+        run: npm run gate
+
+      # Formatting is checked separately from lint so a format-only failure is
+      # obvious rather than buried in rule output.
+      - name: Prettier check
+        run: npm run format:check
+
+  build:
+    name: Build (${{ matrix.os }})
+    if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # PresenterPro ships on both platforms and has had platform-specific
+        # breakage before, so both are smoke-built on every PR.
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: presenter-pro/package-lock.json
+
+      # Full install here: the native better-sqlite3 rebuild is exactly what we
+      # want to smoke-test on each platform.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  # Branch protection points at THIS job only. Upstream jobs that are skipped
+  # count as a pass, so protection keeps working when a job is added or gated.
+  pr-gate:
+    name: PR Gate
+    needs: [gate, build]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    # This job checks out nothing, so the workflow-level
+    # `working-directory: presenter-pro` would point at a directory that does
+    # not exist and bash would fail to start. Run from the workspace root.
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Require passing checks
+        env:
+          GATE: ${{ needs.gate.result }}
+          BUILD: ${{ needs.build.result }}
+        run: |
+          check() {
+            local name="$1"
+            local result="$2"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "$name failed (result=$result)"
+              exit 1
+            fi
+            echo "$name: $result"
+          }
+          check gate "$GATE"
+          check build "$BUILD"
+          echo "All required checks passed or were appropriately skipped."

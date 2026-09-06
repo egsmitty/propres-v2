@@ -1,0 +1,18 @@
+# Build output and dependencies
+presenter-pro/node_modules/
+presenter-pro/out/
+presenter-pro/dist/
+presenter-pro/release/
+output/
+tmp/
+
+# Generated / vendored
+presenter-pro/package-lock.json
+package-lock.json
+
+# Binary and media assets
+test-media/
+presenter-pro/public/
+
+# Snapshots are written by Vitest, not by hand
+**/__snapshots__/

@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react'
-import { getEffectiveBackgroundId, getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds'
-import { isMediaSlide } from '@/utils/sectionTypes'
-import ScaledSlideText from '@/components/shared/ScaledSlideText'
+import React, { useMemo } from 'react';
+import { getEffectiveBackgroundId, getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds';
+import { isMediaSlide } from '@/utils/sectionTypes';
+import ScaledSlideText from '@/components/shared/ScaledSlideText';
 
 function BackgroundMedia({ media }) {
-  const src = getMediaAssetUrl(media)
-  if (!src || media?.file_exists === false) return null
+  const src = getMediaAssetUrl(media);
+  if (!src || media?.file_exists === false) return null;
 
   if (isVideoMedia(media)) {
     return (
@@ -17,7 +17,7 @@ function BackgroundMedia({ media }) {
         loop
         playsInline
       />
-    )
+    );
   }
 
   return (
@@ -26,7 +26,7 @@ function BackgroundMedia({ media }) {
       alt={media?.name || 'Background'}
       className="absolute inset-0 w-full h-full object-cover"
     />
-  )
+  );
 }
 
 export default function SlidePreviewSurface({
@@ -42,42 +42,38 @@ export default function SlidePreviewSurface({
   backgroundOverlay = 'rgba(0,0,0,0.18)',
   missingMediaLabel = 'Media slide',
 }) {
-  const mediaSlide = isMediaSlide(slide)
+  const mediaSlide = isMediaSlide(slide);
   const mediaSlideItem = useMemo(
     () => (mediaSlide ? mediaLibrary.find((item) => item.id === slide?.mediaId) || null : null),
     [mediaLibrary, slide]
-  )
+  );
   const effectiveBackgroundId = useMemo(
     () => (!mediaSlide ? getEffectiveBackgroundId(presentation, sectionId, slide) : null),
     [mediaSlide, presentation, sectionId, slide]
-  )
+  );
   const backgroundMedia = useMemo(
-    () => (!mediaSlideItem ? mediaLibrary.find((item) => item.id === effectiveBackgroundId) || null : null),
+    () =>
+      !mediaSlideItem
+        ? mediaLibrary.find((item) => item.id === effectiveBackgroundId) || null
+        : null,
     [effectiveBackgroundId, mediaLibrary, mediaSlideItem]
-  )
+  );
 
   const hasMediaSlideAsset = Boolean(
-    mediaSlideItem &&
-    mediaSlideItem.file_exists !== false &&
-    getMediaAssetUrl(mediaSlideItem)
-  )
+    mediaSlideItem && mediaSlideItem.file_exists !== false && getMediaAssetUrl(mediaSlideItem)
+  );
   const hasBackgroundAsset = Boolean(
-    backgroundMedia &&
-    backgroundMedia.file_exists !== false &&
-    getMediaAssetUrl(backgroundMedia)
-  )
+    backgroundMedia && backgroundMedia.file_exists !== false && getMediaAssetUrl(backgroundMedia)
+  );
 
-  if (!slide) return null
+  if (!slide) return null;
 
   return (
     <div className="absolute inset-0 overflow-hidden">
       {hasMediaSlideAsset ? <BackgroundMedia media={mediaSlideItem} /> : null}
       {!mediaSlideItem && hasBackgroundAsset ? <BackgroundMedia media={backgroundMedia} /> : null}
       {!mediaSlideItem && hasBackgroundAsset ? (
-        <div
-          className="absolute inset-0"
-          style={{ background: backgroundOverlay }}
-        />
+        <div className="absolute inset-0" style={{ background: backgroundOverlay }} />
       ) : null}
       {mediaSlide ? null : (
         <div className="absolute inset-0">
@@ -101,5 +97,5 @@ export default function SlidePreviewSurface({
         </div>
       ) : null}
     </div>
-  )
+  );
 }
