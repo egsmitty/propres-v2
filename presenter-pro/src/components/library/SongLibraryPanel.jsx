@@ -134,6 +134,7 @@ export default function SongLibraryPanel() {
 
       {showEditor && (
         <SongEditorModal
+          key={editSong?.id ?? 'new'}
           song={editSong}
           onClose={() => {
             setShowEditor(false);

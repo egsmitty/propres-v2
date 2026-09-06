@@ -593,3 +593,19 @@ clear the font-size box in the formatting toolbar and click away → the size
 becomes **8** (the minimum), because an empty field parses as `0` and is
 clamped. Reverting to the previous value would be the expected behaviour. One
 line to fix; it is a behaviour change, so I did not fold it into a lint PR.
+
+### 2026-09-06 — D2 slice 2: six more `set-state-in-effect` findings (7 remain)
+
+- **`ApplyThemeModal.jsx` was dead** — nothing imports it; deleted. One finding
+  and a stray `no-unescaped-entities` suppression gone with it.
+- **SongEditorModal** (1,380 lines, four findings): the form now computes its
+  initial state from `song` once, and the two places that open it for a real
+  song key it by song id, so switching songs is a remount — the React way to
+  "reset on prop change". Lyrics textarea, collapsed groups and the selection
+  are derived values now, not copies kept in sync by effects.
+- **Countdown display** in the output window is set where the countdown
+  message arrives and on each tick; the effect only owns the interval.
+- 9 new render-test cases; the song editor now has its first test at all.
+
+Left in D2: Filmstrip, MediaLibraryPanel, Home (three "clear the selection
+when it vanishes" effects) and four in Canvas.

@@ -1250,6 +1250,7 @@ export default function Filmstrip({ width = 224 }) {
 
       {editSong && (
         <SongEditorModal
+          key={editSong?.id ?? 'new'}
           song={editSong}
           onClose={() => setEditSong(null)}
           onSave={() => setEditSong(null)}

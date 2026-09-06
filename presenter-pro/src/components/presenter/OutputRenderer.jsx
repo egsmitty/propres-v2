@@ -88,15 +88,12 @@ export default function OutputRenderer() {
     backgroundRef.current = background;
   }, [background]);
 
+  // The display value is set where the countdown state arrives (the event
+  // handler below) and on every tick; this effect only owns the interval
+  // (plan D2 #15).
   useEffect(() => {
-    if (!countdown.active || !countdown.endAt) {
-      setRemaining('00:00');
-      return;
-    }
-
-    const sync = () => setRemaining(formatRemaining(countdown.endAt));
-    sync();
-    const interval = window.setInterval(sync, 250);
+    if (!countdown.active || !countdown.endAt) return undefined;
+    const interval = window.setInterval(() => setRemaining(formatRemaining(countdown.endAt)), 250);
     return () => window.clearInterval(interval);
   }, [countdown]);
 
@@ -172,7 +169,9 @@ export default function OutputRenderer() {
       if (active) setIsBlack(false);
     });
     const offCountdown = onOutputCountdown((state) => {
-      setCountdown(state || { active: false, endAt: null, durationSeconds: 0 });
+      const next = state || { active: false, endAt: null, durationSeconds: 0 };
+      setCountdown(next);
+      setRemaining(next.active && next.endAt ? formatRemaining(next.endAt) : '00:00');
     });
     const offViewState = onWindowViewState(({ isFullScreen }) => {
       setIsPreviewWindow(!isFullScreen);
