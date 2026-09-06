@@ -19,7 +19,7 @@ behavior · **P2** = dead code, cleanup, or risk without a known symptom.
   Cmd+Q asks Electron to quit, Electron tries to close the main window, and the
   `close` handler calls `event.preventDefault()` to hand control to the renderer
   for the unsaved-changes prompt. That preventDefault **cancels the quit**. The
-  renderer then replies and calls `window:close`, which closes the *window* —
+  renderer then replies and calls `window:close`, which closes the _window_ —
   but the quit is already aborted, and `window-all-closed` deliberately does not
   quit on darwin. The process stays alive in the dock.
 - **Why it was never caught:** `appIsQuitting` is only ever set by
@@ -56,7 +56,7 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
 
 - **Where:** `src/components/layout/Toolbar.jsx:1594` and `:1597`
 - **What:** Both `MenuOption` handlers call `importMediaToSelectedSlide(...)`,
-  but `Toolbar.jsx` never imports it. The function *is* exported from
+  but `Toolbar.jsx` never imports it. The function _is_ exported from
   `src/utils/presentationCommands.js:334`, and `FilmstripSlide.jsx:10` imports
   it correctly — so the same feature works from the filmstrip context menu and
   crashes from the toolbar.
@@ -86,7 +86,7 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
 
 - **Reported by Ethan during Tier 2 verification.** Two symptoms, one cause:
   (a) editing a presentation then pressing Cmd+Q or clicking the red X did
-  *nothing* — no save prompt, window stayed open; (b) Cmd+Q while presenting
+  _nothing_ — no save prompt, window stayed open; (b) Cmd+Q while presenting
   closed the output window but left the app running and still "presenting".
 - **Where:** `src/pages/Editor.jsx` — a `beforeunload` listener calling
   `window.confirm()`.
@@ -97,7 +97,7 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
   main-process handshake (`close` → `window:requestClose` →
   `resolveUnsavedChanges()` → `DialogHost`).
 - **Why it produced symptom (b):** Electron fires the BrowserWindow `close`
-  event *before* `beforeunload`. So `before-quit` ran `closePreviewWindows()`
+  event _before_ `beforeunload`. So `before-quit` ran `closePreviewWindows()`
   (killing the output window), main allowed the close, and then the renderer
   vetoed it — leaving the app alive with presentation state intact. The failed
   quit also latched the quitting flag, which is why every later close then did
@@ -117,7 +117,7 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
 - **Found by the release pipeline** on the first real tag (v1.0.1). macOS
   packaged fine; Windows failed with:
   `'CSC_IDENTITY_AUTO_DISCOVERY' is not recognized as an internal or external
-  command`.
+command`.
 - **Cause:** `dist:win` used `VAR=value command`, which is POSIX shell syntax.
   cmd.exe does not understand it, so `npm run dist:win` had never worked on an
   actual Windows machine — only from a bash shell. This is the "Attempted to add
@@ -223,7 +223,7 @@ under concurrent rendering.
 - **Where:** `src/utils/builtInSongSeed.js`, run from `App.jsx` on every
   startup.
 - **What:** for each built-in hymn it looks for existing songs via
-  `isBuiltInCandidate`: a match on `built_in_key`, **or** a match on *title*
+  `isBuiltInCandidate`: a match on `built_in_key`, **or** a match on _title_
   when the song is tagged `hymn` or `built-in`. The first match is then
   overwritten with the built-in payload (`updateSong`) and every other match is
   **deleted** as a "duplicate". A user who imports their own arrangement of
@@ -241,7 +241,7 @@ under concurrent rendering.
   on the oldest such row only when no keyed row exists — a user's song tagged
   merely `hymn` is never touched. The migration list moved to
   `electron/db/migrationList.ts` (typed, unit-tested). 6 seeder tests, 5
-  migration-list tests, and an E2E with a legacy built-in row *and* a user's
+  migration-list tests, and an E2E with a legacy built-in row _and_ a user's
   same-titled song side by side.
 
 ---
@@ -252,7 +252,7 @@ under concurrent rendering.
 
 Includes `ensureGroup` (`songSections.js:81`) and `alertDialog`
 (`presentationCommands.js:24`) — dead imports/functions. Each removal should be
-checked for a *missing call site* rather than assumed dead: an unused import is
+checked for a _missing call site_ rather than assumed dead: an unused import is
 sometimes the visible half of a feature that was never wired up (see P0 #1,
 which is the same class of mistake in the opposite direction).
 
@@ -282,16 +282,33 @@ Known Vite warning, carried in `CLAUDE.md` "Known Issues" for multiple phases.
 
 `npx eslint .` → **90 problems (74 errors, 16 warnings)** across:
 
-| Count | Rule | Severity |
-|---|---|---|
-| 36 | `no-unused-vars` | error |
-| 17 | `react-hooks/set-state-in-effect` | error |
-| 16 | `react-hooks/exhaustive-deps` | warn |
-| 11 | `no-empty` | error |
-| 4 | `react-hooks/immutability` | error |
-| 3 | `no-undef` | error |
-| 1 | `react/no-unescaped-entities` | error |
-| 1 | `react-hooks/preserve-manual-memoization` | error |
-| 1 | `no-useless-escape` | error |
+| Count | Rule                                      | Severity |
+| ----- | ----------------------------------------- | -------- |
+| 36    | `no-unused-vars`                          | error    |
+| 17    | `react-hooks/set-state-in-effect`         | error    |
+| 16    | `react-hooks/exhaustive-deps`             | warn     |
+| 11    | `no-empty`                                | error    |
+| 4     | `react-hooks/immutability`                | error    |
+| 3     | `no-undef`                                | error    |
+| 1     | `react/no-unescaped-entities`             | error    |
+| 1     | `react-hooks/preserve-manual-memoization` | error    |
+| 1     | `no-useless-escape`                       | error    |
 
 This table is the **ratchet baseline**. The count must only ever go down.
+
+#### 14b. Refresh only if untouched — **FIXED** (plan A3b, 2026-09-06)
+
+A3 stopped the seeder deleting or claiming user songs but it still rewrote every
+keyed hymn on launch, so a user's edit to a built-in hymn was lost. Now:
+
+- Migration 4 `built-in-revision` adds `songs.built_in_revision` (inspection-guarded).
+- The seeder stamps each hymn with a text fingerprint (`src/utils/builtInHymnFingerprint.ts`,
+  FNV-1a over title/artist/group type+label/slide bodies — never ids or styles,
+  because ids regenerate every call) and refreshes only while the row still
+  matches its stamp. Rows without a stamp are adopted once only if their text
+  already equals the source. Full 6-row matrix in `tasks/plan-A3b-refresh-if-untouched.md`.
+- `updateSong` now preserves `built_in_key`/`built_in_revision` when the caller
+  omits them (`COALESCE`), closing the de-keying path that would have produced
+  a duplicate hymn after a user save.
+- Evidence: 11 seeder cases, 6 fingerprint cases, 3 query cases, migration 4 ×3,
+  E2E `e2e/hymns.spec.ts` (edit survives relaunch, no row added).

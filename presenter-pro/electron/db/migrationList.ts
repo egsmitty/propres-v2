@@ -157,8 +157,18 @@ function claimLegacyBuiltInHymns(db: MigrationDb): void {
   }
 }
 
+/**
+ * Migration 4 (plan A3b): the seeder stamps each built-in hymn with a text
+ * fingerprint so it can tell "never edited" from "edited by the user" and
+ * refresh only the former. Inspection-guarded like every column add here.
+ */
+function builtInRevision(db: MigrationDb): void {
+  addColumnIfMissing(db, 'songs', 'built_in_revision', 'TEXT');
+}
+
 export const MIGRATIONS: ReadonlyArray<Migration> = [
   { version: 1, name: 'baseline-schema', up: baselineSchema },
   { version: 2, name: 'presentation-journal', up: presentationJournal },
   { version: 3, name: 'claim-legacy-built-in-hymns', up: claimLegacyBuiltInHymns },
+  { version: 4, name: 'built-in-revision', up: builtInRevision },
 ];
