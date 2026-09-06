@@ -14,16 +14,16 @@ for, what it must produce, how it is reviewed, and in what order.
 **The pass is judged on rules added, not lines changed.**
 
 Everything found so far supports this. Six real bugs have surfaced in this
-project, and *not one* was found by reading code:
+project, and _not one_ was found by reading code:
 
-| Bug | Found by |
-|---|---|
-| Toolbar Insert Media threw ReferenceError | ESLint `no-undef` |
-| Clear-media-slide threw ReferenceError | ESLint `no-undef` |
-| App could not be quit | Ethan, manually |
-| `beforeunload` vetoed every close | Ethan, manually |
-| No guard when quitting mid-service | Ethan, manually |
-| Windows packaging never worked | The release pipeline |
+| Bug                                       | Found by             |
+| ----------------------------------------- | -------------------- |
+| Toolbar Insert Media threw ReferenceError | ESLint `no-undef`    |
+| Clear-media-slide threw ReferenceError    | ESLint `no-undef`    |
+| App could not be quit                     | Ethan, manually      |
+| `beforeunload` vetoed every close         | Ethan, manually      |
+| No guard when quitting mid-service        | Ethan, manually      |
+| Windows packaging never worked            | The release pipeline |
 
 Three by tooling, three by a human using the app. **Zero by inspection.** A pass
 that only reads and fixes will therefore miss the same class of thing. Every
@@ -34,27 +34,27 @@ regrow — that is not a theory, it is this project's recorded history.
 
 ## Assessed state (measured 2026-09-06, not estimated)
 
-| Dimension | Value | Read |
-|---|---|---|
-| Tests | 124 passing | Real, but young |
-| Line coverage | **3.78%** | The single weakest number here |
-| Suppressed lint errors | **71** across 22 files | Ratcheted, not fixed |
-| Files > 600 lines | **7** | Toolbar 1996 · Canvas 1947 · main 1592 · SongEditorModal 1380 · Home 1295 · FormattingToolbar 1284 · Filmstrip 1260 |
-| Renderer bundle | 849 KB, single chunk | No code splitting |
-| Runtime dependencies | **5** | Genuinely lean — a real strength |
-| Inline `style={{}}` | **542** across 30 files | Competing with 746 `var(--)` uses |
-| Hardcoded hex colors in JSX | **162** | Theme drift; blocks any future theming |
-| `aria-*` attributes | **8** vs 163 `onClick` | Effectively no accessibility |
-| Empty `catch` blocks | 11 | Silent failure modes |
-| `TODO`/`FIXME` markers | **0** | Debt was never marked, not absent |
-| Autosave | **none** | Manual save only |
-| DB migrations | `CREATE TABLE IF NOT EXISTS` only | **No versioned migrations** |
+| Dimension                   | Value                             | Read                                                                                                                |
+| --------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Tests                       | 124 passing                       | Real, but young                                                                                                     |
+| Line coverage               | **3.78%**                         | The single weakest number here                                                                                      |
+| Suppressed lint errors      | **71** across 22 files            | Ratcheted, not fixed                                                                                                |
+| Files > 600 lines           | **7**                             | Toolbar 1996 · Canvas 1947 · main 1592 · SongEditorModal 1380 · Home 1295 · FormattingToolbar 1284 · Filmstrip 1260 |
+| Renderer bundle             | 849 KB, single chunk              | No code splitting                                                                                                   |
+| Runtime dependencies        | **5**                             | Genuinely lean — a real strength                                                                                    |
+| Inline `style={{}}`         | **542** across 30 files           | Competing with 746 `var(--)` uses                                                                                   |
+| Hardcoded hex colors in JSX | **162**                           | Theme drift; blocks any future theming                                                                              |
+| `aria-*` attributes         | **8** vs 163 `onClick`            | Effectively no accessibility                                                                                        |
+| Empty `catch` blocks        | 11                                | Silent failure modes                                                                                                |
+| `TODO`/`FIXME` markers      | **0**                             | Debt was never marked, not absent                                                                                   |
+| Autosave                    | **none**                          | Manual save only                                                                                                    |
+| DB migrations               | `CREATE TABLE IF NOT EXISTS` only | **No versioned migrations**                                                                                         |
 
 ### Truths worth asserting
 
 **1. The code is better than its reputation, and the numbers say so.**
 71 lint problems across ~19k lines is a low defect density for code that never
-had a linter. 54 IPC handlers matched 54 preload channels with *zero drift* —
+had a linter. 54 IPC handlers matched 54 preload channels with _zero drift_ —
 maintained by hand, with nothing checking. 5 runtime dependencies. This is not a
 rotten codebase; it is an unverified one. That distinction is the whole reason a
 rewrite would be a mistake.
@@ -65,13 +65,13 @@ and it is why manual verification found half the bugs. No workstream that
 depends on safely changing existing behavior can start before coverage rises
 where it is being changed.
 
-**3. No autosave is the largest *product* risk in the project.**
+**3. No autosave is the largest _product_ risk in the project.**
 A volunteer building a service order loses everything to one crash. Every other
 item here is about code health; this one is about someone's Sunday morning. It
 is also the item most likely to be discovered the worst possible way.
 
 **4. Migrations are idempotent-by-exception, which is not a migration system.**
-Columns *can* be added — there are ten `ALTER TABLE` statements — but each is
+Columns _can_ be added — there are ten `ALTER TABLE` statements — but each is
 wrapped in `try {} catch (_) {}`, so "column already exists" is indistinguishable
 from "database locked", "disk full", or "file corrupt". A genuinely failed
 migration reports success. There is no version record, so nothing can be
@@ -97,7 +97,7 @@ Unchanged from `phase8`, restated because it is the contract:
 1. **The fix** — root cause, never a symptom mask.
 2. **A failing test** — written first, failing under old code, passing under new.
 3. **A mechanical rule** — highest rung that applies:
-   *type > lint rule > self-enforcing test > CI check > written convention.*
+   _type > lint rule > self-enforcing test > CI check > written convention._
 
 When rung 5 (convention) is the only option, say so explicitly and why. Prose
 degrades under execution; that is the lesson of every bug in the table above.
@@ -109,7 +109,8 @@ degrades under execution; that is the lesson of every bug in the table above.
 Each ships as its own PR. **One category per plan** — a plan spanning two
 categories gets its second half sampled.
 
-### A. Data safety *(highest product value)*
+### A. Data safety _(highest product value)_
+
 - A real versioned migration system with an applied-migrations table
   (**A1 — prerequisite**, planned in `plan-A1-versioned-migrations.md`; the
   recovery journal needs a new table, which cannot ship safely before this)
@@ -120,7 +121,8 @@ categories gets its second half sampled.
 - **Rules:** migration-version test that fails when schema changes without a
   migration; lint keeps `no-empty` as an error
 
-### B. IPC contract integrity *(highest structural leverage)*
+### B. IPC contract integrity _(highest structural leverage)_
+
 - Type the channel map end to end (main handler ↔ preload ↔ renderer util)
 - Enforce the `{ success, data, error }` envelope rather than trusting it
 - Handlers that `throw` instead of returning the envelope
@@ -128,12 +130,14 @@ categories gets its second half sampled.
   zero — capturing that now locks in a good state rather than a backlog)
 
 ### C. Lifecycle & process robustness
+
 - Remaining unhandled Electron events (`second-instance`, `child-process-gone`)
 - Output/stage window teardown paths
 - Single-instance lock (two copies open at once on a live machine is a hazard)
 - **Rules:** extend `lifecycleListeners.test.ts`, which already exists
 
 ### D. React correctness
+
 - 17 × `set-state-in-effect`, individually triaged — some are legitimate
   external-store syncs, some are real cascading-render bugs. **No bulk fixes.**
 - 4 × `immutability` — the urgent subset; real risk under concurrent rendering
@@ -142,6 +146,7 @@ categories gets its second half sampled.
   goes down
 
 ### E. Design system & UX consistency
+
 - 542 inline styles and 162 hardcoded hex values → tokens
 - Keyboard reachability and focus order for every interactive control
 - Live-operation ergonomics: what a volunteer can reach without a mouse,
@@ -149,7 +154,8 @@ categories gets its second half sampled.
 - **Rules:** lint rule banning raw hex in JSX; a test asserting interactive
   elements are focusable
 
-### F. Structure *(blocked — see Sequencing)*
+### F. Structure _(blocked — see Sequencing)_
+
 - Decompose the seven files over 600 lines
 - Split the 849 KB single-chunk bundle
 - Resolve the two-vocabulary `sectionTypes` naming collision
@@ -215,14 +221,15 @@ categories gets its second half sampled) and handed to the Executor.
 
 ### Status (2026-09-06)
 
-| Plan | Outcome | PR |
-|---|---|---|
-| P1 process hardening | done — Dependabot, `enforce_admins` on | #17 |
-| P2 E2E harness | done — 7 specs, launch/quit/unsaved-changes, `e2e.yml` (not yet in `PR Gate`) | #18 |
-| A1 versioned migrations | done — 17 unit + 4 E2E, verified on copies of both real DBs, `npm run verify:db` | #29 |
-| A2 crash-recovery journal | done — migration 2, journal sync, Later/Discard/Recover prompt; 21 unit + 3 E2E | see PR |
-| A3 seeder fix (phase7 #14) | done — key-only seeder, migration 3 claims legacy rows; 11 unit + 1 E2E | see PR |
-| U1 Electron/Node upgrade | decided: after A2, behind the E2E harness | — |
+| Plan                          | Outcome                                                                                                                                   | PR     |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| P1 process hardening          | done — Dependabot, `enforce_admins` on                                                                                                    | #17    |
+| P2 E2E harness                | done — 7 specs, launch/quit/unsaved-changes, `e2e.yml` (not yet in `PR Gate`)                                                             | #18    |
+| A1 versioned migrations       | done — 17 unit + 4 E2E, verified on copies of both real DBs, `npm run verify:db`                                                          | #29    |
+| A2 crash-recovery journal     | done — migration 2, journal sync, Later/Discard/Recover prompt; 21 unit + 3 E2E                                                           | see PR |
+| A3 seeder fix (phase7 #14)    | done — key-only seeder, migration 3 claims legacy rows; 11 unit + 1 E2E                                                                   | see PR |
+| A3b refresh-only-if-untouched | done — migration 4 + text fingerprint; edited built-ins are never overwritten; `updateSong` preserves provenance columns; 20 unit + 1 E2E | see PR |
+| U1 Electron/Node upgrade      | decided: next, behind the E2E harness                                                                                                     | —      |
 
 Gate on `main` after A3: 182 unit tests, E2E 15/15. `eslint-suppressions.json` 71 → 61.
 Everything learned along the way, including corrections to these plans, is in

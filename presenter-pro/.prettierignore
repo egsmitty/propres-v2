@@ -18,3 +18,6 @@ coverage*/
 # Playwright output
 playwright-report/
 test-results/
+
+# E2E run metadata written by the launch fixture (git-ignored)
+e2e/.artifacts/

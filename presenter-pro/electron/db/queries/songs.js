@@ -27,11 +27,13 @@ function createSong(
     song_groups,
     builtInKey,
     built_in_key,
+    builtInRevision,
+    built_in_revision,
   }
 ) {
   const stmt = db.prepare(`
-    INSERT INTO songs (title, artist, ccli, tags, slides, song_order, song_groups, built_in_key)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO songs (title, artist, ccli, tags, slides, song_order, song_groups, built_in_key, built_in_revision)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     title,
@@ -41,7 +43,8 @@ function createSong(
     slides,
     songOrder ?? song_order ?? null,
     songGroups ?? song_groups ?? null,
-    builtInKey ?? built_in_key ?? null
+    builtInKey ?? built_in_key ?? null,
+    builtInRevision ?? built_in_revision ?? null
   );
   return getSong(db, result.lastInsertRowid);
 }
@@ -61,12 +64,21 @@ function updateSong(
     song_groups,
     builtInKey,
     built_in_key,
+    builtInRevision,
+    built_in_revision,
   }
 ) {
+  // built_in_key / built_in_revision are the seeder's provenance columns. A
+  // caller that does not supply them (the song editor) must PRESERVE them:
+  // clearing the key on a user save made the seeder re-create a duplicate on
+  // the next launch (plan A3b).
   db.prepare(
     `
     UPDATE songs
-    SET title = ?, artist = ?, ccli = ?, tags = ?, slides = ?, song_order = ?, song_groups = ?, built_in_key = ?, updated_at = unixepoch()
+    SET title = ?, artist = ?, ccli = ?, tags = ?, slides = ?, song_order = ?, song_groups = ?,
+        built_in_key = COALESCE(?, built_in_key),
+        built_in_revision = COALESCE(?, built_in_revision),
+        updated_at = unixepoch()
     WHERE id = ?
   `
   ).run(
@@ -78,6 +90,7 @@ function updateSong(
     songOrder ?? song_order ?? null,
     songGroups ?? song_groups ?? null,
     builtInKey ?? built_in_key ?? null,
+    builtInRevision ?? built_in_revision ?? null,
     id
   );
   return getSong(db, id);
@@ -93,6 +106,7 @@ function parse(row) {
     songOrder: row.song_order ?? null,
     songGroups: row.song_groups ?? null,
     builtInKey: row.built_in_key ?? null,
+    builtInRevision: row.built_in_revision ?? null,
   };
 }
 
