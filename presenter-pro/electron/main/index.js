@@ -61,6 +61,10 @@ let mainWindowResponsive = true;
 // properties it guarantees.
 const closeController = createCloseController();
 
+// Set when a quit was deferred so the unsaved-changes prompt could run. The
+// `closed` handler re-issues the quit once the renderer approves the close.
+let quitRequested = false;
+
 function emitWindowViewState(win) {
   if (!win || win.isDestroyed()) return;
   win.webContents.send('window:viewState', {
@@ -705,6 +709,14 @@ function createMainWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
     closeController.reset();
+
+    // A deferred quit (see app.on('before-quit')) resumes here, now that the
+    // renderer has approved the close.
+    if (quitRequested) {
+      quitRequested = false;
+      prepareForAppShutdown();
+      app.quit();
+    }
     mainWindowResponsive = true;
     // DISABLED (session 6): presenter moved to sidebar, no presenterWindow to close
     // if (presenterWindow) presenterWindow.close()
@@ -966,6 +978,9 @@ function registerIpcHandlers() {
     }
   });
   ipcMain.on('window:closeRequestResolved', () => {
+    // The user cancelled the save prompt. Any quit that was waiting on this
+    // handshake is cancelled too, or a later window close would quit the app.
+    quitRequested = false;
     resetMainWindowCloseRequestState();
   });
   ipcMain.handle('window:minimize', () => {
@@ -1551,9 +1566,20 @@ app.whenReady().then(() => {
 
 // Without this listener the window `close` handler's preventDefault() silently
 // cancelled every quit, so Cmd+Q closed the window but left the process alive
-// in the dock (phase7 finding #0). Marking the shutdown here is what lets the
-// close handler allow the quit through.
-app.on('before-quit', () => {
+// in the dock (phase7 finding #0).
+//
+// A quit must NOT bypass the unsaved-changes prompt, so it does not mark
+// shutdown immediately. Instead it defers: cancel this quit, run the normal
+// close handshake, and re-issue the quit from the `closed` handler once the
+// renderer has approved. Marking shutdown here would silently discard unsaved
+// work on Cmd+Q.
+app.on('before-quit', (event) => {
+  if (mainWindow && !mainWindow.isDestroyed() && !closeController.getState().isQuitting) {
+    event.preventDefault();
+    quitRequested = true;
+    mainWindow.close();
+    return;
+  }
   prepareForAppShutdown();
 });
 
