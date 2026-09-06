@@ -90,12 +90,15 @@ function pruneBackups(store: BackupStore, keep: number): void {
  *
  * Behaviour, in order — all six, exhaustive:
  *  1. Validate the migration list (throws on a malformed list).
- *  2. Ensure `schema_migrations` exists.
- *  3. Read applied versions; compute pending.
- *  4. Nothing pending → return; no backup is taken.
- *  5. Otherwise back up the database BEFORE any migration runs (`VACUUM INTO`,
- *     which is consistent under WAL because it reads through a normal
- *     transaction — unlike copying the file), then prune to `keepBackups`.
+ *  2. Read applied versions — only if `schema_migrations` exists (checked via
+ *     sqlite_master); otherwise none. Nothing is written yet.
+ *  3. Compute pending. Nothing pending → return with ZERO writes: no table
+ *     creation, no backup.
+ *  4. Prune old backups, then back up the still-untouched database
+ *     (`VACUUM INTO`, consistent under WAL because it reads through a normal
+ *     transaction — unlike copying the file). The backup is therefore exactly
+ *     what the user had, with no trace of this system in it.
+ *  5. Ensure `schema_migrations` exists.
  *  6. For each pending migration, in one transaction: run `up`, then record
  *     the version. A throw rolls that transaction back, records nothing for
  *     it, and propagates. Later migrations do not run.
@@ -117,12 +120,16 @@ export function runMigrations(
   const keep = options.keepBackups ?? DEFAULT_KEEP_BACKUPS;
 
   assertMigrationsWellFormed(migrations);
-  db.exec(ENSURE_TABLE_SQL);
 
-  const appliedRows = db.prepare('SELECT version FROM schema_migrations').all() as Array<{
-    version: number;
-  }>;
-  const appliedVersions = appliedRows.map((row) => row.version);
+  const trackingTableExists =
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'")
+      .get() !== undefined;
+  const appliedVersions = trackingTableExists
+    ? (db.prepare('SELECT version FROM schema_migrations').all() as Array<{ version: number }>).map(
+        (row) => row.version
+      )
+    : [];
   const pending = selectPendingMigrations(appliedVersions, migrations);
 
   if (pending.length === 0) {
@@ -133,6 +140,8 @@ export function runMigrations(
   const backupPath = `${options.backupDir}/presenterpro.backup-v${currentVersion(appliedVersions)}-${fileSafeTimestamp(timestamp)}.db`;
   pruneBackups(options.backups, keep);
   db.exec(`VACUUM INTO ${sqlString(backupPath)}`);
+
+  db.exec(ENSURE_TABLE_SQL);
 
   const record = db.prepare(
     'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)'

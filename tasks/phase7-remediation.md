@@ -199,6 +199,27 @@ under concurrent rendering.
 
 ---
 
+### 14. Built-in hymn seeder can merge or delete a user's song — **NOT FIXED, needs a decision**
+
+- **Where:** `src/utils/builtInSongSeed.js`, run from `App.jsx` on every
+  startup.
+- **What:** for each built-in hymn it looks for existing songs via
+  `isBuiltInCandidate`: a match on `built_in_key`, **or** a match on *title*
+  when the song is tagged `hymn` or `built-in`. The first match is then
+  overwritten with the built-in payload (`updateSong`) and every other match is
+  **deleted** as a "duplicate". A user who imports their own arrangement of
+  "Amazing Grace" and tags it `hymn` has it overwritten on next launch; two
+  such songs and one is deleted.
+- **Found while** writing the A1 legacy-database E2E: seeding runs
+  asynchronously ~1s after the window loads and inserts four keyed rows.
+- **Fix shape:** match on `built_in_key` only; never delete. Title matching
+  was presumably for migrating pre-key databases — do that once, as a
+  versioned data migration (now possible with A1), not on every launch.
+- **Test first:** seed a user song titled like a hymn and tagged `hymn`, run
+  the seeder, assert the user song is untouched and no row was deleted.
+
+---
+
 ## P2 — Cleanup
 
 ### 6. 36 × `no-unused-vars`

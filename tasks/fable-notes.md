@@ -209,3 +209,51 @@ teardown fix (8.8–9.2s each). Gate 129/129 (124 + 4 renderer-loading guards +
 - **Backup filenames avoid colons** (`20260906T153000Z`) so they are valid on
   Windows. Given the `dist:win` history, this codebase's Windows blind spots
   are worth assuming everywhere paths are built.
+
+### 2026-09-06 — A1 verified against real databases (copies)
+
+Made the plan's "existing database" manual check mechanical:
+`e2e/tools/verify-legacy-db.mjs <db>` copies a database into a throwaway
+profile, launches the BUILT app there, and diffs row counts before/after.
+Ethan can run it on any installation before upgrading. Results on this
+machine, both against copies:
+
+| Database | Before | After | Migration | Backup |
+|---|---|---|---|---|
+| `PresenterPro/` (packaged app, 640K) | 47 presentations · 7 songs · 15 media | identical | v1 recorded | 1 written |
+| `presenter-pro/` (older dev build, 28K) | 2 · 3 · 3, **no `media_folders` table, 8 columns missing** | identical; table created, all 8 columns added by inspection | v1 recorded | 1 written |
+
+The second one is exactly the case the proofread's A1-1 fix exists for: the
+original "baseline and skip" design would have recorded that database as
+fully migrated and left `media_folders` and eight columns missing.
+
+Also observed, and I got it wrong once before checking: `seed(db)` runs after
+migrations and inserts a sample presentation and songs — but only when
+`settings.initialized` is absent. Every real database has that row, so my
+synthetic legacy fixture was *less* realistic than reality and the seeded
+sample tripped an exact-equality assertion. Fixed the fixture (it now carries
+`initialized`), not the assertion. Lesson: a synthetic fixture must reproduce
+the invariants a real installation always has, not just its schema.
+
+**A1 E2E: three wrong theories before the right one.** The legacy spec failed
+on extra rows. I blamed main's `seed()` (partly right — it is gated by
+`settings.initialized`, and the fixture lacked that row, so the fixture was
+unrealistic), then the renderer's keyed hymn seeding (right mechanism), then
+mis-read a `built_in_key` NULL that was actually a **timing** artifact: the
+renderer seeds four hymns asynchronously ~1s after the window loads, and my
+query landed mid-seeding. Dumping the actual rows at two points in time settled
+it in one run. Lesson recorded: when an assertion fails on data the app wrote,
+dump the rows before theorizing. Filtering to `built_in_key IS NULL` makes the
+user-data assertion independent of that race. Reading the seeder also surfaced
+phase7 #14 (it can overwrite/delete a user's hymn-titled song) — not fixed
+under A1; needs a decision.
+
+**A1: the E2E improved the design.** The legacy-database spec asserted the
+backup has no `schema_migrations` table — and it did, empty, because the runner
+created the tracking table before backing up. A backup should be the database
+*untouched*. Reordered: detect the table via `sqlite_master`, read applied
+versions only if present, back up, *then* create the table; a fully-applied
+database now sees zero writes on launch. The unit tests changed to describe
+that stricter contract — a deliberate behaviour change, stated as such. This
+is the pattern the charter asks for: a mechanical check found a flaw no reading
+would have.

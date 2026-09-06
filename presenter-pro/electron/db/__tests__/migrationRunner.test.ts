@@ -28,9 +28,14 @@ function normalize(sql: string): string {
   return sql.replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * @param applied versions already recorded. The tracking table is reported as
+ *   present when this is non-empty (a fresh or legacy database has neither).
+ */
 function createFake(applied: number[], existingBackups: string[] = []): Fake {
   const log: string[] = [];
   const removed: string[] = [];
+  const trackingTableExists = applied.length > 0;
 
   const db: MigrationDb = {
     exec(sql) {
@@ -41,7 +46,10 @@ function createFake(applied: number[], existingBackups: string[] = []): Fake {
       return {
         all: () =>
           text.includes('FROM schema_migrations') ? applied.map((version) => ({ version })) : [],
-        get: () => undefined,
+        get: () =>
+          text.includes('FROM sqlite_master') && trackingTableExists
+            ? { name: 'schema_migrations' }
+            : undefined,
         run: (...params: unknown[]) => {
           log.push(`run:${text}:[${params.join(',')}]`);
           return undefined;
@@ -98,34 +106,44 @@ function run(fake: Fake, migrations: Migration[]) {
 }
 
 describe('runMigrations', () => {
-  it('creates the schema_migrations table when absent', () => {
+  it('creates the schema_migrations table only after the backup and before the first migration', () => {
+    // Behaviour change (deliberate, found by the legacy-database E2E): the
+    // table used to be created BEFORE the backup, so every backup carried an
+    // empty schema_migrations table. A backup must be the database untouched.
     const fake = createFake([]);
-    run(fake, []);
+    run(fake, [migration(1, fake.log)]);
+
     const creates = fake.log.filter((entry) =>
       entry.startsWith('exec:CREATE TABLE IF NOT EXISTS schema_migrations')
     );
     expect(creates).toHaveLength(1);
+    const createIndex = fake.log.indexOf(creates[0]!);
+    const backupIndex = fake.log.findIndex((entry) => entry.startsWith('exec:VACUUM INTO'));
+    expect(backupIndex).toBeGreaterThanOrEqual(0);
+    expect(createIndex).toBeGreaterThan(backupIndex);
+    expect(fake.log.indexOf('up:1')).toBeGreaterThan(createIndex);
   });
 
-  it('applies nothing and takes no backup when every version is applied', () => {
+  it('performs ZERO writes when every version is applied', () => {
     const fake = createFake([1, 2]);
     const result = run(fake, [migration(1, fake.log), migration(2, fake.log)]);
 
     expect(result).toEqual({ applied: [], backupPath: null });
-    // Exhaustive: nothing but the table-ensure may have happened.
-    expect(fake.log).toEqual([
-      'exec:CREATE TABLE IF NOT EXISTS schema_migrations ( version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL )',
-    ]);
+    // Exhaustive: no table creation, no backup, no transaction — nothing.
+    expect(fake.log).toEqual([]);
   });
 
-  it('takes exactly one backup, before the first migration runs', () => {
+  it('takes exactly one backup, before anything is written', () => {
     const fake = createFake([]);
     run(fake, [migration(1, fake.log), migration(2, fake.log)]);
 
     const backupIndex = fake.log.findIndex((entry) => entry.startsWith('exec:VACUUM INTO'));
-    const firstUpIndex = fake.log.indexOf('up:1');
     expect(backupIndex).toBeGreaterThanOrEqual(0);
-    expect(firstUpIndex).toBeGreaterThan(backupIndex);
+    // Nothing before the backup may be a write: only prune calls, which touch
+    // backup files, not the database.
+    const beforeBackup = fake.log.slice(0, backupIndex).filter((e) => !e.startsWith('remove:'));
+    expect(beforeBackup).toEqual([]);
+    expect(fake.log.indexOf('up:1')).toBeGreaterThan(backupIndex);
     expect(fake.log.filter((entry) => entry.startsWith('exec:VACUUM INTO'))).toHaveLength(1);
   });
 
@@ -152,6 +170,7 @@ describe('runMigrations', () => {
       fake.log.findIndex((e) => e.startsWith('exec:VACUUM INTO')) + 1
     );
     expect(afterBackup).toEqual([
+      'exec:CREATE TABLE IF NOT EXISTS schema_migrations ( version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL )',
       'BEGIN',
       'up:1',
       `run:INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?):[1,m1,${FIXED_UNIX}]`,
@@ -177,7 +196,12 @@ describe('runMigrations', () => {
     const afterBackup = fake.log.slice(
       fake.log.findIndex((e) => e.startsWith('exec:VACUUM INTO')) + 1
     );
-    expect(afterBackup).toEqual(['BEGIN', 'up:2', 'ROLLBACK']);
+    expect(afterBackup).toEqual([
+      'exec:CREATE TABLE IF NOT EXISTS schema_migrations ( version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL )',
+      'BEGIN',
+      'up:2',
+      'ROLLBACK',
+    ]);
   });
 
   it('does not run later migrations after a failure', () => {

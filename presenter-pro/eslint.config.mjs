@@ -113,7 +113,7 @@ export default [
 
   // Tooling configs ----------------------------------------------------------
   {
-    files: ['*.config.{js,mjs,ts}', 'eslint*.mjs', 'vitest.config.*'],
+    files: ['*.config.{js,mjs,ts}', 'eslint*.mjs', 'vitest.config.*', 'e2e/tools/**/*.mjs'],
     languageOptions: { sourceType: 'module', globals: { ...globals.node } },
   },
 
