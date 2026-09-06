@@ -38,10 +38,12 @@ as still manual-only.
 | `presenter-pro/e2e/unsavedChanges.spec.ts` | create |
 | `presenter-pro/e2e/fixtures/launchApp.ts` | create |
 | `presenter-pro/package.json` | modify (add `test:e2e`, add devDependency) |
+| `presenter-pro/electron/main/index.js` | modify — **only** the three renderer-load sites (see pitfall 0) |
+| `presenter-pro/electron/main/__tests__/rendererLoading.test.ts` | create (guard test) |
 | `.github/workflows/e2e.yml` | create |
 | `presenter-pro/.gitignore` **or** root `.gitignore` | modify (ignore artifacts) |
 
-**Do NOT modify:** any file under `src/` or `electron/`, any existing test,
+**Do NOT modify:** any file under `src/`, any other file under `electron/`, any existing test,
 `vitest.config.mjs`, `eslint.config.mjs`, `eslint-suppressions.json`, or
 `.github/workflows/pr-checks.yml`. If a flow fails, that is a finding to report —
 **not** a licence to change application code.
@@ -49,6 +51,21 @@ as still manual-only.
 ---
 
 ## Critical pitfalls — read before writing anything
+
+0. **The app cannot be launched from `out/` as written.** `electron/main/index.js`
+   uses `isDev = !app.isPackaged` and hardcodes `http://localhost:5173` at
+   three load sites (main, output, stage). Playwright launches `out/main/index.js`
+   *unpackaged*, so `isDev` is true and the app would try a dev server that is
+   not running — every spec would fail on launch. **Fix, and it is the proper
+   fix, not an E2E hack:** electron-vite sets `process.env.ELECTRON_RENDERER_URL`
+   during `electron-vite dev` and leaves it unset otherwise (verified in
+   `node_modules/electron-vite/dist/chunks/lib-t2ExBjL5.mjs`). Load from that
+   env var when present, else `loadFile(out/renderer/index.html)`. This also
+   repairs `npm run preview`, which the hardcoding currently breaks. Change
+   **only** those three sites and keep the `#/output` / `#/stage-display`
+   hashes intact. Add a guard test (`rendererLoading.test.ts`, source-grep
+   style like `lifecycleListeners.test.ts`) asserting no `localhost:5173`
+   remains and `ELECTRON_RENDERER_URL` is used.
 
 1. **E2E must never touch the real user database.** The app opens
    `app.getPath('userData')/presenterpro.db`. Running tests against a
@@ -81,6 +98,11 @@ as still manual-only.
 
 ## Todos
 
+- [ ] **0. Fix renderer loading (pitfall 0) and add its guard test** before
+      anything else — nothing below can launch until this is done.
+      *Verify:* `npx vitest run electron/main/__tests__/rendererLoading.test.ts`
+      passes, and `npm run gate` still reports 124 + the new guard tests.
+
 - [ ] **1. Install Playwright** as a devDependency in `presenter-pro`:
       `npm install -D --ignore-scripts @playwright/test`.
       *Verify:* `node -e "console.log(require('./package.json').devDependencies['@playwright/test'])"`
@@ -99,10 +121,13 @@ as still manual-only.
       exhaustive:**
       1. the app launches and produces exactly one window
       2. the window title is non-empty
-      3. **no main-process error was emitted during startup** — capture stderr
-         and assert it contains no `Cannot find module` and no
-         `Error:` line. *This is the assertion that would have caught the
-         missing `closeController` rollup entry.*
+      3. **no fatal main-process error during startup** — capture stderr and
+         assert it contains neither `Cannot find module` nor
+         `UnhandledPromiseRejection` nor `Uncaught Exception`. *(Do NOT assert
+         on the bare word `Error:` — Electron/Chromium emit benign
+         `Error`-prefixed lines on some platforms and the test would flake.)*
+         *This is the assertion that would have caught the missing
+         `closeController` rollup entry.*
       *Verify:* `npm run test:e2e -- launch.spec.ts` passes.
 
 - [ ] **4. Write `e2e/quit.spec.ts`.** With no unsaved changes, trigger a quit
@@ -111,12 +136,16 @@ as still manual-only.
       from `phase7-remediation.md`, which shipped broken for months.
       *Verify:* `npm run test:e2e -- quit.spec.ts` passes.
 
-- [ ] **5. Write `e2e/unsavedChanges.spec.ts`.** Create or open a presentation,
-      make it dirty, request a close, and assert the **styled** Unsaved Changes
-      dialog appears with exactly the three actions `Cancel`, `Discard`, `Save` —
-      compare the rendered labels with `toEqual` against that exact array.
-      Order and count both matter; do not use `toContain`. Then assert Cancel
-      leaves the window open.
+- [ ] **5. Write `e2e/unsavedChanges.spec.ts`.** Click **Blank Presentation**
+      on Home. `createNewPresentation` sets `requiresInitialSave(true)`, so the
+      fresh document already counts as unsaved — **no typing into the canvas is
+      needed** (driving `contentEditable` through Playwright is the most fragile
+      thing this plan could do, so it does not). Request a close and assert the
+      **styled** Unsaved Changes dialog appears with exactly the three buttons
+      `['Cancel', 'Discard', 'Save']` — read every `button` inside the dialog
+      and compare with `toEqual` against that exact array. Order and count both
+      matter; do not use `toContain`. Then click Cancel and assert the window is
+      still open.
       *Verify:* `npm run test:e2e -- unsavedChanges.spec.ts` passes.
 
 - [ ] **6. Add the `test:e2e` script** to `presenter-pro/package.json` as
@@ -176,8 +205,8 @@ export const E2E_ENVIRONMENT_SKIPS: ReadonlyArray<{ spec: string; reason: string
 | List sampling designed against | Todo 3 enumerates **all 3** assertions as a counted exhaustive list |
 | Quantifier erosion designed against | "exactly one window"; exact three-action array compared whole |
 | Sanctioned escape hatch | `E2E_ENVIRONMENT_SKIPS`, initially empty, entries require justification + report |
-| Bounded blast radius | Eight-file table; explicit ban on touching `src/`, `electron/`, and `pr-checks.yml` |
-| File-specific pitfall notes | Five numbered pitfalls: real-DB destruction, build precondition, native rebuild, no headless Linux, not-yet-required check |
+| Bounded blast radius | Ten-file table; `electron/main/index.js` permitted at exactly three load sites, everything else under `electron/` and all of `src/` banned |
+| File-specific pitfall notes | Six numbered pitfalls: the dev-server hardcoding that blocks launch, real-DB destruction, build precondition, native rebuild, no headless Linux, not-yet-required check |
 | Exact paths, no improvisation | Every file named in full |
 | Per-todo verification | Each todo names its command |
 | Snapshot policy inline | `N/A — no snapshots in this plan` |
@@ -191,7 +220,7 @@ export const E2E_ENVIRONMENT_SKIPS: ReadonlyArray<{ spec: string; reason: string
 
 | # | Item | Disposition |
 |---|---|---|
-| 1 | TDD ordering | `N/A — these tests characterize already-shipped behavior; there is no new feature to test-drive. A spec that fails is a finding (report item 6), not a fix licence.` |
+| 1 | TDD ordering | Todo 0's guard test is written to fail against the hardcoded URLs before the load sites change. The E2E specs characterize shipped behaviour; a failing spec is a finding (report item 6), not a fix licence. |
 | 2 | Behavior-change test edits | `N/A — no existing test modified` |
 | 3 | No weakened assertions | Clause verbatim; exact-equality mandated in todos 3–5 |
 | 4 | Coverage floor | Three flows, each the site of a real historical bug |
