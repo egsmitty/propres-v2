@@ -4,7 +4,6 @@ import TitleBar from '@/components/layout/TitleBar';
 import MenuBar from '@/components/layout/MenuBar';
 import Home from '@/pages/Home';
 import Editor from '@/pages/Editor';
-import PresenterView from '@/components/presenter/PresenterView';
 import OutputRenderer from '@/components/presenter/OutputRenderer';
 import StageDisplayRenderer from '@/components/presenter/StageDisplayRenderer';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
@@ -17,7 +16,6 @@ import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
 import { getSettings, setSetting } from '@/utils/ipc';
 
 const hash = window.location.hash;
-const isPresenterWindow = hash.startsWith('#/presenter');
 const isOutputWindow = hash.startsWith('#/output');
 const isStageDisplayWindow = hash.startsWith('#/stage-display');
 
@@ -41,7 +39,7 @@ export default function App() {
   // while the document is dirty, and offer recovery of any journal left by a
   // previous session. Output/stage windows never edit, so never journal.
   React.useEffect(() => {
-    if (isPresenterWindow || isOutputWindow || isStageDisplayWindow) return;
+    if (isOutputWindow || isStageDisplayWindow) return;
     const stop = startRecoveryJournalSync();
     offerRecoveryOnStartup().catch((error) => {
       console.error('[recovery] failed to check for unsaved work:', error);
@@ -50,7 +48,7 @@ export default function App() {
   }, []);
 
   React.useEffect(() => {
-    if (isPresenterWindow || isOutputWindow || isStageDisplayWindow) return;
+    if (isOutputWindow || isStageDisplayWindow) return;
 
     let cancelled = false;
 
@@ -71,7 +69,7 @@ export default function App() {
   }, []);
 
   React.useEffect(() => {
-    if (isPresenterWindow || isOutputWindow || isStageDisplayWindow) return;
+    if (isOutputWindow || isStageDisplayWindow) return;
     ensureBuiltInSongsSeeded().catch((error) => {
       console.error('Failed to seed built-in songs', error);
     });
@@ -87,13 +85,6 @@ export default function App() {
     return (
       <>
         <OutputRenderer />
-        <DialogHost />
-      </>
-    );
-  if (isPresenterWindow)
-    return (
-      <>
-        <PresenterView />
         <DialogHost />
       </>
     );

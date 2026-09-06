@@ -1,10 +1,7 @@
 {
   "electron/main/index.js": {
-    "no-empty": {
-      "count": 1
-    },
     "no-unused-vars": {
-      "count": 4
+      "count": 2
     }
   },
   "src/components/editor/ApplyThemeModal.jsx": {
@@ -93,11 +90,6 @@
       "count": 1
     }
   },
-  "src/components/presenter/PresenterView.jsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1
-    }
-  },
   "src/components/shared/OnboardingTutorial.jsx": {
     "react-hooks/set-state-in-effect": {
       "count": 1
@@ -125,9 +117,6 @@
   },
   "src/utils/songSections.js": {
     "no-unused-vars": {
-      "count": 1
-    },
-    "no-useless-escape": {
       "count": 1
     }
   }

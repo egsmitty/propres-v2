@@ -34,7 +34,7 @@ function toTitleCase(value = '') {
 export function resolveSongSectionType(raw = '') {
   const lower = String(raw)
     .toLowerCase()
-    .replace(/[\[\].-]/g, '')
+    .replace(/[[\].-]/g, '')
     .replace(/\s+/g, '');
   if (lower === 'prechorus') return 'pre-chorus';
   if (lower === 'turn' || lower === 'ta' || lower === 'turnaround') return 'turnaround';

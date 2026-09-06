@@ -6,13 +6,21 @@ import { fileURLToPath } from 'url';
 // IPC contract drift guard (the rule `writing-executable-plans.mdc` calls
 // "IPC contract pinning"). The renderer talks to main only through channels
 // that preload exposes; a handler with no wrapper is dead code, and a wrapper
-// with no handler hangs or throws at the call site. The two sets must be
-// identical. Measured at zero drift before this guard existed — this locks
-// that in and names any channel that appears on only one side.
+// with no handler rejects at the call site with "No handler registered".
+// The two sets must be identical.
+//
+// Comments are stripped before scanning. The first version of this guard did
+// not do that, and seven `presenter:*` wrappers whose handlers had been
+// commented out for several phases passed as "registered" (phase7 #9).
 
 const dirname = fileURLToPath(new URL('.', import.meta.url));
-const MAIN = readFileSync(resolve(dirname, '../index.js'), 'utf8');
-const PRELOAD = readFileSync(resolve(dirname, '../../preload/index.js'), 'utf8');
+const MAIN = stripComments(readFileSync(resolve(dirname, '../index.js'), 'utf8'));
+const PRELOAD = stripComments(readFileSync(resolve(dirname, '../../preload/index.js'), 'utf8'));
+
+/** Removes `// ...` line comments and `/* ... *\/` block comments. Good enough for our sources: no string literal in these files contains `//` or `/*`. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+}
 
 function channels(source: string, pattern: RegExp): string[] {
   const found = new Set<string>();
@@ -32,6 +40,22 @@ describe('IPC channels', () => {
   it('main handlers and preload wrappers are exactly the same set', () => {
     // Whole-set equality: a difference names the offending channel(s).
     expect(preloadCalls).toEqual(mainHandlers);
+  });
+
+  it('a commented-out handler does not count as registered', () => {
+    // The scanner must see through `// ipcMain.handle('x', …)`.
+    expect(
+      channels(
+        stripComments("// ipcMain.handle('ghost:channel', () => {})"),
+        /ipcMain\.handle\(\s*'([^']+)'/g
+      )
+    ).toEqual([]);
+    expect(
+      channels(
+        stripComments("ipcMain.handle('live:channel', () => {})"),
+        /ipcMain\.handle\(\s*'([^']+)'/g
+      )
+    ).toEqual(['live:channel']);
   });
 
   it('exposes the crash-recovery journal channels on both sides', () => {

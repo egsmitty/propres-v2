@@ -81,12 +81,6 @@ export async function deleteMedia(id) {
 }
 
 // Output / Presenter
-export async function openPresenterView() {
-  return api().openPresenterView();
-}
-export async function closePresenterView() {
-  return api().closePresenterView();
-}
 export async function openOutputWindow(options) {
   return api().openOutputWindow(options);
 }
@@ -107,9 +101,6 @@ export async function setPresentationSessionSlides(slides) {
 }
 export async function refreshLiveSlide(slide, background) {
   return api().refreshLiveSlide(slide, background);
-}
-export async function updatePresentationSlides(slides) {
-  return api().updatePresentationSlides(slides);
 }
 export async function sendBlack() {
   return api().sendBlack();

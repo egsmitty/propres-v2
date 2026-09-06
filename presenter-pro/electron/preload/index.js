@@ -39,8 +39,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteMedia: (id) => ipcRenderer.invoke('db:media:delete', id),
 
   // Output / Presenter
-  openPresenterView: () => ipcRenderer.invoke('presenter:open'),
-  closePresenterView: () => ipcRenderer.invoke('presenter:close'),
   openOutputWindow: (options) => ipcRenderer.invoke('output:open', options),
   openStageDisplayWindow: (options) => ipcRenderer.invoke('stage:open', options),
   closeOutputWindow: () => ipcRenderer.invoke('output:close'),
@@ -55,18 +53,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopCountdown: () => ipcRenderer.invoke('output:countdownStop'),
   stopPresenting: () => ipcRenderer.invoke('output:stop'),
 
-  // Send full slide list to presenter window on start
-  startPresentation: (slides) => ipcRenderer.invoke('presenter:start', { slides }),
-  updatePresentationSlides: (slides) => ipcRenderer.invoke('presenter:updateSlides', { slides }),
-  waitForPresenterReady: () => ipcRenderer.invoke('presenter:waitReady'),
-  notifyPresenterReady: () => ipcRenderer.invoke('presenter:ready'),
   waitForOutputReady: () => ipcRenderer.invoke('output:waitReady'),
   notifyOutputReady: () => ipcRenderer.invoke('output:ready'),
   waitForStageDisplayReady: () => ipcRenderer.invoke('stage:waitReady'),
   notifyStageDisplayReady: () => ipcRenderer.invoke('stage:ready'),
 
-  // Presenter window navigating to a slide
-  presenterGoToSlide: (slide) => ipcRenderer.invoke('presenter:goToSlide', { slide }),
   refreshLiveSlide: (slide, background) =>
     ipcRenderer.invoke('output:refreshSlide', { slide, background }),
 
@@ -94,8 +85,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onOutputLogo: (cb) => subscribe('output:logo', cb),
   onOutputCountdown: (cb) => subscribe('output:countdown', cb),
   onStageUpdate: (cb) => subscribe('stage:update', cb),
-  onPresenterStart: (cb) => subscribe('presenter:start', cb),
-  onPresenterSlidesUpdate: (cb) => subscribe('presenter:updateSlides', cb),
   onAppCommand: (cb) => subscribe('app:command', cb),
   onSettingsUpdated: (cb) => subscribe('settings:updated', cb),
   onWindowViewState: (cb) => subscribe('window:viewState', cb),
