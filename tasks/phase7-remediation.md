@@ -218,7 +218,7 @@ under concurrent rendering.
 
 ---
 
-### 14. Built-in hymn seeder can merge or delete a user's song — **NOT FIXED, needs a decision**
+### 14. Built-in hymn seeder can merge or delete a user's song — **FIXED** (plan A3)
 
 - **Where:** `src/utils/builtInSongSeed.js`, run from `App.jsx` on every
   startup.
@@ -234,8 +234,15 @@ under concurrent rendering.
 - **Fix shape:** match on `built_in_key` only; never delete. Title matching
   was presumably for migrating pre-key databases — do that once, as a
   versioned data migration (now possible with A1), not on every launch.
-- **Test first:** seed a user song titled like a hymn and tagged `hymn`, run
-  the seeder, assert the user song is untouched and no row was deleted.
+- **Resolution (Ethan's decision):** the seeder matches by `built_in_key` only
+  and never deletes; `deleteSong` is no longer imported. Rows the pre-key
+  seeder wrote (tagged `"built-in"`) are adopted exactly once by **migration 3**
+  (`claim-legacy-built-in-hymns`, the first data migration), which sets the key
+  on the oldest such row only when no keyed row exists — a user's song tagged
+  merely `hymn` is never touched. The migration list moved to
+  `electron/db/migrationList.ts` (typed, unit-tested). 6 seeder tests, 5
+  migration-list tests, and an E2E with a legacy built-in row *and* a user's
+  same-titled song side by side.
 
 ---
 
