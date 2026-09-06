@@ -137,3 +137,29 @@ It is a five-line change.
 ## 4. Running log
 
 _(appended as work proceeds)_
+
+### 2026-09-06 — A1 (versioned migrations) implemented
+
+- **Backup uses `VACUUM INTO`, not `db.backup()`.** My own proofread (A1-2)
+  chose `db.backup()`; it is async, which would force `runMigrations` async and
+  a change to `electron/main/index.js` outside A1's blast radius. `VACUUM INTO`
+  is synchronous and consistent under WAL (it reads through a normal
+  transaction). Same guarantee, no startup-sequence change. Recorded here
+  because it contradicts the amended plan text.
+- **The plan says six tables; there are five** (songs, media, media_folders,
+  presentations, settings). The proofread missed it. Migration 1 has five.
+- **A test of mine was wrong, not the code.** The "ascending order" runner spec
+  passed a misordered list `[m2, m1]`; `assertMigrationsWellFormed` rejects
+  that by design. Fixed the input, kept the assertion — the applied order and
+  full call sequence are what is under test.
+- **I hand-computed a unix timestamp wrong** in a test expectation. Now derived
+  from the same fixed `Date`. Lesson for the rules file: never hand-compute
+  values in assertions when they can be derived from the fixture.
+- **`eslint-suppressions.json` had to be pruned** (71 → 61): the ten
+  `no-empty` suppressions became unused and ESLint 9 treats unused suppressions
+  as an error. The amended plan listed that file as do-not-touch, which is
+  wrong whenever a plan fixes suppressed violations — pruning is the documented
+  workflow. Deviation reported.
+- **Backup filenames avoid colons** (`20260906T153000Z`) so they are valid on
+  Windows. Given the `dist:win` history, this codebase's Windows blind spots
+  are worth assuming everywhere paths are built.

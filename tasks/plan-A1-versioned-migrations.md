@@ -185,7 +185,7 @@ const TOLERATED_STATEMENT_FAILURES = [];
 
 Work these in order. Each names the command that proves it done.
 
-- [ ] **1. Write the failing tests first (TDD — complete before todo 2).**
+- [x] **1. Write the failing tests first (TDD — complete before todo 2).**
       Two files.
 
       `electron/db/__tests__/migrationPlanner.test.ts` — **all 9, exhaustive:**
@@ -218,38 +218,38 @@ Work these in order. Each names the command that proves it done.
       For every comparison, **order, count, and exactness matter**: `toEqual`
       on whole arrays; never `toContain`; never `.sort()` on both sides.
 
-- [ ] **2. Implement `migrationPlanner.ts` and `migrationRunner.ts`** to satisfy
+- [x] **2. Implement `migrationPlanner.ts` and `migrationRunner.ts`** to satisfy
       todo 1. No `require('electron')`, no `better-sqlite3`, no `fs` in the
       planner. The runner receives `backupDir` and a `listBackups`/`removeBackup`
       pair via `RunOptions` so pruning is testable — do not read the filesystem
       directly inside the runner.
       *Verify:* same command — 17/17 pass.
 
-- [ ] **3. Rewrite `migrations.js`**: migration 1 as described (inspection-
+- [x] **3. Rewrite `migrations.js`**: migration 1 as described (inspection-
       guarded), `TOLERATED_STATEMENT_FAILURES = []`, and
       `runMigrations(db)` wiring the real `fs` helpers and
       `path.dirname(db.name)` as `backupDir`. Remove all ten `try/catch`.
       *Verify:* `npx eslint electron/db/migrations.js` — zero `no-empty`.
 
-- [ ] **4. Add BOTH rollup inputs** in `electron.vite.config.js`
+- [x] **4. Add BOTH rollup inputs** in `electron.vite.config.js`
       (`db/migrationPlanner`, `db/migrationRunner`), mirroring
       `main/closeController`. The main process is CommonJS; a relative
       `require` is left external and needs its own entry — **without this the
       packaged app crashes on launch and the build still reports SUCCESS.**
       *Verify:* `npm run build && ls out/db/` shows both `.js` files.
 
-- [ ] **5. Guard test.** Extend `lifecycleListeners.test.ts`'s "build wiring"
+- [x] **5. Guard test.** Extend `lifecycleListeners.test.ts`'s "build wiring"
       block with a test asserting both entries exist in the vite config, and
       that `migrations.js` contains no `catch (_)`.
       *Verify:* `npx vitest run electron/main/__tests__/lifecycleListeners.test.ts`.
 
-- [ ] **6. Record the outcome** in `tasks/phase7-remediation.md`: migration
+- [x] **6. Record the outcome** in `tasks/phase7-remediation.md`: migration
       finding fixed; state the new `no-empty` count (was 11).
 
-- [ ] **7. Raise coverage thresholds** in `vitest.config.mjs` to just below the
+- [x] **7. Raise coverage thresholds** in `vitest.config.mjs` to just below the
       new measured floor (`npm run test:coverage`). Never lower one.
 
-- [ ] **8. Run the completion gate and report.**
+- [x] **8. Run the completion gate and report.**
       *Verify:* `npm run gate` — report `type-check`, `lint`, vitest
       `passed/total`, skipped noted.
 

@@ -128,6 +128,16 @@ export default [
     },
   },
 
+  // TypeScript override — must come AFTER the environment blocks above. Those
+  // blocks re-enable the base `no-unused-vars` for their file globs (which
+  // include .ts), and the base rule misfires on parameter names in interface
+  // and type signatures. Flat config is last-wins, so this keeps the
+  // @typescript-eslint version (configured earlier) as the only one for TS.
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: { 'no-unused-vars': 'off' },
+  },
+
   // Must stay last: disables everything that conflicts with Prettier.
   prettier,
 ];
