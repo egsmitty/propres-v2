@@ -298,3 +298,12 @@ so `e2e/tools/verify-legacy-db.mjs` was committed unformatted and CI's
 `format:check` (which covers everything) went red. Globs now include `mjs`,
 `cjs`, `yml`, `yaml`. The pre-commit hook and the CI check must cover the same
 set, or the hook silently lies.
+
+## 5. Decisions from Ethan (2026-09-06, via the questions modal)
+
+| Question | Decision | Consequence |
+|---|---|---|
+| A2 model | **Journal first.** Save keeps its meaning; a crash-recovery journal eliminates data loss; autosave waits for persistent undo history. | Plan A2 = recovery journal only. R3 accepted. |
+| Electron 29 EOL | **Plan it next, after A2.** Electron → current, Node 20 → 22, then @electron/rebuild 4 / electron-vite 5. | Becomes plan U1, sequenced after A2, run behind the E2E harness. |
+| Seeder (phase7 #14) | **Match by `built_in_key` only, never delete.** Title matching becomes a one-time versioned data migration. | Becomes plan A3 — and it is also the first *data* migration (migration 2), which exercises A1 for real. |
+| Dependabot | **Fix the lock on the safe PRs** (#24, #27; the Actions bumps need only a branch update). | Done by me; see the running log. |
