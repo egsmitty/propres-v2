@@ -97,13 +97,13 @@ Reference repo (read-only): `/Users/ethansmith/Desktop/ClaudeAccess/builder`
 ### Phase 6E — Branch + commit discipline
 - [ ] 20. Document the `main` + short-lived-branch model (decision 3). No
       `staging` branch — releases are cut from tags, not a promotion branch.
-- [ ] 21. Enable branch protection on `main` (PR required, `PR Gate` required,
+- [ ] 21. **AWAITING ETHAN** — Enable branch protection on `main` (PR required, `PR Gate` required,
       no force push) via `gh api`
 - [ ] 22. Adopt Conventional Commits + naming: `feature/*`, `fix/*`, `chore/*`,
       `hotfix/*`; document in `BRANCHING.md`
-- [ ] 23. Add Husky + lint-staged pre-commit (format + lint changed files) and
+- [x] 23. Add Husky + lint-staged pre-commit (format + lint changed files) and
       commit-msg hook validating Conventional Commits
-- [ ] 24. Clean up the two stale `codex/*` branches
+- [ ] 24. **AWAITING ETHAN** — Clean up the two stale `codex/*` branches
       *Verify: direct push to `main` is rejected*
 
 ### Phase 6F — Audit (read-only pass, produces the Phase 7 backlog)
@@ -151,4 +151,72 @@ Working branch: `chore/engineering-system`
 
 ## Review
 
-_(to be filled in when the checklist is complete)_
+### Status: 6A–6E complete except two actions needing Ethan's approval
+
+**Done (21 of 31 items).** The engineering system exists and is enforcing.
+`npm run gate` exits 0 — the first automated verification this repo has had.
+
+| Phase | Result |
+|---|---|
+| 6A Governance | `AGENTS.md`, `AI_OPERATING_MANUAL.md`, 3 rule files, rewritten `CLAUDE.md` |
+| 6B Tooling | ESLint 9 flat, Prettier (matching Builder byte-for-byte), tsconfig ratchet, `.nvmrc`, `.editorconfig` |
+| 6C Tests | Vitest harness + **69 tests passing**, coverage ratchet at measured floor |
+| 6D CI/CD | `pr-checks.yml` with `pr-gate` aggregator, tag-triggered release packaging, PR template, `BRANCHING.md` |
+| 6E Discipline | Conventional Commits + lint-staged hooks, both verified working |
+
+### Bugs found and fixed
+
+The tooling paid for itself immediately. First lint run surfaced **three
+`no-undef` errors that were genuine `ReferenceError` crashes**:
+
+1. **`Toolbar.jsx:1594,1597`** — `importMediaToSelectedSlide` used without
+   being imported. Insert → Media → Insert Image/Video was **dead from the
+   toolbar**, while the identical action worked from the filmstrip context
+   menu. `CLAUDE.md` had claimed this feature worked since Phase 3.
+2. **`presentationCommands.js:413`** — `DEFAULT_PLACEHOLDER_TEXT` used without
+   being imported; crashed the media-slide → text-slide path.
+
+Both fixed. `no-undef` is now the permanent mechanical guard.
+
+### Key decisions and why
+
+- **`checkJs` is OFF, deliberately.** Enabling it across 18.9k untyped lines
+  would emit hundreds of day-one errors, and a gate that always fails is a gate
+  that gets ignored. It is an opt-in ratchet instead: new files are TypeScript
+  and fully checked; existing files opt in with `// @ts-check` as they are
+  touched. The checked surface only grows.
+- **Legacy lint debt is suppressed, not disabled.** The 71 remaining errors live
+  in `eslint-suppressions.json` (ESLint 9 bulk suppressions). New violations
+  still fail the build, and `--prune-suppressions` shrinks the baseline as 6G
+  fixes them. Warnings are capped at 16 so they cannot grow either.
+- **Coverage thresholds are the measured value, not a target.** 2.6% lines is
+  embarrassing but true; an aspirational 80% would have been deleted the first
+  time it failed.
+- **Trunk-based, not Builder's `staging` → `main`.** Builder promotes between
+  two AWS accounts. PresenterPro has no environment to promote between — a
+  release is an artifact, so it is cut from a tag.
+- **Required PR approvals stay OFF.** GitHub forbids self-approval; requiring
+  one would make every PR unmergeable in a single-maintainer repo. `PR Gate` is
+  what enforces quality. Turn approvals on when a second person joins.
+
+### One-time reformat
+
+`style: apply Prettier` touched 67 files (+8888/−6498), because this codebase
+was written without semicolons and Builder's config uses `semi: true`. Matching
+Builder was the explicit goal. Verified non-semantic two ways: the build
+succeeds, and the lint count was identical (90) before and after. The revision
+is listed in `.git-blame-ignore-revs`, and `git blame` is configured to skip it.
+
+### Awaiting Ethan (outward-facing, not done without approval)
+
+1. **Push `chore/engineering-system` and open the PR** — this is also the only
+   way to see `PR Gate` actually run (item 19's verification).
+2. **Enable branch protection on `main`** (item 21) — a repo-settings change.
+3. **Delete the two stale `codex/*` branches** (item 24) — destructive.
+
+### Carried forward
+
+`tasks/phase7-remediation.md` now holds the audit backlog with a counted
+ratchet baseline: 10 findings, and the exact rule-by-rule breakdown of all 87
+lint problems. Phases 6F–6G work that list top-down, each fix preceded by a
+failing test.
