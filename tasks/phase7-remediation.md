@@ -11,6 +11,39 @@ behavior · **P2** = dead code, cleanup, or risk without a known symptom.
 
 ## P0 — Confirmed runtime crashes
 
+### 0. The app cannot be quit with Cmd+Q
+
+- **Where:** `electron/main/index.js` — `close` handler at :664, menu
+  `{ role: 'quit' }` at :1442, `window-all-closed` at :1541.
+- **What:** there is **no `before-quit` listener** (`grep -c "before-quit"` → 0).
+  Cmd+Q asks Electron to quit, Electron tries to close the main window, and the
+  `close` handler calls `event.preventDefault()` to hand control to the renderer
+  for the unsaved-changes prompt. That preventDefault **cancels the quit**. The
+  renderer then replies and calls `window:close`, which closes the *window* —
+  but the quit is already aborted, and `window-all-closed` deliberately does not
+  quit on darwin. The process stays alive in the dock.
+- **Why it was never caught:** `appIsQuitting` is only ever set by
+  `prepareForAppShutdown()`, which is called from exactly one place — the
+  "PresenterPro Is Not Responding → Force Close" branch at :683. On a healthy
+  app nothing sets it.
+- **Second failure mode:** if the renderer never replies (crash, or a dialog
+  path that never resolves), `mainWindowCloseRequestPending` latches `true` and
+  the guard at :692 silently `preventDefault()`s **every** subsequent close with
+  no dialog at all — a permanently unquittable window.
+- **Aggravating factor (not a code bug):** `~/Desktop/PresenterPro.app` is not a
+  packaged bundle. It is a bash script that runs `npm run dev`, so quitting the
+  Electron window leaves `npm run dev` and `electron-vite` alive as orphans.
+- **Fix:** add a `before-quit` listener that sets the shutdown flag so the close
+  handler lets the quit through; give the renderer handshake a hard timeout so
+  it cannot latch; handle `render-process-gone` so a dead renderer still allows
+  close. **Test first:** assert the close handler does not `preventDefault` once
+  the quitting flag is set, and that a handshake that never resolves still
+  closes after the timeout.
+
+---
+
+## P0 — Confirmed runtime crashes (fixed in Phase 6C)
+
 Found by ESLint `no-undef` on the very first lint run (2026-09-05).
 
 ### 1. Toolbar "Insert Image" / "Insert Video" throws ReferenceError
