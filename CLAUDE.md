@@ -1,72 +1,130 @@
-# Claude Workflow Rules
+# CLAUDE.md — PresenterPro
 
-Follow these rules for every task in this project:
+## Start here
 
-1. **Think first, then plan.** Read the codebase for relevant files and write a plan to `tasks/todo.md` before doing anything else.
+Governance for this repo lives in dedicated files. **Read them instead of
+relying on this one**; this file only carries project state.
 
-2. **Use a checklist.** The plan in `tasks/todo.md` must be a list of todo items that can be checked off as they are completed.
+| Question | File |
+|---|---|
+| How do agents and I work together? | [`AGENTS.md`](AGENTS.md) |
+| What are the roles, stages, and the Self-Review gate? | [`AI_OPERATING_MANUAL.md`](AI_OPERATING_MANUAL.md) |
+| What is the testing policy and completion gate? | [`.cursor/rules/testing-standards.mdc`](.cursor/rules/testing-standards.mdc) |
+| How do I actually write a test here? | [`.cursor/rules/writing-tests.mdc`](.cursor/rules/writing-tests.mdc) |
+| How do I write a plan another agent will execute? | [`.cursor/rules/writing-executable-plans.mdc`](.cursor/rules/writing-executable-plans.mdc) |
+| How do branches, PRs, and releases work? | [`.github/BRANCHING.md`](.github/BRANCHING.md) |
 
-3. **Check in before starting.** After writing the plan, pause and confirm it with Ethan before beginning any work.
+When this file and a rule file disagree, **the rule file wins**.
 
-4. **Work through the checklist.** Complete todo items one at a time, marking each as done (`- [x]`) as you go.
+## Workflow (summary — the manual is authoritative)
 
-5. **High-level explanations only.** After each step, give a brief, plain-English summary of what changed — no need for deep technical detail.
+1. **Think first, then plan.** Read the relevant code and write a plan to
+   `tasks/todo.md` before doing anything else. The plan must follow
+   `writing-executable-plans.mdc` and end with a complete Compliance Manifest.
+2. **Use a checklist.** The plan is a list of items that can be checked off.
+3. **Check in before starting.** Confirm the plan with Ethan before any work.
+4. **Work through the checklist**, marking each item `- [x]` as you go.
+5. **High-level explanations only** after each step — plain English, no deep
+   technical detail unless asked.
+6. **Keep changes small and simple.** Every change touches as little code as
+   necessary. Simplicity above all.
+7. **Add a review section.** When all items are complete, append `## Review` to
+   `tasks/todo.md` summarizing what changed and any notes.
+8. **Run the gate.** `npm run gate` from `presenter-pro/` before calling anything
+   done, and verify user-facing changes in a running window.
 
-6. **Keep changes small and simple.** Every code change should be as minimal as possible. Avoid large or complex edits. Each change should touch as little code as necessary. Simplicity above all.
+Completed plans are archived in `tasks/` as `<phase-or-session>-<name>.md`.
 
-7. **Add a review section.** When all items are complete, append a `## Review` section to `tasks/todo.md` summarizing what was changed and any other relevant notes.
-
+---
 
 # PresenterPro Notes
 
+Local-first Electron desktop app for worship presentations — a simpler,
+PowerPoint-style alternative to ProPresenter.
+
+**Stack:** Electron 29 + React 18 + Zustand + Tailwind, built by `electron-vite`;
+`better-sqlite3` for persistence.
+
 ## What's Built
-- Phase 1 foundation through editor, song library, presenting, and core polish exists in the Electron/React app.
-- Custom "Phase 2" work is complete: presenter flow fixes, formatting toolbar, unsaved warnings, drag reorder, and inline presentation rename.
-- Phase 3 bug-fix work completed so far:
-  - native Electron menu commands are now wired into renderer behavior
-  - custom menu actions now map to real app commands or disable when unavailable
-  - Media Library can set slide and presentation backgrounds
+
+- Phase 1 foundation through editor, song library, presenting, and core polish.
+- Phase 2: presenter flow fixes, formatting toolbar, unsaved warnings, drag
+  reorder, inline presentation rename.
+- Phase 3 bug-fix work:
+  - native Electron menu commands wired into renderer behavior
+  - custom menu actions map to real app commands or disable when unavailable
+  - Media Library can set slide and section backgrounds
   - canvas and output windows render image/video backgrounds
-  - Home screen supports recent-card context actions for open, rename, and delete
-  - Home recent cards show real first-slide text previews when available
-  - filmstrip section and slide context menus were expanded
-  - presenter/editor black and logo state sync is improved
-  - Song section labels expanded to 9 types with color badges and custom label input
-  - Presenter panel moved to in-editor right sidebar (300px, collapsible); separate presenterWindow code commented out in main.js for rollback
-  - slide rendering now scales from presentation-native dimensions instead of fixed preview font sizes
-  - newline preservation is normalized across canvas, filmstrip, presenter previews, and output rendering
-  - presentation aspect ratio is saved per presentation, including custom width/height values
-  - blank presentations now start with a starter slide instead of an empty editor state
-  - newly created slides now show a `Click to edit` placeholder that clears on first input
-  - Delete/Backspace now remove the selected slide when focus is not in a text field
-  - Spacebar advancement in presentation mode was hardened for the in-editor presenter sidebar
-  - filmstrip drag targets now animate open to show the drop location more clearly
-  - filmstrip and presenter sidebar widths now persist in localStorage
-  - sidebar resize caps were tightened further so the filmstrip and presenter preview cannot over-expand
-  - Insert Image / Insert Video now use native Electron file pickers and apply imported media to the selected slide
-  - center-canvas slide context menu now supports set background, copy, paste, clear, and delete actions
-  - slide text now lives in a real draggable/resizable text box on the canvas, with center snapping guides and persisted box geometry
-  - text box fill color, font family, font size, bold, italic, underline, text color, alignment, and line-height controls are now available in the editor toolbar
-  - scaled slide text rendering now respects text-box position/style in the editor, presenter previews, and output window
-  - song editor now includes a draggable Song Order panel, and saved song order is respected when inserting songs into presentations
-  - Output Settings now detects desktop displays, assigns Main Output vs Stage Display screens, and saves a basic Stage Display theme
-  - a separate Stage Display window now shows large lyric text with a next-slide preview
-  - Output Settings now includes a UI stub for SMPTE / Blackmagic video-output architecture distinct from desktop graphics outputs
+  - Home screen recent-card context actions (open, rename, delete) with real
+    first-slide text previews
+  - filmstrip section and slide context menus expanded
+  - presenter/editor black and logo state sync improved
+  - song section labels expanded to 9 types with color badges and custom labels
+  - presenter panel moved to an in-editor right sidebar (300px, collapsible);
+    separate `presenterWindow` code commented out in `main.js` for rollback
+  - slide rendering scales from presentation-native dimensions
+  - newline preservation normalized across canvas, filmstrip, presenter
+    previews, and output rendering
+  - presentation aspect ratio saved per presentation, including custom sizes
+  - blank presentations start with a starter slide; new slides show a
+    `Click to edit` placeholder that clears on first input
+  - Delete/Backspace removes the selected slide when focus is outside a text field
+  - spacebar advancement hardened for the in-editor presenter sidebar
+  - filmstrip drag targets animate open; filmstrip and presenter widths persist
+    in localStorage with tightened resize caps
+  - Insert Image / Insert Video use native Electron file pickers
+  - center-canvas slide context menu supports set background, copy, paste,
+    clear, and delete
+  - slide text lives in a real draggable/resizable text box with center snapping
+    and persisted geometry; fill, font, size, B/I/U, color, alignment, and
+    line-height controls in the toolbar
+  - song editor has a draggable Song Order panel, respected on insert
+  - Output Settings detects displays, assigns Main Output vs Stage Display, and
+    saves a basic Stage Display theme; separate Stage Display window shows large
+    lyric text with a next-slide preview
+  - Output Settings includes a UI stub for SMPTE / Blackmagic video output
+- Phase 4: Home redesign (`Home / New / Recent / Open` rail, template cards).
+- Phase 5: section-based background model, reusable Media Library, continuous
+  background playback, countdown overlay, media slides in the flow.
+- Session 9: floating contextual text box toolbar.
+
+## In Progress
+
+**Phase 6 — Engineering System** (`tasks/todo.md`). Porting the governance,
+TDD, CI/CD, and branch model from `Motion-Worship/builder`. Phases 6F–6G are a
+full audit and repair pass over the existing code, and are deliberately
+sequenced *after* the test harness exists.
 
 ## What's Pending
+
 - Audit remaining inline styles against the PDF's design-system guidance.
-- Improve background rendering fidelity further in filmstrip/home previews if desired.
-- Decide whether "Open…" should stay as a Home/recent-navigation action or grow into a fuller presentation picker/export-import flow.
+- Improve background rendering fidelity in filmstrip/home previews.
+- Decide whether "Open…" stays a Home/recent-navigation action or grows into a
+  fuller presentation picker / export-import flow.
 - Resolve the runtime font warning for `/fonts/Inter-Variable.woff2`.
-- Full manual runtime verification is still needed on both macOS and Windows hardware, especially for multi-display output assignment and native presentation behavior.
+- Full manual runtime verification on both macOS and Windows hardware,
+  especially multi-display output assignment and native presentation behavior.
 
 ## Known Issues
-- The build succeeds, but Vite still warns that `/fonts/Inter-Variable.woff2` is unresolved at build time.
-- Presentation backgrounds are stored in the DB now, but older rows may not have `default_background_id` populated.
-- Slide move/context-menu flows currently use simple prompt-based UX for some operations.
+
+- Build succeeds, but Vite warns that `/fonts/Inter-Variable.woff2` is
+  unresolved at build time.
+- Presentation backgrounds are stored in the DB, but older rows may not have
+  `default_background_id` populated.
+- Some slide move / context-menu flows still use prompt-based UX.
+- `.git` is ~49M because test media was committed as raw blobs. History is
+  intentionally left alone; `test-media/` is ignored going forward.
 
 ## Architectural Decisions
-- Renderer command handling is centralized through `src/utils/appCommands.js` so native menu events and custom menu clicks stay consistent.
-- Presentation loading/saving/opening helpers live in `src/utils/presentationCommands.js`.
-- Background inheritance is normalized through `src/utils/backgrounds.js` so slide, section, and presentation background behavior stays predictable.
-- Background rendering is resolved locally in renderer windows rather than requiring every IPC call to carry a full media payload.
+
+- Renderer command handling is centralized in `src/utils/appCommands.js` so
+  native menu events and custom menu clicks stay consistent.
+- Presentation load/save/open helpers live in `src/utils/presentationCommands.js`.
+- Background inheritance is normalized through `src/utils/backgrounds.js`.
+- Background rendering resolves locally in renderer windows rather than making
+  every IPC call carry a full media payload.
+- Section background is the primary background model; it persists under text
+  across slide changes within a section until changed.
+- Renderer talks to main only through `src/utils/ipc.js`, which returns a
+  `{ success, data, error }` envelope. Do not call `window.electronAPI` directly
+  from components.
