@@ -547,3 +547,12 @@ and it produced "name 2.ext" duplicates of three brand-new test files while I
 worked. Vitest and ESLint now ignore that pattern; prettier's rule for it was
 silently inert (POSIX class) and is now a plain glob. If you ever see a
 "… 2.ts" file in git status, delete it — it is never a source of truth.
+### 2026-09-06 — A4: the database layer now has real-SQLite unit tests
+The follow-up I suggested after U1, done: `tasks/plan-A4-real-sqlite-tests.md`.
+22 cases run the migration runner on the legacy schema (with a real backup
+directory) and every query module against real in-memory SQLite. They prove
+the things the SQL-text fakes could only spell: `updateSong` really keeps
+provenance columns when the editor omits them, the journal really upserts,
+deleting a folder really removes its media, the backup really is the untouched
+original and a second run really writes nothing. All green first time — no
+production bug found, which is itself worth knowing. Coverage 7.4 → 8.3 %.
