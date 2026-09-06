@@ -63,9 +63,6 @@ function waitWithTimeout(promise, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-// DISABLED (session 6): old session uses separate presenterWindow — kept for rollback
-// export async function startPresentationSession(presentation) { ... }
-
 /**
  * Sidebar-mode start: opens only the output window (no separate presenter window).
  * Sends the currently selected slide first, or falls back to the first slide.
@@ -141,8 +138,6 @@ export async function syncPresentationSession(presentation) {
   // Keep sidebar panel's allSlides in sync when the presentation is edited mid-session
   usePresenterStore.getState().setAllSlides(slides);
 
-  // DISABLED (session 6): presenter:updateSlides IPC handler removed
-  // await updatePresentationSlides(slides)
   await setPresentationSessionSlides(slides);
 
   const { isPresenting, liveSectionId, liveSlideId } = usePresenterStore.getState();

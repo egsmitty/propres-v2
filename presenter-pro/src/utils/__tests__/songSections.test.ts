@@ -103,3 +103,19 @@ describe('parseSongGroupsFromLyrics', () => {
     expect(parseSongGroupsFromLyrics()).toEqual([]);
   });
 });
+
+// Phase7 #3: characterization of resolveSongSectionType BEFORE the
+// `no-useless-escape` fix in its character class, so the fix is provably
+// behaviour-preserving. All five label shapes the app produces or imports.
+describe('resolveSongSectionType — bracket/dash/dot stripping', () => {
+  it.each([
+    ['[Verse 1]', 'verse'],
+    ['Chorus 2', 'chorus'],
+    ['[Bridge]', 'bridge'],
+    ['Pre-Chorus', 'pre-chorus'],
+    ['T.A.', 'turnaround'],
+    ['[Turn]', 'turnaround'],
+  ])('%s → %s', (raw, expected) => {
+    expect(resolveSongSectionType(raw)).toBe(expected);
+  });
+});
