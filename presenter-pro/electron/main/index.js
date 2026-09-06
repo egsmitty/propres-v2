@@ -11,6 +11,7 @@ const {
 } = require('electron');
 const os = require('os');
 const { createCloseController } = require('./closeController');
+const { createIpcRegistry } = require('./ipcRegistry');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
@@ -896,9 +897,13 @@ function createStageDisplayWindow(options = {}) {
 
 function registerIpcHandlers() {
   const db = getDb();
+  // Every channel goes through the registry (plan B1): unknown channels are
+  // rejected, throws and non-envelopes become failure envelopes, and
+  // assertComplete() below fails the launch if a contract channel is missing.
+  const ipc = createIpcRegistry(ipcMain);
 
   // Window controls
-  ipcMain.handle('window:close', () => {
+  ipc.handle('window:close', () => {
     if (mainWindow) {
       // The renderer resolved unsaved changes and approved the close. This
       // permission is single-use, so a later close still gets the prompt.
@@ -906,21 +911,21 @@ function registerIpcHandlers() {
       mainWindow.close();
     }
   });
-  ipcMain.on('window:closeRequestResolved', () => {
+  ipc.on('window:closeRequestResolved', () => {
     // The user cancelled the save prompt. Any quit that was waiting on this
     // handshake is cancelled too, or a later window close would quit the app.
     quitRequested = false;
     resetMainWindowCloseRequestState();
   });
-  ipcMain.handle('window:minimize', () => {
+  ipc.handle('window:minimize', () => {
     if (mainWindow) mainWindow.minimize();
   });
-  ipcMain.handle('window:maximize', () => {
+  ipc.handle('window:maximize', () => {
     if (mainWindow) {
       mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
     }
   });
-  ipcMain.handle('window:getViewState', (event) => {
+  ipc.handle('window:getViewState', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return {
       success: true,
@@ -929,7 +934,7 @@ function registerIpcHandlers() {
       },
     };
   });
-  ipcMain.handle('preview:getState', () => {
+  ipc.handle('preview:getState', () => {
     return {
       success: true,
       data: getPreviewWindowState(),
@@ -937,28 +942,28 @@ function registerIpcHandlers() {
   });
 
   // Presentations
-  ipcMain.handle('db:presentations:getAll', () => {
+  ipc.handle('db:presentations:getAll', () => {
     try {
       return { success: true, data: presentationQueries.getPresentations(db) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:presentations:get', (_, id) => {
+  ipc.handle('db:presentations:get', (_, id) => {
     try {
       return { success: true, data: presentationQueries.getPresentation(db, id) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:presentations:create', (_, data) => {
+  ipc.handle('db:presentations:create', (_, data) => {
     try {
       return { success: true, data: presentationQueries.createPresentation(db, data) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:presentations:update', (_, id, data) => {
+  ipc.handle('db:presentations:update', (_, id, data) => {
     try {
       return { success: true, data: presentationQueries.updatePresentation(db, id, data) };
     } catch (e) {
@@ -967,35 +972,35 @@ function registerIpcHandlers() {
   });
 
   // Crash-recovery journal (plan A2). Same envelope as every other handler.
-  ipcMain.handle('db:journal:write', (_, data) => {
+  ipc.handle('db:journal:write', (_, data) => {
     try {
       return { success: true, data: journalQueries.writeJournal(db, data) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:journal:list', () => {
+  ipc.handle('db:journal:list', () => {
     try {
       return { success: true, data: journalQueries.listJournals(db) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:journal:delete', (_, presentationId) => {
+  ipc.handle('db:journal:delete', (_, presentationId) => {
     try {
       return { success: true, data: journalQueries.deleteJournal(db, presentationId) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:presentations:touch', (_, id) => {
+  ipc.handle('db:presentations:touch', (_, id) => {
     try {
       return { success: true, data: presentationQueries.touchPresentation(db, id) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:presentations:delete', (_, id) => {
+  ipc.handle('db:presentations:delete', (_, id) => {
     try {
       presentationQueries.deletePresentation(db, id);
       return { success: true };
@@ -1005,28 +1010,28 @@ function registerIpcHandlers() {
   });
 
   // Songs
-  ipcMain.handle('db:songs:getAll', () => {
+  ipc.handle('db:songs:getAll', () => {
     try {
       return { success: true, data: songQueries.getSongs(db) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:songs:create', (_, data) => {
+  ipc.handle('db:songs:create', (_, data) => {
     try {
       return { success: true, data: songQueries.createSong(db, data) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:songs:update', (_, id, data) => {
+  ipc.handle('db:songs:update', (_, id, data) => {
     try {
       return { success: true, data: songQueries.updateSong(db, id, data) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:songs:delete', (_, id) => {
+  ipc.handle('db:songs:delete', (_, id) => {
     try {
       songQueries.deleteSong(db, id);
       return { success: true };
@@ -1036,28 +1041,28 @@ function registerIpcHandlers() {
   });
 
   // Media
-  ipcMain.handle('db:media:getAll', () => {
+  ipc.handle('db:media:getAll', () => {
     try {
       return { success: true, data: mediaQueries.getMedia(db).map(serializeMediaRecord) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:mediaFolders:getAll', () => {
+  ipc.handle('db:mediaFolders:getAll', () => {
     try {
       return { success: true, data: mediaQueries.getMediaFolders(db) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:mediaFolders:create', (_, data) => {
+  ipc.handle('db:mediaFolders:create', (_, data) => {
     try {
       return { success: true, data: mediaQueries.createMediaFolder(db, data) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:media:create', (_, data) => {
+  ipc.handle('db:media:create', (_, data) => {
     try {
       const normalized = data?.file_path
         ? normalizeMediaFilePath(data.file_path)
@@ -1076,14 +1081,14 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:mediaFolders:update', (_, id, data) => {
+  ipc.handle('db:mediaFolders:update', (_, id, data) => {
     try {
       return { success: true, data: mediaQueries.updateMediaFolder(db, id, data) };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:mediaFolders:delete', (_, id) => {
+  ipc.handle('db:mediaFolders:delete', (_, id) => {
     try {
       mediaQueries.deleteMediaFolder(db, id);
       return { success: true };
@@ -1091,7 +1096,7 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('media:import', async (_, options = {}) => {
+  ipc.handle('media:import', async (_, options = {}) => {
     try {
       const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile', 'multiSelections'],
@@ -1125,7 +1130,7 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('media:pick', async (_, { kind }) => {
+  ipc.handle('media:pick', async (_, { kind }) => {
     try {
       const filters =
         kind === 'video'
@@ -1162,7 +1167,7 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:media:update', (_, id, data) => {
+  ipc.handle('db:media:update', (_, id, data) => {
     try {
       const normalized = data?.file_path ? normalizeMediaFilePath(data.file_path) : data?.file_path;
       const thumbnailPath = data?.thumbnail_path
@@ -1183,7 +1188,7 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('db:media:delete', (_, id) => {
+  ipc.handle('db:media:delete', (_, id) => {
     try {
       mediaQueries.deleteMedia(db, id);
       return { success: true };
@@ -1193,7 +1198,7 @@ function registerIpcHandlers() {
   });
 
   // Output windows
-  ipcMain.handle('output:open', (_, options) => {
+  ipc.handle('output:open', (_, options) => {
     const resolvedOptions =
       typeof options === 'number'
         ? { displayId: Number(options) }
@@ -1203,7 +1208,7 @@ function registerIpcHandlers() {
     createOutputWindow(resolvedOptions);
     return { success: true };
   });
-  ipcMain.handle('output:close', () => {
+  ipc.handle('output:close', () => {
     if (outputWindow) {
       publishPreviewWindowState('output', false);
       notifyMainWindow('preview:windowClosed', { kind: 'output' });
@@ -1211,7 +1216,7 @@ function registerIpcHandlers() {
     }
     return { success: true };
   });
-  ipcMain.handle('stage:open', (_, options) => {
+  ipc.handle('stage:open', (_, options) => {
     try {
       const data = createStageDisplayWindow(options);
       return { success: true, data };
@@ -1219,7 +1224,7 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('stage:close', () => {
+  ipc.handle('stage:close', () => {
     if (stageDisplayWindow) {
       publishPreviewWindowState('stage', false);
       notifyMainWindow('preview:windowClosed', { kind: 'stage' });
@@ -1227,24 +1232,24 @@ function registerIpcHandlers() {
     }
     return { success: true };
   });
-  ipcMain.handle('output:ready', () => {
+  ipc.handle('output:ready', () => {
     markOutputReady();
     return { success: true };
   });
-  ipcMain.handle('stage:ready', () => {
+  ipc.handle('stage:ready', () => {
     markStageDisplayReady();
     syncStageDisplay();
     return { success: true };
   });
-  ipcMain.handle('output:waitReady', () => waitForReady('output'));
-  ipcMain.handle('stage:waitReady', () => waitForReady('stage'));
-  ipcMain.handle('output:setSessionSlides', (_, { slides }) => {
+  ipc.handle('output:waitReady', () => waitForReady('output'));
+  ipc.handle('stage:waitReady', () => waitForReady('stage'));
+  ipc.handle('output:setSessionSlides', (_, { slides }) => {
     presentationSessionSlides = Array.isArray(slides) ? slides : [];
     syncStageDisplay();
     return { success: true };
   });
 
-  ipcMain.handle('output:sendSlide', (_, { slide, background }) => {
+  ipc.handle('output:sendSlide', (_, { slide, background }) => {
     resetOutputState();
     currentStageSlide = slide || null;
     currentStageBackground = background || null;
@@ -1254,14 +1259,14 @@ function registerIpcHandlers() {
     syncCountdownState();
     return { success: true };
   });
-  ipcMain.handle('output:refreshSlide', (_, { slide, background }) => {
+  ipc.handle('output:refreshSlide', (_, { slide, background }) => {
     currentStageSlide = slide || null;
     currentStageBackground = background || null;
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background });
     syncStageDisplay();
     return { success: true };
   });
-  ipcMain.handle('output:black', () => {
+  ipc.handle('output:black', () => {
     outputState = {
       isBlack: !outputState.isBlack,
       isLogo: false,
@@ -1269,7 +1274,7 @@ function registerIpcHandlers() {
     syncOutputState();
     return { success: true, data: outputState };
   });
-  ipcMain.handle('output:logo', () => {
+  ipc.handle('output:logo', () => {
     outputState = {
       isBlack: false,
       isLogo: !outputState.isLogo,
@@ -1277,17 +1282,17 @@ function registerIpcHandlers() {
     syncOutputState();
     return { success: true, data: outputState };
   });
-  ipcMain.handle('output:countdownStart', (_, { durationSeconds }) => {
+  ipc.handle('output:countdownStart', (_, { durationSeconds }) => {
     startCountdown(durationSeconds);
     syncCountdownState();
     return { success: true, data: countdownState };
   });
-  ipcMain.handle('output:countdownStop', () => {
+  ipc.handle('output:countdownStop', () => {
     resetCountdownState();
     syncCountdownState();
     return { success: true, data: countdownState };
   });
-  ipcMain.handle('output:stop', () => {
+  ipc.handle('output:stop', () => {
     setPresentationSessionActive(false);
     resetOutputState();
     resetCountdownState();
@@ -1309,7 +1314,7 @@ function registerIpcHandlers() {
   });
 
   // Settings
-  ipcMain.handle('settings:getAll', () => {
+  ipc.handle('settings:getAll', () => {
     try {
       const rows = db.prepare('SELECT key, value FROM settings').all();
       const settings = {};
@@ -1321,7 +1326,7 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('settings:set', (_, key, value) => {
+  ipc.handle('settings:set', (_, key, value) => {
     try {
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
       broadcast('settings:updated', { key, value });
@@ -1330,14 +1335,14 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('system:getProfile', () => {
+  ipc.handle('system:getProfile', () => {
     try {
       return { success: true, data: getProfileData() };
     } catch (e) {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('system:getDisplays', () => {
+  ipc.handle('system:getDisplays', () => {
     try {
       return {
         success: true,
@@ -1352,7 +1357,7 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle('system:resolveBuiltInMedia', (_, assetNames = []) => {
+  ipc.handle('system:resolveBuiltInMedia', (_, assetNames = []) => {
     try {
       const names = Array.isArray(assetNames) ? assetNames : [];
       return {
@@ -1365,6 +1370,8 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
+
+  ipc.assertComplete();
 }
 
 // ─── Native Menu ─────────────────────────────────────────────────────────────

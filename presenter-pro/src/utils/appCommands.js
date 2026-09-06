@@ -8,7 +8,15 @@ function isTextFieldFocused() {
   const tag = el.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
 }
-import { openOutputWindow, openStageDisplayWindow, touchPresentation } from '@/utils/ipc';
+import {
+  openOutputWindow,
+  openStageDisplayWindow,
+  resolveWindowCloseRequest,
+  sendBlack,
+  sendLogo,
+  touchPresentation,
+  windowClose,
+} from '@/utils/ipc';
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow';
 import {
   copySelectedSlideToClipboard,
@@ -78,7 +86,7 @@ export async function runAppCommand(command) {
         );
 
         if (!stopAndClose) {
-          window.electronAPI?.resolveWindowCloseRequest?.();
+          resolveWindowCloseRequest();
           return false;
         }
 
@@ -98,9 +106,9 @@ export async function runAppCommand(command) {
       });
       if (canClose) {
         appState.setAllowWindowClose(true);
-        window.electronAPI?.windowClose?.();
+        windowClose();
       } else {
-        window.electronAPI?.resolveWindowCloseRequest?.();
+        resolveWindowCloseRequest();
       }
       return canClose;
     }
@@ -207,10 +215,10 @@ export async function runAppCommand(command) {
       if (presenterState.isPresenting) return stopPresentationSession();
       return false;
     case 'present:black':
-      if (presenterState.isPresenting) return window.electronAPI?.sendBlack();
+      if (presenterState.isPresenting) return sendBlack();
       return false;
     case 'present:logo':
-      if (presenterState.isPresenting) return window.electronAPI?.sendLogo();
+      if (presenterState.isPresenting) return sendLogo();
       return false;
     case 'help:shortcuts':
       appState.setShortcutsOpen(true);

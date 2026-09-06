@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import {
-  getSettings,
-  getSystemDisplays,
-  openOutputWindow,
-  openStageDisplayWindow,
   closeOutputWindow,
   closeStageDisplayWindow,
+  getPreviewWindowState,
+  getSettings,
+  getSystemDisplays,
+  onPreviewWindowClosed,
+  onPreviewWindowState,
+  openOutputWindow,
+  openStageDisplayWindow,
   setSetting,
 } from '@/utils/ipc';
 
@@ -71,7 +74,7 @@ export default function OutputSettingsModal() {
     let cancelled = false;
 
     async function syncPreviewState() {
-      const result = await window.electronAPI?.getPreviewWindowState?.();
+      const result = await getPreviewWindowState();
       if (cancelled || !result?.success) return;
       setMainPreviewOpen(Boolean(result.data?.outputOpen));
       setStagePreviewOpen(Boolean(result.data?.stageOpen));
@@ -96,11 +99,11 @@ export default function OutputSettingsModal() {
 
     load();
 
-    const offPreviewClosed = window.electronAPI?.onPreviewWindowClosed?.(({ kind }) => {
+    const offPreviewClosed = onPreviewWindowClosed(({ kind }) => {
       if (kind === 'output') setMainPreviewOpen(false);
       if (kind === 'stage') setStagePreviewOpen(false);
     });
-    const offPreviewState = window.electronAPI?.onPreviewWindowState?.(({ kind, open }) => {
+    const offPreviewState = onPreviewWindowState(({ kind, open }) => {
       if (kind === 'output') setMainPreviewOpen(Boolean(open));
       if (kind === 'stage') setStagePreviewOpen(Boolean(open));
     });

@@ -1,7 +1,9 @@
+import { getElectronPlatform } from '@/utils/ipc';
+
 function detectPlatform() {
   if (typeof window === 'undefined') return 'unknown';
 
-  const reportedPlatform = window.electronAPI?.platform;
+  const reportedPlatform = getElectronPlatform();
   if (reportedPlatform) return reportedPlatform;
 
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';

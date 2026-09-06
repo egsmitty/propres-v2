@@ -8,6 +8,8 @@ import {
   sendSlide,
   setPresentationSessionSlides,
   stopPresenting as stopPresentingIpc,
+  waitForOutputReady,
+  waitForStageDisplayReady,
 } from '@/utils/ipc';
 import { alertDialog } from '@/utils/dialog';
 
@@ -75,7 +77,7 @@ export async function startSidebarPresentationSession(presentation) {
 
   await openOutputWindow();
   try {
-    await waitWithTimeout(window.electronAPI?.waitForOutputReady?.(), 'Output');
+    await waitWithTimeout(waitForOutputReady(), 'Output');
   } catch (err) {
     await alertDialog(err?.message || 'Could not open output window. Try again.', {
       title: 'Presentation Failed',
@@ -86,7 +88,7 @@ export async function startSidebarPresentationSession(presentation) {
   const stageResult = await openStageDisplayWindow({ onlyIfAssigned: true });
   if (stageResult?.success && stageResult?.data?.opened) {
     try {
-      await waitWithTimeout(window.electronAPI?.waitForStageDisplayReady?.(), 'Stage Display');
+      await waitWithTimeout(waitForStageDisplayReady(), 'Stage Display');
     } catch (err) {
       await alertDialog(err?.message || 'Could not open stage display window. Try again.', {
         title: 'Stage Display Failed',

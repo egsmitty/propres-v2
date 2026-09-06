@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { slideBodyToPlainText } from '@/utils/slideMarkup';
+import {
+  closeStageDisplayWindow,
+  getWindowViewState,
+  notifyStageDisplayReady,
+  onStageUpdate,
+  onWindowViewState,
+} from '@/utils/ipc';
 
 function getStageText(slide, emptyMessage) {
   const text = slideBodyToPlainText(slide?.body || '');
@@ -31,22 +38,18 @@ export default function StageDisplayRenderer() {
   const [isPreviewWindow, setIsPreviewWindow] = useState(true);
 
   useEffect(() => {
-    const api = window.electronAPI;
-    if (!api) return undefined;
-
-    api.notifyStageDisplayReady?.();
-    api
-      .getWindowViewState?.()
+    notifyStageDisplayReady();
+    getWindowViewState()
       .then((result) => {
         if (result?.success) setIsPreviewWindow(!result.data?.isFullScreen);
       })
       .catch(() => {});
 
-    const offUpdate = api.onStageUpdate?.(({ currentSlide: current, nextSlide: next }) => {
+    const offUpdate = onStageUpdate(({ currentSlide: current, nextSlide: next }) => {
       setCurrentSlide(current || null);
       setNextSlide(next || null);
     });
-    const offViewState = api.onWindowViewState?.(({ isFullScreen }) => {
+    const offViewState = onWindowViewState(({ isFullScreen }) => {
       setIsPreviewWindow(!isFullScreen);
     });
 
@@ -76,7 +79,7 @@ export default function StageDisplayRenderer() {
       {isPreviewWindow ? (
         <button
           type="button"
-          onClick={() => window.electronAPI?.closeStageDisplayWindow?.()}
+          onClick={() => closeStageDisplayWindow()}
           style={{
             position: 'absolute',
             top: 22,
