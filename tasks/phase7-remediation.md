@@ -122,7 +122,7 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
   wrong thing. **Verify what it currently matches before changing it** — write
   a characterization test first, then fix only if behavior is genuinely wrong.
 
-### 3b. `.mov` video imports render upside down
+### 3b. `.mov` video imports render upside down — **DEFERRED (Ethan, 2026-09-06)**
 
 - **Reported by Ethan during Tier 1 verification.** Importing a `.mov` displayed
   it flipped vertically; `.mp4` files were fine.
@@ -138,7 +138,10 @@ Found by ESLint `no-undef` on the very first lint run (2026-09-05).
   90/180° rotation matrix (`ffprobe -show_streams` → `side_data` / `rotation`)
   before changing render code. If it does, the fix is to read the orientation
   and normalize it, not to blanket-flip `.mov`.
-- **Not yet reproduced by a test.** Needs a sample file committed as a fixture.
+- **Decision: not fixing for now.** Ethan: "if people are uploading weird .mov
+  thats on them for now." `.mp4` is the expected format and works correctly.
+  Revisit only if it comes up in real use — the investigation notes above stay
+  here so nobody re-derives them.
 
 ### 4. 17 × `react-hooks/set-state-in-effect`
 
