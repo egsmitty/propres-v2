@@ -1,7 +1,7 @@
 {
   "name": "presenter-pro",
   "productName": "PresenterPro",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "PowerPoint for Worship Media",
   "main": "out/main/index.js",
   "author": "Ethan Smith",
