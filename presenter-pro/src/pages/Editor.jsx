@@ -13,7 +13,15 @@ import OutputSettingsModal from '@/components/editor/OutputSettingsModal';
 import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
 import { usePresenterStore } from '@/store/presenterStore';
-import { updatePresentation } from '@/utils/ipc';
+import {
+  onOutputBlack,
+  onOutputLogo,
+  onPresenterStop,
+  onSlideAdvance,
+  sendBlack,
+  sendLogo,
+  updatePresentation,
+} from '@/utils/ipc';
 import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentationCommands';
 import {
   startSidebarPresentationSession,
@@ -188,26 +196,19 @@ export default function Editor() {
 
   // Listen for stop signal from output window (when presenter closes)
   useEffect(() => {
-    const api = window.electronAPI;
-    if (!api?.onPresenterStop) return;
-    return api.onPresenterStop(() => stopPresenting());
+    return onPresenterStop(() => stopPresenting());
   }, [stopPresenting]);
 
   // Listen for slide advance from presenter window → sync live slide in editor
   useEffect(() => {
-    const api = window.electronAPI;
-    if (!api?.onSlideAdvance) return;
-    return api.onSlideAdvance(({ slide }) => {
+    return onSlideAdvance(({ slide }) => {
       if (slide?.sectionId) setLiveSlide(slide.sectionId, slide.id);
     });
   }, [setLiveSlide]);
 
   useEffect(() => {
-    const api = window.electronAPI;
-    if (!api?.onOutputBlack || !api?.onOutputLogo) return;
-
-    const offBlack = api.onOutputBlack(({ active }) => setBlack(Boolean(active)));
-    const offLogo = api.onOutputLogo(({ active }) => setLogo(Boolean(active)));
+    const offBlack = onOutputBlack(({ active }) => setBlack(Boolean(active)));
+    const offLogo = onOutputLogo(({ active }) => setLogo(Boolean(active)));
     return () => {
       offBlack?.();
       offLogo?.();
@@ -279,11 +280,11 @@ export default function Editor() {
         return;
       }
       if ((e.key === 'b' || e.key === 'B') && isPresenting && !meta) {
-        window.electronAPI?.sendBlack();
+        sendBlack();
         return;
       }
       if ((e.key === 'l' || e.key === 'L') && isPresenting && !meta) {
-        window.electronAPI?.sendLogo();
+        sendLogo();
         return;
       }
     }

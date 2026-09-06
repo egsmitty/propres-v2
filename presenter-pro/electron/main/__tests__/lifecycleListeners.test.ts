@@ -87,7 +87,13 @@ describe('build wiring', () => {
     // Both are left external by the CommonJS main build and need entries, or
     // the app crashes at startup with "Cannot find module".
     const viteConfig = readFileSync(resolve(dirname, '../../../electron.vite.config.js'), 'utf8');
-    for (const entry of ["'db/migrationPlanner'", "'db/migrationRunner'", "'db/migrationList'"]) {
+    for (const entry of [
+      "'db/migrationPlanner'",
+      "'db/migrationRunner'",
+      "'db/migrationList'",
+      "'main/ipcRegistry'",
+      "'shared/ipcContract'",
+    ]) {
       expect(viteConfig, `${entry} must be a rollup input`).toContain(entry);
     }
   });

@@ -495,3 +495,29 @@ display, then stop — since single-instance and teardown work touches it.
 
 Ratchets moved: lint warnings 16 → 15, suppressions 61 → 56. Phase 7 items
 1/2/10 were already fixed; 3/7/9 fixed here; 4/5/6/8 belong to workstream D.
+
+### 2026-09-06 — B1 (IPC contract) implemented
+
+`tasks/plan-B1-typed-ipc-contract.md`. Three things you get from this:
+
+1. **One place to look.** `shared/ipcContract.ts` lists every channel by the
+   method name the renderer calls. Preload is generated from it (no more
+   hand-written wrappers), main can only register channels that are in it, and
+   the renderer has exactly one door (`src/utils/ipc.ts`). Add a channel = one
+   row + one handler + one export, in the same PR, or a test names what you
+   forgot — and `assertComplete()` refuses to launch with a handler missing.
+2. **The envelope is now a guarantee, not a habit.** A handler that throws,
+   rejects, returns nothing, or returns the wrong shape all become a proper
+   `{ success:false, error }` (logged). Before, a throw rejected the renderer's
+   `invoke` with a serialized Error and every `result.success` check crashed.
+3. **No more `window.electronAPI` in components.** Nine files bypassed the
+   wrapper; a test now fails if any file under `src/` mentions it.
+
+**What this did NOT do (honest scope):** the domain payloads (presentation,
+song, media records) are still `unknown` in the types. Typing them is the next
+ratchet and belongs with the domain models, not the transport.
+
+**Trap for future work (recorded in the preload header):** preload must use ES
+`import`, not `require`, for local modules — electron-vite leaves CommonJS
+requires external and the packaged app then has no `electronAPI` at all. I hit
+this; E2E caught it (8/16 red); fixed and verified in the packaged app.

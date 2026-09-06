@@ -4,7 +4,7 @@ import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
 import { usePresenterStore } from '@/store/presenterStore';
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow';
-import { getMedia, sendSlide } from '@/utils/ipc';
+import { getMedia, sendBlack, sendLogo, sendSlide } from '@/utils/ipc';
 import { getSectionColor, withColorAlpha } from '@/utils/sectionTypes';
 import { getPresentationAspectRatio } from '@/utils/presentationSizing';
 import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
@@ -396,7 +396,7 @@ export default function PresenterPanel({ onSetOpen }) {
               {isPresenting ? '⏹ Stop' : '▶ Start'}
             </button>
             <button
-              onClick={() => window.electronAPI?.sendBlack()}
+              onClick={() => sendBlack()}
               className="flex-1 flex items-center justify-center rounded text-xs font-medium"
               style={{
                 height: 44,
@@ -409,7 +409,7 @@ export default function PresenterPanel({ onSetOpen }) {
               ⬛ Black
             </button>
             <button
-              onClick={() => window.electronAPI?.sendLogo()}
+              onClick={() => sendLogo()}
               className="flex-1 flex items-center justify-center rounded text-xs font-medium"
               style={{
                 height: 44,

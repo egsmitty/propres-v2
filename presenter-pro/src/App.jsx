@@ -13,7 +13,7 @@ import DialogHost from '@/components/shared/Dialog';
 import { offerRecoveryOnStartup, startRecoveryJournalSync } from '@/utils/recoveryJournalSync';
 import { runAppCommand } from '@/utils/appCommands';
 import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
-import { getSettings, setSetting } from '@/utils/ipc';
+import { getSettings, onAppCommand, setSetting } from '@/utils/ipc';
 
 const hash = window.location.hash;
 const isOutputWindow = hash.startsWith('#/output');
@@ -28,9 +28,7 @@ export default function App() {
   const setTutorialStepIndex = useAppStore((s) => s.setTutorialStepIndex);
 
   React.useEffect(() => {
-    const api = window.electronAPI;
-    if (!api?.onAppCommand) return;
-    return api.onAppCommand((command) => {
+    return onAppCommand((command) => {
       runAppCommand(command);
     });
   }, []);

@@ -80,7 +80,7 @@ beforeEach(() => {
   vi.mocked(buildSongRecordFromBuiltInHymn).mockImplementation(
     (hymn: { id: string; title: string }) => payloadFor(hymn) as never
   );
-  vi.mocked(createSong).mockImplementation(async (data: { builtInKey: string }) => ({
+  vi.mocked(createSong).mockImplementation(async (data: Record<string, unknown>) => ({
     success: true,
     data: { id: 100, ...data },
   }));
