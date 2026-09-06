@@ -21,7 +21,7 @@ Everything is stored locally in a SQLite database inside Electron's user-data fo
 ## Requirements
 
 - Node.js at the version in `.nvmrc` (run `nvm use` in the repo root). npm 10 or newer.
-- macOS or Windows. On macOS the Xcode Command Line Tools and Python 3 are needed, because `better-sqlite3` is compiled against Electron on install.
+- macOS 12 (Monterey) or later, or Windows 10 or later. No compiler toolchain is needed: `better-sqlite3` ships prebuilt N-API binaries that serve both Node and Electron.
 - The `sqlite3` command-line tool on your PATH for the E2E suite and the database verification tool (macOS ships it).
 
 ## Run locally

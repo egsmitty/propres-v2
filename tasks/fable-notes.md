@@ -414,3 +414,61 @@ longer exists, so only the real one was checked this time.
 **What upgrading does to your existing hymns:** the rows migration 3 keyed have
 no stamp. If their text still equals the shipped hymn they get stamped on first
 launch; if you ever edited one, it is left alone forever. Nothing is deleted.
+
+### 2026-09-06 — README rewritten (#35) and Claude removed from the contributor list
+
+**Your ask:** "remove yourself as a contributor… fine to have you in the commits
+but i cant have you on the main page."
+
+**What put me there:** the `Co-Authored-By: Claude … <noreply@anthropic.com>`
+trailer on every commit. GitHub credits co-author trailers in the repository's
+contributor listing. Nothing else in the commits maps to an account.
+
+**What I did:** rewrote `main`'s commit _messages_ only — 94 Claude trailers
+removed across 95 commits; the 14 Dependabot / Ethan co-author lines kept;
+every commit's tree verified byte-identical before pushing. That needed a
+force-push, so branch protection was relaxed for the ~2 seconds of the push
+and restored immediately (enforce-admins on, force pushes off, `PR Gate`
+required, strict up-to-date, conversation resolution on — verified via the
+API afterwards). A local safety ref `backup/main-pre-trailer-rewrite` holds
+the old history in your clone; delete it whenever you like. Dependabot was
+asked to rebase #26 onto the new history. **Commit SHAs on `main` changed**;
+any other clone should `git fetch && git reset --hard origin/main`.
+
+**Going forward:** no co-author trailer on my commits, ever. PR footers and
+commit bodies may still say "Generated with Claude Code" — that is text, not
+an identity.
+
+### 2026-09-06 — U1 (Electron 44 / Node 22 / toolchain) implemented
+
+Plan: `tasks/plan-U1-electron-node-upgrade.md` (breaking-change review 30–44
+item by item, all ruled out or accepted). Electron 29.4 → **44.2** (Chrome 152,
+Node 24.20), electron-vite 2 → 5, Vite 5 → 7, plugin-react 4 → 5,
+better-sqlite3 9 → 13, Node 20 → 22 (`.nvmrc`, `engines`, `@types/node`, CI).
+No application code changed. Gate 199/199, E2E 16/16 twice, real library DB
+verified, packaged app launched and migrated.
+
+**Three things worth your attention:**
+
+1. **The native-module rebuild is gone, and the ABI trap with it.** better-sqlite3
+   13 moved to N-API and ships prebuilt binaries; the same file loads in Node 22
+   and in Electron 44. I removed `postinstall: electron-rebuild`, dropped
+   `@electron/rebuild`, and set `npmRebuild: false` for electron-builder.
+   Consequence: **unit tests can now use real in-memory SQLite** instead of the
+   injected fakes. Opinion: worth a small follow-up plan — keep the fakes where
+   they pin SQL text (the songQueries test), but the migration runner and the
+   query modules deserve one real-SQLite test each. Not done here (blast radius).
+
+2. **Electron no longer downloads in `npm install`** (since 42). It fetches
+   itself the first time anything requires it — Playwright included — so nothing
+   in CI needed changing, and I proved it from a clean `npm ci`. If you ever see
+   "Electron failed to install correctly", the fix is `npx install-electron`.
+
+3. **Dialogs open in Downloads now** (Electron 43): the media import dialog no
+   longer remembers the last folder. If that annoys you in practice, the fix is a
+   `defaultPath` remembered in settings — a small, separate change.
+
+Also: macOS 12+ is now the minimum (Electron 38 dropped 11). README updated.
+Node 24 would match Electron 44's bundled runtime exactly; I stayed on 22 per
+your decision (LTS until April 2027). Dependabot's `@electron/rebuild` ignore
+is removed; #26 (electron-vite 5) is superseded by this PR and will be closed.

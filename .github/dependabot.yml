@@ -31,10 +31,6 @@ updates:
       # pinned to 5.x in Phase 6. Remove when typescript-eslint supports TS 7.
       - dependency-name: typescript
         update-types: ['version-update:semver-major']
-      # @electron/rebuild 4 requires Node >=22.12; .nvmrc pins 20. Remove when
-      # the Node upgrade (fable-notes R2) lands.
-      - dependency-name: '@electron/rebuild'
-        update-types: ['version-update:semver-major']
     # Electron majors are intentionally NOT grouped: an Electron upgrade is a
     # real migration with breakage risk and deserves its own plan and PR.
 
