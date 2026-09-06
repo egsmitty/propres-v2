@@ -16,12 +16,6 @@
     "no-unused-vars": {
       "count": 2
     },
-    "react-hooks/immutability": {
-      "count": 2
-    },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1
-    },
     "react-hooks/set-state-in-effect": {
       "count": 4
     }
@@ -78,9 +72,6 @@
     }
   },
   "src/components/presenter/OutputRenderer.jsx": {
-    "react-hooks/immutability": {
-      "count": 2
-    },
     "react-hooks/set-state-in-effect": {
       "count": 1
     }
