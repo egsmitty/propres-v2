@@ -577,3 +577,19 @@ D2/D3 will reuse. Coverage jumped to 10 % because it reaches Canvas.
 
 Remaining in D: 16 `set-state-in-effect`, 15 `exhaustive-deps`, 34
 `no-unused-vars` (mostly dead code), 1 `no-unescaped-entities`.
+
+### 2026-09-06 — D2 slice 1: three `set-state-in-effect` findings (13 remain)
+
+`tasks/plan-D2-set-state-in-effect.md` has the full 16-row table with a
+decision per row. This slice: the two toolbar number fields now _derive_ what
+they show (draft while focused, the controlled value otherwise) instead of
+copying the prop into state in an effect, and the onboarding tutorial reads
+its step from the store instead of mirroring it — the mirror was updated in
+lock-step in three places, which is exactly the kind of duplication that
+drifts.
+
+**Suspected UX bug found by the characterization test, left for your call:**
+clear the font-size box in the formatting toolbar and click away → the size
+becomes **8** (the minimum), because an empty field parses as `0` and is
+clamped. Reverting to the previous value would be the expected behaviour. One
+line to fix; it is a behaviour change, so I did not fold it into a lint PR.

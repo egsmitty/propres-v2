@@ -230,15 +230,14 @@ function NumberField({
   const [draft, setDraft] = useState(String(value ?? ''));
   const [focused, setFocused] = useState(false);
   const inputRef = useRef(null);
-
-  useEffect(() => {
-    if (!focused) setDraft(String(value ?? ''));
-  }, [value, focused]);
+  // The draft only exists during a focus session; unfocused, the field shows
+  // the controlled value directly instead of syncing a copy in an effect
+  // (plan D2 #1).
+  const shown = focused ? draft : String(value ?? '');
 
   function commit() {
     const n = Number(inputRef.current?.value ?? draft);
     if (Number.isFinite(n)) onCommit(Math.min(max, Math.max(min, n)));
-    else setDraft(String(value ?? ''));
     setFocused(false);
   }
 
@@ -274,7 +273,7 @@ function NumberField({
       data-editor-toolbar="true"
       ref={inputRef}
       type="number"
-      value={draft}
+      value={shown}
       min={min}
       max={max}
       step={step}
@@ -284,6 +283,7 @@ function NumberField({
         if (Number.isFinite(n) && n >= min && n <= max) onCommit(n);
       }}
       onFocus={() => {
+        setDraft(String(value ?? ''));
         setFocused(true);
       }}
       onBlur={() => {
@@ -452,13 +452,11 @@ function ColorBtn({ title, value, onChange, children }) {
 
 function LineSpacingBtn({ value, onChange }) {
   const [open, setOpen] = useState(false);
+  // Seeded when the popover opens; hidden while closed, so no effect needs to
+  // keep it in sync with `value` (plan D2 #2).
   const [custom, setCustom] = useState(String(value));
   const triggerRef = useRef(null);
   const popoverRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) setCustom(String(value));
-  }, [open, value]);
 
   useEffect(() => {
     if (!open) return;
@@ -476,7 +474,10 @@ function LineSpacingBtn({ value, onChange }) {
         data-editor-toolbar="true"
         ref={triggerRef}
         title="Line Spacing"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!open) setCustom(String(value));
+          setOpen(!open);
+        }}
         style={{
           height: 28,
           padding: '0 6px',
@@ -1282,3 +1283,6 @@ export default function FormattingToolbar({
     </div>
   );
 }
+
+// Exported for component tests (plan D2); not part of the editor's public surface.
+export { NumberField, LineSpacingBtn };
