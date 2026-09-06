@@ -221,15 +221,15 @@ categories gets its second half sampled) and handed to the Executor.
 
 ### Status (2026-09-06)
 
-| Plan                          | Outcome                                                                                                                                   | PR     |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| P1 process hardening          | done — Dependabot, `enforce_admins` on                                                                                                    | #17    |
-| P2 E2E harness                | done — 7 specs, launch/quit/unsaved-changes, `e2e.yml` (not yet in `PR Gate`)                                                             | #18    |
-| A1 versioned migrations       | done — 17 unit + 4 E2E, verified on copies of both real DBs, `npm run verify:db`                                                          | #29    |
-| A2 crash-recovery journal     | done — migration 2, journal sync, Later/Discard/Recover prompt; 21 unit + 3 E2E                                                           | see PR |
-| A3 seeder fix (phase7 #14)    | done — key-only seeder, migration 3 claims legacy rows; 11 unit + 1 E2E                                                                   | see PR |
-| A3b refresh-only-if-untouched | done — migration 4 + text fingerprint; edited built-ins are never overwritten; `updateSong` preserves provenance columns; 20 unit + 1 E2E | see PR |
-| U1 Electron/Node upgrade      | decided: next, behind the E2E harness                                                                                                     | —      |
+| Plan                                                                      | Outcome                                                                                                                                   | PR     |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| P1 process hardening                                                      | done — Dependabot, `enforce_admins` on                                                                                                    | #17    |
+| P2 E2E harness                                                            | done — 7 specs, launch/quit/unsaved-changes, `e2e.yml` (not yet in `PR Gate`)                                                             | #18    |
+| A1 versioned migrations                                                   | done — 17 unit + 4 E2E, verified on copies of both real DBs, `npm run verify:db`                                                          | #29    |
+| A2 crash-recovery journal                                                 | done — migration 2, journal sync, Later/Discard/Recover prompt; 21 unit + 3 E2E                                                           | see PR |
+| A3 seeder fix (phase7 #14)                                                | done — key-only seeder, migration 3 claims legacy rows; 11 unit + 1 E2E                                                                   | see PR |
+| A3b refresh-only-if-untouched                                             | done — migration 4 + text fingerprint; edited built-ins are never overwritten; `updateSong` preserves provenance columns; 20 unit + 1 E2E | see PR |
+| U1 Electron 29→44, Node 20→22, electron-vite 5, Vite 7, better-sqlite3 13 | done — no code changes needed; rebuild step retired (N-API prebuilds); packaged app verified                                              | see PR |
 
 Gate on `main` after A3: 182 unit tests, E2E 15/15. `eslint-suppressions.json` 71 → 61.
 Everything learned along the way, including corrections to these plans, is in
