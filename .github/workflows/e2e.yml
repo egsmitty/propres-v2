@@ -62,7 +62,8 @@ jobs:
 
       - name: Re-capture screenshot baselines
         if: ${{ inputs.update_baselines }}
-        run: npm run build && npx playwright test e2e/visual.spec.ts e2e/visual-surfaces.spec.ts --update-snapshots
+        # Every visual spec (e2e/visual*.spec.ts), so a new capture file is included.
+        run: npm run build && npx playwright test e2e/visual --update-snapshots
 
       - name: Upload screenshot baselines
         if: ${{ inputs.update_baselines }}
