@@ -928,3 +928,46 @@ is pixel-exact. What is left literal is either a non-token colour (9), a
 shadow (23), or one of the 83 dynamic values in JavaScript — the same 83
 that keep `'unsafe-inline'` in the CSP. Those three numbers are now the
 whole remaining style debt, and each is listed in the charter.
+
+### 2026-09-08 — E2E is now a required check
+
+The P2 harness shipped with a note: not required until it has proven
+stable, because a flaky required check trains people to ignore red. The
+record now: 27 consecutive green runs; every failure before that was real
+(a screenshot baseline that did not match, a Dependabot lockfile that could
+not install), none a flake. Branch protection on `main` now requires both
+`PR Gate` and `E2E (macOS)`. That is the last of the P2 plan's own
+promises. The standing rule in the workflow file says it plainly: if it
+ever flakes, fix the flake, do not demote it.
+
+### 2026-09-08 — Where this autonomous run leaves things
+
+Merged since you stepped away (in order): E2 screenshot net (#68 + addenda
+#72, #74, #76, #81, #83 — 52 CI captures), Escape for the settings modals
+(#69), the baseline-capture dispatch (#70), E4 slices 0–7 (#71, #73, #75,
+#77, #78, #80, #82: 490 → 197 inline style props), E4b hover handlers
+(#84), U3 Tailwind 4 (#85), U2 React 19 (#86), C2 renderer CSP (#87), E1b
+alpha tokens (#88), and Dependabot #64/#65/#79. Every visual change was
+proven at 0 differing pixels before it went up; E2E is now a required
+check.
+
+**Decisions waiting on you** (each is a one-line answer, none blocks
+anything):
+
+1. `FormattingToolbar.jsx` — delete (1,197 lines, unreachable) or wire it.
+2. The hero template card's `px-4.5 / pb-4.5` — v3 never painted them; U3
+   removed them to keep the look. Restore 18px of padding, or not.
+3. Move the repo out of iCloud — it has now corrupted source files, `.git`
+   internals and `node_modules` on separate occasions.
+4. Drop the sample songs; NumberField empty→min (moot if #1 is "delete");
+   undo/redo no longer auto-edits; roving tabindex; rename
+   `data-text-editing`; the menu bar not closing on Escape.
+
+**Held majors and why:** vite 8 (electron-vite 5 pins ≤7), @vitejs/plugin-
+react 6 (needs vite 8), eslint 10 (eslint-plugin-react ≤9.7), typescript 7
+(typescript-eslint <6.1), @types/node (tracks .nvmrc). Nothing to do until
+those upstreams move.
+
+**What is left in the style debt, exactly:** 197 inline style props (all
+dynamic or in uncaptured states), 9 hover handlers, 9 + 23 + 83 colour
+literals. The ratchets name every file.
