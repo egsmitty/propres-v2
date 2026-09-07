@@ -807,3 +807,31 @@ Two things you should know:
 Small mess of my own: the squash subject for #75 reads `(#)` instead of
 `(#75)` — a variable was empty in my merge loop. Cosmetic; not worth a
 history rewrite.
+
+### 2026-09-07 — E4 done: 490 → 198, and one catch that paid for the whole net
+
+Slices 3–7 landed (#77, #78, #80, slice 7). Two more net addenda (#76 the
+editor states, #81 the song editor / dialog / stage display) — **23
+captures** on CI now. Every slice was proven at 0 differing pixels before
+it went up.
+
+**The net caught me once.** In the shortcuts overlay a `<kbd>` had
+`text-xs` plus an inline 11px size; I replaced the inline size with
+`text-[11px]` and left `text-xs` in place, and the cascade let 12px win —
+485 differing pixels. That is exactly the mistake this plan was built to
+catch, and I would not have seen it by eye. The fix was to the
+conversion; the tolerance never moved.
+
+**What is left inline, and why it stays:** 198 props, each one either a
+value only the runtime knows (a computed width, a selection, a per-item
+colour) or a state no capture enters (collapsed slivers, popovers, drag
+ghosts, empty states, live output). The ratchet names every file and its
+number; a capture for any of those states lowers the number later. I also
+widened the ratchet to count any `style={` prop, not just object literals,
+after noticing a helper call could slip under it.
+
+**Two follow-ups for your call:** E1b — 149 `rgba(…)` colour literals in
+JSX (E1 banned hex, not rgba; most are the accent at some alpha and want
+tokens); and the hover handlers that mutate `element.style` on
+mouse-enter, which could become `hover:` classes once a hover capture
+exists. Neither is urgent; both are recorded in the charter.

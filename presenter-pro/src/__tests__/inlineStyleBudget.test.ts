@@ -15,34 +15,31 @@ const SRC = join(__dirname, '..');
 
 /** Ceiling per file, relative to src/. Files not listed have a ceiling of 0. */
 const BUDGET: Record<string, number> = {
-  'components/library/SongEditorModal.jsx': 63,
-  'pages/Home.jsx': 10,
-  'components/library/MediaLibraryPanel.jsx': 7,
-  'components/editor/Canvas.jsx': 16,
-  'components/presenter/PresenterPanel.jsx': 23,
   'components/editor/FormattingToolbar.jsx': 24,
   'components/layout/Toolbar.jsx': 23,
-  'components/editor/OutputSettingsModal.jsx': 3,
+  'components/presenter/PresenterPanel.jsx': 23,
+  'components/editor/Canvas.jsx': 19,
   'components/editor/Filmstrip.jsx': 17,
   'components/presenter/OutputRenderer.jsx': 13,
-  'components/shared/OnboardingTutorial.jsx': 5,
+  'components/library/SongEditorModal.jsx': 11,
+  'pages/Home.jsx': 10,
   'components/editor/PresentationSettingsModal.jsx': 7,
-  'components/library/SongLibraryPanel.jsx': 0,
-  'components/shared/ShortcutsOverlay.jsx': 0,
-  'components/shared/Dialog.jsx': 10,
+  'components/library/MediaLibraryPanel.jsx': 7,
+  'components/shared/Dialog.jsx': 7,
+  'components/layout/MenuBar.jsx': 5,
+  'components/shared/ErrorBoundary.jsx': 5,
+  'components/shared/OnboardingTutorial.jsx': 5,
+  'components/editor/OutputSettingsModal.jsx': 3,
   'components/layout/TitleBar.jsx': 3,
+  'components/shared/ScaledSlideText.jsx': 3,
+  'components/editor/FilmstripSlide.jsx': 2,
+  'components/editor/SlideTextEditor.jsx': 2,
+  'components/presenter/StageDisplayRenderer.jsx': 2,
+  'components/shared/ContextMenu.jsx': 2,
+  'components/shared/SlidePreviewSurface.jsx': 2,
   'components/editor/SectionHeader.jsx': 1,
   'components/library/SongCard.jsx': 1,
-  'components/presenter/StageDisplayRenderer.jsx': 7,
-  'components/layout/MenuBar.jsx': 5,
-  'components/editor/FilmstripSlide.jsx': 2,
-  'components/shared/ErrorBoundary.jsx': 5,
-  'components/shared/ContextMenu.jsx': 2,
   'pages/Editor.jsx': 1,
-  'components/editor/SlideTextEditor.jsx': 2,
-  'components/layout/StatusBar.jsx': 0,
-  'components/shared/ScaledSlideText.jsx': 2,
-  'components/shared/SlidePreviewSurface.jsx': 2,
 };
 
 function componentFiles(dir: string): string[] {
@@ -57,7 +54,9 @@ function componentFiles(dir: string): string[] {
 }
 
 function countInlineStyles(file: string): number {
-  return readFileSync(file, 'utf8').match(/style=\{\{/g)?.length ?? 0;
+  // Any inline style prop counts — an object literal, a helper call, a
+  // passed-through prop — so a `style={fn()}` cannot slip under the ratchet.
+  return readFileSync(file, 'utf8').match(/\bstyle=\{/g)?.length ?? 0;
 }
 
 describe('inline style budget (plan E4)', () => {

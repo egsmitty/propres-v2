@@ -52,16 +52,7 @@ function Dialog({ dialog }) {
   return (
     <div
       data-backdrop="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'rgba(15, 23, 42, 0.44)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        animation: 'fade-in 120ms ease',
-      }}
+      className="fixed inset-0 z-[1000] bg-[rgba(15,23,42,0.44)] flex items-center justify-center [animation:fade-in_120ms_ease]"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           const cancel = actions.find((a) => a.cancel) || actions[0];
@@ -69,38 +60,17 @@ function Dialog({ dialog }) {
         }
       }}
     >
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          borderRadius: 18,
-          boxShadow: '0 24px 56px rgba(15,23,42,0.22)',
-          border: '1px solid var(--border-default)',
-          minWidth: 360,
-          maxWidth: 520,
-          padding: 26,
-        }}
-      >
+      <div className="bg-bg-surface rounded-[18px] shadow-[0_24px_56px_rgba(15,23,42,0.22)] border border-border-default min-w-[360px] max-w-[520px] p-[26px]">
         <h2
+          className="text-[17px] font-[650] text-text-primary"
           style={{
-            fontSize: 17,
-            fontWeight: 650,
-            color: 'var(--text-primary)',
             marginBottom: description ? 10 : 18,
           }}
         >
           {title}
         </h2>
         {description && (
-          <p
-            style={{
-              fontSize: 15,
-              color: 'var(--text-secondary)',
-              marginBottom: 20,
-              lineHeight: 1.45,
-            }}
-          >
-            {description}
-          </p>
+          <p className="text-[15px] text-text-secondary mb-5 leading-[1.45]">{description}</p>
         )}
 
         {fields.map((field, idx) => (
@@ -163,28 +133,17 @@ function Dialog({ dialog }) {
         ))}
 
         <div
+          className="flex gap-3 mt-2"
           style={{
-            display: 'flex',
             justifyContent: actions.length <= 2 ? 'center' : 'flex-end',
-            gap: 12,
-            marginTop: 8,
           }}
         >
           {actions.map((action, idx) => (
             <button
               key={idx}
               onClick={() => resolve({ action: action.value, values })}
-              style={{
-                minWidth: 132,
-                height: 48,
-                padding: '0 18px',
-                fontSize: 15,
-                fontWeight: 600,
-                borderRadius: 14,
-                cursor: 'pointer',
-                border: '1px solid',
-                ...buttonStyle(action.variant, action.primary),
-              }}
+              className="min-w-[132px] h-12 py-0 px-[18px] text-[15px] font-semibold rounded-[14px] cursor-pointer border"
+              style={buttonStyle(action.variant, action.primary)}
             >
               {action.label}
             </button>
