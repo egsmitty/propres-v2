@@ -22,7 +22,7 @@ test-results/
 # E2E run metadata written by the launch fixture (git-ignored)
 e2e/.artifacts/
 # Same as above in plain-glob form: prettier does not support POSIX classes.
-* 2
-* 2.*
-**/* 2
-**/* 2.*
+* [0-9]
+* [0-9].*
+**/* [0-9]
+**/* [0-9].*

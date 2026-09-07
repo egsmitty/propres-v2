@@ -23,8 +23,8 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./vitest.setup.mjs'],
     include: ['{src,electron,shared}/**/__tests__/**/*.{test,spec}.{js,jsx,ts,tsx}'],
-    // `* 2.*`: macOS/iCloud sync duplicates; they must never run as tests.
-    exclude: ['node_modules', 'out', 'dist', 'release', 'e2e', '**/* 2', '**/* 2.*'],
+    // `* [0-9].*`: macOS/iCloud sync duplicates ("name 2.ext", "name 3.ext"); they must never run as tests.
+    exclude: ['node_modules', 'out', 'dist', 'release', 'e2e', '**/* [0-9]', '**/* [0-9].*'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

@@ -22,8 +22,8 @@ export default [
   {
     ignores: [
       // macOS/iCloud sync duplicates ("name 2.ext"); never lint them.
-      '**/* 2',
-      '**/* 2.*',
+      '**/* [0-9]',
+      '**/* [0-9].*',
       'node_modules/**',
       'out/**',
       'dist/**',
