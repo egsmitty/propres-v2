@@ -12,6 +12,13 @@ export default defineConfig({
   // they only run where they can match: in CI, or locally on request (VISUAL=1,
   // with your own --update-snapshots baseline first). See e2e/visual.spec.ts.
   testIgnore: process.env.CI || process.env.VISUAL ? [] : ['**/visual*.spec.ts'],
+  // Committed baselines are the CI runner's. A local capture (VISUAL=1
+  // --update-snapshots) goes to a gitignored directory so a laptop baseline
+  // can never be committed by accident, and a local strict compare is always
+  // laptop-vs-laptop — the only comparison that is exact.
+  snapshotPathTemplate: process.env.CI
+    ? '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}'
+    : '{testDir}/.local-snapshots/{testFileName}/{arg}{ext}',
   // One Electron instance at a time. Parallel instances would race on the
   // output display and on file locks; there is nothing to gain.
   workers: 1,

@@ -746,3 +746,32 @@ the Home profile card carries a test hook so it can be masked.
 rule is a hidden layout decision a user cannot see or change without
 finding the sliver. It is fine for now; if you ever get a "where did my
 preview go" report from a laptop user, this is why.
+
+### 2026-09-07 — E4: inline styles → classes (started)
+
+`tasks/plan-E4-inline-styles.md`. Measured before touching anything: 490
+`style={{ }}` objects in 28 files, 375 static (a token colour, a border, a
+size) and 115 dynamic (a computed width, a per-slide colour) that belong
+inline and stay. The Tailwind theme was empty — no class could name a
+token, which is _why_ there are 490.
+
+Slice 0 lands the machinery only: every token gets a Tailwind name after
+itself (`bg-bg-surface`, `text-text-primary` — ugly on purpose, nothing to
+learn, grep-able), a per-file ratchet test that fails when a static style
+creeps back _or_ when a ceiling is not lowered with the work, and a
+gitignored home for local screenshot captures so a laptop baseline can
+never be committed. Each following slice is one file or one capture group,
+proven by a pixel-exact local compare (0 differing pixels on all 11
+captures) before CI checks it again.
+
+**Not in scope, recorded:** the 149 `rgba(…)` literals in JSX (E1 banned
+hex, not rgba — an E1b for later), and the hover handlers that mutate
+`element.style` (the net cannot see hover). `ErrorBoundary`'s 5 styles stay:
+there is no honest way to capture it.
+
+**iCloud, again — now inside `node_modules`.** A stray `obug/dist 2`
+duplicate made `npm ci` abort half-way and left the install broken; the
+commit hook (commitlint) had already been failing on a shadowed `ini`
+package. I purged the duplicates and reinstalled. This is the third
+category of damage from syncing this folder (source files, `.git`
+internals, now dependencies). Please move the repo out of `~/Desktop`.
