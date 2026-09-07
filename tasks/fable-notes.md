@@ -887,3 +887,17 @@ ran; the redo touches class strings only. Recorded because it is exactly
 the kind of mistake the gate exists for.
 
 The Dependabot hold on the Tailwind major is lifted.
+
+### 2026-09-07 — U2: React 19, the quietest upgrade so far
+
+`tasks/plan-U2-react-19.md`. Install, run everything: zero type errors,
+zero code changes, gate green, all 29 E2E specs green, 0 differing pixels
+on 52 captures, and a throwaway spec that listened to the renderer console
+through a full editing session heard no React warning. That quietness is
+not luck — it is what workstream D bought (derived state, immutability, no
+legacy APIs). The React-major Dependabot holds are lifted.
+
+**One thing it did hear:** Electron's "Insecure Content-Security-Policy"
+warning. The renderer runs with no CSP. Not a React matter and not urgent
+for a desktop app that loads only its own files, but it is cheap to fix
+and Electron will keep shouting until it is. Recorded as C2 in the charter.
