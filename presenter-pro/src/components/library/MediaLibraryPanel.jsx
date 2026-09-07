@@ -432,7 +432,7 @@ export default function MediaLibraryPanel() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={currentFolder ? 'Search this folder...' : 'Search library...'}
-            className="flex-1 bg-transparent outline-none text-xs"
+            className="flex-1 bg-transparent text-xs"
             style={{ color: 'var(--text-primary)' }}
             onMouseDown={(event) => event.stopPropagation()}
           />

@@ -78,7 +78,7 @@ export default function SongLibraryPanel() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search songs…"
-              className="flex-1 bg-transparent outline-none text-xs"
+              className="flex-1 bg-transparent text-xs"
               style={{ color: 'var(--text-primary)' }}
             />
           </div>

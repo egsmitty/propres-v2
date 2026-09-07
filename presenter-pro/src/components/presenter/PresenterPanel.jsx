@@ -519,7 +519,6 @@ export default function PresenterPanel({ onSetOpen }) {
                           overflow: 'hidden',
                           position: 'relative',
                           cursor: 'pointer',
-                          outline: 'none',
                         }}
                       >
                         {/* Section color strip */}

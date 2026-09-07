@@ -69,6 +69,9 @@
   --on-dark-10: #d1d5db;
   --on-dark-11: #f3f4f6;
 
+  /* Keyboard focus (plan E3): one visible ring for every focusable element.
+     :focus-visible matches keyboard focus (and text inputs), not mouse clicks
+     on buttons, so the mouse-driven look is unchanged. */
   /* Section colors */
   --section-1: #4a7cff;
   --section-2: #7c3aed;
