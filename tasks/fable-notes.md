@@ -901,3 +901,16 @@ legacy APIs). The React-major Dependabot holds are lifted.
 warning. The renderer runs with no CSP. Not a React matter and not urgent
 for a desktop app that loads only its own files, but it is cheap to fix
 and Electron will keep shouting until it is. Recorded as C2 in the charter.
+
+### 2026-09-07 — C2: the renderer now says what it may load
+
+`tasks/plan-C2-renderer-csp.md`. Electron stopped shouting. A build-time
+`<meta http-equiv="Content-Security-Policy">` (dev untouched, since HMR
+needs inline scripts) with the least the app needs: scripts and styles
+from itself, images and video through the app's own media scheme or
+`file:`, nothing else. The one honest exception is `'unsafe-inline'` for
+styles — the 197 dynamic inline style attributes left after E4 need it,
+and it leaves when they do. Proven the way everything else was: a spec
+that was red before the meta existed, then the whole E2E suite and the
+52-capture strict compare under the policy, with every console error from
+all three windows collected — zero violations.

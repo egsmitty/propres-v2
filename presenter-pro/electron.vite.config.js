@@ -2,6 +2,42 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+/**
+ * Plan C2. The built renderer declares what its windows may load. Injected
+ * only at build time: the dev server's HMR and React refresh use inline
+ * scripts and a websocket that a strict policy would break, and dev is not
+ * what ships. All three windows load the same index.html, so all three get
+ * it. `'unsafe-inline'` for styles is the consequence of the inline style
+ * attributes that remain (plan E4 keeps the dynamic ones); it goes when they
+ * do. Media arrives through the app's own scheme or file: URLs.
+ */
+const RENDERER_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' presenterpro-media: file:",
+  "media-src 'self' presenterpro-media: file:",
+  "font-src 'self'",
+  "connect-src 'self' presenterpro-media:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'",
+  "frame-src 'none'",
+].join('; ');
+
+function rendererCsp() {
+  return {
+    name: 'presenterpro-renderer-csp',
+    apply: 'build',
+    transformIndexHtml(html) {
+      return html.replace(
+        '<meta charset="UTF-8" />',
+        `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${RENDERER_CSP}" />`
+      );
+    },
+  };
+}
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
@@ -60,7 +96,7 @@ export default defineConfig({
         },
       },
     },
-    plugins: [react()],
+    plugins: [react(), rendererCsp()],
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),
