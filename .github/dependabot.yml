@@ -40,6 +40,21 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
+      # Vite 8 is blocked by electron-vite 5 (peers Vite ^5–^7). Remove with the plugin-react rule.
+      - dependency-name: vite
+        update-types: ['version-update:semver-major']
+      # React 19 and Tailwind 4 are migrations with their own plans (U2, U3 in
+      # tasks/fable-notes.md), not dependency bumps. Remove when those plans run.
+      - dependency-name: react
+        update-types: ['version-update:semver-major']
+      - dependency-name: react-dom
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/react-dom'
+        update-types: ['version-update:semver-major']
+      - dependency-name: tailwindcss
+        update-types: ['version-update:semver-major']
     # Electron majors are intentionally NOT grouped: an Electron upgrade is a
     # real migration with breakage risk and deserves its own plan and PR.
 
