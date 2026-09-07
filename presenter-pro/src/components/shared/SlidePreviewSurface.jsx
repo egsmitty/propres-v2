@@ -91,7 +91,7 @@ export default function SlidePreviewSurface({
       {mediaSlide && !hasMediaSlideAsset ? (
         <div
           className="absolute inset-0 flex items-center justify-center text-center px-2"
-          style={{ color: '#d1d5db', fontSize: 10 }}
+          style={{ color: 'var(--on-dark-10)', fontSize: 10 }}
         >
           {missingMediaLabel}
         </div>
