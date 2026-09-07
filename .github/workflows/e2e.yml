@@ -4,9 +4,11 @@ name: E2E
 # cannot: launch, quit, and the unsaved-changes handshake — where most of this
 # project's real bugs have lived.
 #
-# Deliberately NOT part of the required `PR Gate` yet. E2E is flaky-prone on
-# day one, and a flaky required check trains people to ignore red. Promote it
-# into pr-checks.yml's pr-gate `needs` once it has proven stable.
+# A REQUIRED check on main since 2026-09-08 (branch protection lists
+# "E2E (macOS)" next to "PR Gate"), promoted after 27 consecutive green runs
+# in which every earlier failure had been a real one — a baseline mismatch or
+# a broken lockfile — and none a flake. If it ever flakes, fix the flake; do
+# not demote it.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
