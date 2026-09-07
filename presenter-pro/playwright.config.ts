@@ -18,7 +18,13 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   // Must exceed the fixture's 60s first-window allowance plus the spec itself.
   timeout: 90_000,
-  expect: { timeout: 10_000 },
+  expect: {
+    timeout: 10_000,
+    // Screenshot baselines (plan E2): a small ratio absorbs sub-pixel text
+    // anti-aliasing differences between machines; a real style change is
+    // orders of magnitude larger. Animations are frozen for determinism.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: 'disabled' },
+  },
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   outputDir: 'e2e/.artifacts',
   use: {
