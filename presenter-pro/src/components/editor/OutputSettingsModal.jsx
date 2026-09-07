@@ -40,11 +40,8 @@ function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhen
     <button
       type="button"
       onClick={onClick}
-      className="text-xs rounded"
+      className="text-xs rounded h-[42px] w-full py-0 px-3.5 font-[650] tracking-[0.015em]"
       style={{
-        height: 42,
-        width: '100%',
-        padding: '0 14px',
         background: open
           ? 'var(--bg-hover)'
           : primaryWhenClosed
@@ -52,8 +49,6 @@ function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhen
             : 'var(--bg-surface)',
         color: open || !primaryWhenClosed ? 'var(--text-primary)' : 'var(--text-on-accent)',
         border: open || !primaryWhenClosed ? '1px solid var(--border-default)' : 'none',
-        fontWeight: 650,
-        letterSpacing: '0.015em',
       }}
     >
       {open ? closeLabel : openLabel}
@@ -189,69 +184,32 @@ export default function OutputSettingsModal() {
   return (
     <div
       data-backdrop="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'rgba(0,0,0,0.62)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      className="fixed inset-0 z-[1000] bg-[rgba(0,0,0,0.62)] flex items-center justify-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div
-        className="rounded-xl"
-        style={{
-          width: 720,
-          maxWidth: '92vw',
-          maxHeight: '88vh',
-          overflowY: 'auto',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.38)',
-          padding: 24,
-        }}
-      >
+      <div className="rounded-xl w-[720px] max-w-[92vw] max-h-[88vh] overflow-y-auto bg-bg-surface border border-border-default shadow-[0_24px_64px_rgba(0,0,0,0.38)] p-6">
         <div className="mb-5">
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Output Settings
-          </h2>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+          <h2 className="text-sm font-semibold text-text-primary">Output Settings</h2>
+          <p className="text-xs mt-1 text-text-tertiary">
             Assign graphics windows to desktop displays and tune the dedicated Stage Display theme.
           </p>
         </div>
 
         {loading ? (
-          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            Loading display configuration…
-          </p>
+          <p className="text-xs text-text-tertiary">Loading display configuration…</p>
         ) : (
           <div className="flex flex-col gap-4">
-            <section
-              className="rounded-lg p-4"
-              style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)' }}
-            >
-              <h3 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                Graphics Outputs
-              </h3>
-              <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <section className="rounded-lg p-4 bg-bg-app border border-border-subtle">
+              <h3 className="text-xs font-semibold mb-3 text-text-primary">Graphics Outputs</h3>
+              <div className="grid gap-3 grid-cols-[1fr_1fr]">
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    Main Output Display
-                  </span>
+                  <span className="text-xs text-text-secondary">Main Output Display</span>
                   <select
                     value={mainDisplayId}
                     onChange={(e) => setMainDisplayId(e.target.value)}
-                    className="text-xs rounded"
-                    style={{
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-primary)',
-                      padding: '8px 10px',
-                    }}
+                    className="text-xs rounded bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
                   >
                     <option value="">Open in a window</option>
                     {displays.map((display) => (
@@ -263,19 +221,11 @@ export default function OutputSettingsModal() {
                 </label>
 
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    Stage Display
-                  </span>
+                  <span className="text-xs text-text-secondary">Stage Display</span>
                   <select
                     value={stageDisplayId}
                     onChange={(e) => setStageDisplayId(e.target.value)}
-                    className="text-xs rounded"
-                    style={{
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-primary)',
-                      padding: '8px 10px',
-                    }}
+                    className="text-xs rounded bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
                   >
                     <option value="">Do not auto-open</option>
                     {displays.map((display) => (
@@ -286,10 +236,7 @@ export default function OutputSettingsModal() {
                   </select>
                 </label>
                 <div className="flex flex-col gap-1.5">
-                  <span
-                    className="text-[11px] font-semibold uppercase tracking-[0.08em]"
-                    style={{ color: 'var(--text-tertiary)' }}
-                  >
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
                     Preview Window
                   </span>
                   <PreviewToggleButton
@@ -301,10 +248,7 @@ export default function OutputSettingsModal() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span
-                    className="text-[11px] font-semibold uppercase tracking-[0.08em]"
-                    style={{ color: 'var(--text-tertiary)' }}
-                  >
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
                     Preview Window
                   </span>
                   <PreviewToggleButton
@@ -322,18 +266,11 @@ export default function OutputSettingsModal() {
               ) : null}
             </section>
 
-            <section
-              className="rounded-lg p-4"
-              style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)' }}
-            >
-              <h3 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                Stage Display Theme
-              </h3>
-              <div className="grid gap-3" style={{ gridTemplateColumns: '1.2fr 1fr 1fr' }}>
+            <section className="rounded-lg p-4 bg-bg-app border border-border-subtle">
+              <h3 className="text-xs font-semibold mb-3 text-text-primary">Stage Display Theme</h3>
+              <div className="grid gap-3 grid-cols-[1.2fr_1fr_1fr]">
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    Font Size
-                  </span>
+                  <span className="text-xs text-text-secondary">Font Size</span>
                   <input
                     type="number"
                     min={36}
@@ -348,54 +285,41 @@ export default function OutputSettingsModal() {
                         ),
                       }))
                     }
-                    className="text-xs rounded"
-                    style={{
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-primary)',
-                      padding: '8px 10px',
-                    }}
+                    className="text-xs rounded bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    Text Color
-                  </span>
+                  <span className="text-xs text-text-secondary">Text Color</span>
                   <input
                     type="color"
                     value={theme.textColor}
                     onChange={(e) => setTheme((prev) => ({ ...prev, textColor: e.target.value }))}
-                    style={{ height: 38 }}
+                    className="h-[38px]"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    Background
-                  </span>
+                  <span className="text-xs text-text-secondary">Background</span>
                   <input
                     type="color"
                     value={theme.backgroundColor}
                     onChange={(e) =>
                       setTheme((prev) => ({ ...prev, backgroundColor: e.target.value }))
                     }
-                    style={{ height: 38 }}
+                    className="h-[38px]"
                   />
                 </label>
               </div>
             </section>
 
-            <section
-              className="rounded-lg p-4"
-              style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)' }}
-            >
-              <h3 className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+            <section className="rounded-lg p-4 bg-bg-app border border-border-subtle">
+              <h3 className="text-xs font-semibold mb-2 text-text-primary">
                 Video Outputs (SMPTE)
               </h3>
-              <p className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-xs mb-2 text-text-secondary">
                 DeckLink and other SMPTE/video interfaces are treated separately from desktop
                 display outputs.
               </p>
-              <p className="text-xs" style={{ color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+              <p className="text-xs text-text-tertiary leading-[1.6]">
                 Planned architecture stub: Blackmagic DeckLink Duo 2 exposes 4 ports, Quad 2 exposes
                 8 ports, and those PCIe or Thunderbolt 3 video outputs will be configured in a
                 dedicated video-output manager rather than through the graphics display assignments
@@ -409,12 +333,7 @@ export default function OutputSettingsModal() {
           <button
             type="button"
             onClick={handleClose}
-            className="text-xs px-3 py-1.5 rounded"
-            style={{
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="text-xs px-3 py-1.5 rounded bg-bg-app border border-border-default text-text-primary"
           >
             Cancel
           </button>

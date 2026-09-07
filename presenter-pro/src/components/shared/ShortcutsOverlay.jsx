@@ -47,30 +47,16 @@ export default function ShortcutsOverlay({ onClose }) {
   return (
     <div
       data-backdrop="true"
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.4)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.4)]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div
-        className="rounded-xl shadow-2xl overflow-hidden"
-        style={{
-          width: 520,
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-        }}
-      >
+      <div className="rounded-xl shadow-2xl overflow-hidden w-[520px] bg-bg-surface border border-border-default">
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-3"
-          style={{ borderBottom: '1px solid var(--border-subtle)' }}
-        >
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Keyboard Shortcuts
-          </h2>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
+          <h2 className="text-sm font-semibold text-text-primary">Keyboard Shortcuts</h2>
           <button
             onClick={onClose}
-            className="flex items-center justify-center w-6 h-6 rounded"
-            style={{ color: 'var(--text-tertiary)' }}
+            className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary"
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
@@ -82,30 +68,18 @@ export default function ShortcutsOverlay({ onClose }) {
         <div className="p-5 grid grid-cols-2 gap-6">
           {SHORTCUTS.map((group) => (
             <div key={group.group}>
-              <p
-                className="text-xs font-semibold uppercase tracking-wide mb-2"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-text-tertiary">
                 {group.group}
               </p>
               <div className="flex flex-col gap-1.5">
                 {group.items.map((item, i) => (
                   <div key={i} className="flex items-center justify-between">
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      {item.label}
-                    </span>
+                    <span className="text-xs text-text-secondary">{item.label}</span>
                     <div className="flex items-center gap-0.5 ml-3">
                       {getShortcutKeys(item.shortcutTokens, platform).map((key, ki) => (
                         <kbd
                           key={ki}
-                          className="px-1.5 py-0.5 rounded text-xs font-medium"
-                          style={{
-                            background: 'var(--bg-app)',
-                            border: '1px solid var(--border-default)',
-                            color: 'var(--text-primary)',
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                          }}
+                          className="px-1.5 py-0.5 rounded text-[11px] leading-4 font-medium bg-bg-app border border-border-default text-text-primary font-[monospace]"
                         >
                           {key}
                         </kbd>
@@ -118,35 +92,13 @@ export default function ShortcutsOverlay({ onClose }) {
           ))}
         </div>
 
-        <div
-          className="px-5 py-2.5 text-xs text-center"
-          style={{
-            color: 'var(--text-tertiary)',
-            borderTop: '1px solid var(--border-subtle)',
-          }}
-        >
+        <div className="px-5 py-2.5 text-xs text-center text-text-tertiary border-t border-border-subtle">
           Press{' '}
-          <kbd
-            className="px-1 py-0.5 rounded mx-0.5"
-            style={{
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
-              fontFamily: 'monospace',
-              fontSize: 11,
-            }}
-          >
+          <kbd className="px-1 py-0.5 rounded mx-0.5 bg-bg-app border border-border-default font-[monospace] text-[11px]">
             ?
           </kbd>{' '}
           or{' '}
-          <kbd
-            className="px-1 py-0.5 rounded mx-0.5"
-            style={{
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
-              fontFamily: 'monospace',
-              fontSize: 11,
-            }}
-          >
+          <kbd className="px-1 py-0.5 rounded mx-0.5 bg-bg-app border border-border-default font-[monospace] text-[11px]">
             Esc
           </kbd>{' '}
           to dismiss

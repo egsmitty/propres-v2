@@ -35,25 +35,7 @@ function PreviewCloseButton() {
     <button
       type="button"
       onClick={() => closeOutputWindow()}
-      style={{
-        position: 'absolute',
-        top: 22,
-        right: 22,
-        zIndex: 10,
-        height: 42,
-        padding: '0 14px 0 12px',
-        borderRadius: 999,
-        border: '1px solid rgba(255,255,255,0.18)',
-        background: 'rgba(18,18,18,0.82)',
-        color: 'rgba(255,255,255,0.92)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        fontSize: 15,
-        fontWeight: 700,
-        cursor: 'pointer',
-        boxShadow: '0 10px 24px rgba(0,0,0,0.32)',
-      }}
+      className="absolute top-[22px] right-[22px] z-10 h-[42px] pt-0 pr-3.5 pb-0 pl-3 rounded-[999px] border border-[rgba(255,255,255,0.18)] bg-[rgba(18,18,18,0.82)] text-[rgba(255,255,255,0.92)] inline-flex items-center gap-2 text-[15px] font-bold cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.32)]"
     >
       <X size={16} />
       <span>Close Preview</span>
@@ -238,29 +220,9 @@ export default function OutputRenderer() {
 
   if (!slide) {
     return (
-      <div
-        style={{
-          width: '100vw',
-          height: '100vh',
-          background: 'var(--projector-bg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '6vw',
-          position: 'relative',
-        }}
-      >
+      <div className="w-screen h-screen bg-projector-bg flex items-center justify-center p-[6vw] relative">
         {isPreviewWindow ? <PreviewCloseButton /> : null}
-        <span
-          style={{
-            color: 'rgba(255,255,255,0.24)',
-            fontSize: 'clamp(30px, 2.8vw, 52px)',
-            fontWeight: 500,
-            fontFamily: 'Inter, system-ui, sans-serif',
-            letterSpacing: '0.02em',
-            textAlign: 'center',
-          }}
-        >
+        <span className="text-[rgba(255,255,255,0.24)] text-[clamp(30px,2.8vw,52px)] font-medium font-[Inter,system-ui,sans-serif] tracking-[0.02em] text-center">
           Main Output Display
         </span>
       </div>

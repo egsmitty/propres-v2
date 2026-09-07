@@ -49,47 +49,20 @@ export default function PresentationSettingsModal() {
   return (
     <div
       data-backdrop="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'rgba(0,0,0,0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      className="fixed inset-0 z-[1000] bg-[rgba(0,0,0,0.6)] flex items-center justify-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) setPresentationSettingsOpen(false);
       }}
     >
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 10,
-          padding: 24,
-          width: 340,
-          boxShadow: '0 24px 48px rgba(0,0,0,0.4)',
-        }}
-      >
-        <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-          Presentation Settings
-        </h2>
+      <div className="bg-bg-surface border border-border-default rounded-[10px] p-6 w-[340px] shadow-[0_24px_48px_rgba(0,0,0,0.4)]">
+        <h2 className="text-sm font-semibold mb-4 text-text-primary">Presentation Settings</h2>
 
         <div className="mb-4">
-          <p className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
-            Aspect Ratio
-          </p>
+          <p className="text-xs mb-2 text-text-secondary">Aspect Ratio</p>
           <select
             value={ratio}
             onChange={(e) => setRatio(e.target.value)}
-            className="w-full text-xs rounded"
-            style={{
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              padding: '8px 10px',
-            }}
+            className="w-full text-xs rounded bg-bg-app border border-border-default text-text-primary py-2 px-2.5"
           >
             {PRESETS.map(({ label, value }) => (
               <option key={value} value={value}>
@@ -160,13 +133,7 @@ export default function PresentationSettingsModal() {
         <div className="flex gap-2 justify-end">
           <button
             onClick={() => setPresentationSettingsOpen(false)}
-            className="text-xs px-3 py-1.5 rounded"
-            style={{
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
+            className="text-xs px-3 py-1.5 rounded bg-bg-app border border-border-default text-text-secondary cursor-pointer"
           >
             Cancel
           </button>
