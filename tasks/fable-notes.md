@@ -835,3 +835,28 @@ JSX (E1 banned hex, not rgba; most are the accent at some alpha and want
 tokens); and the hover handlers that mutate `element.style` on
 mouse-enter, which could become `hover:` classes once a hover capture
 exists. Neither is urgent; both are recorded in the charter.
+
+### 2026-09-07 — E4b: hover handlers gone; and a 1,200-line component nobody renders
+
+`tasks/plan-E4b-hover-classes.md`. 29 of the 38 mouse-enter/leave handler
+pairs became `hover:` classes (#83 captured each control hovered, clipped
+to its box; the conversion PR is proven at 0 differing pixels on all 52
+captures). 246 lines of JavaScript that did what one utility does. A small
+bug went with them: the song card's Delete button used to keep its red
+hover border after the mouse left, because its leave handler only reset
+the background.
+
+**Decision for you — `FormattingToolbar.jsx` (1,197 lines) is unreachable.**
+No code renders it; the only import is a test that characterises its
+`NumberField`. The editor's real formatting UI is `Toolbar.jsx`'s text
+mode. D4 missed it because of that named import; my E4 slice 3 converted
+its styles blind (harmless, but I said "never blind" and this was). Either
+delete it (and the test, and the "NumberField empty→min" opinion I recorded
+earlier, which is about this dead field) or tell me it is a draft you mean
+to wire — there is a `codex/editor-toolbar-checkpoint` branch locally that
+suggests it once was. I have not deleted anything.
+
+Two smaller keyboard notes, recorded for the E3 follow-up list: the menu
+bar does not close on Escape (its trigger toggles it), and the `?`
+shortcut yields while a text box is selected — the Help menu still opens
+the overlay, so nothing is unreachable.

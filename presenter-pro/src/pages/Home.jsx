@@ -400,23 +400,14 @@ export default function Home() {
             key={id}
             onClick={() => setHomeTab(id)}
             data-tour={id === 'new' ? 'home-entry' : undefined}
-            className="flex flex-col items-center justify-center gap-3 rounded-[28px] py-5 mb-2"
+            className={`flex flex-col items-center justify-center gap-3 rounded-[28px] py-5 mb-2 ${
+              homeTab === id
+                ? 'bg-[linear-gradient(180deg,rgba(74,124,255,0.24)_0%,rgba(74,124,255,0.14)_100%)]'
+                : 'bg-transparent hover:bg-bg-hover'
+            }`}
             style={{
-              background:
-                homeTab === id
-                  ? 'linear-gradient(180deg, rgba(74,124,255,0.24) 0%, rgba(74,124,255,0.14) 100%)'
-                  : 'transparent',
               color: homeTab === id ? 'var(--accent)' : 'var(--text-secondary)',
               border: `1px solid ${homeTab === id ? 'rgba(74,124,255,0.22)' : 'transparent'}`,
-            }}
-            onMouseEnter={(e) => {
-              if (homeTab !== id) e.currentTarget.style.background = 'var(--bg-hover)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background =
-                homeTab === id
-                  ? 'linear-gradient(180deg, rgba(74,124,255,0.24) 0%, rgba(74,124,255,0.14) 100%)'
-                  : 'transparent';
             }}
           >
             <Icon size={30} strokeWidth={2.2} />
@@ -436,9 +427,7 @@ export default function Home() {
             {homeTab === 'home' && (
               <button
                 onClick={handleShowTutorial}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium shrink-0 bg-bg-surface text-text-primary border border-border-default"
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium shrink-0 bg-bg-surface hover:bg-bg-hover text-text-primary border border-border-default"
               >
                 <BookOpen size={16} />
                 Show Tutorial
@@ -787,27 +776,15 @@ function TemplateCard({
   return (
     <button
       onClick={onSelect}
-      className={
-        variant === 'hero'
-          ? 'block w-full bg-bg-surface text-left rounded-[30px] p-4'
-          : 'block w-full bg-bg-surface text-left rounded-[24px] p-3.5'
-      }
+      className={`block w-full bg-bg-surface text-left border hover:border-border-default hover:-translate-y-px hover:shadow-[0_18px_38px_rgba(8,14,30,0.10)] ${
+        variant === 'hero' ? 'rounded-[30px] p-4' : 'rounded-[24px] p-3.5'
+      } ${
+        selected
+          ? 'border-[rgba(74,124,255,0.5)] shadow-[0_0_0_3px_rgba(74,124,255,0.14),0_14px_34px_rgba(8,14,30,0.07)]'
+          : 'border-border-subtle shadow-[0_14px_34px_rgba(8,14,30,0.07)]'
+      }`}
       style={{
-        border: selected ? '1px solid rgba(74,124,255,0.5)' : '1px solid var(--border-subtle)',
-        boxShadow: selected
-          ? '0 0 0 3px rgba(74,124,255,0.14), 0 14px 34px rgba(8, 14, 30, 0.07)'
-          : '0 14px 34px rgba(8, 14, 30, 0.07)',
         transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-default)';
-        e.currentTarget.style.transform = 'translateY(-1px)';
-        e.currentTarget.style.boxShadow = '0 18px 38px rgba(8, 14, 30, 0.10)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-subtle)';
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 14px 34px rgba(8, 14, 30, 0.07)';
       }}
     >
       <TemplatePreview visual={visual} blank={blank} variant={variant} />
@@ -1040,24 +1017,11 @@ function PresentationRow({
                 e.stopPropagation();
                 onTogglePinned?.(presentation);
               }}
-              className="w-11 h-11 rounded-full flex items-center justify-center"
-              style={{
-                background: pinned ? 'rgba(74,124,255,0.14)' : 'transparent',
-                color: pinned ? 'var(--accent)' : 'var(--text-tertiary)',
-                border: `1px solid ${pinned ? 'rgba(74,124,255,0.22)' : 'var(--border-subtle)'}`,
-              }}
-              onMouseEnter={(event) => {
-                event.currentTarget.style.borderColor = pinned
-                  ? 'var(--accent)'
-                  : 'var(--border-default)';
-                event.currentTarget.style.boxShadow = '0 0 0 2px rgba(74,124,255,0.12)';
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.borderColor = pinned
-                  ? 'rgba(74,124,255,0.22)'
-                  : 'var(--border-subtle)';
-                event.currentTarget.style.boxShadow = 'none';
-              }}
+              className={`w-11 h-11 rounded-full flex items-center justify-center border hover:shadow-[0_0_0_2px_rgba(74,124,255,0.12)] ${
+                pinned
+                  ? 'bg-[rgba(74,124,255,0.14)] text-accent border-[rgba(74,124,255,0.22)] hover:border-accent'
+                  : 'bg-transparent text-text-tertiary border-border-subtle hover:border-border-default'
+              }`}
             >
               <Pin size={18} fill={pinned ? 'currentColor' : 'none'} />
             </button>

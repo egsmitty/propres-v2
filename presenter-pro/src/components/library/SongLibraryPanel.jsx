@@ -47,9 +47,7 @@ export default function SongLibraryPanel() {
             type="button"
             aria-label="Close song library"
             onClick={() => setSongLibraryOpen(false)}
-            className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary"
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary hover:bg-bg-hover"
           >
             <X size={14} />
           </button>
@@ -100,9 +98,7 @@ export default function SongLibraryPanel() {
               setEditSong(null);
               setShowEditor(true);
             }}
-            className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded text-xs font-medium bg-bg-surface border border-border-default text-text-primary"
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
+            className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded text-xs font-medium bg-bg-surface hover:bg-bg-hover border border-border-default text-text-primary"
           >
             <Plus size={13} />
             New Song

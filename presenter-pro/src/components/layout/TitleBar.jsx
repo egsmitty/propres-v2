@@ -72,14 +72,8 @@ export default function TitleBar() {
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={handleBack}
-          className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium shrink-0 text-text-primary bg-bg-surface border border-border-default"
+          className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium shrink-0 text-text-primary bg-bg-surface hover:bg-bg-hover border border-border-default"
           title="Back to Home"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--bg-hover)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--bg-surface)';
-          }}
         >
           <ChevronLeft size={13} />
           Home
@@ -95,13 +89,7 @@ export default function TitleBar() {
               <button
                 type="button"
                 onClick={startRename}
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium shrink-0 text-text-primary bg-bg-surface border border-border-default"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-hover)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-surface)';
-                }}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium shrink-0 text-text-primary bg-bg-surface hover:bg-bg-hover border border-border-default"
               >
                 <Pencil size={12} />
                 Rename

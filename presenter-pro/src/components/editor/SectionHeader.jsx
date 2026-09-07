@@ -110,16 +110,8 @@ export default function SectionHeader({
 
         <button
           onClick={onAddSlide}
-          className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-4 h-4 rounded text-text-tertiary"
+          className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-4 h-4 rounded text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
           title="Add slide to this section"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--bg-hover)';
-            e.currentTarget.style.color = 'var(--text-primary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = 'var(--text-tertiary)';
-          }}
         >
           <Plus size={11} />
         </button>

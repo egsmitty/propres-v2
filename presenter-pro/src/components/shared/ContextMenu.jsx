@@ -43,7 +43,9 @@ export default function ContextMenu({ x, y, items, onClose }) {
         return (
           <button
             key={i}
-            className="w-full text-left px-3.5 py-2.5 text-sm rounded-xl mx-1 flex items-center gap-2.5"
+            className={`w-full text-left px-3.5 py-2.5 text-sm rounded-xl mx-1 flex items-center gap-2.5 ${
+              item.disabled ? '' : item.danger ? 'hover:bg-danger-dim' : 'hover:bg-bg-hover'
+            }`}
             style={{
               color: item.disabled
                 ? 'var(--text-tertiary)'
@@ -51,15 +53,6 @@ export default function ContextMenu({ x, y, items, onClose }) {
                   ? 'var(--danger)'
                   : 'var(--text-primary)',
               cursor: item.disabled ? 'default' : 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              if (item.disabled) return;
-              e.currentTarget.style.background = item.danger
-                ? 'var(--danger-dim)'
-                : 'var(--bg-hover)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
             }}
             onClick={() => {
               if (item.disabled) return;

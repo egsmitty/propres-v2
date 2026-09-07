@@ -73,16 +73,10 @@ function MenuItem({ item, onAction, onClose }) {
 
   return (
     <button
-      className="w-full text-left flex items-center justify-between px-3 py-1.5 text-[12px] rounded-md"
+      className={`w-full text-left flex items-center justify-between px-3 py-1.5 text-[12px] rounded-md ${disabled ? '' : 'hover:bg-bg-hover'}`}
       style={{
         color: disabled ? 'var(--text-tertiary)' : 'var(--text-primary)',
         cursor: disabled ? 'default' : 'pointer',
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.background = 'var(--bg-hover)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent';
       }}
       onClick={() => {
         if (!disabled) {

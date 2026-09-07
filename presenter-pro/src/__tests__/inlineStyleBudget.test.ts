@@ -22,7 +22,7 @@ const BUDGET: Record<string, number> = {
   'components/editor/Filmstrip.jsx': 17,
   'components/presenter/OutputRenderer.jsx': 13,
   'components/library/SongEditorModal.jsx': 11,
-  'pages/Home.jsx': 10,
+  'pages/Home.jsx': 9,
   'components/editor/PresentationSettingsModal.jsx': 7,
   'components/library/MediaLibraryPanel.jsx': 7,
   'components/shared/Dialog.jsx': 7,
@@ -58,6 +58,47 @@ function countInlineStyles(file: string): number {
   // passed-through prop — so a `style={fn()}` cannot slip under the ratchet.
   return readFileSync(file, 'utf8').match(/\bstyle=\{/g)?.length ?? 0;
 }
+
+/**
+ * Plan E4b. Mouse-enter handlers that paint a hover look belong in `hover:`
+ * classes; the ones left are the two that set React state, the collapsed
+ * slivers (no capture reaches them the same way on every machine), a divider
+ * that must stay highlighted while dragging, and the unreachable
+ * FormattingToolbar. Ceiling 0 everywhere else.
+ */
+const HOVER_HANDLER_BUDGET: Record<string, number> = {
+  'components/editor/FormattingToolbar.jsx': 5,
+  'components/presenter/PresenterPanel.jsx': 2,
+  'components/layout/MenuBar.jsx': 1,
+  'pages/Editor.jsx': 1,
+  'pages/Home.jsx': 1,
+};
+
+function countHoverHandlers(file: string): number {
+  return readFileSync(file, 'utf8').match(/\bonMouseEnter=/g)?.length ?? 0;
+}
+
+describe('hover handler budget (plan E4b)', () => {
+  const counts = new Map<string, number>();
+  for (const file of componentFiles(SRC)) {
+    const n = countHoverHandlers(file);
+    if (n > 0) counts.set(relative(SRC, file), n);
+  }
+
+  it('no file has more mouse-enter handlers than its ceiling', () => {
+    const over = [...counts]
+      .filter(([file, n]) => n > (HOVER_HANDLER_BUDGET[file] ?? 0))
+      .map(([file, n]) => `${file}: ${n} > ${HOVER_HANDLER_BUDGET[file] ?? 0}`);
+    expect(over, 'hover handlers over budget — use hover: classes').toEqual([]);
+  });
+
+  it('every hover ceiling is exact', () => {
+    const stale = Object.entries(HOVER_HANDLER_BUDGET)
+      .filter(([file, ceiling]) => (counts.get(file) ?? 0) !== ceiling)
+      .map(([file, ceiling]) => `${file}: ceiling ${ceiling}, actual ${counts.get(file) ?? 0}`);
+    expect(stale, 'HOVER_HANDLER_BUDGET is out of date').toEqual([]);
+  });
+});
 
 describe('inline style budget (plan E4)', () => {
   const counts = new Map<string, number>();
