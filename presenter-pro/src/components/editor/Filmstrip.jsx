@@ -1008,30 +1008,17 @@ export default function Filmstrip({ width = 224 }) {
       onMouseDownCapture={() => flushPendingNumericFieldCommit()}
       onKeyDown={handleFilmstripKeyDown}
       data-tour="filmstrip"
-      className="h-full overflow-hidden shrink-0 flex flex-col"
+      className="h-full overflow-hidden shrink-0 flex flex-col bg-bg-filmstrip border-r border-border-default shadow-none"
       style={{
         width,
-        background: 'var(--bg-filmstrip)',
-        borderRight: '1px solid var(--border-default)',
-        boxShadow: 'none',
       }}
     >
-      <div
-        className="shrink-0 flex items-center justify-between px-3 py-2"
-        style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)' }}
-      >
-        <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Service Order
-        </div>
+      <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-bg-surface border-b border-border-subtle">
+        <div className="text-sm font-semibold text-text-primary">Service Order</div>
         <button
           type="button"
           onClick={collapseAllSections}
-          className="px-2.5 py-1 rounded text-[11px] font-medium"
-          style={{
-            color: 'var(--text-primary)',
-            background: 'var(--bg-app)',
-            border: '1px solid var(--border-default)',
-          }}
+          className="px-2.5 py-1 rounded text-[11px] font-medium text-text-primary bg-bg-app border border-border-default"
           onMouseEnter={(event) => {
             event.currentTarget.style.background = 'var(--bg-hover)';
           }}
@@ -1114,16 +1101,7 @@ export default function Filmstrip({ width = 224 }) {
                         return (
                           <React.Fragment key={slide.id}>
                             {showSubHeader && (
-                              <div
-                                className="mx-2 mt-1 mb-0.5 truncate"
-                                style={{
-                                  fontSize: 9,
-                                  color: 'var(--text-tertiary)',
-                                  letterSpacing: '0.06em',
-                                  textTransform: 'uppercase',
-                                  paddingLeft: 2,
-                                }}
-                              >
+                              <div className="mx-2 mt-1 mb-0.5 truncate text-[9px] text-text-tertiary tracking-[0.06em] uppercase pl-0.5">
                                 {displayLabel}
                               </div>
                             )}

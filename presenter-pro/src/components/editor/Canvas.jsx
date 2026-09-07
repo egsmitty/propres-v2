@@ -1235,13 +1235,9 @@ export default function Canvas() {
 
         {selected && (
           <div
+            className="absolute -inset-px border-2 border-[rgba(74,124,255,0.92)] shadow-[0_0_0_3px_rgba(74,124,255,0.14)] pointer-events-none"
             style={{
-              position: 'absolute',
-              inset: -1,
               borderRadius: (box.cornerRadius ?? DEFAULT_TEXT_BOX.cornerRadius) + 1,
-              border: '2px solid rgba(74,124,255,0.92)',
-              boxShadow: '0 0 0 3px rgba(74,124,255,0.14)',
-              pointerEvents: 'none',
             }}
           />
         )}
@@ -1273,11 +1269,7 @@ export default function Canvas() {
   }
 
   return (
-    <div
-      data-tour="canvas"
-      className="flex-1 min-h-0 flex flex-col overflow-hidden"
-      style={{ background: 'var(--bg-app)' }}
-    >
+    <div data-tour="canvas" className="flex-1 min-h-0 flex flex-col overflow-hidden bg-bg-app">
       {showSongOrderTray ? (
         <SongOrderTray
           groups={songSectionData.groups}
@@ -1316,13 +1308,10 @@ export default function Canvas() {
               data-text-editing={
                 editingSlideId === selectedSlideId && Boolean(selectedSlideId) ? 'true' : 'false'
               }
-              className="relative rounded shadow-2xl overflow-hidden"
+              className="relative rounded shadow-2xl overflow-hidden max-w-full max-h-full bg-bg-canvas"
               style={{
                 width: fittedCanvasSize.width,
                 height: fittedCanvasSize.height,
-                maxWidth: '100%',
-                maxHeight: '100%',
-                background: 'var(--bg-canvas)',
                 boxShadow: mediaDropActive
                   ? '0 0 0 4px rgba(74,124,255,0.24), 0 28px 54px rgba(8,14,30,0.24)'
                   : undefined,
@@ -1375,16 +1364,7 @@ export default function Canvas() {
                   slideMedia ? (
                     <CanvasBackground media={slideMedia} />
                   ) : (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--on-dark-6)',
-                      }}
-                    >
+                    <div className="absolute inset-0 flex items-center justify-center text-on-dark-6">
                       Media slide
                     </div>
                   )
@@ -1526,19 +1506,13 @@ export default function Canvas() {
         />
       )}
 
-      <div
-        className="shrink-0 px-4 py-2"
-        style={{ background: 'var(--bg-toolbar)', borderTop: '1px solid var(--border-subtle)' }}
-      >
+      <div className="shrink-0 px-4 py-2 bg-bg-toolbar border-t border-border-subtle">
         <div className="flex items-center gap-3 justify-between flex-wrap">
           <div className="min-w-[220px] flex-1">
-            <div
-              className="text-[11px] font-medium uppercase tracking-[0.08em]"
-              style={{ color: 'var(--text-secondary)' }}
-            >
+            <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-text-secondary">
               {section ? `${getSectionTypeLabel(section.type)} Background` : 'Section Background'}
             </div>
-            <div className="text-xs mt-0.5 break-words" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-xs mt-0.5 break-words text-text-tertiary">
               {mediaOnlySlide
                 ? slideMedia?.name || 'Media slide'
                 : backgroundMedia
@@ -1547,12 +1521,7 @@ export default function Canvas() {
             </div>
           </div>
           <button
-            className="shrink-0 text-xs px-3 py-1.5 rounded-md font-medium"
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="shrink-0 text-xs px-3 py-1.5 rounded-md font-medium bg-bg-surface border border-border-default text-text-primary"
             onMouseEnter={(event) => (event.currentTarget.style.background = 'var(--bg-hover)')}
             onMouseLeave={(event) => (event.currentTarget.style.background = 'var(--bg-surface)')}
             onClick={() => openMediaLibrary()}
@@ -1593,89 +1562,58 @@ function SongOrderTray({
 }) {
   return (
     <div
-      className="shrink-0 px-4 py-3"
+      className="shrink-0 px-4 py-3 bg-bg-toolbar"
       style={{
-        background: 'var(--bg-toolbar)',
         opacity: disabled ? 0.58 : 1,
         pointerEvents: disabled ? 'none' : 'auto',
       }}
     >
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
+      <div className="rounded-2xl overflow-hidden bg-bg-surface border border-border-subtle">
         <button
           type="button"
           onClick={onToggleCollapsed}
-          className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
-          style={{
-            color: 'var(--text-primary)',
-          }}
+          className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors text-text-primary"
         >
           <div className="flex items-center gap-3 min-w-0">
             {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
             <div className="min-w-0">
-              <p
-                className="text-xs font-medium whitespace-nowrap"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                Song Order
-              </p>
-              <p className="text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-xs font-medium whitespace-nowrap text-text-primary">Song Order</p>
+              <p className="text-[11px] truncate text-text-tertiary">
                 {entries.length} arranged · {groups.length} available
               </p>
             </div>
           </div>
-          <span
-            className="text-[11px] uppercase tracking-[0.18em]"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
+          <span className="text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
             {collapsed ? 'Show' : 'Hide'}
           </span>
         </button>
 
         {!collapsed ? (
-          <div className="px-4 pb-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          <div className="px-4 pb-4 border-t border-border-subtle">
             <div className="max-h-[320px] overflow-y-auto pt-3 pr-1">
-              <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-xs mb-3 text-text-tertiary">
                 Drag to arrange section groups above the selected slide preview.
               </p>
 
-              <div
-                className="mb-4 rounded-xl"
-                style={{
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-surface)',
-                }}
-              >
+              <div className="mb-4 rounded-xl border border-border-subtle bg-bg-surface">
                 <button
                   type="button"
                   onClick={onToggleSections}
-                  className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-left transition-colors"
-                  style={{ color: 'var(--text-primary)' }}
+                  className="w-full flex items-center justify-between rounded-xl px-3 py-2 text-left transition-colors text-text-primary"
                 >
                   <div className="flex items-center gap-2">
                     {sectionsCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                    <span
-                      className="text-[11px] uppercase tracking-[0.18em]"
-                      style={{ color: 'var(--text-tertiary)' }}
-                    >
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
                       Available Sections
                     </span>
                   </div>
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="text-xs text-text-secondary">
                     {groups.length} section{groups.length === 1 ? '' : 's'}
                   </span>
                 </button>
 
                 {!sectionsCollapsed ? (
-                  <div
-                    className="flex flex-wrap gap-2 border-t px-3 py-3"
-                    style={{ borderColor: 'var(--border-subtle)' }}
-                  >
+                  <div className="flex flex-wrap gap-2 border-t px-3 py-3 border-border-subtle">
                     {groups.map((group) => (
                       <button
                         key={group.id}
@@ -1701,25 +1639,13 @@ function SongOrderTray({
 
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <p className="text-[11px] uppercase" style={{ color: 'var(--text-tertiary)' }}>
-                    Arrangement
-                  </p>
-                  <span
-                    className="text-xs whitespace-nowrap"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
+                  <p className="text-[11px] uppercase text-text-tertiary">Arrangement</p>
+                  <span className="text-xs whitespace-nowrap text-text-secondary">
                     {entries.length} item{entries.length === 1 ? '' : 's'}
                   </span>
                 </div>
                 <div
-                  className="rounded-xl p-3.5"
-                  style={{
-                    border: '1px dashed var(--border-default)',
-                    background: 'var(--bg-surface)',
-                    minHeight: 112,
-                    maxHeight: 112,
-                    overflowY: 'auto',
-                  }}
+                  className="rounded-xl p-3.5 border border-dashed border-border-default bg-bg-surface min-h-[112px] max-h-[112px] overflow-y-auto"
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={() => onArrangementDrop(entries.length)}
                 >
@@ -1746,7 +1672,7 @@ function SongOrderTray({
                           cursor: disabled ? 'default' : 'grab',
                         }}
                       >
-                        <GripVertical size={12} style={{ color: 'var(--text-tertiary)' }} />
+                        <GripVertical size={12} className="text-text-tertiary" />
                         <span className="text-sm">{entry.group.label}</span>
                         <button
                           type="button"
@@ -1754,8 +1680,7 @@ function SongOrderTray({
                             event.stopPropagation();
                             onRemoveEntry(entry.index);
                           }}
-                          className="text-sm"
-                          style={{ color: 'var(--text-tertiary)' }}
+                          className="text-sm text-text-tertiary"
                         >
                           ×
                         </button>
@@ -1800,17 +1725,8 @@ function ResizeHandles({ onBegin }) {
     <div
       key={handle}
       onMouseDown={(event) => onBegin(event, handle)}
-      style={{
-        position: 'absolute',
-        width: 10,
-        height: 10,
-        background: 'var(--white)',
-        border: '1.5px solid rgba(74,124,255,0.96)',
-        borderRadius: 999,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.28)',
-        zIndex: 10,
-        ...style,
-      }}
+      className="absolute w-[10px] h-[10px] bg-white border-[1.5px] border-[rgba(74,124,255,0.96)] rounded-[999px] shadow-[0_2px_8px_rgba(0,0,0,0.28)] z-10"
+      style={style}
     />
   ));
 }
@@ -1818,32 +1734,11 @@ function ResizeHandles({ onBegin }) {
 function RotationHandle({ onBegin }) {
   return (
     <>
-      <div
-        style={{
-          position: 'absolute',
-          top: -30,
-          left: '50%',
-          width: 1,
-          height: 22,
-          background: 'rgba(74,124,255,0.9)',
-          transform: 'translateX(-50%)',
-        }}
-      />
+      <div className="absolute -top-[30px] left-1/2 w-px h-[22px] bg-[rgba(74,124,255,0.9)] -translate-x-1/2" />
       <button
         type="button"
         onMouseDown={onBegin}
-        style={{
-          position: 'absolute',
-          top: -46,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 16,
-          height: 16,
-          borderRadius: '50%',
-          border: '1.5px solid rgba(74,124,255,0.96)',
-          background: 'var(--white)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.28)',
-        }}
+        className="absolute -top-[46px] left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-[1.5px] border-[rgba(74,124,255,0.96)] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.28)]"
       />
     </>
   );
@@ -1900,16 +1795,7 @@ function CanvasBackground({ media }) {
 
   if (!src || media.file_exists === false) {
     return (
-      <div
-        className="absolute inset-0 flex items-center justify-center"
-        style={{
-          background: 'rgba(10, 10, 10, 0.92)',
-          color: 'rgba(255,255,255,0.76)',
-          fontSize: 20,
-          fontWeight: 600,
-          letterSpacing: '0.02em',
-        }}
-      >
+      <div className="absolute inset-0 flex items-center justify-center bg-[rgba(10,10,10,0.92)] text-[rgba(255,255,255,0.76)] text-[20px] font-semibold tracking-[0.02em]">
         Missing media file
       </div>
     );

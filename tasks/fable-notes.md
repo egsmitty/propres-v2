@@ -775,3 +775,35 @@ commit hook (commitlint) had already been failing on a shadowed `ini`
 package. I purged the duplicates and reinstalled. This is the third
 category of damage from syncing this folder (source files, `.git`
 internals, now dependencies). Please move the repo out of `~/Desktop`.
+
+### 2026-09-07 — E4 in flight: slices 0–2 merged, the net grew three times
+
+Merged: slice 0 (#71, machinery), slice 1 Home 49 → 10 (#73), slice 2 the
+two library panels and song card 67 → 8 (#75). Each slice was proven the
+same way: capture on the base commit, convert, compare with
+`VISUAL_STRICT=1` — **0 differing pixels** every time, then CI at its own
+baselines.
+
+**The net had to grow before every slice, and that is the finding.** The
+first E2 captures saw one state of each screen. Home has four tabs (one
+captured); the media library was captured empty (most of its markup only
+renders with content); the editor was captured with nothing selected (the
+selection handles, the song order tray and the missing-media overlay all
+live in other states). Three addenda (#72, #74, #76) added nine captures —
+20 now. The rule "a component the net cannot see is not converted" held
+every time, which is why these PRs are small and boring. Boring is the
+point.
+
+Two things you should know:
+
+- A second and third runner capture returned every existing baseline
+  **byte-identical**. The runner is deterministic; when a visual check goes
+  red it is the app, not the weather.
+- The canvas root's `data-text-editing` flag means "this slide is the one
+  being edited", not "the inline text editor is open". It confused me for
+  three test runs; it will confuse the next person. Worth a rename when
+  Canvas is next touched for real.
+
+Small mess of my own: the squash subject for #75 reads `(#)` instead of
+`(#75)` — a variable was empty in my merge loop. Cosmetic; not worth a
+history rewrite.
