@@ -169,3 +169,66 @@ describe('dirty tracking', () => {
     expect(useEditorStore.getState().isDirty).toBe(false);
   });
 });
+
+// Plan D2 slice 4: the store owns the "enter editing on selection" decision
+// that Canvas used to make in an effect after the fact.
+describe('selection auto-edit (plan D2 slice 4)', () => {
+  const withEmptySlide = () => {
+    const p = presentationFixture();
+    p.sections[0]!.slides.push({ id: 'sl-3', body: '' });
+    return p;
+  };
+
+  it('selecting an empty single-box slide enters editing and selects its box', () => {
+    useEditorStore.getState().setPresentation(withEmptySlide());
+    useEditorStore.getState().setSelectedSlide('sec-1', 'sl-3');
+    const s = useEditorStore.getState();
+    expect(s.editingSlideId).toBe('sl-3');
+    expect(s.selectedTextBoxIds).toHaveLength(1);
+  });
+
+  it('selecting a slide with text does not enter editing', () => {
+    useEditorStore.getState().setPresentation(withEmptySlide());
+    useEditorStore.getState().setSelectedSlide('sec-1', 'sl-1');
+    const s = useEditorStore.getState();
+    expect(s.editingSlideId).toBeNull();
+    expect(s.selectedTextBoxIds).toEqual([]);
+  });
+
+  it('a just-inserted slide is selected, box selected, but not edited (suppressAutoEdit)', () => {
+    useEditorStore.getState().setPresentation(withEmptySlide());
+    useEditorStore
+      .getState()
+      .setSlideSelection('sec-1', 'sl-3', ['sl-3'], { suppressAutoEdit: true });
+    const s = useEditorStore.getState();
+    expect(s.editingSlideId).toBeNull();
+    expect(s.selectedTextBoxIds).toHaveLength(1);
+    expect(s.selectedSlideIds).toEqual(['sl-3']);
+  });
+
+  it('setSelectedTextBoxIds accepts a functional updater', () => {
+    useEditorStore.getState().setSelectedTextBoxIds(['a']);
+    useEditorStore.getState().setSelectedTextBoxIds((current: string[]) => [...current, 'b']);
+    expect(useEditorStore.getState().selectedTextBoxIds).toEqual(['a', 'b']);
+  });
+
+  it('undo restores the selection without entering editing (deliberate: history never drops you into edit mode)', () => {
+    useEditorStore.getState().setPresentation(withEmptySlide());
+    useEditorStore.getState().setSelectedSlide('sec-1', 'sl-3');
+    useEditorStore.getState().updateSlideBody('sec-1', 'sl-3', 'typed');
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().editingSlideId).toBeNull();
+  });
+});
+
+describe('addSlideTextBox (plan D2 slice 4)', () => {
+  it('selects the new box and leaves text editing, so the toolbar targets it', () => {
+    useEditorStore.getState().setPresentation(presentationFixture());
+    useEditorStore.getState().setSelectedSlide('sec-1', 'sl-1');
+    useEditorStore.getState().addSlideTextBox('sec-1', 'sl-1');
+    const s = useEditorStore.getState();
+    expect(s.lastAddedTextBoxId).toBeTruthy();
+    expect(s.selectedTextBoxIds).toEqual([s.lastAddedTextBoxId]);
+    expect(s.editingSlideId).toBeNull();
+  });
+});

@@ -620,3 +620,32 @@ the stale frame never commits. Two `exhaustive-deps` warnings died with the
 effects (12 left). What is left in D2 is Canvas, whose four effects exist
 because text-box selection and "editing slide" live in both Canvas state and
 the editor store; that is a small store-ownership refactor with its own plan.
+
+### 2026-09-06 — D2 slice 4: Canvas — and D2 is complete (16/16)
+
+The four Canvas effects existed because text-box selection and "editing this
+slide" lived in Canvas _and_ in the editor store, kept in sync after the fact.
+Now the store decides at selection time (`resolveSelectionEditing`, pure,
+7 tests) whether an empty slide is edited at once, a just-inserted slide is
+selected-not-edited, and a just-added text box becomes the selection; Canvas
+only resets its own transient state, while rendering. A new E2E drives it
+through the real menu bar (Insert → New Slide, ArrowUp).
+
+**Two things I found and want you to know:**
+
+1. My first E2E asserted "opens with the inline text editor" and I ran it
+   against the _old_ code before trusting it — it failed there too. The
+   store's editing state never opened the contentEditable; that only happens
+   on double-click/Enter. The spec now asserts the real state through two
+   `data-` attributes I added on the canvas root and text-box roots.
+2. **Deliberate behaviour change:** undo/redo no longer drop you into edit
+   mode when they land on an empty slide. The old effect fired on any slide
+   change, history included. Tell me if you want the old behaviour back — it
+   is one line in the store's undo/redo.
+
+**Please move this repository out of iCloud.** 49 "name 2.ext" duplicates
+appeared during this slice alone, in `src/`, `electron/`, `out/` and
+`coverage/`. The ignore rules keep them out of the gate, but a duplicate
+`Canvas 2.jsx` next to `Canvas.jsx` is one careless import away from being
+the file that ships. A folder outside `~/Desktop`/`~/Documents` (or with
+"Desktop & Documents" sync off) fixes it for good.

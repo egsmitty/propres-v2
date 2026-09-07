@@ -256,8 +256,7 @@ export async function insertNewSlideIntoCurrentPresentation() {
     state.setSelectedTextBoxIds(preservedTextBoxIds);
     state.setEditingSlide(state.selectedSlideId);
   } else {
-    state.setSelectedSlide(inserted.sectionId, newSlide.id);
-    state.setSuppressAutoEditSlideId(newSlide.id);
+    state.setSelectedSlide(inserted.sectionId, newSlide.id, { suppressAutoEdit: true });
   }
 
   return newSlide;

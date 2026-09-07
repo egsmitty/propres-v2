@@ -7,9 +7,6 @@
   "src/components/editor/Canvas.jsx": {
     "no-unused-vars": {
       "count": 2
-    },
-    "react-hooks/set-state-in-effect": {
-      "count": 4
     }
   },
   "src/components/editor/Filmstrip.jsx": {
