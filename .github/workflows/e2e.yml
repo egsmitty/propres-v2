@@ -11,6 +11,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
+    inputs:
+      update_baselines:
+        description: >-
+          Re-capture the screenshot baselines on this runner and upload them as
+          the "visual-baselines" artifact (download, commit, push). Baselines
+          must come from here, not a laptop — see e2e/visual.spec.ts.
+        type: boolean
+        default: false
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -49,7 +57,21 @@ jobs:
       # Builds out/ then runs Playwright against it. Electron does not need
       # `playwright install`: it uses the electron binary from node_modules.
       - name: Run E2E
+        if: ${{ !inputs.update_baselines }}
         run: npm run test:e2e
+
+      - name: Re-capture screenshot baselines
+        if: ${{ inputs.update_baselines }}
+        run: npm run build && npx playwright test e2e/visual.spec.ts e2e/visual-surfaces.spec.ts --update-snapshots
+
+      - name: Upload screenshot baselines
+        if: ${{ inputs.update_baselines }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-baselines
+          path: presenter-pro/e2e/*-snapshots/
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Upload Playwright report
         if: failure()
