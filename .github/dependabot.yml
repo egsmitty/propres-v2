@@ -45,14 +45,6 @@ updates:
         update-types: ['version-update:semver-major']
       # React 19 and Tailwind 4 are migrations with their own plans (U2, U3 in
       # tasks/fable-notes.md), not dependency bumps. Remove when those plans run.
-      - dependency-name: react
-        update-types: ['version-update:semver-major']
-      - dependency-name: react-dom
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@types/react'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@types/react-dom'
-        update-types: ['version-update:semver-major']
       # @types/node tracks the Node major in .nvmrc (the toolchain test enforces
       # the agreement); it moves with the Node upgrade, not on its own.
       - dependency-name: '@types/node'
