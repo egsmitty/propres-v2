@@ -136,7 +136,7 @@ export default function PresentationSettingsModal() {
             </div>
             <div
               className="mt-2 text-xs"
-              style={{ color: customValid ? 'var(--text-tertiary)' : 'var(--danger, #ef4444)' }}
+              style={{ color: customValid ? 'var(--text-tertiary)' : 'var(--danger)' }}
             >
               {customValid
                 ? 'Custom output is saved per presentation.'
@@ -164,7 +164,10 @@ export default function PresentationSettingsModal() {
             style={{
               background: ratio === 'custom' && !customValid ? 'var(--bg-hover)' : 'var(--accent)',
               border: 'none',
-              color: ratio === 'custom' && !customValid ? 'var(--text-tertiary)' : '#fff',
+              color:
+                ratio === 'custom' && !customValid
+                  ? 'var(--text-tertiary)'
+                  : 'var(--text-on-accent)',
               cursor: ratio === 'custom' && !customValid ? 'default' : 'pointer',
             }}
             disabled={ratio === 'custom' && !customValid}

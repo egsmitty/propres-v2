@@ -40,6 +40,35 @@
   --danger: #dc2626;
   --danger-dim: rgba(220, 38, 38, 0.1);
 
+  /* Value tokens (plan E1): the exact colours components used to paint with
+     literals, so moving them here changes no pixels. Semantic names where the
+     role is unambiguous; an on-dark grey scale where it is not. */
+  --white: #ffffff;
+  --black: #000000;
+  --text-on-accent: #ffffff;
+  --projector-bg: #000000;
+  --projector-text: #ffffff;
+  --danger-bright: #ef4444;
+  --live-hover: #15803d;
+  --live-outline: #00f57a;
+  --dirty: #f97316;
+  --dirty-text: #9a3412;
+  --saved: #10b981;
+  --thumb-bg: #171b24;
+  --home-heading: #1c2430;
+  --home-cta-gradient: linear-gradient(135deg, #0b62d6 0%, #4fa3ff 100%);
+  --on-dark-1: #111111;
+  --on-dark-2: #1f1f1f;
+  --on-dark-3: #333333;
+  --on-dark-4: #444444;
+  --on-dark-5: #555555;
+  --on-dark-6: #777777;
+  --on-dark-7: #888888;
+  --on-dark-8: #9ca3af;
+  --on-dark-9: #bbbbbb;
+  --on-dark-10: #d1d5db;
+  --on-dark-11: #f3f4f6;
+
   /* Section colors */
   --section-1: #4a7cff;
   --section-2: #7c3aed;

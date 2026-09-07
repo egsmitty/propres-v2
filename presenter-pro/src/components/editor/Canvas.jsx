@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_TEXT_COLOR, PLACEHOLDER_TEXT_COLOR } from '@/utils/colorPalettes';
 import { useLatest } from '@/hooks/useLatest';
 import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
@@ -49,7 +50,7 @@ const INDICATOR_STYLE = {
   borderRadius: 999,
   background: 'rgba(12, 18, 32, 0.92)',
   border: '1px solid rgba(255,255,255,0.12)',
-  color: '#fff',
+  color: 'var(--white)',
   fontSize: 28,
   fontWeight: 700,
   letterSpacing: '0.03em',
@@ -166,7 +167,7 @@ function resolveVerticalAlignment(textStyle) {
 function renderOutline(box) {
   const width = box.outlineWidth || 0;
   if (!width || box.outlineColor === 'transparent') return 'none';
-  return `${Math.max(1, width)}px ${box.outlineStyle || 'solid'} ${box.outlineColor || '#ffffff'}`;
+  return `${Math.max(1, width)}px ${box.outlineStyle || 'solid'} ${box.outlineColor || DEFAULT_TEXT_COLOR}`;
 }
 
 function renderShadow(box) {
@@ -1186,7 +1187,7 @@ export default function Canvas() {
             paddingBottom: box.paddingBottom || DEFAULT_TEXT_BOX.paddingBottom,
             paddingLeft: box.paddingLeft || DEFAULT_TEXT_BOX.paddingLeft,
             textAlign: style.align || 'center',
-            color: placeholder ? '#888888' : style.color || '#ffffff',
+            color: placeholder ? PLACEHOLDER_TEXT_COLOR : style.color || DEFAULT_TEXT_COLOR,
             fontSize: style.size || DEFAULT_TEXT_STYLE.size,
             fontWeight: style.bold ? 700 : 400,
             fontStyle: placeholder ? 'italic' : style.italic ? 'italic' : 'normal',
@@ -1321,7 +1322,7 @@ export default function Canvas() {
                 height: fittedCanvasSize.height,
                 maxWidth: '100%',
                 maxHeight: '100%',
-                background: '#1a1a1a',
+                background: 'var(--bg-canvas)',
                 boxShadow: mediaDropActive
                   ? '0 0 0 4px rgba(74,124,255,0.24), 0 28px 54px rgba(8,14,30,0.24)'
                   : undefined,
@@ -1381,7 +1382,7 @@ export default function Canvas() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#777',
+                        color: 'var(--on-dark-6)',
                       }}
                     >
                       Media slide
@@ -1803,7 +1804,7 @@ function ResizeHandles({ onBegin }) {
         position: 'absolute',
         width: 10,
         height: 10,
-        background: '#ffffff',
+        background: 'var(--white)',
         border: '1.5px solid rgba(74,124,255,0.96)',
         borderRadius: 999,
         boxShadow: '0 2px 8px rgba(0,0,0,0.28)',
@@ -1840,7 +1841,7 @@ function RotationHandle({ onBegin }) {
           height: 16,
           borderRadius: '50%',
           border: '1.5px solid rgba(74,124,255,0.96)',
-          background: '#ffffff',
+          background: 'var(--white)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.28)',
         }}
       />

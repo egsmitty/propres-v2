@@ -24,7 +24,7 @@ function StageTextBlock({ text, empty = false, fontSize, lineHeight, textAlign =
         lineHeight,
         fontWeight: empty ? 500 : 700,
         textAlign,
-        color: empty ? 'rgba(255,255,255,0.34)' : '#ffffff',
+        color: empty ? 'rgba(255,255,255,0.34)' : 'var(--projector-text)',
       }}
     >
       {text}
@@ -70,8 +70,8 @@ export default function StageDisplayRenderer() {
       style={{
         width: '100vw',
         height: '100vh',
-        background: '#000000',
-        color: '#ffffff',
+        background: 'var(--projector-bg)',
+        color: 'var(--projector-text)',
         position: 'relative',
         overflow: 'hidden',
       }}

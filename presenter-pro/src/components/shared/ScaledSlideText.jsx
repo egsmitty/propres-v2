@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_TEXT_COLOR, PLACEHOLDER_TEXT_COLOR } from '@/utils/colorPalettes';
 import { getPresentationScale } from '@/utils/presentationSizing';
 import { DEFAULT_TEXT_STYLE, getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes';
 import { slideBodyToHtml } from '@/utils/slideMarkup';
@@ -141,7 +142,9 @@ export default function ScaledSlideText({
               flexDirection: 'column',
               padding: `${paddingY}px ${paddingRight}px ${paddingBottom}px ${paddingX}px`,
               textAlign: box?.textStyle?.align || 'center',
-              color: body.placeholder ? '#888888' : box?.textStyle?.color || '#ffffff',
+              color: body.placeholder
+                ? PLACEHOLDER_TEXT_COLOR
+                : box?.textStyle?.color || DEFAULT_TEXT_COLOR,
               fontSize,
               fontWeight: box?.textStyle?.bold ? 700 : 400,
               fontStyle: body.placeholder ? 'italic' : box?.textStyle?.italic ? 'italic' : 'normal',

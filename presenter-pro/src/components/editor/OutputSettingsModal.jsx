@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { DEFAULT_BLACK, DEFAULT_TEXT_COLOR } from '@/utils/colorPalettes';
 import { useAppStore } from '@/store/appStore';
 import {
   closeOutputWindow,
@@ -15,8 +16,8 @@ import {
 
 const DEFAULT_THEME = {
   fontSize: 84,
-  textColor: '#ffffff',
-  backgroundColor: '#000000',
+  textColor: DEFAULT_TEXT_COLOR,
+  backgroundColor: DEFAULT_BLACK,
 };
 
 function parseTheme(value) {
@@ -48,7 +49,7 @@ function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhen
           : primaryWhenClosed
             ? 'var(--accent)'
             : 'var(--bg-surface)',
-        color: open || !primaryWhenClosed ? 'var(--text-primary)' : '#fff',
+        color: open || !primaryWhenClosed ? 'var(--text-primary)' : 'var(--text-on-accent)',
         border: open || !primaryWhenClosed ? '1px solid var(--border-default)' : 'none',
         fontWeight: 650,
         letterSpacing: '0.015em',
@@ -300,7 +301,7 @@ export default function OutputSettingsModal() {
                 </div>
               </div>
               {hasDisplayConflict ? (
-                <p className="text-xs mt-2" style={{ color: 'var(--danger, #ef4444)' }}>
+                <p className="text-xs mt-2" style={{ color: 'var(--danger)' }}>
                   Main Output and Stage Display should be assigned to different displays.
                 </p>
               ) : null}
@@ -410,7 +411,10 @@ export default function OutputSettingsModal() {
             style={{
               background:
                 loading || saving || hasDisplayConflict ? 'var(--bg-hover)' : 'var(--accent)',
-              color: loading || saving || hasDisplayConflict ? 'var(--text-tertiary)' : '#fff',
+              color:
+                loading || saving || hasDisplayConflict
+                  ? 'var(--text-tertiary)'
+                  : 'var(--text-on-accent)',
             }}
           >
             {saving ? 'Saving…' : 'Save'}

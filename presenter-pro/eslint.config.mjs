@@ -36,6 +36,28 @@ export default [
 
   js.configs.recommended,
 
+  // Colour literals belong in tokens (src/styles/globals.css) or in the data
+  // modules that hold user-facing palettes (src/utils/colorPalettes.js and the
+  // template data). Components paint with var(--token) only. Plan E1.
+  {
+    files: ['src/**/*.jsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/#[0-9a-fA-F]{3,8}\\b/]',
+          message:
+            'Raw hex colour in a component. Use var(--token) from src/styles/globals.css, or move a data palette into src/utils/colorPalettes.js.',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b/]',
+          message:
+            'Raw hex colour in a component. Use var(--token) from src/styles/globals.css, or move a data palette into src/utils/colorPalettes.js.',
+        },
+      ],
+    },
+  },
+
   // TypeScript ---------------------------------------------------------------
   // New files are .ts/.tsx (see AGENTS.md language policy), and the base parser
   // cannot read type annotations. Not type-aware linting — `npm run type-check`

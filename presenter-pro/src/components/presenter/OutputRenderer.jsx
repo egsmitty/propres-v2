@@ -188,7 +188,14 @@ export default function OutputRenderer() {
 
   if (isBlack) {
     return (
-      <div style={{ width: '100vw', height: '100vh', background: '#000', position: 'relative' }}>
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          background: 'var(--projector-bg)',
+          position: 'relative',
+        }}
+      >
         {isPreviewWindow ? <PreviewCloseButton /> : null}
       </div>
     );
@@ -200,7 +207,7 @@ export default function OutputRenderer() {
         style={{
           width: '100vw',
           height: '100vh',
-          background: '#000',
+          background: 'var(--projector-bg)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -212,14 +219,14 @@ export default function OutputRenderer() {
           style={{
             width: 120,
             height: 120,
-            background: '#4a7cff',
+            background: 'var(--accent)',
             borderRadius: 24,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 48,
             fontWeight: 700,
-            color: '#fff',
+            color: 'var(--projector-text)',
             fontFamily: 'Inter, sans-serif',
           }}
         >
@@ -235,7 +242,7 @@ export default function OutputRenderer() {
         style={{
           width: '100vw',
           height: '100vh',
-          background: '#000',
+          background: 'var(--projector-bg)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -272,7 +279,7 @@ export default function OutputRenderer() {
       style={{
         width: '100vw',
         height: '100vh',
-        background: '#000',
+        background: 'var(--projector-bg)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -290,7 +297,7 @@ export default function OutputRenderer() {
           width: stageWidth,
           height: stageHeight,
           overflow: 'hidden',
-          background: '#000',
+          background: 'var(--projector-bg)',
         }}
       >
         {mediaSlideItem?.file_path ? (
@@ -329,7 +336,7 @@ export default function OutputRenderer() {
             borderRadius: 18,
             background: 'rgba(9, 14, 26, 0.66)',
             border: '1px solid rgba(255,255,255,0.18)',
-            color: '#ffffff',
+            color: 'var(--projector-text)',
             fontFamily: 'Inter, system-ui, sans-serif',
             textAlign: 'right',
             minWidth: 144,
@@ -366,7 +373,7 @@ function OutputBackground({ media }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#000000',
+          background: 'var(--projector-bg)',
           color: 'rgba(255,255,255,0.7)',
           fontSize: '2vw',
           fontWeight: 600,

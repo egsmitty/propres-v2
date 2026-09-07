@@ -274,14 +274,14 @@ function GhostSlide({
           className="w-full rounded flex items-center justify-center relative overflow-hidden"
           style={{
             aspectRatio: getPresentationAspectRatio(presentation),
-            background: '#1a1a1a',
+            background: 'var(--bg-canvas)',
             border: '2px solid var(--accent)',
           }}
         >
           {isMediaSlide(slide) ? (
             <div
               className="flex flex-col items-center justify-center gap-1"
-              style={{ color: '#d1d5db' }}
+              style={{ color: 'var(--on-dark-10)' }}
             >
               <Film size={16} />
               <div className="truncate text-[10px]">{slide.label || 'Media'}</div>
