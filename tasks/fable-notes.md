@@ -719,3 +719,30 @@ the filmstrip (roving tabindex) — a UX design choice, not a correctness fix.
 are done and self-enforcing. E4 (the 490 inline style objects → classes) is
 not started, on purpose: build the Playwright screenshot baseline (E2) first
 so that refactor can be _seen_ to change nothing. E2 is small; say the word.
+
+### 2026-09-07 — E2: screenshot baseline, and where baselines must come from
+
+`tasks/plan-E2-screenshot-baseline.md`. Eleven captures — Home, the editor,
+the output window, and the eight on-demand surfaces (tutorial, context menu,
+both library panels, both settings modals, shortcuts overlay, editor while
+presenting) — now sit in CI as the net under E4.
+
+**The lesson worth your attention:** baselines made on my machine did not
+match CI even after the window size was pinned, and none of the difference
+was the app. The presenter panel opens only when the window is ≥1400px at
+startup (CI's display is smaller, so it was collapsed there), the Home
+profile card shows the OS account name, and the runner uses classic
+scrollbars that take up layout space. So the committed baselines are now
+captured **by the CI runner** (E2E workflow → "Run workflow" →
+`update_baselines`), and the visual specs skip locally unless `VISUAL=1`.
+The strict, pixel-exact check for a refactor is laptop-vs-laptop: capture on
+`main`, refactor, compare with `VISUAL_STRICT=1`. That is the E4 workflow.
+
+Two small fixes fell out: Escape now closes the Presentation Settings and
+Output Settings modals (#69 — it already closed every other overlay), and
+the Home profile card carries a test hook so it can be masked.
+
+**Opinion:** the presenter panel's "open if the window is wide at startup"
+rule is a hidden layout decision a user cannot see or change without
+finding the sliver. It is fine for now; if you ever get a "where did my
+preview go" report from a laptop user, this is why.

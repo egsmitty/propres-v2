@@ -8,6 +8,10 @@ import { defineConfig } from '@playwright/test';
 // the dev server. See e2e/fixtures/launchApp.ts for the isolation guarantees.
 export default defineConfig({
   testDir: './e2e',
+  // Screenshot specs compare against baselines captured on the CI runner, so
+  // they only run where they can match: in CI, or locally on request (VISUAL=1,
+  // with your own --update-snapshots baseline first). See e2e/visual.spec.ts.
+  testIgnore: process.env.CI || process.env.VISUAL ? [] : ['**/visual*.spec.ts'],
   // One Electron instance at a time. Parallel instances would race on the
   // output display and on file locks; there is nothing to gain.
   workers: 1,
@@ -18,7 +22,13 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   // Must exceed the fixture's 60s first-window allowance plus the spec itself.
   timeout: 90_000,
-  expect: { timeout: 10_000 },
+  expect: {
+    timeout: 10_000,
+    // Screenshot baselines (plan E2): a small ratio absorbs sub-pixel text
+    // anti-aliasing differences between machines; a real style change is
+    // orders of magnitude larger. Animations are frozen for determinism.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: 'disabled' },
+  },
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   outputDir: 'e2e/.artifacts',
   use: {

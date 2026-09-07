@@ -310,6 +310,8 @@ export default function MediaLibraryPanel() {
           </span>
         </div>
         <button
+          type="button"
+          aria-label="Close media library"
           onClick={() => setMediaLibraryOpen(false)}
           className="flex items-center justify-center w-6 h-6 rounded"
           style={{ color: 'var(--text-tertiary)' }}

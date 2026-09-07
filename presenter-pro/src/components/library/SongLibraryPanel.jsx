@@ -54,6 +54,8 @@ export default function SongLibraryPanel() {
             </span>
           </div>
           <button
+            type="button"
+            aria-label="Close song library"
             onClick={() => setSongLibraryOpen(false)}
             className="flex items-center justify-center w-6 h-6 rounded"
             style={{ color: 'var(--text-tertiary)' }}
