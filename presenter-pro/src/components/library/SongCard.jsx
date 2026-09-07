@@ -57,8 +57,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
   }
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2"
-      style={{ borderBottom: '1px solid var(--border-subtle)' }}
+      className="flex items-center gap-2 px-3 py-2 border-b border-border-subtle"
       draggable
       onDragStart={(event) => {
         event.dataTransfer.setData('application/presenterpro-song-id', String(song.id));
@@ -68,17 +67,11 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-          {song.title}
-        </p>
-        <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-          {song.artist || 'Unknown artist'}
-        </p>
+        <p className="text-xs font-medium truncate text-text-primary">{song.title}</p>
+        <p className="text-xs truncate text-text-secondary">{song.artist || 'Unknown artist'}</p>
       </div>
 
-      <span className="text-xs mx-2 shrink-0" style={{ color: 'var(--text-tertiary)' }}>
-        {slides.length} slides
-      </span>
+      <span className="text-xs mx-2 shrink-0 text-text-tertiary">{slides.length} slides</span>
 
       {/* Insert button — visible on hover */}
       <button
@@ -111,12 +104,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         type="button"
         onClick={onEdit}
-        className="flex items-center justify-center w-7 h-7 rounded shrink-0"
-        style={{
-          color: 'var(--text-tertiary)',
-          border: '1px solid var(--border-subtle)',
-          background: 'transparent',
-        }}
+        className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-text-tertiary border border-border-subtle bg-transparent"
         title="Edit Song"
         onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -127,12 +115,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         type="button"
         onClick={handleDelete}
-        className="flex items-center justify-center w-7 h-7 rounded shrink-0"
-        style={{
-          color: 'var(--danger)',
-          border: '1px solid var(--border-subtle)',
-          background: 'transparent',
-        }}
+        className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-danger border border-border-subtle bg-transparent"
         title="Delete Song"
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'rgba(220,38,38,0.08)';

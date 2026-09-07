@@ -33,32 +33,18 @@ export default function SongLibraryPanel() {
 
   return (
     <>
-      <div
-        className="h-full z-30 flex flex-col shadow-xl shrink-0"
-        style={{
-          width: 320,
-          background: 'var(--bg-surface)',
-          borderRight: '1px solid var(--border-default)',
-          animation: 'slide-in-left 150ms ease',
-        }}
-      >
+      <div className="h-full z-30 flex flex-col shadow-xl shrink-0 w-[320px] bg-bg-surface border-r border-border-default [animation:slide-in-left_150ms_ease]">
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-3 py-2 shrink-0"
-          style={{ borderBottom: '1px solid var(--border-subtle)' }}
-        >
+        <div className="flex items-center justify-between px-3 py-2 shrink-0 border-b border-border-subtle">
           <div className="flex items-center gap-2">
-            <Music size={14} style={{ color: 'var(--text-secondary)' }} />
-            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              Song Library
-            </span>
+            <Music size={14} className="text-text-secondary" />
+            <span className="text-sm font-medium text-text-primary">Song Library</span>
           </div>
           <button
             type="button"
             aria-label="Close song library"
             onClick={() => setSongLibraryOpen(false)}
-            className="flex items-center justify-center w-6 h-6 rounded"
-            style={{ color: 'var(--text-tertiary)' }}
+            className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary"
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
@@ -67,21 +53,14 @@ export default function SongLibraryPanel() {
         </div>
 
         {/* Search */}
-        <div
-          className="px-3 py-2 shrink-0"
-          style={{ borderBottom: '1px solid var(--border-subtle)' }}
-        >
-          <div
-            className="flex items-center gap-2 px-2 py-1 rounded"
-            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
-          >
-            <Search size={12} style={{ color: 'var(--text-tertiary)' }} />
+        <div className="px-3 py-2 shrink-0 border-b border-border-subtle">
+          <div className="flex items-center gap-2 px-2 py-1 rounded bg-bg-app border border-border-default">
+            <Search size={12} className="text-text-tertiary" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search songs…"
-              className="flex-1 bg-transparent text-xs"
-              style={{ color: 'var(--text-primary)' }}
+              className="flex-1 bg-transparent text-xs text-text-primary"
             />
           </div>
         </div>
@@ -90,8 +69,8 @@ export default function SongLibraryPanel() {
         <div className="flex-1 overflow-y-auto py-1">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 gap-2">
-              <Music size={24} style={{ color: 'var(--text-tertiary)' }} />
-              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <Music size={24} className="text-text-tertiary" />
+              <p className="text-xs text-text-tertiary">
                 {query ? 'No songs found' : 'No songs in library'}
               </p>
             </div>
@@ -112,18 +91,13 @@ export default function SongLibraryPanel() {
         </div>
 
         {/* Footer */}
-        <div className="px-3 py-2 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="px-3 py-2 shrink-0 border-t border-border-subtle">
           <button
             onClick={() => {
               setEditSong(null);
               setShowEditor(true);
             }}
-            className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded text-xs font-medium"
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded text-xs font-medium bg-bg-surface border border-border-default text-text-primary"
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
           >

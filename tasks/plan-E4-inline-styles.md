@@ -111,3 +111,12 @@ structure, no handler changes.
   slice-2 addendum, run early). `transition` on the presentation card stays
   inline: the capture disables animations, so a class equivalent could not
   be proven.
+- **Slice 2** `MediaLibraryPanel` 47 → 7, `SongLibraryPanel` 13 → 0,
+  `SongCard` 7 → 1 (63 replacements). The media panel was mostly outside the
+  net with an empty library, so an E2 addendum (#74) seeds a folder and an
+  item through the app's own IPC door first; the item's file is missing on
+  purpose because the placeholder is deterministic and a decoded image is
+  not. Strict compare: **0 differing pixels on all 17 captures.** The panels'
+  `animation: slide-in-left 150ms ease` became an arbitrary-property class;
+  pixels cannot see an animation, so the built CSS was read instead and
+  carries the identical declaration.

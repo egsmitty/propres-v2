@@ -290,31 +290,19 @@ export default function MediaLibraryPanel() {
 
   return (
     <div
-      className="h-full z-30 flex flex-col shadow-xl shrink-0"
-      style={{
-        width: 320,
-        background: 'var(--bg-surface)',
-        borderRight: '1px solid var(--border-default)',
-        animation: 'slide-in-left 150ms ease',
-      }}
+      className="h-full z-30 flex flex-col shadow-xl shrink-0 w-[320px] bg-bg-surface border-r border-border-default [animation:slide-in-left_150ms_ease]"
       onMouseDown={() => setSelectedFolderId(null)}
     >
-      <div
-        className="flex items-center justify-between px-3 py-2 shrink-0"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
+      <div className="flex items-center justify-between px-3 py-2 shrink-0 border-b border-border-subtle">
         <div className="flex items-center gap-2">
-          <Image size={14} style={{ color: 'var(--text-secondary)' }} />
-          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-            Media Library
-          </span>
+          <Image size={14} className="text-text-secondary" />
+          <span className="text-sm font-medium text-text-primary">Media Library</span>
         </div>
         <button
           type="button"
           aria-label="Close media library"
           onClick={() => setMediaLibraryOpen(false)}
-          className="flex items-center justify-center w-6 h-6 rounded"
-          style={{ color: 'var(--text-tertiary)' }}
+          className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary"
           onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
@@ -322,7 +310,7 @@ export default function MediaLibraryPanel() {
         </button>
       </div>
 
-      <div className="flex shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="flex shrink-0 border-b border-border-subtle">
         {['images', 'videos'].map((t) => (
           <button
             key={t}
@@ -339,29 +327,15 @@ export default function MediaLibraryPanel() {
         ))}
       </div>
 
-      <div
-        className="px-3 py-2.5 shrink-0"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
-        <div
-          className="rounded-xl px-3 py-2 mb-2"
-          style={{
-            background: 'var(--bg-app)',
-            border: '1px solid var(--border-default)',
-          }}
-        >
-          <p
-            className="text-[11px] uppercase tracking-wide mb-1"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            Applying To
-          </p>
-          <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+      <div className="px-3 py-2.5 shrink-0 border-b border-border-subtle">
+        <div className="rounded-xl px-3 py-2 mb-2 bg-bg-app border border-border-default">
+          <p className="text-[11px] uppercase tracking-wide mb-1 text-text-tertiary">Applying To</p>
+          <p className="text-xs font-medium text-text-primary">
             {selectedSection
               ? `${sectionLabel}: ${selectedSection.title}`
               : 'Choose a section first'}
           </p>
-          <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-[11px] mt-1 text-text-secondary">
             Library items can become a section background or a media slide in the flow.
           </p>
         </div>
@@ -374,68 +348,43 @@ export default function MediaLibraryPanel() {
                 setCurrentFolderId(null);
                 setSelectedFolderId(null);
               }}
-              className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-              style={{
-                background: 'var(--bg-app)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-              }}
+              className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-bg-app border border-border-default text-text-primary"
               title="Back to media library"
             >
               <ArrowLeft size={14} />
             </button>
           ) : null}
-          <div
-            className="flex-1 rounded-xl px-3 py-2"
-            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
-          >
-            <p
-              className="text-[11px] uppercase tracking-wide"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
+          <div className="flex-1 rounded-xl px-3 py-2 bg-bg-app border border-border-default">
+            <p className="text-[11px] uppercase tracking-wide text-text-tertiary">
               {currentFolder ? 'Folder' : 'Library'}
             </p>
-            <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-xs font-medium truncate text-text-primary">
               {currentFolder ? `Library / ${currentFolder.name}` : 'Library Root'}
             </p>
           </div>
           <button
             type="button"
             onClick={handleNewFolder}
-            className="px-2.5 h-8 rounded-lg text-[11px] font-medium shrink-0"
-            style={{
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="px-2.5 h-8 rounded-lg text-[11px] font-medium shrink-0 bg-bg-app border border-border-default text-text-primary"
           >
             New Folder
           </button>
           <button
             type="button"
             onClick={handleImport}
-            className="px-2.5 h-8 rounded-lg text-[11px] font-medium shrink-0"
-            style={{
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="px-2.5 h-8 rounded-lg text-[11px] font-medium shrink-0 bg-bg-app border border-border-default text-text-primary"
           >
             Import
           </button>
         </div>
 
-        <div
-          className="flex items-center gap-2 px-2.5 py-2 rounded-xl"
-          style={{ background: 'var(--bg-app)', border: '1px solid var(--border-default)' }}
-        >
-          <Search size={13} style={{ color: 'var(--text-tertiary)' }} />
+        <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-bg-app border border-border-default">
+          <Search size={13} className="text-text-tertiary" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={currentFolder ? 'Search this folder...' : 'Search library...'}
-            className="flex-1 bg-transparent text-xs"
-            style={{ color: 'var(--text-primary)' }}
+            className="flex-1 bg-transparent text-xs text-text-primary"
             onMouseDown={(event) => event.stopPropagation()}
           />
         </div>
@@ -445,11 +394,8 @@ export default function MediaLibraryPanel() {
         {!currentFolder && (
           <div className="mb-3">
             <div className="flex items-center gap-2 mb-2">
-              <Folder size={13} style={{ color: 'var(--text-secondary)' }} />
-              <span
-                className="text-[11px] uppercase tracking-wide"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
+              <Folder size={13} className="text-text-secondary" />
+              <span className="text-[11px] uppercase tracking-wide text-text-tertiary">
                 Folders
               </span>
             </div>
@@ -532,13 +478,10 @@ export default function MediaLibraryPanel() {
                           style={{ color: selected ? 'var(--accent)' : 'var(--text-secondary)' }}
                         />
                         <div className="min-w-0 flex-1">
-                          <p
-                            className="text-xs font-medium truncate"
-                            style={{ color: 'var(--text-primary)' }}
-                          >
+                          <p className="text-xs font-medium truncate text-text-primary">
                             {folder.name}
                           </p>
-                          <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                          <p className="text-[11px] text-text-tertiary">
                             {folderCount} item{folderCount === 1 ? '' : 's'}
                           </p>
                         </div>
@@ -548,14 +491,7 @@ export default function MediaLibraryPanel() {
                 })}
               </div>
             ) : (
-              <div
-                className="rounded-xl px-3 py-4 text-center"
-                style={{
-                  background: 'var(--bg-app)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-tertiary)',
-                }}
-              >
+              <div className="rounded-xl px-3 py-4 text-center bg-bg-app border border-border-default text-text-tertiary">
                 <FolderPlus size={18} className="mx-auto mb-2" />
                 <p className="text-xs">
                   {query ? 'No folders match that search' : 'No folders yet'}
@@ -567,14 +503,11 @@ export default function MediaLibraryPanel() {
 
         <div className="flex items-center gap-2 mb-2">
           {tab === 'images' ? (
-            <Image size={13} style={{ color: 'var(--text-secondary)' }} />
+            <Image size={13} className="text-text-secondary" />
           ) : (
-            <Film size={13} style={{ color: 'var(--text-secondary)' }} />
+            <Film size={13} className="text-text-secondary" />
           )}
-          <span
-            className="text-[11px] uppercase tracking-wide"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
+          <span className="text-[11px] uppercase tracking-wide text-text-tertiary">
             {currentFolder ? currentFolder.name : tab}
           </span>
         </div>
@@ -582,11 +515,11 @@ export default function MediaLibraryPanel() {
         {visibleMedia.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2">
             {tab === 'images' ? (
-              <Image size={24} style={{ color: 'var(--text-tertiary)' }} />
+              <Image size={24} className="text-text-tertiary" />
             ) : (
-              <Film size={24} style={{ color: 'var(--text-tertiary)' }} />
+              <Film size={24} className="text-text-tertiary" />
             )}
-            <p className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
+            <p className="text-xs text-center text-text-tertiary">
               {query
                 ? 'No media matches that search'
                 : currentFolder
@@ -599,10 +532,9 @@ export default function MediaLibraryPanel() {
             {visibleMedia.map((item) => (
               <div
                 key={item.id}
-                className="rounded overflow-hidden cursor-pointer"
+                className="rounded overflow-hidden cursor-pointer bg-bg-canvas"
                 title={item.name}
                 style={{
-                  background: 'var(--bg-canvas)',
                   border:
                     selectedMediaId === item.id
                       ? '1px solid rgba(74,124,255,0.72)'
@@ -624,25 +556,14 @@ export default function MediaLibraryPanel() {
                   openContextMenuForItem(item, event.clientX, event.clientY);
                 }}
               >
-                <div style={{ aspectRatio: '16/9' }} className="relative overflow-hidden">
+                <div className="relative overflow-hidden aspect-video">
                   <MediaPreview item={item} />
                 </div>
-                <div
-                  className="px-2 py-1.5"
-                  style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
-                >
-                  <p
-                    className="text-[11px] font-medium truncate flex-1"
-                    style={{ color: 'var(--on-dark-11)' }}
-                  >
+                <div className="px-2 py-1.5 border-t border-[rgba(255,255,255,0.06)]">
+                  <p className="text-[11px] font-medium truncate flex-1 text-on-dark-11">
                     {item.name}
                   </p>
-                  <p
-                    className="text-[10px] uppercase tracking-wide"
-                    style={{ color: 'var(--on-dark-8)' }}
-                  >
-                    {item.type}
-                  </p>
+                  <p className="text-[10px] uppercase tracking-wide text-on-dark-8">{item.type}</p>
                 </div>
               </div>
             ))}
@@ -650,15 +571,10 @@ export default function MediaLibraryPanel() {
         )}
       </div>
 
-      <div className="px-3 py-2 shrink-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+      <div className="px-3 py-2 shrink-0 border-t border-border-subtle">
         <div className="mb-2 min-h-[2.25rem]">
-          <p
-            className="text-[11px] uppercase tracking-wide"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            Selected Media
-          </p>
-          <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+          <p className="text-[11px] uppercase tracking-wide text-text-tertiary">Selected Media</p>
+          <p className="text-xs font-medium truncate text-text-primary">
             {selectedMediaItem ? selectedMediaItem.name : 'Select a media item'}
           </p>
         </div>
@@ -670,10 +586,9 @@ export default function MediaLibraryPanel() {
               if (!selectedMediaItem) return;
               openFooterMenu(event.currentTarget, buildUseMenuItems(selectedMediaItem));
             }}
-            className="h-9 rounded-lg text-xs font-medium"
+            className="h-9 rounded-lg text-xs font-medium border border-border-default"
             style={{
               background: selectedMediaItem ? 'var(--bg-surface)' : 'var(--bg-hover)',
-              border: '1px solid var(--border-default)',
               color: selectedMediaItem ? 'var(--text-primary)' : 'var(--text-tertiary)',
             }}
           >
@@ -686,10 +601,9 @@ export default function MediaLibraryPanel() {
               if (!selectedMediaItem) return;
               openFooterMenu(event.currentTarget, buildMoreMenuItems(selectedMediaItem));
             }}
-            className="h-9 rounded-lg flex items-center justify-center"
+            className="h-9 rounded-lg flex items-center justify-center border border-border-default"
             style={{
               background: selectedMediaItem ? 'var(--bg-surface)' : 'var(--bg-hover)',
-              border: '1px solid var(--border-default)',
               color: selectedMediaItem ? 'var(--text-primary)' : 'var(--text-tertiary)',
             }}
             aria-label="More actions"
@@ -703,10 +617,9 @@ export default function MediaLibraryPanel() {
             onClick={() => {
               if (selectedMediaItem) void handleDeleteItem(selectedMediaItem);
             }}
-            className="h-9 rounded-lg flex items-center justify-center"
+            className="h-9 rounded-lg flex items-center justify-center border border-border-default"
             style={{
               background: selectedMediaItem ? 'rgba(220,38,38,0.08)' : 'var(--bg-hover)',
-              border: '1px solid var(--border-default)',
               color: selectedMediaItem ? 'var(--danger)' : 'var(--text-tertiary)',
             }}
             aria-label="Delete media"
@@ -730,10 +643,8 @@ function MediaPreview({ item }) {
   if (!src || item.file_exists === false) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center">
-        <Image size={20} style={{ color: 'var(--on-dark-5)' }} />
-        <span style={{ color: 'var(--on-dark-8)', fontSize: 10, fontWeight: 600 }}>
-          Missing File
-        </span>
+        <Image size={20} className="text-on-dark-5" />
+        <span className="text-on-dark-8 text-[10px] font-semibold">Missing File</span>
       </div>
     );
   }
