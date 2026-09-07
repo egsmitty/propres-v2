@@ -1,4 +1,5 @@
 import { test, expect, dismissTutorialIfPresent } from './fixtures/launchApp';
+import { CAPTURE, STRICT, homeMasks, showPresenterPanel } from './fixtures/visual';
 
 // Plan E2 (surfaces). The on-demand surfaces the three main captures cannot
 // see: the tutorial, both library panels, both settings modals, the shortcuts
@@ -6,26 +7,20 @@ import { test, expect, dismissTutorialIfPresent } from './fixtures/launchApp';
 // visual.spec.ts this covers every component that carries inline styles, so
 // the inline-style → class refactor (E4) can be proven pixel-for-pixel.
 //
-// VISUAL_STRICT=1 makes every comparison exact (0 differing pixels) — the mode
-// to use locally when verifying a refactor that must not change anything.
-
-const STRICT = process.env.VISUAL_STRICT === '1' ? { maxDiffPixels: 0 } : {};
-const DATE_TEXT = /^[A-Z][a-z]{2} \d{1,2}, \d{4}$/;
+// Baselines come from the CI runner and the spec is skipped locally unless
+// VISUAL=1 — see visual.spec.ts for the why and the local workflow.
 
 test.describe('visual baseline — surfaces', () => {
   test('tutorial, context menu, library panels, settings modals, overlay, presenting', async ({
     launched,
   }) => {
     const { app, window: page } = launched;
-    // Deterministic geometry: CI runners have small displays and Electron clamps
-    // the 1400×800 default window to fit, so the capture size is pinned to a
-    // content size every machine can honour (the app's minimum is 1200×700).
-    await page.setViewportSize({ width: 1200, height: 660 });
+    await page.setViewportSize(CAPTURE);
 
     // 1. Onboarding tutorial, first step, before it is dismissed.
     await expect(page.getByRole('button', { name: 'Skip Tour' })).toBeVisible({ timeout: 15_000 });
     await expect(page).toHaveScreenshot('tutorial.png', {
-      mask: [page.getByText(DATE_TEXT)],
+      mask: homeMasks(page),
       ...STRICT,
     });
     await dismissTutorialIfPresent(page);
@@ -36,7 +31,7 @@ test.describe('visual baseline — surfaces', () => {
     await row.click({ button: 'right' });
     await expect(page.locator('[data-context-menu="true"]')).toBeVisible();
     await expect(page).toHaveScreenshot('home-context-menu.png', {
-      mask: [page.getByText(DATE_TEXT)],
+      mask: homeMasks(page),
       ...STRICT,
     });
     await page.keyboard.press('Escape');
@@ -45,6 +40,7 @@ test.describe('visual baseline — surfaces', () => {
     await row.focus();
     await page.keyboard.press('Enter');
     await expect(page.locator('[data-text-editing]')).toHaveCount(1, { timeout: 15_000 });
+    await showPresenterPanel(page);
     await page.waitForTimeout(800);
 
     const menu = async (menuLabel: string, item: string) => {
@@ -73,18 +69,14 @@ test.describe('visual baseline — surfaces', () => {
     // 5. Presentation settings modal.
     await menu('Edit', 'Presentation Settings…');
     await expect(page).toHaveScreenshot('presentation-settings.png', STRICT);
-    // The settings modals close on a backdrop click (they do not handle Escape —
-    // recorded as a keyboard-operability finding, plan E3 follow-up).
-    await page.locator('[data-backdrop="true"]').click({ position: { x: 8, y: 8 } });
+    await page.keyboard.press('Escape');
     await expect(page.locator('[data-backdrop="true"]')).toHaveCount(0);
     await page.waitForTimeout(300);
 
     // 6. Output settings modal.
     await menu('Edit', 'Output Settings…');
     await expect(page).toHaveScreenshot('output-settings.png', STRICT);
-    // The settings modals close on a backdrop click (they do not handle Escape —
-    // recorded as a keyboard-operability finding, plan E3 follow-up).
-    await page.locator('[data-backdrop="true"]').click({ position: { x: 8, y: 8 } });
+    await page.keyboard.press('Escape');
     await expect(page.locator('[data-backdrop="true"]')).toHaveCount(0);
     await page.waitForTimeout(300);
 

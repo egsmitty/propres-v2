@@ -390,6 +390,7 @@ export default function Home() {
         <div className="px-1 mb-6">
           <div
             className="rounded-[28px] p-4 text-center"
+            data-profile-card="true"
             style={{
               background:
                 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
