@@ -33,7 +33,10 @@ export default function SongLibraryPanel() {
 
   return (
     <>
-      <div className="h-full z-30 flex flex-col shadow-xl shrink-0 w-[320px] bg-bg-surface border-r border-border-default [animation:slide-in-left_150ms_ease]">
+      <div
+        className="h-full z-30 flex flex-col shadow-xl shrink-0 w-[320px] bg-bg-surface border-r border-border-default [animation:slide-in-left_150ms_ease]"
+        data-panel="song-library"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 shrink-0 border-b border-border-subtle">
           <div className="flex items-center gap-2">

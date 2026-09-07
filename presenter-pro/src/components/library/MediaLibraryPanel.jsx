@@ -290,6 +290,7 @@ export default function MediaLibraryPanel() {
 
   return (
     <div
+      data-panel="media-library"
       className="h-full z-30 flex flex-col shadow-xl shrink-0 w-[320px] bg-bg-surface border-r border-border-default [animation:slide-in-left_150ms_ease]"
       onMouseDown={() => setSelectedFolderId(null)}
     >
