@@ -185,6 +185,7 @@ export default function OnboardingTutorial({ onComplete }) {
           </div>
           <button
             onClick={onComplete}
+            aria-label="Close tutorial"
             className="w-7 h-7 rounded flex items-center justify-center text-text-tertiary"
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}

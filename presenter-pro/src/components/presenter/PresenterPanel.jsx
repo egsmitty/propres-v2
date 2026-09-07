@@ -398,6 +398,7 @@ export default function PresenterPanel({ onSetOpen }) {
         </div>
 
         <div
+          data-resize-handle="presenter-divider"
           className="shrink-0 cursor-row-resize bg-transparent border-t border-b border-border-subtle"
           style={{
             height: PRESENTER_PANEL_DIVIDER_HEIGHT,
