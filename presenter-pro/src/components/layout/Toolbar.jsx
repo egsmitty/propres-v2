@@ -159,10 +159,7 @@ function Group({ title, children, grow = false, noDivider = false }) {
       style={{ borderRight: noDivider ? 'none' : '1px solid var(--border-subtle)' }}
     >
       {title ? (
-        <span
-          className="shrink-0 text-[12px] font-bold uppercase tracking-[0.14em]"
-          style={{ color: 'rgba(18, 24, 38, 0.72)', paddingLeft: 2 }}
-        >
+        <span className="shrink-0 text-[12px] font-bold uppercase tracking-[0.14em] text-[rgba(18,24,38,0.72)] pl-0.5">
           {title}
         </span>
       ) : null}
@@ -249,21 +246,17 @@ function PresentButton({ onPresent, isPresenting, disabled, collapseLabel = fals
       onClick={onPresent}
       title="Present (F5)"
       disabled={disabled}
-      className="flex items-center gap-1.5 rounded-xl shrink-0"
+      className="flex items-center gap-1.5 rounded-xl shrink-0 h-[38px] text-text-on-accent text-[13px] font-bold"
       style={{
-        height: 38,
         padding: collapseLabel ? '0 11px' : '0 14px',
         background: disabled
           ? 'var(--border-default)'
           : isPresenting
             ? 'var(--live)'
             : 'var(--accent)',
-        color: 'var(--text-on-accent)',
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.7 : 1,
         boxShadow: disabled ? 'none' : '0 4px 12px rgba(0,0,0,0.14)',
-        fontSize: 13,
-        fontWeight: 700,
       }}
       onMouseEnter={(event) => {
         if (disabled) return;
@@ -292,14 +285,10 @@ function InlineStyleButton({ icon: Icon, title, active, onClick }) {
       data-editor-toolbar="true"
       title={title}
       onClick={onClick}
-      className="flex items-center justify-center rounded-lg shrink-0"
+      className="flex items-center justify-center rounded-lg shrink-0 w-[30px] h-[30px] border border-transparent cursor-pointer"
       style={{
-        width: 30,
-        height: 30,
-        border: '1px solid transparent',
         background: active ? 'var(--accent-dim)' : 'transparent',
         color: active ? 'var(--accent)' : 'var(--text-primary)',
-        cursor: 'pointer',
       }}
       onMouseEnter={(event) => {
         event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)';
@@ -340,15 +329,7 @@ function InlineStepperButton({ icon: Icon, title, onClick }) {
       data-editor-toolbar="true"
       title={title}
       onClick={onClick}
-      className="flex items-center justify-center rounded-md shrink-0"
-      style={{
-        width: 22,
-        height: 15,
-        border: '1px solid transparent',
-        background: 'transparent',
-        color: 'var(--text-secondary)',
-        cursor: 'pointer',
-      }}
+      className="flex items-center justify-center rounded-md shrink-0 w-[22px] h-[15px] border border-transparent bg-transparent text-text-secondary cursor-pointer"
       onMouseEnter={(event) => {
         event.currentTarget.style.background = 'var(--bg-hover)';
       }}
@@ -906,13 +887,9 @@ function CombinedColorButton({
         ref={triggerRef}
         title="Color controls"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-center rounded-lg shrink-0"
+        className="flex items-center justify-center rounded-lg shrink-0 w-[34px] h-[30px] border border-border-default text-text-secondary"
         style={{
-          width: 34,
-          height: 30,
-          border: '1px solid var(--border-default)',
           background: open ? 'var(--bg-hover)' : 'var(--bg-app)',
-          color: 'var(--text-secondary)',
         }}
       >
         <Palette size={14} />
@@ -1444,22 +1421,9 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
       data-tour="editor-toolbar"
       data-editor-toolbar={isTextEditing ? 'true' : undefined}
       onMouseDownCapture={handleToolbarMouseDownCapture}
-      className={`shrink-0 py-2.5 ${isTextEditing ? 'px-4' : 'px-1.5'}`}
-      style={{
-        background: 'var(--bg-toolbar)',
-        borderBottom: '1px solid var(--border-subtle)',
-        overflowX: 'hidden',
-        overflowY: 'visible',
-        boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.48)',
-      }}
+      className={`shrink-0 py-2.5 ${isTextEditing ? 'px-4' : 'px-1.5'} bg-bg-toolbar border-b border-border-subtle overflow-x-hidden overflow-y-visible shadow-[inset_0_-1px_0_rgba(255,255,255,0.48)]`}
     >
-      <div
-        className="flex gap-1 min-w-0 overflow-hidden"
-        style={{
-          minHeight: 44,
-          alignItems: 'center',
-        }}
-      >
+      <div className="flex gap-1 min-w-0 overflow-hidden min-h-[44px] items-center">
         {isTextEditing ? (
           <div className="flex min-w-0 flex-1 gap-1 overflow-hidden items-center">
             <Group title="Text">
@@ -1481,16 +1445,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                   ]);
                 }}
               />
-              <div
-                className="flex items-center shrink-0"
-                style={{
-                  height: 32,
-                  borderRadius: 10,
-                  border: '1px solid var(--border-default)',
-                  background: 'var(--bg-app)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
-                }}
-              >
+              <div className="flex items-center shrink-0 h-8 rounded-[10px] border border-border-default bg-bg-app shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
                 <LiveNumberField
                   value={editorFontSize}
                   min={MIN_FONT_SIZE_DISPLAY}
@@ -1499,9 +1454,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                   onChange={applyFontSizeValue}
                   integrated
                 />
-                <div
-                  style={{ width: 1, alignSelf: 'stretch', background: 'var(--border-subtle)' }}
-                />
+                <div className="w-px self-stretch bg-border-subtle" />
                 <FontSizePresetButton
                   value={editorFontSize}
                   onChange={applyFontSizeValue}
@@ -1589,23 +1542,12 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 />
               )}
               {!hideEditSecondaryLabels && <InlineTinyLabel>Line Height</InlineTinyLabel>}
-              <div
-                className="flex items-center shrink-0"
-                style={{
-                  height: 32,
-                  borderRadius: 10,
-                  border: '1px solid var(--border-default)',
-                  background: 'var(--bg-app)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
-                }}
-              >
+              <div className="flex items-center shrink-0 h-8 rounded-[10px] border border-border-default bg-bg-app shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
                 <LineSpacingButton
                   value={style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight}
                   onChange={(value) => handleLineHeight(Number(value))}
                 />
-                <div
-                  style={{ width: 1, alignSelf: 'stretch', background: 'var(--border-subtle)' }}
-                />
+                <div className="w-px self-stretch bg-border-subtle" />
                 <div className="flex flex-col gap-0.5">
                   <InlineStepperButton
                     icon={ChevronUp}
@@ -1853,8 +1795,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
 
         <div
           ref={presentClusterRef}
-          className="ml-auto shrink-0 flex items-center gap-2 pl-3 self-center"
-          style={{ borderLeft: '1px solid var(--border-subtle)' }}
+          className="ml-auto shrink-0 flex items-center gap-2 pl-3 self-center border-l border-border-subtle"
         >
           <PresentButton
             onPresent={onPresent}

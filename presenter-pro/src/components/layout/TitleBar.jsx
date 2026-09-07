@@ -68,22 +68,11 @@ export default function TitleBar() {
   }
 
   return (
-    <div
-      className="flex items-center justify-between gap-4 px-4 py-2.5 shrink-0"
-      style={{
-        background: 'var(--bg-toolbar)',
-        borderBottom: '1px solid var(--border-subtle)',
-      }}
-    >
+    <div className="flex items-center justify-between gap-4 px-4 py-2.5 shrink-0 bg-bg-toolbar border-b border-border-subtle">
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={handleBack}
-          className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium shrink-0"
-          style={{
-            color: 'var(--text-primary)',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-          }}
+          className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium shrink-0 text-text-primary bg-bg-surface border border-border-default"
           title="Back to Home"
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--bg-hover)';
@@ -98,10 +87,7 @@ export default function TitleBar() {
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             {!renaming ? (
-              <p
-                className="text-sm font-semibold truncate"
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <p className="text-sm font-semibold truncate text-text-primary">
                 {presentation.title}
               </p>
             ) : null}
@@ -109,12 +95,7 @@ export default function TitleBar() {
               <button
                 type="button"
                 onClick={startRename}
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium shrink-0"
-                style={{
-                  color: 'var(--text-primary)',
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-default)',
-                }}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium shrink-0 text-text-primary bg-bg-surface border border-border-default"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'var(--bg-hover)';
                 }}
@@ -142,9 +123,7 @@ export default function TitleBar() {
               }}
             />
           ) : (
-            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Presentation title
-            </p>
+            <p className="text-xs mt-1 text-text-secondary">Presentation title</p>
           )}
         </div>
       </div>
