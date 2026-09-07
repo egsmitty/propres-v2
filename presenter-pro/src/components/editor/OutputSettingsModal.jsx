@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLatest } from '@/hooks/useLatest';
 import { DEFAULT_BLACK, DEFAULT_TEXT_COLOR } from '@/utils/colorPalettes';
 import { useAppStore } from '@/store/appStore';
 import {
@@ -135,6 +136,19 @@ export default function OutputSettingsModal() {
     }
     setOutputSettingsOpen(false);
   }
+
+  // Escape closes through the same path as the Close button, so any preview
+  // windows it opened are closed too (plan E3 follow-up).
+  const latestHandleClose = useLatest(handleClose);
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      void latestHandleClose.current();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [latestHandleClose]);
 
   async function handleSave() {
     if (hasDisplayConflict) return;

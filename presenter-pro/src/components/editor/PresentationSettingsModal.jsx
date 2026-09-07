@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
 
@@ -24,6 +24,17 @@ export default function PresentationSettingsModal() {
     Number.isFinite(customHeight) &&
     customWidth >= 400 &&
     customHeight >= 300;
+
+  // Escape closes, like every other overlay (plan E3 follow-up).
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      setPresentationSettingsOpen(false);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [setPresentationSettingsOpen]);
 
   function handleSave() {
     if (ratio === 'custom' && !customValid) return;
