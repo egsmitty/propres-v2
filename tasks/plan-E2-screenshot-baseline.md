@@ -32,6 +32,26 @@ _meant_ to be visible, and named in the PR.
 
 ## Todos
 
-- [ ] 1. Spec + tolerance; baselines generated; stable across two local runs.
+- [x] 1. Spec + tolerance; baselines generated; stable across two local runs.
 - [ ] 2. CI run on macOS matches the local baselines within tolerance (or the diff is understood and the baseline regenerated on CI's renderer — recorded either way).
 - [ ] 3. Record; PR.
+
+## Findings (2026-09-06)
+
+- **CI taught the first lesson**: the macOS runner's display is small, so
+  Electron clamped the 1400×800 window to 1200×668 and the first run compared
+  a different-sized image (6% differing, size mismatch). Geometry is now
+  pinned in the specs — `setViewportSize(1200×660)` for the app window and
+  1024×576 for the output window — sizes every machine can honour (the app's
+  minimum is 1200×700).
+- A second spec, `visual-surfaces.spec.ts`, captures the on-demand surfaces:
+  tutorial, context menu, both library panels, both settings modals, the
+  shortcuts overlay, and the editor while presenting — 8 more baselines (11
+  total, ~500 KB). Together with the three main screens this covers every
+  component that carries inline styles.
+- `VISUAL_STRICT=1` makes every comparison exact (0 pixels); all 11 were
+  stable across two strict local runs.
+- Two findings along the way: the two settings modals do not close on
+  Escape (task E3 follow-up), and the two library-panel close buttons were
+  icon-only with no accessible name — they now carry `aria-label`s, which the
+  spec also uses.
