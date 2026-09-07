@@ -75,7 +75,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
-    "lucide-react": "^0.344.0",
+    "lucide-react": "^1.40.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "zustand": "^4.5.2"
