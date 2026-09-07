@@ -16,7 +16,7 @@ const SRC = join(__dirname, '..');
 /** Ceiling per file, relative to src/. Files not listed have a ceiling of 0. */
 const BUDGET: Record<string, number> = {
   'components/library/SongEditorModal.jsx': 63,
-  'pages/Home.jsx': 49,
+  'pages/Home.jsx': 10,
   'components/library/MediaLibraryPanel.jsx': 47,
   'components/editor/Canvas.jsx': 43,
   'components/presenter/PresenterPanel.jsx': 33,
