@@ -30,7 +30,7 @@ export default class ErrorBoundary extends React.Component {
           </p>
           <button
             onClick={() => this.setState({ error: null })}
-            className="mt-1 px-3 py-1.5 rounded text-xs font-medium"
+            className="mt-1 px-3 py-1.5 rounded-sm text-xs font-medium"
             style={{
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-default)',

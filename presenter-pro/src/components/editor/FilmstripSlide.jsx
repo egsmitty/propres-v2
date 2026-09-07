@@ -114,13 +114,13 @@ export default function FilmstripSlide({
         onContextMenu={handleContextMenu}
         onDragOver={onMediaDragOver}
         onDrop={onMediaDrop}
-        className="mx-2 mb-2 rounded cursor-pointer relative overflow-visible p-0 bg-transparent shadow-none"
+        className="mx-2 mb-2 rounded-sm cursor-pointer relative overflow-visible p-0 bg-transparent shadow-none"
         style={{
           aspectRatio: getPresentationAspectRatio(presentation),
         }}
       >
         <div
-          className="w-full rounded flex items-center justify-center relative overflow-hidden bg-bg-canvas"
+          className="w-full rounded-sm flex items-center justify-center relative overflow-hidden bg-bg-canvas"
           style={{
             aspectRatio: getPresentationAspectRatio(presentation),
             border: isLive

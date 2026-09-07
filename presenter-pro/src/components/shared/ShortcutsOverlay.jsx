@@ -57,7 +57,7 @@ export default function ShortcutsOverlay({ onClose }) {
           <button
             onClick={onClose}
             aria-label="Close shortcuts"
-            className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary hover:bg-bg-hover"
+            className="flex items-center justify-center w-6 h-6 rounded-sm text-text-tertiary hover:bg-bg-hover"
           >
             <X size={14} />
           </button>
@@ -78,7 +78,7 @@ export default function ShortcutsOverlay({ onClose }) {
                       {getShortcutKeys(item.shortcutTokens, platform).map((key, ki) => (
                         <kbd
                           key={ki}
-                          className="px-1.5 py-0.5 rounded text-[11px] leading-4 font-medium bg-bg-app border border-border-default text-text-primary font-[monospace]"
+                          className="px-1.5 py-0.5 rounded-sm text-[11px] leading-4 font-medium bg-bg-app border border-border-default text-text-primary font-[monospace]"
                         >
                           {key}
                         </kbd>
@@ -93,11 +93,11 @@ export default function ShortcutsOverlay({ onClose }) {
 
         <div className="px-5 py-2.5 text-xs text-center text-text-tertiary border-t border-border-subtle">
           Press{' '}
-          <kbd className="px-1 py-0.5 rounded mx-0.5 bg-bg-app border border-border-default font-[monospace] text-[11px]">
+          <kbd className="px-1 py-0.5 rounded-sm mx-0.5 bg-bg-app border border-border-default font-[monospace] text-[11px]">
             ?
           </kbd>{' '}
           or{' '}
-          <kbd className="px-1 py-0.5 rounded mx-0.5 bg-bg-app border border-border-default font-[monospace] text-[11px]">
+          <kbd className="px-1 py-0.5 rounded-sm mx-0.5 bg-bg-app border border-border-default font-[monospace] text-[11px]">
             Esc
           </kbd>{' '}
           to dismiss

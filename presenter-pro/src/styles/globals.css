@@ -1,6 +1,103 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss' source(none);
+/* Tailwind 4 finds class names by scanning sources itself. Automatic
+   detection from the working directory missed the JSX (it emitted only the
+   classes mentioned in docs and tests), so the sources are named here,
+   relative to this file, and nothing else is scanned. */
+@source '../';
+@source '../../index.html';
+
+/* Plan U3 (Tailwind 4). Every token below is a Tailwind colour named after
+   itself (`bg-bg-surface`, `text-text-primary`); the gradient is a
+   background image. src/__tests__/tailwindTokens.test.ts fails if this block
+   and the token definitions drift apart. */
+@theme {
+  /* Tailwind 4 defines the text-* line-heights as unitless ratios; v3 used
+     absolute rem values, and a child with a smaller font (a <kbd> at 11px
+     inside a text-xs footer) inherits the ratio, not the length. Pinned to
+     the v3 values so inheritance is unchanged. */
+  --text-xs--line-height: 1rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+  --color-bg-app: var(--bg-app);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-toolbar: var(--bg-toolbar);
+  --color-bg-filmstrip: var(--bg-filmstrip);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-selected: var(--bg-selected);
+  --color-bg-canvas: var(--bg-canvas);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-border-focus: var(--border-focus);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-on-dark: var(--text-on-dark);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-light: var(--accent-light);
+  --color-live: var(--live);
+  --color-live-bg: var(--live-bg);
+  --color-live-border: var(--live-border);
+  --color-live-dim: var(--live-dim);
+  --color-danger: var(--danger);
+  --color-danger-dim: var(--danger-dim);
+  --color-white: var(--white);
+  --color-black: var(--black);
+  --color-text-on-accent: var(--text-on-accent);
+  --color-projector-bg: var(--projector-bg);
+  --color-projector-text: var(--projector-text);
+  --color-danger-bright: var(--danger-bright);
+  --color-live-hover: var(--live-hover);
+  --color-live-outline: var(--live-outline);
+  --color-dirty: var(--dirty);
+  --color-dirty-text: var(--dirty-text);
+  --color-saved: var(--saved);
+  --color-thumb-bg: var(--thumb-bg);
+  --color-home-heading: var(--home-heading);
+  --color-on-dark-1: var(--on-dark-1);
+  --color-on-dark-2: var(--on-dark-2);
+  --color-on-dark-3: var(--on-dark-3);
+  --color-on-dark-4: var(--on-dark-4);
+  --color-on-dark-5: var(--on-dark-5);
+  --color-on-dark-6: var(--on-dark-6);
+  --color-on-dark-7: var(--on-dark-7);
+  --color-on-dark-8: var(--on-dark-8);
+  --color-on-dark-9: var(--on-dark-9);
+  --color-on-dark-10: var(--on-dark-10);
+  --color-on-dark-11: var(--on-dark-11);
+  --color-section-1: var(--section-1);
+  --color-section-2: var(--section-2);
+  --color-section-3: var(--section-3);
+  --color-section-4: var(--section-4);
+  --color-section-5: var(--section-5);
+  --background-image-home-cta-gradient: var(--home-cta-gradient);
+}
+
+/* Tailwind 4 gates `hover:` behind `@media (hover: hover)`; this app is a
+   desktop app driven by a mouse, and the hover captures run on a runner
+   with no pointing device, so the variant keeps its v3 meaning. */
+@custom-variant hover (&:hover);
+
+@layer base {
+  /* Tailwind 4's preflight stopped making buttons show a pointer and made
+     placeholders currentColor at 50%; both restored to the v3 values. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+}
 
 :root {
   /* Editor — light theme */
@@ -80,31 +177,38 @@
   --section-5: #16a34a;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* Element resets in the base layer (plan U3). Tailwind 4 emits utilities in a
+   real cascade layer, and an unlayered rule beats a layered one whatever its
+   specificity — an unlayered `* { padding: 0 }` would silence every p-* and
+   m-* utility. In the base layer they keep the v3 precedence: after preflight,
+   below utilities. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-html,
-body,
-#root {
-  height: 100%;
-  overflow: hidden;
-}
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
 
-body {
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    sans-serif;
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--text-primary);
-  background: var(--bg-app);
-  -webkit-font-smoothing: antialiased;
-  user-select: none;
+  body {
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    background: var(--bg-app);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
 }
 
 /* Scrollbar styling */
@@ -124,10 +228,12 @@ body {
 }
 
 /* Allow text selection in inputs/textareas */
-input,
-textarea,
-[contenteditable] {
-  user-select: text;
+@layer base {
+  input,
+  textarea,
+  [contenteditable] {
+    user-select: text;
+  }
 }
 
 @keyframes slide-in-left {

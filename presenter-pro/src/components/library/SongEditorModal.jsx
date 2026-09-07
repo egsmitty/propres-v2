@@ -668,7 +668,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
             onClick={handleRequestClose}
             disabled={saving}
             aria-label="Close song editor"
-            className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary hover:bg-bg-hover"
+            className="flex items-center justify-center w-6 h-6 rounded-sm text-text-tertiary hover:bg-bg-hover"
           >
             <X size={14} />
           </button>
@@ -683,7 +683,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Song title"
-                className="w-full px-2.5 py-1.5 rounded text-sm bg-bg-app border border-border-default text-text-primary"
+                className="w-full px-2.5 py-1.5 rounded-sm text-sm bg-bg-app border border-border-default text-text-primary"
               />
             </div>
 
@@ -694,7 +694,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   value={artist}
                   onChange={(event) => setArtist(event.target.value)}
                   placeholder="Artist name"
-                  className="w-full px-2.5 py-1.5 rounded text-xs bg-bg-app border border-border-default text-text-primary"
+                  className="w-full px-2.5 py-1.5 rounded-sm text-xs bg-bg-app border border-border-default text-text-primary"
                 />
               </div>
               <div className="w-[110px]">
@@ -703,7 +703,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   value={ccli}
                   onChange={(event) => setCcli(event.target.value)}
                   placeholder="CCLI"
-                  className="w-full px-2.5 py-1.5 rounded text-xs bg-bg-app border border-border-default text-text-primary"
+                  className="w-full px-2.5 py-1.5 rounded-sm text-xs bg-bg-app border border-border-default text-text-primary"
                 />
               </div>
             </div>
@@ -717,7 +717,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   type="button"
                   onClick={handleParse}
                   disabled={!lyricsShown.trim()}
-                  className="inline-flex shrink-0 items-center justify-center gap-1.5 px-3.5 h-8 rounded text-xs font-medium"
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 px-3.5 h-8 rounded-sm text-xs font-medium"
                   style={{
                     background: lyricsShown.trim() ? 'var(--accent)' : 'var(--bg-hover)',
                     color: lyrics.trim() ? 'var(--text-on-accent)' : 'var(--text-tertiary)',
@@ -742,7 +742,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   endLyricsEditing();
                 }}
                 placeholder="Paste or type song lyrics. Blank lines create a new slide inside the current section. A new section starts only when you label it as Verse, Chorus, Bridge, etc."
-                className="flex-1 px-2.5 py-2 rounded text-xs resize-none bg-bg-app border border-border-default text-text-primary font-[monospace] min-h-[240px]"
+                className="flex-1 px-2.5 py-2 rounded-sm text-xs resize-none bg-bg-app border border-border-default text-text-primary font-[monospace] min-h-[240px]"
               />
               <p className="text-xs mt-2 text-text-tertiary">
                 Blank lines create slides. Section labels like &quot;Verse 1&quot; or
@@ -917,7 +917,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                       }
                       onFocus={beginLyricsEditing}
                       onBlur={endLyricsEditing}
-                      className="w-full rounded text-sm resize-none min-h-[180px] bg-bg-surface border border-border-default text-text-primary font-[monospace] p-3 leading-[1.45]"
+                      className="w-full rounded-sm text-sm resize-none min-h-[180px] bg-bg-surface border border-border-default text-text-primary font-[monospace] p-3 leading-[1.45]"
                     />
                   </div>
                 </div>
@@ -942,7 +942,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
               <button
                 type="button"
                 onClick={collapseAllGroups}
-                className="px-2.5 py-1 rounded text-[11px] font-medium text-text-primary bg-bg-app border border-border-default"
+                className="px-2.5 py-1 rounded-sm text-[11px] font-medium text-text-primary bg-bg-app border border-border-default"
               >
                 {allGroupsCollapsed ? 'Expand All' : 'Collapse All'}
               </button>
@@ -999,7 +999,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                         <button
                           type="button"
                           onClick={() => toggleGroupCollapsed(group.id)}
-                          className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-text-secondary bg-bg-surface border border-border-default"
+                          className="flex items-center justify-center w-7 h-7 rounded-sm shrink-0 text-text-secondary bg-bg-surface border border-border-default"
                           title={collapsed ? 'Expand group' : 'Collapse group'}
                         >
                           {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -1008,7 +1008,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                           <select
                             value={group.type}
                             onChange={(event) => updateGroupType(group.id, event.target.value)}
-                            className="text-xs px-2 py-1 rounded min-w-[156px] w-full bg-bg-surface border border-border-default text-text-primary"
+                            className="text-xs px-2 py-1 rounded-sm min-w-[156px] w-full bg-bg-surface border border-border-default text-text-primary"
                           >
                             {SONG_EDITOR_SECTION_TYPES.map((type) => (
                               <option key={type.id} value={type.id}>
@@ -1023,7 +1023,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                         <button
                           type="button"
                           onClick={() => removeGroup(group.id)}
-                          className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-text-tertiary"
+                          className="flex items-center justify-center w-7 h-7 rounded-sm shrink-0 text-text-tertiary"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -1042,7 +1042,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                                 maxLength={CUSTOM_GROUP_NAME_LIMIT}
                                 autoFocus={pendingCustomFocusGroupId === group.id}
                                 placeholder="Custom section name"
-                                className="w-full px-2.5 py-2 rounded text-xs"
+                                className="w-full px-2.5 py-2 rounded-sm text-xs"
                                 style={{
                                   background: 'var(--bg-surface)',
                                   border: '1px solid var(--border-default)',
@@ -1059,7 +1059,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                                 value={group.label}
                                 onChange={(event) => updateGroupLabel(group.id, event.target.value)}
                                 placeholder="Section name"
-                                className="w-full px-2.5 py-2 rounded text-xs bg-bg-surface border border-border-default text-text-primary"
+                                className="w-full px-2.5 py-2 rounded-sm text-xs bg-bg-surface border border-border-default text-text-primary"
                               />
                               <p className="mt-1 text-[11px] leading-4 text-text-tertiary">
                                 Section type controls color and numbering. You can still rename this
@@ -1109,7 +1109,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                                   onChange={(event) =>
                                     updateSlideBody(group.id, slide.id, event.target.value)
                                   }
-                                  className="w-full rounded text-xs resize-none min-h-[72px] bg-bg-app border border-border-default text-text-primary font-[monospace] p-2"
+                                  className="w-full rounded-sm text-xs resize-none min-h-[72px] bg-bg-app border border-border-default text-text-primary font-[monospace] p-2"
                                 />
                               </div>
                             );
@@ -1118,7 +1118,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                           <button
                             type="button"
                             onClick={() => addSlideToGroup(group.id)}
-                            className="self-start flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-bg-hover border border-border-default text-text-primary"
+                            className="self-start flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs bg-bg-hover border border-border-default text-text-primary"
                           >
                             <Plus size={12} />
                             Add Slide
@@ -1141,7 +1141,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
             <button
               onClick={handleRequestClose}
               disabled={saving}
-              className="px-3 py-1.5 rounded text-xs bg-bg-surface border border-border-default text-text-primary"
+              className="px-3 py-1.5 rounded-sm text-xs bg-bg-surface border border-border-default text-text-primary"
             >
               Cancel
             </button>
@@ -1151,7 +1151,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
               title={
                 title.trim() ? 'Save this song to the library' : 'Save this song as Untitled Song'
               }
-              className="px-3 py-1.5 rounded text-xs font-medium"
+              className="px-3 py-1.5 rounded-sm text-xs font-medium"
               style={{
                 background: saving ? 'var(--bg-hover)' : 'var(--accent)',
                 color: saving ? 'var(--text-tertiary)' : 'var(--text-on-accent)',

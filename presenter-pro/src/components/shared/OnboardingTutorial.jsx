@@ -186,7 +186,7 @@ export default function OnboardingTutorial({ onComplete }) {
           <button
             onClick={onComplete}
             aria-label="Close tutorial"
-            className="w-7 h-7 rounded flex items-center justify-center text-text-tertiary hover:bg-bg-hover"
+            className="w-7 h-7 rounded-sm flex items-center justify-center text-text-tertiary hover:bg-bg-hover"
           >
             <X size={15} />
           </button>
@@ -202,7 +202,7 @@ export default function OnboardingTutorial({ onComplete }) {
         <div className="flex items-center justify-between px-4 py-3 gap-2 border-t border-border-subtle">
           <button
             onClick={onComplete}
-            className="rounded text-sm font-semibold h-10 min-w-[112px] py-0 px-4 bg-transparent border border-border-default text-text-secondary"
+            className="rounded-sm text-sm font-semibold h-10 min-w-[112px] py-0 px-4 bg-transparent border border-border-default text-text-secondary"
           >
             Skip Tour
           </button>
@@ -211,7 +211,7 @@ export default function OnboardingTutorial({ onComplete }) {
             {stepIndex > 0 && (
               <button
                 onClick={handleBack}
-                className="rounded text-sm font-semibold"
+                className="rounded-sm text-sm font-semibold"
                 style={{
                   height: 40,
                   minWidth: 84,
@@ -229,7 +229,7 @@ export default function OnboardingTutorial({ onComplete }) {
               <button
                 onClick={handleTemplateAction}
                 disabled={isWorking}
-                className="rounded text-sm font-semibold whitespace-nowrap"
+                className="rounded-sm text-sm font-semibold whitespace-nowrap"
                 style={{
                   height: 40,
                   minWidth: 168,
@@ -247,7 +247,7 @@ export default function OnboardingTutorial({ onComplete }) {
             {canAdvance && (
               <button
                 onClick={handleNext}
-                className="rounded text-sm font-semibold whitespace-nowrap h-10 min-w-[104px] py-0 px-[18px] bg-accent text-text-on-accent"
+                className="rounded-sm text-sm font-semibold whitespace-nowrap h-10 min-w-[104px] py-0 px-[18px] bg-accent text-text-on-accent"
               >
                 {stepIndex === STEPS.length - 1 ? 'Finish' : 'Next'}
               </button>

@@ -332,7 +332,7 @@ export default function PresenterPanel({ onSetOpen }) {
             </div>
             <div className="flex-1 min-h-0 flex items-center justify-center">
               <div
-                className="rounded overflow-hidden flex items-center justify-center w-full max-w-full max-h-full text-text-on-accent"
+                className="rounded-sm overflow-hidden flex items-center justify-center w-full max-w-full max-h-full text-text-on-accent"
                 style={{
                   aspectRatio: getPresentationAspectRatio(presentation),
                   background: isBlack ? 'var(--projector-bg)' : 'var(--on-dark-1)',
@@ -365,7 +365,7 @@ export default function PresenterPanel({ onSetOpen }) {
           <div className="shrink-0 px-3 pb-2 flex gap-1.5">
             <button
               onClick={isPresenting ? handleStop : handleStart}
-              className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium h-11 text-text-on-accent border-none cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-1 rounded-sm text-xs font-medium h-11 text-text-on-accent border-none cursor-pointer"
               style={{
                 background: isPresenting ? 'var(--danger)' : 'var(--accent)',
               }}
@@ -374,7 +374,7 @@ export default function PresenterPanel({ onSetOpen }) {
             </button>
             <button
               onClick={() => sendBlack()}
-              className="flex-1 flex items-center justify-center rounded text-xs font-medium h-11 cursor-pointer"
+              className="flex-1 flex items-center justify-center rounded-sm text-xs font-medium h-11 cursor-pointer"
               style={{
                 background: isBlack ? 'var(--on-dark-2)' : 'var(--bg-app)',
                 color: isBlack ? 'var(--text-on-accent)' : 'var(--text-secondary)',
@@ -385,7 +385,7 @@ export default function PresenterPanel({ onSetOpen }) {
             </button>
             <button
               onClick={() => sendLogo()}
-              className="flex-1 flex items-center justify-center rounded text-xs font-medium h-11 cursor-pointer"
+              className="flex-1 flex items-center justify-center rounded-sm text-xs font-medium h-11 cursor-pointer"
               style={{
                 background: isLogo ? 'rgba(74,124,255,0.15)' : 'var(--bg-app)',
                 color: isLogo ? 'var(--accent)' : 'var(--text-secondary)',
@@ -460,7 +460,7 @@ export default function PresenterPanel({ onSetOpen }) {
                           if (node) slideButtonRefs.current.set(slide.id, node);
                           else slideButtonRefs.current.delete(slide.id);
                         }}
-                        className="bg-on-dark-1 rounded overflow-hidden relative cursor-pointer"
+                        className="bg-on-dark-1 rounded-sm overflow-hidden relative cursor-pointer"
                         style={{
                           aspectRatio: getPresentationAspectRatio(presentation),
                           border: isLive
@@ -536,7 +536,7 @@ export default function PresenterPanel({ onSetOpen }) {
           <button
             onClick={goPrev}
             disabled={!canGoPrev}
-            className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium h-9 bg-bg-app border border-border-default"
+            className="flex-1 flex items-center justify-center gap-1 rounded-sm text-xs font-medium h-9 bg-bg-app border border-border-default"
             style={{
               color: canGoPrev ? 'var(--text-primary)' : 'var(--text-tertiary)',
               cursor: canGoPrev ? 'pointer' : 'default',
@@ -547,7 +547,7 @@ export default function PresenterPanel({ onSetOpen }) {
           <button
             onClick={goNext}
             disabled={!canGoNext}
-            className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium h-9 bg-bg-app border border-border-default"
+            className="flex-1 flex items-center justify-center gap-1 rounded-sm text-xs font-medium h-9 bg-bg-app border border-border-default"
             style={{
               color: canGoNext ? 'var(--text-primary)' : 'var(--text-tertiary)',
               cursor: canGoNext ? 'pointer' : 'default',
