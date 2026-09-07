@@ -35,7 +35,7 @@ function PreviewCloseButton() {
     <button
       type="button"
       onClick={() => closeOutputWindow()}
-      className="absolute top-[22px] right-[22px] z-10 h-[42px] pt-0 pr-3.5 pb-0 pl-3 rounded-[999px] border border-[rgba(255,255,255,0.18)] bg-[rgba(18,18,18,0.82)] text-[rgba(255,255,255,0.92)] inline-flex items-center gap-2 text-[15px] font-bold cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.32)]"
+      className="absolute top-[22px] right-[22px] z-10 h-[42px] pt-0 pr-3.5 pb-0 pl-3 rounded-[999px] border border-white/18 bg-[rgba(18,18,18,0.82)] text-white/92 inline-flex items-center gap-2 text-[15px] font-bold cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.32)]"
     >
       <X size={16} />
       <span>Close Preview</span>
@@ -222,7 +222,7 @@ export default function OutputRenderer() {
     return (
       <div className="w-screen h-screen bg-projector-bg flex items-center justify-center p-[6vw] relative">
         {isPreviewWindow ? <PreviewCloseButton /> : null}
-        <span className="text-[rgba(255,255,255,0.24)] text-[clamp(30px,2.8vw,52px)] font-medium font-[Inter,system-ui,sans-serif] tracking-[0.02em] text-center">
+        <span className="text-white/24 text-[clamp(30px,2.8vw,52px)] font-medium font-[Inter,system-ui,sans-serif] tracking-[0.02em] text-center">
           Main Output Display
         </span>
       </div>

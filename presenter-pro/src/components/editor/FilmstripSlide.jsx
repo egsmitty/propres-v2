@@ -163,7 +163,7 @@ export default function FilmstripSlide({
           )}
           {!isLive && slide.backgroundId && (
             <div
-              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center bg-[rgba(0,0,0,0.48)] text-on-dark-10"
+              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center bg-black/48 text-on-dark-10"
               title="Slide background override"
             >
               <Image size={8} />

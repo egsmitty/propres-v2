@@ -914,3 +914,17 @@ and it leaves when they do. Proven the way everything else was: a spec
 that was red before the meta existed, then the whole E2E suite and the
 52-capture strict compare under the policy, with every console error from
 all three windows collected — zero violations.
+
+### 2026-09-07 — E1b: the alpha-colour decision answered itself
+
+`tasks/plan-E1b-alpha-tokens.md`. The reason E1 left 149 `rgba(…)`
+literals alone was a design question — tokens are hex, and alpha variants
+would have meant either dozens of new tokens or a channel format. Tailwind
+4 made the question moot: `bg-accent/12` compiles to
+`color-mix(in oklab, var(--color-accent) 12%, transparent)`, which works on
+the hex token as it is. I converted the 29 literals that live in class
+strings with a token base, and the 52-capture strict compare says the mix
+is pixel-exact. What is left literal is either a non-token colour (9), a
+shadow (23), or one of the 83 dynamic values in JavaScript — the same 83
+that keep `'unsafe-inline'` in the CSP. Those three numbers are now the
+whole remaining style debt, and each is listed in the charter.

@@ -658,7 +658,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.5)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="flex flex-col rounded-lg shadow-2xl overflow-hidden w-[88vw] h-[84vh] bg-bg-surface border border-border-default">
         <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-border-subtle">
           <h2 className="text-sm font-semibold text-text-primary">
@@ -890,7 +890,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
             <div className="flex-1 min-h-0 overflow-y-auto p-4">
               {selectedGroup && selectedSlide ? (
                 <div className="flex flex-col gap-4 h-full">
-                  <div className="rounded-lg overflow-hidden flex items-center justify-center min-h-[220px] bg-bg-canvas border border-[rgba(255,255,255,0.06)] text-white text-center p-7">
+                  <div className="rounded-lg overflow-hidden flex items-center justify-center min-h-[220px] bg-bg-canvas border border-white/6 text-white text-center p-7">
                     <div className="whitespace-pre-wrap [word-break:break-word] text-[26px] leading-none max-w-[80%]">
                       {selectedSlide.body || 'Selected slide preview'}
                     </div>

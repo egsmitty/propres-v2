@@ -558,7 +558,7 @@ export default function MediaLibraryPanel() {
                 <div className="relative overflow-hidden aspect-video">
                   <MediaPreview item={item} />
                 </div>
-                <div className="px-2 py-1.5 border-t border-[rgba(255,255,255,0.06)]">
+                <div className="px-2 py-1.5 border-t border-white/6">
                   <p className="text-[11px] font-medium truncate flex-1 text-on-dark-11">
                     {item.name}
                   </p>

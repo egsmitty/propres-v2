@@ -184,7 +184,7 @@ export default function OutputSettingsModal() {
   return (
     <div
       data-backdrop="true"
-      className="fixed inset-0 z-[1000] bg-[rgba(0,0,0,0.62)] flex items-center justify-center"
+      className="fixed inset-0 z-[1000] bg-black/62 flex items-center justify-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}

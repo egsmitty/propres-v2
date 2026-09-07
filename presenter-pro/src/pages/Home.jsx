@@ -144,7 +144,7 @@ function HighlightText({ text, query }) {
   return (
     <>
       {text.slice(0, start)}
-      <mark className="rounded-sm bg-[rgba(74,124,255,0.2)] py-0 px-0.5 text-text-primary">
+      <mark className="rounded-sm bg-accent/20 py-0 px-0.5 text-text-primary">
         {text.slice(start, end)}
       </mark>
       {text.slice(end)}
@@ -780,7 +780,7 @@ function TemplateCard({
         variant === 'hero' ? 'rounded-[30px] p-4' : 'rounded-[24px] p-3.5'
       } ${
         selected
-          ? 'border-[rgba(74,124,255,0.5)] shadow-[0_0_0_3px_rgba(74,124,255,0.14),0_14px_34px_rgba(8,14,30,0.07)]'
+          ? 'border-accent/50 shadow-[0_0_0_3px_rgba(74,124,255,0.14),0_14px_34px_rgba(8,14,30,0.07)]'
           : 'border-border-subtle shadow-[0_14px_34px_rgba(8,14,30,0.07)]'
       }`}
       style={{
@@ -1019,7 +1019,7 @@ function PresentationRow({
               }}
               className={`w-11 h-11 rounded-full flex items-center justify-center border hover:shadow-[0_0_0_2px_rgba(74,124,255,0.12)] ${
                 pinned
-                  ? 'bg-[rgba(74,124,255,0.14)] text-accent border-[rgba(74,124,255,0.22)] hover:border-accent'
+                  ? 'bg-accent/14 text-accent border-accent/22 hover:border-accent'
                   : 'bg-transparent text-text-tertiary border-border-subtle hover:border-border-default'
               }`}
             >

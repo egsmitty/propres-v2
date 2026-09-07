@@ -196,7 +196,7 @@ function CommandButton({
           : active
             ? 'bg-accent-dim'
             : primary
-              ? 'bg-[rgba(74,124,255,0.08)] hover:bg-bg-hover'
+              ? 'bg-accent/8 hover:bg-bg-hover'
               : 'bg-transparent hover:bg-bg-hover'
       }`}
       style={{
