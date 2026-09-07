@@ -45,7 +45,7 @@ export default function SlidePreviewSurface({
   const mediaSlide = isMediaSlide(slide);
   const mediaSlideItem = useMemo(
     () => (mediaSlide ? mediaLibrary.find((item) => item.id === slide?.mediaId) || null : null),
-    [mediaLibrary, slide]
+    [mediaLibrary, mediaSlide, slide]
   );
   const effectiveBackgroundId = useMemo(
     () => (!mediaSlide ? getEffectiveBackgroundId(presentation, sectionId, slide) : null),

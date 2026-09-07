@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useLatest } from '@/hooks/useLatest';
 import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
 import { beginBodyInteraction, endBodyInteraction } from '@/utils/bodyInteractionStyle';
@@ -993,11 +994,14 @@ export default function Canvas() {
     updateSlideTextBoxes,
   ]);
 
+  // The document listeners below call the newest finishInlineEditing without
+  // re-subscribing on every render (plan D3).
+  const latestFinishInlineEditing = useLatest(finishInlineEditing);
   useEffect(() => {
     function clearActiveSelection() {
       flushPendingNumericFieldCommit();
       if (editingTextBoxId) {
-        finishInlineEditing([]);
+        latestFinishInlineEditing.current([]);
         return;
       }
       setSelectedTextBoxIds([]);
@@ -1031,7 +1035,13 @@ export default function Canvas() {
       window.removeEventListener('blur', onWindowBlur);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [editingTextBoxId, selectedTextBoxIds, setEditingSlide, setSelectedTextBoxIds]);
+  }, [
+    editingTextBoxId,
+    latestFinishInlineEditing,
+    selectedTextBoxIds,
+    setEditingSlide,
+    setSelectedTextBoxIds,
+  ]);
 
   function beginInteraction(event, type, options = {}) {
     event.preventDefault();

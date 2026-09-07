@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLatest } from '@/hooks/useLatest';
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup';
 import { DEFAULT_TEXT_STYLE, resolvePlaceholderText } from '@/utils/textBoxes';
 import { isRecentEditorToolbarInteraction } from '@/utils/richTextEditor';
@@ -46,22 +47,25 @@ export default function SlideTextEditor({
     onSave(placeholderActive ? '' : normalizeEditorHtml(ref.current.innerHTML));
   }, [onSave, placeholderActive]);
 
+  // Seeding reads the body at seed time only: re-running this effect on every
+  // body keystroke would rewrite the editor while typing (plan D3 #5).
+  const latestBody = useLatest(textBox?.body);
   useEffect(() => {
     if (!ref.current) return;
-    const hasBody = slideBodyToPlainText(textBox?.body || '').trim().length > 0;
+    const hasBody = slideBodyToPlainText(latestBody.current || '').trim().length > 0;
     const placeholderText = resolvePlaceholderText(textBox?.placeholderText);
     const shouldShowPlaceholder = !hasBody && Boolean(placeholderText);
 
     seedingRef.current = true;
     setPlaceholderActive(shouldShowPlaceholder);
-    ref.current.innerHTML = shouldShowPlaceholder ? '' : slideBodyToHtml(textBox?.body || '');
+    ref.current.innerHTML = shouldShowPlaceholder ? '' : slideBodyToHtml(latestBody.current || '');
 
     selectAllContents(ref.current, true);
     ref.current.focus();
     window.requestAnimationFrame(() => {
       seedingRef.current = false;
     });
-  }, [textBox?.id, textBox?.placeholderText]);
+  }, [latestBody, textBox?.id, textBox?.placeholderText]);
 
   useEffect(
     () => () => {

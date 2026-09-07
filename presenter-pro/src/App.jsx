@@ -64,7 +64,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setTutorialOpen, setTutorialStepIndex]);
 
   React.useEffect(() => {
     if (isOutputWindow || isStageDisplayWindow) return;

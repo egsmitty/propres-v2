@@ -57,6 +57,17 @@ describe('NumberField', () => {
   });
 });
 
+describe('NumberField — outside click', () => {
+  it('a mousedown outside a focused field commits its draft', () => {
+    const { input, onCommit } = numberField();
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '7' } }); // below min → not committed on change
+    expect(onCommit).not.toHaveBeenCalled();
+    fireEvent.mouseDown(document.body);
+    expect(onCommit).toHaveBeenLastCalledWith(8);
+  });
+});
+
 describe('LineSpacingBtn', () => {
   it('closed: shows the value; open: the custom input is seeded with it', () => {
     const onChange = vi.fn();

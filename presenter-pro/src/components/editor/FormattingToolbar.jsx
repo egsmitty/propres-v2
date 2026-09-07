@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLatest } from '@/hooks/useLatest';
 import {
   AlignCenter,
   AlignLeft,
@@ -241,32 +242,36 @@ function NumberField({
     setFocused(false);
   }
 
+  // Registry and document listeners call the newest commit without
+  // re-subscribing on every render (plan D3).
+  const latestCommit = useLatest(commit);
+
   useEffect(() => {
     if (!focused || !registerPendingCommit) return undefined;
 
     function flushPendingCommit() {
-      commit();
+      latestCommit.current();
     }
 
     registerPendingNumericFieldCommit(flushPendingCommit);
     return () => {
       clearPendingNumericFieldCommit(flushPendingCommit);
     };
-  }, [draft, focused, max, min, onCommit, registerPendingCommit, value]);
+  }, [focused, latestCommit, registerPendingCommit]);
 
   useEffect(() => {
     if (!focused) return undefined;
 
     function commitOnOutsidePointerDown(event) {
       if (inputRef.current?.contains(event.target)) return;
-      commit();
+      latestCommit.current();
     }
 
     document.addEventListener('mousedown', commitOnOutsidePointerDown, true);
     return () => {
       document.removeEventListener('mousedown', commitOnOutsidePointerDown, true);
     };
-  }, [focused, draft, value, min, max]);
+  }, [focused, latestCommit]);
 
   return (
     <input
