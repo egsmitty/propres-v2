@@ -146,7 +146,7 @@ export default function OnboardingTutorial({ onComplete }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[80]" style={{ pointerEvents: 'none' }}>
+    <div className="fixed inset-0 z-[80] pointer-events-none">
       {targetRect ? (
         <div
           style={{
@@ -176,25 +176,16 @@ export default function OnboardingTutorial({ onComplete }) {
           flexDirection: 'column',
         }}
       >
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: '1px solid var(--border-subtle)' }}
-        >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
           <div>
-            <p
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--accent)' }}
-            >
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
               First Run Tour
             </p>
-            <h2 className="text-sm font-semibold mt-1" style={{ color: 'var(--text-primary)' }}>
-              {step.title}
-            </h2>
+            <h2 className="text-sm font-semibold mt-1 text-text-primary">{step.title}</h2>
           </div>
           <button
             onClick={onComplete}
-            className="w-7 h-7 rounded flex items-center justify-center"
-            style={{ color: 'var(--text-tertiary)' }}
+            className="w-7 h-7 rounded flex items-center justify-center text-text-tertiary"
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
@@ -202,30 +193,17 @@ export default function OnboardingTutorial({ onComplete }) {
           </button>
         </div>
 
-        <div className="px-4 py-4" style={{ overflowY: 'auto', flex: 1 }}>
-          <p className="text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
-            {step.body}
-          </p>
-          <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="px-4 py-4 overflow-y-auto flex-1">
+          <p className="text-sm leading-6 text-text-secondary">{step.body}</p>
+          <p className="text-xs mt-3 text-text-tertiary">
             Step {stepIndex + 1} of {STEPS.length}
           </p>
         </div>
 
-        <div
-          className="flex items-center justify-between px-4 py-3 gap-2"
-          style={{ borderTop: '1px solid var(--border-subtle)' }}
-        >
+        <div className="flex items-center justify-between px-4 py-3 gap-2 border-t border-border-subtle">
           <button
             onClick={onComplete}
-            className="rounded text-sm font-semibold"
-            style={{
-              height: 40,
-              minWidth: 112,
-              padding: '0 16px',
-              background: 'transparent',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-secondary)',
-            }}
+            className="rounded text-sm font-semibold h-10 min-w-[112px] py-0 px-4 bg-transparent border border-border-default text-text-secondary"
           >
             Skip Tour
           </button>
@@ -270,14 +248,7 @@ export default function OnboardingTutorial({ onComplete }) {
             {canAdvance && (
               <button
                 onClick={handleNext}
-                className="rounded text-sm font-semibold whitespace-nowrap"
-                style={{
-                  height: 40,
-                  minWidth: 104,
-                  padding: '0 18px',
-                  background: 'var(--accent)',
-                  color: 'var(--text-on-accent)',
-                }}
+                className="rounded text-sm font-semibold whitespace-nowrap h-10 min-w-[104px] py-0 px-[18px] bg-accent text-text-on-accent"
               >
                 {stepIndex === STEPS.length - 1 ? 'Finish' : 'Next'}
               </button>

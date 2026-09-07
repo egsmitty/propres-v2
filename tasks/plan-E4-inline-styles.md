@@ -87,8 +87,9 @@ structure, no handler changes.
 
 - [x] 0. Slice 0: token colours in Tailwind; ratchet test red (a ceiling one
       too low fails, naming the file) then green; local snapshot dir; gate; build.
-- [ ] 1–5. Each: local capture on base → convert → strict 0 px on 11 captures →
-      ceilings lowered → gate → PR with the pixel proof in its findings.
+- [x] 1–5. Each: local capture on base → convert → strict 0 px on every
+      capture → ceilings lowered → gate → PR with the pixel proof in its
+      findings (#73, #75, #77, #78, slice 5).
 - [ ] 6. Net extension (4 captures, CI baselines) as an E2 addendum PR.
 - [ ] 7. The last four files behind the new captures.
 - [ ] Record: E1b (rgba literals → alpha tokens) and hover handlers → `hover:`
@@ -141,3 +142,16 @@ structure, no handler changes.
   animation (its keyframes are Tailwind's own, only emitted when Tailwind
   sees `animate-pulse` — not worth entangling), and the black/logo preview
   labels (states no capture enters).
+- **Slice 5** `OutputSettingsModal` 31 → 3, `PresentationSettingsModal`
+  13 → 7, `ShortcutsOverlay` 11 → 0, `OnboardingTutorial` 16 → 5,
+  `ContextMenu` 4 → 2, `OutputRenderer` 16 → 13 (66 replacements). **The
+  net caught a real mistake:** the overlay's `<kbd>` carried `text-xs` plus
+  an inline `fontSize: 11`; replacing the inline size with `text-[11px]`
+  alongside `text-xs` let the 12px size win in the cascade — 485 differing
+  pixels. The fix is `text-[11px] leading-4` (Tailwind's `text-xs` also sets
+  line-height 1rem, which the inline size had left in place). Then 0
+  differing pixels on all 20 captures. Left inline: the custom-size fields
+  of the presentation settings (only rendered for a custom ratio), the
+  tutorial's target spotlight and Back/template buttons (later steps), and
+  the output renderer's live, black, logo and clock states (the output
+  capture shows the idle preview).

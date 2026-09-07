@@ -28,30 +28,22 @@ export default function ContextMenu({ x, y, items, onClose }) {
     <div
       ref={ref}
       data-context-menu="true"
-      className="fixed z-50 py-1.5 rounded-2xl shadow-xl"
+      className="fixed z-50 py-1.5 rounded-2xl shadow-[0_18px_42px_rgba(8,14,30,0.16)] bg-bg-surface border border-border-default"
       style={{
         top: adjustedY,
         left: adjustedX,
         width: menuWidth,
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        boxShadow: '0 18px 42px rgba(8,14,30,0.16)',
       }}
     >
       {items.map((item, i) => {
         if (item.divider) {
-          return (
-            <div
-              key={i}
-              style={{ height: 1, background: 'var(--border-subtle)', margin: '6px 10px' }}
-            />
-          );
+          return <div key={i} className="h-px bg-border-subtle my-1.5 mx-2.5" />;
         }
         const Icon = item.icon;
         return (
           <button
             key={i}
-            className="w-full text-left px-3.5 py-2.5 text-sm rounded-xl mx-1"
+            className="w-full text-left px-3.5 py-2.5 text-sm rounded-xl mx-1 flex items-center gap-2.5"
             style={{
               color: item.disabled
                 ? 'var(--text-tertiary)'
@@ -59,9 +51,6 @@ export default function ContextMenu({ x, y, items, onClose }) {
                   ? 'var(--danger)'
                   : 'var(--text-primary)',
               cursor: item.disabled ? 'default' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
             }}
             onMouseEnter={(e) => {
               if (item.disabled) return;
@@ -79,7 +68,7 @@ export default function ContextMenu({ x, y, items, onClose }) {
             }}
             disabled={item.disabled}
           >
-            {Icon ? <Icon size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : null}
+            {Icon ? <Icon size={16} strokeWidth={2} className="shrink-0" /> : null}
             <span>{item.label}</span>
           </button>
         );
