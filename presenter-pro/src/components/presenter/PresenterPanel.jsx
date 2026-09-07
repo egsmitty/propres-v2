@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLatest } from '@/hooks/useLatest';
 import { ChevronLeft, LayoutPanelTop } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -155,6 +156,8 @@ export default function PresenterPanel({ onSetOpen }) {
   }, [isPresenting, liveSlideId]);
 
   // Arrow key navigation when presenting
+  const latestGoPrev = useLatest(goPrev);
+  const latestGoNext = useLatest(goNext);
   useEffect(() => {
     if (!isPresenting) return;
     function handler(e) {
@@ -163,16 +166,16 @@ export default function PresenterPanel({ onSetOpen }) {
         return;
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        goPrev();
+        latestGoPrev.current();
       }
       if (e.key === 'ArrowRight' || e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
-        goNext();
+        latestGoNext.current();
       }
     }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isPresenting]);
+  }, [isPresenting, latestGoNext, latestGoPrev]);
 
   async function goToSlide(slide) {
     if (!slide) return;
