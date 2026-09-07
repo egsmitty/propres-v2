@@ -303,7 +303,7 @@ export default function MediaLibraryPanel() {
           type="button"
           aria-label="Close media library"
           onClick={() => setMediaLibraryOpen(false)}
-          className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary hover:bg-bg-hover"
+          className="flex items-center justify-center w-6 h-6 rounded-sm text-text-tertiary hover:bg-bg-hover"
         >
           <X size={14} />
         </button>
@@ -531,7 +531,7 @@ export default function MediaLibraryPanel() {
             {visibleMedia.map((item) => (
               <div
                 key={item.id}
-                className="rounded overflow-hidden cursor-pointer bg-bg-canvas"
+                className="rounded-sm overflow-hidden cursor-pointer bg-bg-canvas"
                 title={item.name}
                 style={{
                   border:

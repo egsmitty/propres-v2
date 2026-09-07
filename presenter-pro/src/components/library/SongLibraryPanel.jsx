@@ -47,7 +47,7 @@ export default function SongLibraryPanel() {
             type="button"
             aria-label="Close song library"
             onClick={() => setSongLibraryOpen(false)}
-            className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary hover:bg-bg-hover"
+            className="flex items-center justify-center w-6 h-6 rounded-sm text-text-tertiary hover:bg-bg-hover"
           >
             <X size={14} />
           </button>
@@ -55,7 +55,7 @@ export default function SongLibraryPanel() {
 
         {/* Search */}
         <div className="px-3 py-2 shrink-0 border-b border-border-subtle">
-          <div className="flex items-center gap-2 px-2 py-1 rounded bg-bg-app border border-border-default">
+          <div className="flex items-center gap-2 px-2 py-1 rounded-sm bg-bg-app border border-border-default">
             <Search size={12} className="text-text-tertiary" />
             <input
               value={query}
@@ -98,7 +98,7 @@ export default function SongLibraryPanel() {
               setEditSong(null);
               setShowEditor(true);
             }}
-            className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded text-xs font-medium bg-bg-surface hover:bg-bg-hover border border-border-default text-text-primary"
+            className="flex items-center gap-1.5 w-full justify-center py-1.5 rounded-sm text-xs font-medium bg-bg-surface hover:bg-bg-hover border border-border-default text-text-primary"
           >
             <Plus size={13} />
             New Song

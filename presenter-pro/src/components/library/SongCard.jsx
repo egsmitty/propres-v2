@@ -75,7 +75,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         onClick={handleInsert}
         disabled={isInserting || !presentation}
-        className={`px-2.5 py-1 rounded text-xs font-medium shrink-0 ${
+        className={`px-2.5 py-1 rounded-sm text-xs font-medium shrink-0 ${
           isInserting || !presentation
             ? 'bg-border-default text-text-tertiary'
             : 'bg-[rgba(74,124,255,0.12)] text-accent hover:bg-accent hover:text-text-on-accent'
@@ -91,7 +91,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         type="button"
         onClick={onEdit}
-        className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-text-tertiary border border-border-subtle bg-transparent hover:bg-bg-surface"
+        className="flex items-center justify-center w-7 h-7 rounded-sm shrink-0 text-text-tertiary border border-border-subtle bg-transparent hover:bg-bg-surface"
         title="Edit Song"
       >
         <Pencil size={13} />
@@ -100,7 +100,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         type="button"
         onClick={handleDelete}
-        className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-danger border border-border-subtle bg-transparent hover:bg-[rgba(220,38,38,0.08)] hover:border-[rgba(220,38,38,0.35)]"
+        className="flex items-center justify-center w-7 h-7 rounded-sm shrink-0 text-danger border border-border-subtle bg-transparent hover:bg-[rgba(220,38,38,0.08)] hover:border-[rgba(220,38,38,0.35)]"
         title="Delete Song"
       >
         <Trash2 size={13} />

@@ -274,7 +274,7 @@ function NumberField({
           commit();
         }
       }}
-      className="h-[26px] text-center bg-bg-app border border-border-default rounded text-text-primary text-[11px] shrink-0"
+      className="h-[26px] text-center bg-bg-app border border-border-default rounded-sm text-text-primary text-[11px] shrink-0"
       style={{
         width,
       }}
@@ -1007,7 +1007,7 @@ export default function FormattingToolbar({
           if (inline.inlineActive && inline.runInline('fontName', value)) return;
           ss({ fontFamily: value });
         }}
-        className="h-[26px] text-[11px] rounded py-0 px-1 bg-bg-app border border-border-default text-text-primary max-w-[130px] shrink-0"
+        className="h-[26px] text-[11px] rounded-sm py-0 px-1 bg-bg-app border border-border-default text-text-primary max-w-[130px] shrink-0"
       >
         {FONT_OPTIONS.map((f) => (
           <option key={f} value={f}>

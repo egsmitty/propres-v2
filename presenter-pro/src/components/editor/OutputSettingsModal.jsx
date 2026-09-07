@@ -40,7 +40,7 @@ function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhen
     <button
       type="button"
       onClick={onClick}
-      className="text-xs rounded h-[42px] w-full py-0 px-3.5 font-[650] tracking-[0.015em]"
+      className="text-xs rounded-sm h-[42px] w-full py-0 px-3.5 font-[650] tracking-[0.015em]"
       style={{
         background: open
           ? 'var(--bg-hover)'
@@ -209,7 +209,7 @@ export default function OutputSettingsModal() {
                   <select
                     value={mainDisplayId}
                     onChange={(e) => setMainDisplayId(e.target.value)}
-                    className="text-xs rounded bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
+                    className="text-xs rounded-sm bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
                   >
                     <option value="">Open in a window</option>
                     {displays.map((display) => (
@@ -225,7 +225,7 @@ export default function OutputSettingsModal() {
                   <select
                     value={stageDisplayId}
                     onChange={(e) => setStageDisplayId(e.target.value)}
-                    className="text-xs rounded bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
+                    className="text-xs rounded-sm bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
                   >
                     <option value="">Do not auto-open</option>
                     {displays.map((display) => (
@@ -285,7 +285,7 @@ export default function OutputSettingsModal() {
                         ),
                       }))
                     }
-                    className="text-xs rounded bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
+                    className="text-xs rounded-sm bg-bg-surface border border-border-default text-text-primary py-2 px-2.5"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
@@ -333,7 +333,7 @@ export default function OutputSettingsModal() {
           <button
             type="button"
             onClick={handleClose}
-            className="text-xs px-3 py-1.5 rounded bg-bg-app border border-border-default text-text-primary"
+            className="text-xs px-3 py-1.5 rounded-sm bg-bg-app border border-border-default text-text-primary"
           >
             Cancel
           </button>
@@ -341,7 +341,7 @@ export default function OutputSettingsModal() {
             type="button"
             disabled={loading || saving || hasDisplayConflict}
             onClick={handleSave}
-            className="text-xs px-3 py-1.5 rounded font-medium"
+            className="text-xs px-3 py-1.5 rounded-sm font-medium"
             style={{
               background:
                 loading || saving || hasDisplayConflict ? 'var(--bg-hover)' : 'var(--accent)',

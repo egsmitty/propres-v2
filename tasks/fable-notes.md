@@ -860,3 +860,30 @@ Two smaller keyboard notes, recorded for the E3 follow-up list: the menu
 bar does not close on Escape (its trigger toggles it), and the `?`
 shortcut yields while a text box is selected — the Help menu still opens
 the overlay, so nothing is unreachable.
+
+### 2026-09-07 — U3: Tailwind 4, and what the net was for
+
+`tasks/plan-U3-tailwind-4.md`. Upgraded to 4.3.3 and proven at **0
+differing pixels on all 52 captures**. This is the payoff for E2/E4: a CSS
+engine swap that a person cannot review by eye, settled by a number.
+
+It took four fixes, and I want you to know them because each is a v3 habit
+that v4 punishes silently:
+
+1. Your `* { padding: 0 }` reset, unlayered, now beats every padding
+   utility (real cascade layers). It lives in `@layer base` now.
+2. `px-4.5` / `pb-4.5` on the hero template card never produced CSS in v3
+   (no 4.5 step); v4 would have painted 18px that was never there. I
+   removed them to keep the look — but the intent was clearly 18px padding,
+   and that is a one-line decision for you.
+3. v4's text sizes carry unitless line-heights; a smaller child inherits the
+   ratio. Pinned to v3's rem values in the theme.
+4. The scanner, left alone, read class names from docs and tests. Sources
+   are declared now.
+
+Also: my first rename script rewrote a `.blur()` call and a `'blur'` event
+name because it matched inside any string. Lint caught it before anything
+ran; the redo touches class strings only. Recorded because it is exactly
+the kind of mistake the gate exists for.
+
+The Dependabot hold on the Tailwind major is lifted.

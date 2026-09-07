@@ -1308,7 +1308,7 @@ export default function Canvas() {
               data-text-editing={
                 editingSlideId === selectedSlideId && Boolean(selectedSlideId) ? 'true' : 'false'
               }
-              className="relative rounded shadow-2xl overflow-hidden max-w-full max-h-full bg-bg-canvas"
+              className="relative rounded-sm shadow-2xl overflow-hidden max-w-full max-h-full bg-bg-canvas"
               style={{
                 width: fittedCanvasSize.width,
                 height: fittedCanvasSize.height,

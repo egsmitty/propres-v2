@@ -263,7 +263,7 @@ function GhostSlide({
       }}
     >
       <div
-        className="rounded overflow-hidden"
+        className="rounded-sm overflow-hidden"
         style={{
           padding: 2,
           background: floating ? 'rgba(74,124,255,0.12)' : 'rgba(74,124,255,0.16)',
@@ -271,7 +271,7 @@ function GhostSlide({
         }}
       >
         <div
-          className="w-full rounded flex items-center justify-center relative overflow-hidden"
+          className="w-full rounded-sm flex items-center justify-center relative overflow-hidden"
           style={{
             aspectRatio: getPresentationAspectRatio(presentation),
             background: 'var(--bg-canvas)',
@@ -318,7 +318,7 @@ function GhostSlide({
 function PreviewInsert() {
   return (
     <div
-      className="mx-2 mb-1 rounded"
+      className="mx-2 mb-1 rounded-sm"
       style={{
         transition: 'all 120ms ease',
         borderRadius: 10,
@@ -1018,7 +1018,7 @@ export default function Filmstrip({ width = 224 }) {
         <button
           type="button"
           onClick={collapseAllSections}
-          className="px-2.5 py-1 rounded text-[11px] font-medium text-text-primary bg-bg-app hover:bg-bg-hover border border-border-default"
+          className="px-2.5 py-1 rounded-sm text-[11px] font-medium text-text-primary bg-bg-app hover:bg-bg-hover border border-border-default"
         >
           {allSectionsCollapsed ? 'Expand All' : 'Collapse All'}
         </button>
@@ -1174,7 +1174,7 @@ export default function Filmstrip({ width = 224 }) {
                 {!isCollapsed && (
                   <div
                     ref={(node) => registerSectionEndNode(originalSection.id, node)}
-                    className="mx-2 mb-1 rounded"
+                    className="mx-2 mb-1 rounded-sm"
                     style={{
                       height: showPreviewAtEnd ? 6 : activeSlideDrag ? 12 : 12,
                       background: 'transparent',

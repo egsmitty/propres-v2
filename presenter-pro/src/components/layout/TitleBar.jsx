@@ -103,7 +103,7 @@ export default function TitleBar() {
               onChange={(e) => setRenameVal(e.target.value)}
               onBlur={commitRename}
               onKeyDown={handleRenameKey}
-              className="mt-1 text-sm px-2 py-1 rounded w-full max-w-[22rem]"
+              className="mt-1 text-sm px-2 py-1 rounded-sm w-full max-w-[22rem]"
               style={{
                 color: 'var(--text-primary)',
                 background: 'var(--bg-surface)',

@@ -166,7 +166,7 @@ export default function SlideTextEditor({
         }}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
-        className="w-full outline-none"
+        className="w-full outline-hidden"
         style={{
           color: placeholderActive ? PLACEHOLDER_TEXT_COLOR : style.color || DEFAULT_TEXT_COLOR,
           fontSize: style.size || DEFAULT_TEXT_STYLE.size,

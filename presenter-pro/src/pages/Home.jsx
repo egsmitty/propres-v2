@@ -144,7 +144,7 @@ function HighlightText({ text, query }) {
   return (
     <>
       {text.slice(0, start)}
-      <mark className="rounded bg-[rgba(74,124,255,0.2)] py-0 px-0.5 text-text-primary">
+      <mark className="rounded-sm bg-[rgba(74,124,255,0.2)] py-0 px-0.5 text-text-primary">
         {text.slice(start, end)}
       </mark>
       {text.slice(end)}
@@ -382,7 +382,7 @@ export default function Home() {
             data-profile-card="true"
           >
             <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold bg-accent">
+              <div className="w-6 h-6 rounded-sm flex items-center justify-center text-white text-xs font-bold bg-accent">
                 P
               </div>
               <span className="text-sm font-semibold text-text-primary">PresenterPro</span>
@@ -825,7 +825,7 @@ function TemplatePreview({ visual, blank, variant }) {
       <div
         className={
           isHero
-            ? 'rounded-[22px] h-full px-4.5 pt-4 pb-4.5 flex flex-col shadow-[0_10px_24px_rgba(17,25,40,0.12)]'
+            ? 'rounded-[22px] h-full pt-4 flex flex-col shadow-[0_10px_24px_rgba(17,25,40,0.12)]'
             : 'rounded-[18px] h-full px-3.5 pt-3.5 pb-3.5 flex flex-col shadow-[0_10px_24px_rgba(17,25,40,0.12)]'
         }
         style={{

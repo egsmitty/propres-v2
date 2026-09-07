@@ -62,7 +62,7 @@ export default function PresentationSettingsModal() {
           <select
             value={ratio}
             onChange={(e) => setRatio(e.target.value)}
-            className="w-full text-xs rounded bg-bg-app border border-border-default text-text-primary py-2 px-2.5"
+            className="w-full text-xs rounded-sm bg-bg-app border border-border-default text-text-primary py-2 px-2.5"
           >
             {PRESETS.map(({ label, value }) => (
               <option key={value} value={value}>
@@ -85,7 +85,7 @@ export default function PresentationSettingsModal() {
                   min={400}
                   max={7680}
                   onChange={(e) => setCustomW(e.target.value)}
-                  className="text-xs rounded text-center"
+                  className="text-xs rounded-sm text-center"
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -108,7 +108,7 @@ export default function PresentationSettingsModal() {
                   min={300}
                   max={4320}
                   onChange={(e) => setCustomH(e.target.value)}
-                  className="text-xs rounded text-center"
+                  className="text-xs rounded-sm text-center"
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -133,13 +133,13 @@ export default function PresentationSettingsModal() {
         <div className="flex gap-2 justify-end">
           <button
             onClick={() => setPresentationSettingsOpen(false)}
-            className="text-xs px-3 py-1.5 rounded bg-bg-app border border-border-default text-text-secondary cursor-pointer"
+            className="text-xs px-3 py-1.5 rounded-sm bg-bg-app border border-border-default text-text-secondary cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="text-xs px-3 py-1.5 rounded font-medium"
+            className="text-xs px-3 py-1.5 rounded-sm font-medium"
             style={{
               background: ratio === 'custom' && !customValid ? 'var(--bg-hover)' : 'var(--accent)',
               border: 'none',

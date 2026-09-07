@@ -110,7 +110,7 @@ export default function SectionHeader({
 
         <button
           onClick={onAddSlide}
-          className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-4 h-4 rounded text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
+          className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-4 h-4 rounded-sm text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
           title="Add slide to this section"
         >
           <Plus size={11} />
