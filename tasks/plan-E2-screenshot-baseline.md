@@ -55,3 +55,31 @@ _meant_ to be visible, and named in the PR.
   Escape (task E3 follow-up), and the two library-panel close buttons were
   icon-only with no accessible name — they now carry `aria-label`s, which the
   spec also uses.
+- **CI taught the second lesson (2026-09-07)**: with geometry pinned, CI still
+  differed — 15% on the editor, 2% on the Home context menu — and none of it
+  was drift. Three environmental facts: the presenter panel decides
+  open/closed once from the window width at store init (open at ≥1400px; CI
+  clamps to 1200 so it was collapsed there and open on a laptop), the Home
+  profile card shows the OS account name ("Runner" on CI), and the runner
+  draws classic scrollbars that take 8px of layout space where a laptop's
+  overlay scrollbars take none. **Decision: baselines are captured on the CI
+  runner, never on a laptop.** The E2E workflow gained a `workflow_dispatch`
+  input `update_baselines` (landed on main first in #70, because GitHub
+  validates dispatch inputs against the default branch's file) that runs the
+  two visual specs with `--update-snapshots` and uploads `visual-baselines`;
+  the artifact is downloaded and committed. Locally the visual specs are
+  skipped unless `VISUAL=1`.
+- **The strict local workflow for E4** is therefore laptop-vs-laptop, which is
+  the comparison that is actually valid: on `main`, `VISUAL=1 npx playwright
+  test e2e/visual*.spec.ts --update-snapshots`; apply the refactor; `VISUAL=1
+  VISUAL_STRICT=1 npx playwright test e2e/visual*.spec.ts` must report 0
+  differing pixels; do not commit the local baselines. CI's own baselines
+  (1% tolerance) remain the durable net on every PR.
+- Captures were also made deterministic where the spec can: the presenter
+  panel is shown explicitly (`showPresenterPanel`, so its surface is in the
+  baseline on every machine), the profile card is masked
+  (`data-profile-card`), and the settings modals now close with Escape
+  (#69). Shared helpers live in `e2e/fixtures/visual.ts`.
+- Proof on the laptop: both specs pass after a fresh capture and again under
+  `VISUAL_STRICT=1` (0 pixels). CI result recorded below once the runner's
+  baselines are committed.
