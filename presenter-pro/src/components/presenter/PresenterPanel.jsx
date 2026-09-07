@@ -11,7 +11,7 @@ import { getPresentationAspectRatio } from '@/utils/presentationSizing';
 import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
 import { withEffectiveBackground } from '@/utils/backgrounds';
 
-const LIVE_SLIDE_OUTLINE_COLOR = '#00f57a';
+const LIVE_SLIDE_OUTLINE_COLOR = 'var(--live-outline)';
 const PRESENTER_PANEL_TOP_HEIGHT_KEY = 'presenterpro.presenterPanelTopHeight';
 const PRESENTER_PANEL_MIN_TOP_HEIGHT = 220;
 const PRESENTER_PANEL_MIN_BOTTOM_HEIGHT = 170;
@@ -313,12 +313,16 @@ export default function PresenterPanel({ onSetOpen }) {
                 <>
                   <span
                     className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: '#16a34a', flexShrink: 0, animation: 'pulse 2s infinite' }}
+                    style={{
+                      background: 'var(--live)',
+                      flexShrink: 0,
+                      animation: 'pulse 2s infinite',
+                    }}
                   />
                   <span
                     style={{
                       fontSize: 9,
-                      color: '#16a34a',
+                      color: 'var(--live)',
                       fontWeight: 600,
                       letterSpacing: '0.12em',
                       textTransform: 'uppercase',
@@ -354,15 +358,15 @@ export default function PresenterPanel({ onSetOpen }) {
                   maxWidth: '100%',
                   maxHeight: '100%',
                   aspectRatio: getPresentationAspectRatio(presentation),
-                  background: isBlack ? '#000' : '#111',
-                  border: isPresenting ? '1px solid #16a34a' : '1px solid var(--border-subtle)',
-                  color: '#fff',
+                  background: isBlack ? 'var(--projector-bg)' : 'var(--on-dark-1)',
+                  border: isPresenting ? '1px solid var(--live)' : '1px solid var(--border-subtle)',
+                  color: 'var(--text-on-accent)',
                 }}
               >
                 {isBlack ? (
-                  <span style={{ color: '#444', fontSize: 10 }}>BLACK</span>
+                  <span style={{ color: 'var(--on-dark-4)', fontSize: 10 }}>BLACK</span>
                 ) : isLogo ? (
-                  <span style={{ color: '#4a7cff', fontSize: 10 }}>LOGO</span>
+                  <span style={{ color: 'var(--accent)', fontSize: 10 }}>LOGO</span>
                 ) : (
                   <div className="relative w-full h-full">
                     <SlidePreviewSurface
@@ -388,8 +392,8 @@ export default function PresenterPanel({ onSetOpen }) {
               className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium"
               style={{
                 height: 44,
-                background: isPresenting ? 'var(--danger, #dc2626)' : 'var(--accent)',
-                color: '#fff',
+                background: isPresenting ? 'var(--danger)' : 'var(--accent)',
+                color: 'var(--text-on-accent)',
                 border: 'none',
                 cursor: 'pointer',
               }}
@@ -401,9 +405,9 @@ export default function PresenterPanel({ onSetOpen }) {
               className="flex-1 flex items-center justify-center rounded text-xs font-medium"
               style={{
                 height: 44,
-                background: isBlack ? '#1f1f1f' : 'var(--bg-app)',
-                color: isBlack ? '#fff' : 'var(--text-secondary)',
-                border: `1px solid ${isBlack ? '#555' : 'var(--border-default)'}`,
+                background: isBlack ? 'var(--on-dark-2)' : 'var(--bg-app)',
+                color: isBlack ? 'var(--text-on-accent)' : 'var(--text-secondary)',
+                border: `1px solid ${isBlack ? 'var(--on-dark-5)' : 'var(--border-default)'}`,
                 cursor: 'pointer',
               }}
             >
@@ -415,8 +419,8 @@ export default function PresenterPanel({ onSetOpen }) {
               style={{
                 height: 44,
                 background: isLogo ? 'rgba(74,124,255,0.15)' : 'var(--bg-app)',
-                color: isLogo ? '#4a7cff' : 'var(--text-secondary)',
-                border: `1px solid ${isLogo ? '#4a7cff' : 'var(--border-default)'}`,
+                color: isLogo ? 'var(--accent)' : 'var(--text-secondary)',
+                border: `1px solid ${isLogo ? 'var(--accent)' : 'var(--border-default)'}`,
                 cursor: 'pointer',
               }}
             >
@@ -500,7 +504,7 @@ export default function PresenterPanel({ onSetOpen }) {
                         }}
                         style={{
                           aspectRatio: getPresentationAspectRatio(presentation),
-                          background: '#111',
+                          background: 'var(--on-dark-1)',
                           border: isLive
                             ? `4px solid ${LIVE_SLIDE_OUTLINE_COLOR}`
                             : isSelected
@@ -540,7 +544,7 @@ export default function PresenterPanel({ onSetOpen }) {
                                 borderRadius: 999,
                                 background: withColorAlpha(songSectionColor, 0.13),
                                 border: `1px solid ${withColorAlpha(songSectionColor, 0.4)}`,
-                                color: '#ffffff',
+                                color: 'var(--white)',
                                 fontSize: 9,
                                 fontWeight: 700,
                                 letterSpacing: '0.06em',

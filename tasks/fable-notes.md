@@ -676,3 +676,22 @@ omission.
 **Where the linter stands after workstream D:** `npx eslint .` prints nothing.
 Zero errors, zero warnings, an empty suppressions file, and the gate's warning
 ceiling is 0 — anything new fails CI. From 90 problems at the audit.
+
+### 2026-09-06 — E1: colour tokens and a lint rule that keeps them honest
+
+`tasks/plan-E1-color-tokens.md`. Every raw hex in component code (147) is now
+either a `var(--token)` of the **identical value** or lives in a data module
+(the colours users pick from, and the defaults saved into slides — those must
+stay hex; a colour input cannot take `var()`). An ESLint rule now fails the
+gate on any new hex in a `.jsx` file, and a test fails on any `var(--typo)`.
+
+**Scope I deliberately did not do, and why — please read:** your decision
+also covers "inline styles → tokens" (490 `style={{…}}` objects). Colours are
+done; converting the _structure_ of those styles to classes is a visual
+refactor with no regression net — the E2E suite proves behaviour, not pixels.
+Doing it blind would violate "no visual redesign" in the one way nobody can
+check. The honest order is: (E2) a Playwright screenshot baseline of the Home,
+editor and output screens — small, and it turns every future style change
+into a diff you can see — then (E4) the inline-style conversion behind it.
+Keyboard operability is next (E3) because it is testable now and matters most
+during a live service.

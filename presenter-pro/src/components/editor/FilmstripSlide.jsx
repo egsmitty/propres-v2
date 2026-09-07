@@ -126,7 +126,7 @@ export default function FilmstripSlide({
           className="w-full rounded flex items-center justify-center relative overflow-hidden"
           style={{
             aspectRatio: getPresentationAspectRatio(presentation),
-            background: '#1a1a1a',
+            background: 'var(--bg-canvas)',
             border: isLive
               ? '2px solid var(--live)'
               : mediaDropHighlighted
@@ -135,7 +135,7 @@ export default function FilmstripSlide({
                   ? '2px solid rgba(74,124,255,1)'
                   : multiOnly
                     ? '2px solid rgba(74,124,255,0.82)'
-                    : '1px solid #333',
+                    : '1px solid var(--on-dark-3)',
             boxShadow: selected
               ? '0 0 0 1px rgba(255,255,255,0.14), 0 0 0 3px rgba(74,124,255,0.16)'
               : mediaDropHighlighted
@@ -174,7 +174,7 @@ export default function FilmstripSlide({
           {!isLive && slide.backgroundId && (
             <div
               className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(0,0,0,0.48)', color: '#d1d5db' }}
+              style={{ background: 'rgba(0,0,0,0.48)', color: 'var(--on-dark-10)' }}
               title="Slide background override"
             >
               <Image size={8} />

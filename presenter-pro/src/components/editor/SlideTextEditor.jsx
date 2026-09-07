@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { DEFAULT_TEXT_COLOR, PLACEHOLDER_TEXT_COLOR } from '@/utils/colorPalettes';
 import { useLatest } from '@/hooks/useLatest';
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup';
 import { DEFAULT_TEXT_STYLE, resolvePlaceholderText } from '@/utils/textBoxes';
@@ -167,7 +168,7 @@ export default function SlideTextEditor({
         onBlur={handleBlur}
         className="w-full outline-none"
         style={{
-          color: placeholderActive ? '#888888' : style.color || '#ffffff',
+          color: placeholderActive ? PLACEHOLDER_TEXT_COLOR : style.color || DEFAULT_TEXT_COLOR,
           fontSize: style.size || DEFAULT_TEXT_STYLE.size,
           fontWeight: style.bold ? 700 : 400,
           fontStyle: placeholderActive ? 'italic' : style.italic ? 'italic' : 'normal',
@@ -178,7 +179,7 @@ export default function SlideTextEditor({
           textAlign: style.align || 'center',
           lineHeight: style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight,
           fontFamily: style.fontFamily || 'Arial, sans-serif',
-          caretColor: style.color || '#ffffff',
+          caretColor: style.color || DEFAULT_TEXT_COLOR,
           userSelect: 'text',
           cursor: 'text',
           minHeight: '1em',

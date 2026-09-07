@@ -258,7 +258,7 @@ export default function OnboardingTutorial({ onComplete }) {
                   minWidth: 168,
                   padding: '0 18px',
                   background: 'var(--accent)',
-                  color: '#fff',
+                  color: 'var(--text-on-accent)',
                   opacity: isWorking ? 0.7 : 1,
                   cursor: isWorking ? 'default' : 'pointer',
                 }}
@@ -276,7 +276,7 @@ export default function OnboardingTutorial({ onComplete }) {
                   minWidth: 104,
                   padding: '0 18px',
                   background: 'var(--accent)',
-                  color: '#fff',
+                  color: 'var(--text-on-accent)',
                 }}
               >
                 {stepIndex === STEPS.length - 1 ? 'Finish' : 'Next'}

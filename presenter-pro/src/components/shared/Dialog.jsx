@@ -208,7 +208,7 @@ function buttonStyle(variant, primary) {
     return {
       background: 'var(--accent)',
       borderColor: 'var(--accent)',
-      color: '#fff',
+      color: 'var(--text-on-accent)',
       boxShadow: '0 10px 24px rgba(74, 124, 255, 0.18)',
     };
   }
