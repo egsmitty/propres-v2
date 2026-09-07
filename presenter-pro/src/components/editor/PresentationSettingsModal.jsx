@@ -37,6 +37,7 @@ export default function PresentationSettingsModal() {
 
   return (
     <div
+      data-backdrop="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -71,7 +72,7 @@ export default function PresentationSettingsModal() {
           <select
             value={ratio}
             onChange={(e) => setRatio(e.target.value)}
-            className="w-full text-xs rounded outline-none"
+            className="w-full text-xs rounded"
             style={{
               background: 'var(--bg-app)',
               border: '1px solid var(--border-default)',
@@ -100,7 +101,7 @@ export default function PresentationSettingsModal() {
                   min={400}
                   max={7680}
                   onChange={(e) => setCustomW(e.target.value)}
-                  className="text-xs rounded outline-none text-center"
+                  className="text-xs rounded text-center"
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -123,7 +124,7 @@ export default function PresentationSettingsModal() {
                   min={300}
                   max={4320}
                   onChange={(e) => setCustomH(e.target.value)}
-                  className="text-xs rounded outline-none text-center"
+                  className="text-xs rounded text-center"
                   style={{
                     width: '100%',
                     padding: '8px 10px',

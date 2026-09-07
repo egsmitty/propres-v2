@@ -416,12 +416,17 @@ export default function Editor() {
 }
 
 function CollapseSliver({ direction, onClick }) {
+  const label = direction === 'right' ? 'Show service order' : 'Show presenter panel';
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
+      aria-label={label}
       className="shrink-0 flex items-center justify-center cursor-pointer"
       style={{
         width: 20,
+        border: 'none',
+        padding: 0,
         background: 'var(--bg-filmstrip)',
         borderRight: direction === 'right' ? '1px solid var(--border-default)' : 'none',
         borderLeft: direction === 'left' ? '1px solid var(--border-default)' : 'none',
@@ -437,10 +442,10 @@ function CollapseSliver({ direction, onClick }) {
         e.currentTarget.style.background = 'var(--bg-filmstrip)';
         e.currentTarget.style.color = 'var(--text-tertiary)';
       }}
-      title={direction === 'right' ? 'Show service order' : 'Show presenter panel'}
+      title={label}
     >
       {direction === 'right' ? '›' : '‹'}
-    </div>
+    </button>
   );
 }
 
