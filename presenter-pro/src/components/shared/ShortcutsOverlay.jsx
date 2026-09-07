@@ -56,6 +56,7 @@ export default function ShortcutsOverlay({ onClose }) {
           <h2 className="text-sm font-semibold text-text-primary">Keyboard Shortcuts</h2>
           <button
             onClick={onClose}
+            aria-label="Close shortcuts"
             className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary"
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}

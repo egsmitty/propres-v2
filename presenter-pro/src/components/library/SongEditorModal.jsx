@@ -667,6 +667,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
           <button
             onClick={handleRequestClose}
             disabled={saving}
+            aria-label="Close song editor"
             className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary"
             onMouseEnter={(event) => {
               event.currentTarget.style.background = 'var(--bg-hover)';
