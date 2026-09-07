@@ -90,9 +90,9 @@ structure, no handler changes.
 - [x] 1–5. Each: local capture on base → convert → strict 0 px on every
       capture → ceilings lowered → gate → PR with the pixel proof in its
       findings (#73, #75, #77, #78, slice 5).
-- [ ] 6. Net extension (4 captures, CI baselines) as an E2 addendum PR.
-- [ ] 7. The last four files behind the new captures.
-- [ ] Record: E1b (rgba literals → alpha tokens) and hover handlers → `hover:`
+- [x] 6. Net extension (3 captures, CI baselines) as an E2 addendum PR (#81).
+- [x] 7. The last three files behind the new captures (slice 7 PR).
+- [x] Record: E1b (rgba literals → alpha tokens) and hover handlers → `hover:`
       classes as recommended follow-ups in the charter.
 
 ## Findings
@@ -155,3 +155,20 @@ structure, no handler changes.
   tutorial's target spotlight and Back/template buttons (later steps), and
   the output renderer's live, black, logo and clock states (the output
   capture shows the idle preview).
+- **Slice 6 + 7** The last net addendum (#81: the song editor modal on a
+  library hymn, the unsaved-changes Dialog on the way Home, the stage
+  display in windowed preview) then `SongEditorModal` 63 → 11, `Dialog`
+  10 → 7, `StageDisplayRenderer` 7 → 2 (65 replacements). Strict compare:
+  **0 differing pixels on all 23 captures.** The ratchet had a hole: it
+  counted `style={{` only, so a `style={helper()}` could slip under it. It
+  now counts any `style={` prop; the ceilings were regenerated from the
+  tree (that is why some rose by one — Canvas's resize handle passes its
+  position through as `style={style}`).
+- **Where E4 ends (2026-09-07):** 490 → **198** inline style props across 25
+  files. Everything left is either a dynamic value (a computed size, a
+  selection state, a per-item colour) or a state no capture enters
+  (collapsed slivers, popovers and open menus, drag ghosts, empty states,
+  the custom-ratio fields, the output/stage live states, `ErrorBoundary`).
+  The ceilings name each one; a capture for any of those states can lower
+  its file's ceiling later. Follow-ups recorded in the charter: E1b (149
+  `rgba(…)` literals → alpha tokens) and hover handlers → `hover:` classes.

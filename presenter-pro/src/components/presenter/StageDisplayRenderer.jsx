@@ -66,56 +66,19 @@ export default function StageDisplayRenderer() {
   const nextText = useMemo(() => getStageText(nextSlide, 'No upcoming slide'), [nextSlide]);
 
   return (
-    <div
-      style={{
-        width: '100vw',
-        height: '100vh',
-        background: 'var(--projector-bg)',
-        color: 'var(--projector-text)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="w-screen h-screen bg-projector-bg text-projector-text relative overflow-hidden">
       {isPreviewWindow ? (
         <button
           type="button"
           onClick={() => closeStageDisplayWindow()}
-          style={{
-            position: 'absolute',
-            top: 22,
-            right: 22,
-            zIndex: 10,
-            height: 42,
-            padding: '0 14px 0 12px',
-            borderRadius: 999,
-            border: '1px solid rgba(255,255,255,0.18)',
-            background: 'rgba(18,18,18,0.82)',
-            color: 'rgba(255,255,255,0.92)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 10px 24px rgba(0,0,0,0.32)',
-          }}
+          className="absolute top-[22px] right-[22px] z-10 h-[42px] pt-0 pr-3.5 pb-0 pl-3 rounded-[999px] border border-[rgba(255,255,255,0.18)] bg-[rgba(18,18,18,0.82)] text-[rgba(255,255,255,0.92)] inline-flex items-center gap-2 text-[15px] font-bold cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.32)]"
         >
           <X size={16} />
           <span>Close Preview</span>
         </button>
       ) : null}
 
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '5vh 6vw 28vh',
-          textAlign: 'center',
-        }}
-      >
+      <div className="absolute inset-0 flex items-center justify-center pt-[5vh] px-[6vw] pb-[28vh] text-center">
         <div
           style={{
             width: !currentSlide?.body ? 'min(72vw, 1120px)' : 'min(90vw, 1820px)',
@@ -133,31 +96,8 @@ export default function StageDisplayRenderer() {
         </div>
       </div>
 
-      <div
-        style={{
-          position: 'absolute',
-          left: '50%',
-          bottom: '3vh',
-          transform: 'translateX(-50%)',
-          width: 'min(92vw, 1760px)',
-          minHeight: '18vh',
-          padding: '22px 32px 24px',
-          borderRadius: 20,
-          background: 'rgba(255,255,255,0.1)',
-          border: '1px solid rgba(255,255,255,0.16)',
-          boxShadow: '0 18px 40px rgba(0,0,0,0.26)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 20,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.7)',
-            marginBottom: 12,
-          }}
-        >
+      <div className="absolute left-1/2 bottom-[3vh] -translate-x-1/2 w-[min(92vw,1760px)] min-h-[18vh] pt-[22px] px-8 pb-6 rounded-[20px] bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.16)] shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
+        <div className="text-[20px] font-bold tracking-[0.08em] uppercase text-[rgba(255,255,255,0.7)] mb-3">
           Next
         </div>
         <StageTextBlock
