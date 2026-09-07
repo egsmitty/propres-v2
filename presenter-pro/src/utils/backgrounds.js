@@ -36,10 +36,6 @@ export function normalizePresentation(presentation) {
   };
 }
 
-export function getPresentationBackgroundId(presentation) {
-  return null;
-}
-
 export function getEffectiveBackgroundId(presentation, sectionId, slide) {
   if (!slide) return null;
   if (isMediaSlide(slide)) return null;

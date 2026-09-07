@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
-import { Film, Image } from 'lucide-react';
+import { Image } from 'lucide-react';
 import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
 import { usePresenterStore } from '@/store/presenterStore';
 import ContextMenu from '@/components/shared/ContextMenu';
 import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
-import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes';
+import { getSectionTypeLabel } from '@/utils/sectionTypes';
 import { getPresentationAspectRatio } from '@/utils/presentationSizing';
 import { importMediaToSelectedSlide } from '@/utils/presentationCommands';
 import { alertDialog, showDialog } from '@/utils/dialog';
-
-function isGenericLabel(label) {
-  const normalized = String(label || '')
-    .trim()
-    .toLowerCase();
-  return normalized === 'text' || normalized === 'lyrics' || normalized === 'notes';
-}
 
 export default function FilmstripSlide({
   slide,
@@ -44,7 +37,6 @@ export default function FilmstripSlide({
   const liveSlideId = usePresenterStore((s) => s.liveSlideId);
   const isLive = liveSlideId === slide.id;
   const [menu, setMenu] = useState(null);
-  const mediaOnly = isMediaSlide(slide);
   const multiOnly = isMultiSelected && !selected;
 
   function handleContextMenu(e) {

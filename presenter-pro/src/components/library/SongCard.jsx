@@ -16,8 +16,6 @@ function resolveOrderedSlides(song) {
 }
 
 export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
-  const addSection = useEditorStore((s) => s.addSection);
-  const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide);
   const presentation = useEditorStore((s) => s.presentation);
   const [isInserting, setIsInserting] = useState(false);
 

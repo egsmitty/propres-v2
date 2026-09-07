@@ -6,7 +6,6 @@ export default function StatusBar() {
   const presentation = useEditorStore((s) => s.presentation);
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId);
   const isPresenting = usePresenterStore((s) => s.isPresenting);
-  const liveSlideId = usePresenterStore((s) => s.liveSlideId);
 
   const totalSlides = presentation
     ? presentation.sections.reduce((sum, sec) => sum + sec.slides.length, 0)

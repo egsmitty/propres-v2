@@ -50,7 +50,7 @@ import {
   runEditorCommand,
   saveEditorSelection,
 } from '@/utils/richTextEditor';
-import { getSectionTypeLabel, isMediaSlide } from '@/utils/sectionTypes';
+import { isMediaSlide } from '@/utils/sectionTypes';
 import {
   DEFAULT_TEXT_STYLE,
   FONT_SIZE_DISPLAY_PRESETS,
@@ -277,24 +277,6 @@ function PresentButton({ onPresent, isPresenting, disabled, collapseLabel = fals
   );
 }
 
-function InlineMeta({ label, value, hideValue = false }) {
-  return (
-    <div className="min-w-0 flex items-baseline gap-1 px-0.5">
-      <span
-        className="shrink-0 text-[12px] font-semibold"
-        style={{ color: 'var(--text-secondary)' }}
-      >
-        {label}
-      </span>
-      {!hideValue && (
-        <span className="truncate text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-          {value}
-        </span>
-      )}
-    </div>
-  );
-}
-
 function InlineStyleButton({ icon: Icon, title, active, onClick }) {
   return (
     <button
@@ -367,36 +349,6 @@ function InlineStepperButton({ icon: Icon, title, onClick }) {
       }}
     >
       <Icon size={11} />
-    </button>
-  );
-}
-
-function InlineChoiceButton({ label, active, onClick, width = 56 }) {
-  return (
-    <button
-      type="button"
-      data-editor-toolbar="true"
-      onClick={onClick}
-      className="flex items-center justify-center rounded-lg shrink-0"
-      style={{
-        minWidth: width,
-        height: 30,
-        padding: '0 10px',
-        border: '1px solid transparent',
-        background: active ? 'var(--accent-dim)' : 'transparent',
-        color: active ? 'var(--accent)' : 'var(--text-primary)',
-        cursor: 'pointer',
-        fontSize: 12,
-        fontWeight: 650,
-      }}
-      onMouseEnter={(event) => {
-        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)';
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'transparent';
-      }}
-    >
-      {label}
     </button>
   );
 }
@@ -526,30 +478,6 @@ function LiveNumberField({ value, min, max, onChange, width = 72, integrated = f
         outline: 'none',
       }}
     />
-  );
-}
-
-function InlineSelect({ value, onChange, children, width = 138 }) {
-  return (
-    <select
-      data-editor-toolbar="true"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      style={{
-        width,
-        height: 30,
-        padding: '0 8px',
-        borderRadius: 8,
-        border: '1px solid var(--border-default)',
-        background: 'var(--bg-app)',
-        color: 'var(--text-primary)',
-        fontSize: 12.5,
-        fontWeight: 500,
-        outline: 'none',
-      }}
-    >
-      {children}
-    </select>
   );
 }
 
@@ -896,36 +824,6 @@ function LineSpacingButton({ value, onChange }) {
   );
 }
 
-function ColorDot({ title, value, onChange }) {
-  return (
-    <label
-      data-editor-toolbar="true"
-      title={title}
-      className="relative shrink-0 rounded-full overflow-hidden"
-      style={{
-        width: 24,
-        height: 24,
-        border: '1px solid var(--border-default)',
-        background: value === 'transparent' ? '#ffffff' : value,
-        cursor: 'pointer',
-      }}
-    >
-      <input
-        data-editor-toolbar="true"
-        type="color"
-        value={value === 'transparent' ? '#ffffff' : value}
-        onChange={(event) => onChange(event.target.value)}
-        style={{
-          position: 'absolute',
-          inset: -6,
-          opacity: 0,
-          cursor: 'pointer',
-        }}
-      />
-    </label>
-  );
-}
-
 function ColorPickerButton({ title, value, onChange }) {
   const { open, setOpen, triggerRef, popoverRef } = usePopoverOpen();
   const current = value === 'transparent' ? 'transparent' : value || '#ffffff';
@@ -1081,10 +979,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const selectedSectionId = useEditorStore((s) => s.selectedSectionId);
   const selectedTextBoxIds = useEditorStore((s) => s.selectedTextBoxIds);
   const editingSlideId = useEditorStore((s) => s.editingSlideId);
-  const setEditingSlide = useEditorStore((s) => s.setEditingSlide);
   const addSlideTextBox = useEditorStore((s) => s.addSlideTextBox);
-  const duplicateSlideTextBoxes = useEditorStore((s) => s.duplicateSlideTextBoxes);
-  const removeSlideTextBoxes = useEditorStore((s) => s.removeSlideTextBoxes);
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody);
   const updateSlideStyle = useEditorStore((s) => s.updateSlideStyle);
   const updateSlideTextBoxes = useEditorStore((s) => s.updateSlideTextBoxes);
@@ -1096,11 +991,6 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
 
   const hasPresentation = !!presentation;
   const hasSlide = !!selectedSlideId;
-  const panelOpen = songLibraryOpen || mediaLibraryOpen || newSongEditorOpen;
-  const section = useMemo(
-    () => presentation?.sections?.find((item) => item.id === selectedSectionId) || null,
-    [presentation, selectedSectionId]
-  );
   const slide = useMemo(
     () => getSelectedSlide(presentation, selectedSectionId, selectedSlideId),
     [presentation, selectedSectionId, selectedSlideId]
@@ -1241,14 +1131,12 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
           ? 1
           : 0;
 
-  const hideSecondaryLabels = compactLevel >= 2;
   const hideMostLabels = compactLevel >= 3;
   const hidePrimaryLabels = compactLevel >= 3;
   const hideEditSecondaryLabels = isTextEditing && compactLevel >= 1;
   const hideEditColorLabels = isTextEditing && compactLevel >= 4;
   const collapseEditColorsToPalette = isTextEditing && effectiveWidth < 900;
   const platform = getPlatform();
-  const isWindowsPlatform = platform === 'win32';
   const newSlideShortcut = formatShortcutLabel(['mod', 'm'], platform);
 
   const activeAlign = isTextEditing

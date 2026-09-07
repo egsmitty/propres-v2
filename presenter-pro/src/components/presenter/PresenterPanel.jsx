@@ -209,8 +209,6 @@ export default function PresenterPanel({ onSetOpen }) {
 
   const previewSlide = isPresenting ? liveSlide : selectedSlide;
   const previewSectionId = isPresenting ? liveSectionId : selectedSectionId;
-  const previewSection =
-    presentation?.sections?.find((entry) => entry.id === previewSectionId) || null;
   const previewSlideWithBackground = previewSlide
     ? withEffectiveBackground(presentation, previewSectionId, previewSlide)
     : null;

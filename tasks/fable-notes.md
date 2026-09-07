@@ -649,3 +649,13 @@ appeared during this slice alone, in `src/`, `electron/`, `out/` and
 `Canvas 2.jsx` next to `Canvas.jsx` is one careless import away from being
 the file that ships. A folder outside `~/Desktop`/`~/Documents` (or with
 "Desktop & Documents" sync off) fixes it for good.
+
+### 2026-09-06 — D4: dead code removed; the suppressions file is empty
+
+`tasks/plan-D4-dead-code.md`. All 34 `no-unused-vars` findings were dead code
+(4 never-rendered toolbar components, 5 never-called functions including an
+exported `getPresentationBackgroundId` that always returned `null`, a
+main-process flag nothing read since S1, and the rest imports and store
+selectors). `eslint-suppressions.json` went 71 → **0** over this pass. What
+remains in workstream D is the 11 `exhaustive-deps` warnings (D3), each a
+stale-closure candidate that needs reading, not a bulk `useCallback`.
