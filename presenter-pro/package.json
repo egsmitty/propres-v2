@@ -75,7 +75,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
-    "lucide-react": "^1.40.0",
+    "lucide-react": "^1.41.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "zustand": "^5.0.15"
@@ -95,7 +95,7 @@
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^5.0.0",
     "@vitest/eslint-plugin": "^1.6.27",
-    "autoprefixer": "^10.5.4",
+    "autoprefixer": "^10.5.5",
     "cross-env": "^10.1.0",
     "electron": "^44.2.0",
     "electron-builder": "^26.15.3",
