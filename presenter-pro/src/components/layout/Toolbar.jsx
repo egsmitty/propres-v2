@@ -1,4 +1,9 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  DEFAULT_TEXT_COLOR,
+  TOOLBAR_SWATCH_COLORS,
+  TRANSPARENT_SWATCH_BACKGROUND,
+} from '@/utils/colorPalettes';
 import { useLatest } from '@/hooks/useLatest';
 import { createPortal } from 'react-dom';
 import {
@@ -204,7 +209,7 @@ function CommandButton({
         color: disabled
           ? 'var(--text-tertiary)'
           : danger
-            ? '#dc2626'
+            ? 'var(--danger)'
             : active
               ? 'var(--accent)'
               : 'var(--text-primary)',
@@ -253,7 +258,7 @@ function PresentButton({ onPresent, isPresenting, disabled, collapseLabel = fals
           : isPresenting
             ? 'var(--live)'
             : 'var(--accent)',
-        color: '#ffffff',
+        color: 'var(--text-on-accent)',
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.7 : 1,
         boxShadow: disabled ? 'none' : '0 4px 12px rgba(0,0,0,0.14)',
@@ -262,7 +267,9 @@ function PresentButton({ onPresent, isPresenting, disabled, collapseLabel = fals
       }}
       onMouseEnter={(event) => {
         if (disabled) return;
-        event.currentTarget.style.background = isPresenting ? '#15803d' : 'var(--accent-hover)';
+        event.currentTarget.style.background = isPresenting
+          ? 'var(--live-hover)'
+          : 'var(--accent-hover)';
       }}
       onMouseLeave={(event) => {
         event.currentTarget.style.background = disabled
@@ -512,7 +519,7 @@ function defaultEditorBoxStyles(style = DEFAULT_TEXT_STYLE) {
   return {
     fontFamily: style.fontFamily || 'Arial, sans-serif',
     fontSize: `${style.size || DEFAULT_TEXT_STYLE.size}px`,
-    color: style.color || '#ffffff',
+    color: style.color || DEFAULT_TEXT_COLOR,
     backgroundColor:
       style.highlightColor === 'transparent'
         ? 'transparent'
@@ -831,19 +838,8 @@ function LineSpacingButton({ value, onChange }) {
 
 function ColorPickerButton({ title, value, onChange }) {
   const { open, setOpen, triggerRef, popoverRef } = usePopoverOpen();
-  const current = value === 'transparent' ? 'transparent' : value || '#ffffff';
-  const colors = [
-    '#ffffff',
-    '#000000',
-    '#ef4444',
-    '#f59e0b',
-    '#fde047',
-    '#22c55e',
-    '#3b82f6',
-    '#8b5cf6',
-    '#ec4899',
-    'transparent',
-  ];
+  const current = value === 'transparent' ? 'transparent' : value || DEFAULT_TEXT_COLOR;
+  const colors = TOOLBAR_SWATCH_COLORS;
   return (
     <div data-editor-toolbar="true" className="shrink-0">
       <button
@@ -857,7 +853,7 @@ function ColorPickerButton({ title, value, onChange }) {
           width: 24,
           height: 24,
           border: '1px solid var(--border-default)',
-          background: current === 'transparent' ? '#ffffff' : current,
+          background: current === 'transparent' ? 'var(--white)' : current,
           boxShadow: current === 'transparent' ? 'inset 0 0 0 1px rgba(0,0,0,0.12)' : 'none',
         }}
       />
@@ -878,10 +874,7 @@ function ColorPickerButton({ title, value, onChange }) {
                 style={{
                   width: 24,
                   height: 24,
-                  background:
-                    color === 'transparent'
-                      ? 'repeating-linear-gradient(45deg, #bbb 0, #bbb 2px, #fff 0, #fff 4px)'
-                      : color,
+                  background: color === 'transparent' ? TRANSPARENT_SWATCH_BACKGROUND : color,
                   border:
                     current === color
                       ? '2px solid var(--accent)'
@@ -1095,8 +1088,8 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
     : bodyFontSizeInternal;
   const editorFontSize = internalToDisplayFontSize(editorFontSizeInternal);
   const editorTextColor = activeEditor
-    ? normalizeColorValue(editorSnapshot?.color, style.color || '#ffffff')
-    : style.color || '#ffffff';
+    ? normalizeColorValue(editorSnapshot?.color, style.color || DEFAULT_TEXT_COLOR)
+    : style.color || DEFAULT_TEXT_COLOR;
   const editorHighlightColor = activeEditor
     ? normalizeColorValue(editorSnapshot?.backgroundColor, style.highlightColor || 'transparent')
     : style.highlightColor || 'transparent';

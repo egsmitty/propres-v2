@@ -95,7 +95,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
         onMouseEnter={(e) => {
           if (!isInserting && presentation) {
             e.currentTarget.style.background = 'var(--accent)';
-            e.currentTarget.style.color = '#fff';
+            e.currentTarget.style.color = 'var(--text-on-accent)';
           }
         }}
         onMouseLeave={(e) => {
@@ -129,7 +129,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
         onClick={handleDelete}
         className="flex items-center justify-center w-7 h-7 rounded shrink-0"
         style={{
-          color: '#dc2626',
+          color: 'var(--danger)',
           border: '1px solid var(--border-subtle)',
           background: 'transparent',
         }}
