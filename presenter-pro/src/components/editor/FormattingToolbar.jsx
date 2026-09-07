@@ -1,4 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
+import {
+  DEFAULT_BLACK,
+  DEFAULT_TEXT_COLOR,
+  TEXT_PRESET_COLORS,
+  TRANSPARENT_LINE_BACKGROUND,
+  TRANSPARENT_SWATCH_BACKGROUND,
+} from '@/utils/colorPalettes';
 import { useLatest } from '@/hooks/useLatest';
 import {
   AlignCenter,
@@ -56,30 +63,7 @@ const LINE_SPACING_PRESETS = [1, 1.15, 1.3, 1.5, 2];
 const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8);
 const MAX_FONT_SIZE_DISPLAY = internalToDisplayFontSize(320);
 
-const PRESET_COLORS = [
-  '#ffffff',
-  '#eeeeee',
-  '#cccccc',
-  '#888888',
-  '#555555',
-  '#222222',
-  '#000000',
-  '#ff6b6b',
-  '#ff922b',
-  '#ffd43b',
-  '#69db7c',
-  '#4dabf7',
-  '#748ffc',
-  '#da77f2',
-  '#f06595',
-  '#a9e34b',
-  '#38d9a9',
-  '#74c0fc',
-  '#91a7ff',
-  '#ffa8a8',
-  '#ffc9c9',
-  'transparent',
-];
+const PRESET_COLORS = TEXT_PRESET_COLORS;
 
 const CASE_OPTIONS = [
   { value: 'sentence', label: 'Sentence case' },
@@ -205,7 +189,7 @@ function Btn({ active = false, title, onClick, children, danger = false }) {
         cursor: 'pointer',
         flexShrink: 0,
         background: active ? 'var(--accent-dim)' : 'transparent',
-        color: danger ? '#ef4444' : active ? 'var(--accent)' : 'var(--text-secondary)',
+        color: danger ? 'var(--danger-bright)' : active ? 'var(--accent)' : 'var(--text-secondary)',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)';
@@ -358,10 +342,7 @@ function ColorPopover({ value, onChange, onClose, popoverRef }) {
               borderRadius: 4,
               padding: 0,
               cursor: 'pointer',
-              background:
-                c === 'transparent'
-                  ? 'repeating-linear-gradient(45deg, #bbb 0, #bbb 2px, #fff 0, #fff 4px)'
-                  : c,
+              background: c === 'transparent' ? TRANSPARENT_SWATCH_BACKGROUND : c,
               border: value === c ? '2px solid var(--accent)' : '1px solid rgba(128,128,128,0.25)',
             }}
           />
@@ -370,7 +351,7 @@ function ColorPopover({ value, onChange, onClose, popoverRef }) {
       <input
         data-editor-toolbar="true"
         type="color"
-        value={value === 'transparent' ? '#ffffff' : value || '#ffffff'}
+        value={value === 'transparent' ? DEFAULT_TEXT_COLOR : value || DEFAULT_TEXT_COLOR}
         onChange={(e) => onChange(e.target.value)}
         title="Custom color"
         style={{ width: '100%', height: 24, borderRadius: 4, cursor: 'pointer', border: 'none' }}
@@ -435,9 +416,7 @@ function ColorBtn({ title, value, onChange, children }) {
             borderRadius: 2,
             flexShrink: 0,
             background: displayColor || 'transparent',
-            backgroundImage: !displayColor
-              ? 'repeating-linear-gradient(45deg, #aaa 0, #aaa 1px, transparent 0, transparent 3px)'
-              : 'none',
+            backgroundImage: !displayColor ? TRANSPARENT_LINE_BACKGROUND : 'none',
           }}
         />
       </button>
@@ -640,7 +619,7 @@ function MBtn({ title, active = false, danger = false, onClick, children }) {
         alignItems: 'center',
         gap: 3,
         background: active ? 'var(--accent-dim)' : 'transparent',
-        color: danger ? '#ef4444' : active ? 'var(--accent)' : 'var(--text-secondary)',
+        color: danger ? 'var(--danger-bright)' : active ? 'var(--accent)' : 'var(--text-secondary)',
         fontSize: 11,
       }}
       onMouseEnter={(e) => {
@@ -702,7 +681,7 @@ function MorePanel({ sectionId, slideId, ids, primaryTextBox, onClose }) {
       backgroundColor: 'transparent',
       fillType: 'solid',
       outlineWidth: 0,
-      outlineColor: '#ffffff',
+      outlineColor: DEFAULT_TEXT_COLOR,
       outlineStyle: 'solid',
       shadowEnabled: false,
       wrapText: true,
@@ -1161,7 +1140,7 @@ export default function FormattingToolbar({
       {/* Text color + highlight */}
       <ColorBtn
         title="Text Color"
-        value={style.color || '#ffffff'}
+        value={style.color || DEFAULT_TEXT_COLOR}
         onChange={(v) => {
           if (inline.inlineActive && inline.runInline('foreColor', v)) return;
           ss({ color: v });
@@ -1180,7 +1159,7 @@ export default function FormattingToolbar({
           const next = v === 'transparent' ? 'transparent' : v;
           if (
             inline.inlineActive &&
-            inline.runInline('hiliteColor', next === 'transparent' ? '#000000' : next)
+            inline.runInline('hiliteColor', next === 'transparent' ? DEFAULT_BLACK : next)
           )
             return;
           ss({ highlightColor: next });
@@ -1234,7 +1213,7 @@ export default function FormattingToolbar({
       </ColorBtn>
       <ColorBtn
         title="Outline Color"
-        value={box.outlineColor || '#ffffff'}
+        value={box.outlineColor || DEFAULT_TEXT_COLOR}
         onChange={(v) => sb({ outlineColor: v, outlineWidth: Math.max(1, box.outlineWidth || 1) })}
       >
         □

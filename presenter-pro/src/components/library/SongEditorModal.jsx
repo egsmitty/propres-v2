@@ -777,7 +777,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   className="inline-flex shrink-0 items-center justify-center gap-1.5 px-3.5 h-8 rounded text-xs font-medium"
                   style={{
                     background: lyricsShown.trim() ? 'var(--accent)' : 'var(--bg-hover)',
-                    color: lyrics.trim() ? '#fff' : 'var(--text-tertiary)',
+                    color: lyrics.trim() ? 'var(--text-on-accent)' : 'var(--text-tertiary)',
                   }}
                 >
                   Parse Song
@@ -988,9 +988,9 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                     className="rounded-lg overflow-hidden flex items-center justify-center"
                     style={{
                       minHeight: 220,
-                      background: '#1a1a1a',
+                      background: 'var(--bg-canvas)',
                       border: '1px solid rgba(255,255,255,0.06)',
-                      color: '#ffffff',
+                      color: 'var(--white)',
                       textAlign: 'center',
                       padding: 28,
                     }}
@@ -1351,7 +1351,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
               className="px-3 py-1.5 rounded text-xs font-medium"
               style={{
                 background: saving ? 'var(--bg-hover)' : 'var(--accent)',
-                color: saving ? 'var(--text-tertiary)' : '#fff',
+                color: saving ? 'var(--text-tertiary)' : 'var(--text-on-accent)',
               }}
             >
               {saving ? 'Saving…' : 'Save to Library'}

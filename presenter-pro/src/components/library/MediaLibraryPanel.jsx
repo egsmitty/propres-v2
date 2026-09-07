@@ -600,7 +600,7 @@ export default function MediaLibraryPanel() {
                 className="rounded overflow-hidden cursor-pointer"
                 title={item.name}
                 style={{
-                  background: '#1a1a1a',
+                  background: 'var(--bg-canvas)',
                   border:
                     selectedMediaId === item.id
                       ? '1px solid rgba(74,124,255,0.72)'
@@ -631,11 +631,14 @@ export default function MediaLibraryPanel() {
                 >
                   <p
                     className="text-[11px] font-medium truncate flex-1"
-                    style={{ color: '#f3f4f6' }}
+                    style={{ color: 'var(--on-dark-11)' }}
                   >
                     {item.name}
                   </p>
-                  <p className="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>
+                  <p
+                    className="text-[10px] uppercase tracking-wide"
+                    style={{ color: 'var(--on-dark-8)' }}
+                  >
                     {item.type}
                   </p>
                 </div>
@@ -702,7 +705,7 @@ export default function MediaLibraryPanel() {
             style={{
               background: selectedMediaItem ? 'rgba(220,38,38,0.08)' : 'var(--bg-hover)',
               border: '1px solid var(--border-default)',
-              color: selectedMediaItem ? '#dc2626' : 'var(--text-tertiary)',
+              color: selectedMediaItem ? 'var(--danger)' : 'var(--text-tertiary)',
             }}
             aria-label="Delete media"
             title="Delete media"
@@ -725,8 +728,10 @@ function MediaPreview({ item }) {
   if (!src || item.file_exists === false) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center">
-        <Image size={20} style={{ color: '#555' }} />
-        <span style={{ color: '#9ca3af', fontSize: 10, fontWeight: 600 }}>Missing File</span>
+        <Image size={20} style={{ color: 'var(--on-dark-5)' }} />
+        <span style={{ color: 'var(--on-dark-8)', fontSize: 10, fontWeight: 600 }}>
+          Missing File
+        </span>
       </div>
     );
   }

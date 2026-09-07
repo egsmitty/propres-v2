@@ -152,7 +152,7 @@ export default function TitleBar() {
         <span
           className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
           style={{
-            color: isDirty || requiresInitialSave ? '#9a3412' : 'var(--text-secondary)',
+            color: isDirty || requiresInitialSave ? 'var(--dirty-text)' : 'var(--text-secondary)',
             background:
               isDirty || requiresInitialSave ? 'rgba(249,115,22,0.12)' : 'var(--bg-surface)',
             border: `1px solid ${isDirty || requiresInitialSave ? 'rgba(249,115,22,0.22)' : 'var(--border-default)'}`,
@@ -161,7 +161,7 @@ export default function TitleBar() {
         >
           <span
             className="inline-block w-2 h-2 rounded-full"
-            style={{ background: isDirty || requiresInitialSave ? '#f97316' : '#10b981' }}
+            style={{ background: isDirty || requiresInitialSave ? 'var(--dirty)' : 'var(--saved)' }}
           />
           {isDirty || requiresInitialSave ? 'Unsaved changes' : 'Saved'}
         </span>
