@@ -144,14 +144,7 @@ function HighlightText({ text, query }) {
   return (
     <>
       {text.slice(0, start)}
-      <mark
-        style={{
-          background: 'rgba(74,124,255,0.2)',
-          color: 'var(--text-primary)',
-          borderRadius: 4,
-          padding: '0 2px',
-        }}
-      >
+      <mark className="rounded bg-[rgba(74,124,255,0.2)] py-0 px-0.5 text-text-primary">
         {text.slice(start, end)}
       </mark>
       {text.slice(end)}
@@ -378,51 +371,27 @@ export default function Home() {
           : 'Search your presentation library by title or by date when you need to find something specific fast.';
 
   return (
-    <div className="flex h-full" style={{ background: 'var(--bg-app)' }}>
+    <div className="flex h-full bg-bg-app">
       <div
         data-tour="home-sidebar"
-        className="w-[184px] flex flex-col pt-4 pb-5 px-3 shrink-0"
-        style={{
-          background: 'var(--bg-surface)',
-          borderRight: '1px solid var(--border-subtle)',
-        }}
+        className="w-[184px] flex flex-col pt-4 pb-5 px-3 shrink-0 bg-bg-surface border-r border-border-subtle"
       >
         <div className="px-1 mb-6">
           <div
-            className="rounded-[28px] p-4 text-center"
+            className="rounded-[28px] p-4 text-center bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0.01)_100%)] border border-border-subtle"
             data-profile-card="true"
-            style={{
-              background:
-                'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-              border: '1px solid var(--border-subtle)',
-            }}
           >
             <div className="flex items-center justify-center gap-2 mb-4">
-              <div
-                className="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold"
-                style={{ background: 'var(--accent)' }}
-              >
+              <div className="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold bg-accent">
                 P
               </div>
-              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                PresenterPro
-              </span>
+              <span className="text-sm font-semibold text-text-primary">PresenterPro</span>
             </div>
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-semibold mb-3 mx-auto"
-              style={{
-                background: 'var(--home-cta-gradient)',
-                color: 'var(--text-on-accent)',
-              }}
-            >
+            <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-semibold mb-3 mx-auto bg-home-cta-gradient text-text-on-accent">
               {profile.initials}
             </div>
-            <p className="text-[15px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {profile.displayName}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-              {profile.subtitle}
-            </p>
+            <p className="text-[15px] font-semibold text-text-primary">{profile.displayName}</p>
+            <p className="text-xs mt-1 text-text-tertiary">{profile.subtitle}</p>
           </div>
         </div>
 
@@ -457,32 +426,17 @@ export default function Home() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <div
-          className="shrink-0 px-8 pt-6 pb-5"
-          style={{
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-app)',
-          }}
-        >
+        <div className="shrink-0 px-8 pt-6 pb-5 border-b border-border-subtle bg-bg-app">
           <div className="flex items-start justify-between gap-6">
             <div>
-              <h1 className="text-[2rem] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {pageTitle}
-              </h1>
-              <p className="text-sm mt-2 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
-                {pageDescription}
-              </p>
+              <h1 className="text-[2rem] font-semibold text-text-primary">{pageTitle}</h1>
+              <p className="text-sm mt-2 max-w-2xl text-text-secondary">{pageDescription}</p>
             </div>
 
             {homeTab === 'home' && (
               <button
                 onClick={handleShowTutorial}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium shrink-0"
-                style={{
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-default)',
-                }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium shrink-0 bg-bg-surface text-text-primary border border-border-default"
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
               >
@@ -643,32 +597,20 @@ function HomeLibrary({
     <>
       <section className="mb-10" data-tour="home-templates">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h2 className="text-[1.6rem] font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Popular Templates
-          </h2>
-          <button
-            onClick={onViewAllTemplates}
-            className="text-sm font-medium"
-            style={{ color: 'var(--accent)' }}
-          >
+          <h2 className="text-[1.6rem] font-semibold text-text-primary">Popular Templates</h2>
+          <button onClick={onViewAllTemplates} className="text-sm font-medium text-accent">
             More templates
           </button>
         </div>
 
-        <div
-          className="flex gap-5 overflow-x-auto pb-2"
-          style={{
-            flexWrap: 'nowrap',
-            scrollbarWidth: 'thin',
-          }}
-        >
-          <div style={{ flex: '0 0 clamp(260px, calc((100% - 48px) / 4), 360px)' }}>
+        <div className="flex flex-nowrap gap-5 overflow-x-auto pb-2 [scrollbar-width:thin]">
+          <div className="flex-[0_0_clamp(260px,calc((100%_-_48px)_/_4),360px)]">
             <TemplateCard blank variant="hero" onSelect={onBlankPresentation} />
           </div>
           {homeTemplates.map((template) => (
             <div
               key={template.id}
-              style={{ flex: '0 0 clamp(260px, calc((100% - 48px) / 4), 360px)' }}
+              className="flex-[0_0_clamp(260px,calc((100%_-_48px)_/_4),360px)]"
             >
               <TemplateCard
                 template={template}
@@ -682,14 +624,7 @@ function HomeLibrary({
 
       <section>
         <div className="flex items-center justify-between gap-3 mb-3">
-          <div
-            className="inline-flex items-center gap-1.5 rounded-full p-1.5"
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              boxShadow: '0 8px 20px rgba(8,14,30,0.06)',
-            }}
-          >
+          <div className="inline-flex items-center gap-1.5 rounded-full p-1.5 bg-bg-surface border border-border-default shadow-[0_8px_20px_rgba(8,14,30,0.06)]">
             {HOME_LIBRARY_TAB_OPTIONS.map((tab) => {
               const active = homeLibraryTab === tab;
               const label = tab === 'recent' ? 'Recent' : 'Pinned';
@@ -710,7 +645,7 @@ function HomeLibrary({
               );
             })}
           </div>
-          <p className="text-sm mr-4" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-sm mr-4 text-text-tertiary">
             {showingPinned
               ? `${pinnedPresentations.length} pinned presentation${pinnedPresentations.length === 1 ? '' : 's'}`
               : 'Latest Presentations'}
@@ -748,10 +683,7 @@ function HomeLibrary({
 function NewLibrary({ templates, onCreateTemplate }) {
   return (
     <section>
-      <div
-        className="grid gap-5"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
-      >
+      <div className="grid gap-5 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         <TemplateCard blank variant="hero" onSelect={() => onCreateTemplate('blank')} />
         {templates.map((template) => (
           <TemplateCard
@@ -830,23 +762,13 @@ function OpenLibrary({
 
 function LibrarySearchField({ query, setQuery }) {
   return (
-    <div
-      className="flex items-center gap-2 px-4 h-11 rounded-full w-[24rem] max-w-full"
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        boxShadow: '0 10px 26px rgba(8,14,30,0.08)',
-      }}
-    >
-      <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
+    <div className="flex items-center gap-2 px-4 h-11 rounded-full w-[24rem] max-w-full bg-bg-surface border border-border-default shadow-[0_10px_26px_rgba(8,14,30,0.08)]">
+      <Search size={16} className="text-text-tertiary" />
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search presentations by name or date..."
-        className="flex-1 bg-transparent text-sm"
-        style={{
-          color: 'var(--text-primary)',
-        }}
+        className="flex-1 bg-transparent text-sm text-text-primary"
       />
     </div>
   );
@@ -866,12 +788,11 @@ function TemplateCard({
     <button
       onClick={onSelect}
       className={
-        variant === 'hero' ? 'text-left rounded-[30px] p-4' : 'text-left rounded-[24px] p-3.5'
+        variant === 'hero'
+          ? 'block w-full bg-bg-surface text-left rounded-[30px] p-4'
+          : 'block w-full bg-bg-surface text-left rounded-[24px] p-3.5'
       }
       style={{
-        display: 'block',
-        width: '100%',
-        background: 'var(--bg-surface)',
         border: selected ? '1px solid rgba(74,124,255,0.5)' : '1px solid var(--border-subtle)',
         boxShadow: selected
           ? '0 0 0 3px rgba(74,124,255,0.14), 0 14px 34px rgba(8, 14, 30, 0.07)'
@@ -900,10 +821,9 @@ function TemplateCard({
         <p
           className={
             variant === 'hero'
-              ? 'text-[1.08rem] font-semibold leading-tight'
-              : 'text-[0.95rem] font-semibold leading-tight'
+              ? 'text-[1.08rem] font-semibold leading-tight text-text-primary'
+              : 'text-[0.95rem] font-semibold leading-tight text-text-primary'
           }
-          style={{ color: 'var(--text-primary)' }}
         >
           {title}
         </p>
@@ -928,12 +848,11 @@ function TemplatePreview({ visual, blank, variant }) {
       <div
         className={
           isHero
-            ? 'rounded-[22px] h-full px-4.5 pt-4 pb-4.5 flex flex-col'
-            : 'rounded-[18px] h-full px-3.5 pt-3.5 pb-3.5 flex flex-col'
+            ? 'rounded-[22px] h-full px-4.5 pt-4 pb-4.5 flex flex-col shadow-[0_10px_24px_rgba(17,25,40,0.12)]'
+            : 'rounded-[18px] h-full px-3.5 pt-3.5 pb-3.5 flex flex-col shadow-[0_10px_24px_rgba(17,25,40,0.12)]'
         }
         style={{
           background: visual.card,
-          boxShadow: '0 10px 24px rgba(17, 25, 40, 0.12)',
           minHeight: blank ? (isHero ? 286 : 152) : undefined,
         }}
       >
@@ -960,10 +879,10 @@ function TemplatePreview({ visual, blank, variant }) {
           <div
             className={
               isHero
-                ? 'rounded-[20px] border-2 border-dashed flex-1 mt-2 flex items-center justify-center'
-                : 'rounded-2xl border-2 border-dashed h-16 mt-1.5 flex items-center justify-center'
+                ? 'rounded-[20px] border-2 border-dashed border-[rgba(47,115,255,0.22)] flex-1 mt-2 flex items-center justify-center'
+                : 'rounded-2xl border-2 border-dashed border-[rgba(47,115,255,0.22)] h-16 mt-1.5 flex items-center justify-center'
             }
-            style={{ borderColor: 'rgba(47,115,255,0.22)', color: visual.accent }}
+            style={{ color: visual.accent }}
           >
             <Plus size={isHero ? 34 : 22} />
           </div>
@@ -974,13 +893,9 @@ function TemplatePreview({ visual, blank, variant }) {
                 key={line}
                 className={
                   isHero
-                    ? 'rounded-full px-4 py-2 text-sm font-medium'
-                    : 'rounded-full px-3 py-1.5 text-[12px] font-medium'
+                    ? 'rounded-full px-4 py-2 text-sm font-medium bg-[rgba(18,22,29,0.06)] text-home-heading'
+                    : 'rounded-full px-3 py-1.5 text-[12px] font-medium bg-[rgba(18,22,29,0.06)] text-home-heading'
                 }
-                style={{
-                  background: 'rgba(18,22,29,0.06)',
-                  color: 'var(--home-heading)',
-                }}
               >
                 {line}
               </div>
@@ -1008,22 +923,9 @@ function PresentationList({
   emptyBody,
 }) {
   return (
-    <div
-      className="rounded-[28px] overflow-hidden"
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: '0 16px 40px rgba(8, 14, 30, 0.06)',
-      }}
-    >
+    <div className="rounded-[28px] overflow-hidden bg-bg-surface border border-border-subtle shadow-[0_16px_40px_rgba(8,14,30,0.06)]">
       {presentations.length > 0 && (
-        <div
-          className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em]"
-          style={{
-            color: 'var(--text-tertiary)',
-            borderBottom: '1px solid var(--border-subtle)',
-          }}
-        >
+        <div className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-text-tertiary border-b border-border-subtle">
           <span>Presentation</span>
           <span>Updated</span>
           <span />
@@ -1032,18 +934,11 @@ function PresentationList({
 
       {presentations.length === 0 ? (
         <div className="px-6 py-12 text-center">
-          <div
-            className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: 'var(--bg-hover)' }}
-          >
-            <FileText size={26} style={{ color: 'var(--text-tertiary)' }} />
+          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-bg-hover">
+            <FileText size={26} className="text-text-tertiary" />
           </div>
-          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-            {emptyTitle}
-          </p>
-          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-            {emptyBody}
-          </p>
+          <p className="text-sm font-medium text-text-primary">{emptyTitle}</p>
+          <p className="text-sm mt-2 text-text-secondary">{emptyBody}</p>
         </div>
       ) : (
         presentations.map((pres) => (
@@ -1123,23 +1018,15 @@ function PresentationRow({
         <PresentationPreview presentation={presentation} />
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            {pinned && (
-              <Pin
-                size={13}
-                fill="currentColor"
-                style={{ color: 'var(--accent)', flexShrink: 0 }}
-              />
-            )}
-            <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+            {pinned && <Pin size={13} fill="currentColor" className="shrink-0 text-accent" />}
+            <p className="text-sm font-semibold truncate text-text-primary">
               <HighlightText text={presentation.title} query={query} />
             </p>
           </div>
-          <p className="text-sm truncate mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {metadataText}
-          </p>
+          <p className="text-sm truncate mt-1 text-text-secondary">{metadataText}</p>
         </div>
       </div>
-      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-sm text-text-secondary">
         <HighlightText text={formatDate(presentation.updated_at)} query={query} />
       </p>
       <div className="flex justify-end items-center gap-2">
@@ -1191,12 +1078,7 @@ function PresentationRow({
                   listContext
                 );
               }}
-              className="w-11 h-11 rounded-full flex items-center justify-center"
-              style={{
-                background: 'transparent',
-                color: 'var(--text-tertiary)',
-                border: '1px solid var(--border-subtle)',
-              }}
+              className="w-11 h-11 rounded-full flex items-center justify-center bg-transparent text-text-tertiary border border-border-subtle"
             >
               <MoreHorizontal size={18} />
             </button>
@@ -1214,11 +1096,8 @@ function PresentationPreview({ presentation }) {
 
   if (!slide) {
     return (
-      <div
-        className="w-[90px] rounded-2xl flex items-center justify-center shrink-0"
-        style={{ background: 'var(--thumb-bg)' }}
-      >
-        <FileText size={24} style={{ color: 'var(--on-dark-5)' }} />
+      <div className="w-[90px] rounded-2xl flex items-center justify-center shrink-0 bg-thumb-bg">
+        <FileText size={24} className="text-on-dark-5" />
       </div>
     );
   }
@@ -1227,9 +1106,8 @@ function PresentationPreview({ presentation }) {
 
   return (
     <div
-      className="w-[90px] rounded-2xl shrink-0 overflow-hidden"
+      className="w-[90px] rounded-2xl shrink-0 overflow-hidden bg-thumb-bg"
       style={{
-        background: 'var(--thumb-bg)',
         aspectRatio: getPresentationAspectRatio(presentation),
       }}
     >
