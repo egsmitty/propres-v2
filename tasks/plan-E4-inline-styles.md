@@ -96,4 +96,18 @@ structure, no handler changes.
 
 ## Findings
 
-(filled per slice)
+- **Slice 0** (#71): infrastructure only. Ratchet red proof: Home's ceiling
+  set one too low failed naming the file and both counts. iCloud damaged
+  `node_modules` during this slice (a stray `obug/dist 2`); clean reinstall.
+- **Home was only one-quarter in the net.** Home has four sidebar tabs and
+  the captures only saw the first, so slice 1 waited for an E2 addendum
+  (#72: New, Recent, Open, Open-empty — the search field is on Open, not
+  Recent). A second runner capture returned the 11 existing baselines
+  byte-identical (`cmp`): the runner is deterministic across runs.
+- **Slice 1** `Home.jsx` 49 → 10. Every static value mapped to a
+  computed-identical class; the 10 dynamic objects stay (5 were split from
+  a shared object). Strict laptop-vs-laptop compare: **0 differing pixels on
+  all 17 captures** (11 + 4 Home tabs + 2 media-library states from the
+  slice-2 addendum, run early). `transition` on the presentation card stays
+  inline: the capture disables animations, so a class equivalent could not
+  be proven.
