@@ -71,56 +71,46 @@ export default function SectionHeader({
     <>
       <div
         onContextMenu={handleContextMenu}
-        className="flex items-center min-h-10 px-2 py-1 relative group"
+        className="flex items-center min-h-10 px-2 py-1 relative group bg-bg-surface border-b border-border-subtle"
         style={{
-          background: 'var(--bg-surface)',
-          borderBottom: '1px solid var(--border-subtle)',
           borderLeft: `3px solid ${section.color || 'var(--section-1)'}`,
         }}
       >
         <button
           onClick={onToggle}
-          className="flex items-center justify-center w-4 h-4 shrink-0 mr-1"
-          style={{ color: 'var(--text-tertiary)' }}
+          className="flex items-center justify-center w-4 h-4 shrink-0 mr-1 text-text-tertiary"
         >
           {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
         </button>
 
         <div className="flex-1 min-w-0">
           <div
-            className="text-[10px] uppercase tracking-wide mb-0.5"
-            style={{ color: 'var(--accent)' }}
+            className="text-[10px] uppercase tracking-wide mb-0.5 text-accent"
             title={getSectionTypeLabel(section.type)}
           >
             {getSectionTypeLabel(section.type)}
           </div>
-          <div
-            className="text-xs font-medium truncate"
-            style={{ color: 'var(--text-primary)' }}
-            title={section.title}
-          >
+          <div className="text-xs font-medium truncate text-text-primary" title={section.title}>
             {section.title}
           </div>
         </div>
 
         {section.backgroundId && (
           <span
-            className="flex items-center justify-center w-5 h-5 rounded-full mr-1"
-            style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+            className="flex items-center justify-center w-5 h-5 rounded-full mr-1 bg-[rgba(255,255,255,0.06)] text-text-secondary"
             title="Section background set"
           >
             <Image size={10} />
           </span>
         )}
 
-        <span className="text-xs mr-1 whitespace-nowrap" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="text-xs mr-1 whitespace-nowrap text-text-tertiary">
           {section.slides.length} {section.slides.length === 1 ? 'slide' : 'slides'}
         </span>
 
         <button
           onClick={onAddSlide}
-          className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-4 h-4 rounded"
-          style={{ color: 'var(--text-tertiary)' }}
+          className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-4 h-4 rounded text-text-tertiary"
           title="Add slide to this section"
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--bg-hover)';

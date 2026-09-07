@@ -114,19 +114,15 @@ export default function FilmstripSlide({
         onContextMenu={handleContextMenu}
         onDragOver={onMediaDragOver}
         onDrop={onMediaDrop}
-        className="mx-2 mb-2 rounded cursor-pointer relative overflow-visible"
+        className="mx-2 mb-2 rounded cursor-pointer relative overflow-visible p-0 bg-transparent shadow-none"
         style={{
           aspectRatio: getPresentationAspectRatio(presentation),
-          padding: 0,
-          background: 'transparent',
-          boxShadow: 'none',
         }}
       >
         <div
-          className="w-full rounded flex items-center justify-center relative overflow-hidden"
+          className="w-full rounded flex items-center justify-center relative overflow-hidden bg-bg-canvas"
           style={{
             aspectRatio: getPresentationAspectRatio(presentation),
-            background: 'var(--bg-canvas)',
             border: isLive
               ? '2px solid var(--live)'
               : mediaDropHighlighted
@@ -145,10 +141,7 @@ export default function FilmstripSlide({
                   : 'none',
           }}
         >
-          <span
-            className="absolute top-0.5 left-1 leading-none"
-            style={{ color: 'var(--text-tertiary)', fontSize: 8, fontFamily: 'monospace' }}
-          >
+          <span className="absolute top-0.5 left-1 leading-none text-text-tertiary text-[8px] font-[monospace]">
             {index}
           </span>
 
@@ -166,15 +159,11 @@ export default function FilmstripSlide({
           </div>
 
           {isLive && (
-            <div
-              className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full"
-              style={{ background: 'var(--live)' }}
-            />
+            <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-live" />
           )}
           {!isLive && slide.backgroundId && (
             <div
-              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(0,0,0,0.48)', color: 'var(--on-dark-10)' }}
+              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center bg-[rgba(0,0,0,0.48)] text-on-dark-10"
               title="Slide background override"
             >
               <Image size={8} />

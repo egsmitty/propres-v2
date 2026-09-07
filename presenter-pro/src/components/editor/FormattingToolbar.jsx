@@ -159,17 +159,7 @@ function getToolbarPos(canvasRef, box, scale) {
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
 function Sep() {
-  return (
-    <div
-      style={{
-        width: 1,
-        height: 18,
-        background: 'var(--border-default)',
-        flexShrink: 0,
-        margin: '0 2px',
-      }}
-    />
-  );
+  return <div className="w-px h-[18px] bg-border-default shrink-0 my-0 mx-0.5" />;
 }
 
 function Btn({ active = false, title, onClick, children, danger = false }) {
@@ -284,16 +274,9 @@ function NumberField({
           commit();
         }
       }}
+      className="h-[26px] text-center bg-bg-app border border-border-default rounded text-text-primary text-[11px] shrink-0"
       style={{
         width,
-        height: 26,
-        textAlign: 'center',
-        background: 'var(--bg-app)',
-        border: '1px solid var(--border-default)',
-        borderRadius: 4,
-        color: 'var(--text-primary)',
-        fontSize: 11,
-        flexShrink: 0,
       }}
     />
   );
@@ -377,25 +360,13 @@ function ColorBtn({ title, value, onChange, children }) {
   const displayColor = value && value !== 'transparent' ? value : null;
 
   return (
-    <div data-editor-toolbar="true" style={{ position: 'relative', flexShrink: 0 }}>
+    <div data-editor-toolbar="true" className="relative shrink-0">
       <button
         data-editor-toolbar="true"
         ref={triggerRef}
         title={title}
         onClick={() => setOpen((v) => !v)}
-        style={{
-          width: 28,
-          height: 28,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 2,
-          borderRadius: 5,
-          border: 'none',
-          cursor: 'pointer',
-          background: 'transparent',
-        }}
+        className="w-7 h-7 flex flex-col items-center justify-center gap-0.5 rounded-[5px] border-none cursor-pointer bg-transparent"
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'var(--bg-hover)';
         }}
@@ -403,11 +374,7 @@ function ColorBtn({ title, value, onChange, children }) {
           e.currentTarget.style.background = 'transparent';
         }}
       >
-        <span
-          style={{ fontSize: 11, lineHeight: 1, color: 'var(--text-primary)', fontWeight: 600 }}
-        >
-          {children}
-        </span>
+        <span className="text-[11px] leading-none text-text-primary font-semibold">{children}</span>
         <div
           style={{
             width: 14,
@@ -452,7 +419,7 @@ function LineSpacingBtn({ value, onChange }) {
   }, [open]);
 
   return (
-    <div data-editor-toolbar="true" style={{ position: 'relative', flexShrink: 0 }}>
+    <div data-editor-toolbar="true" className="relative shrink-0">
       <button
         data-editor-toolbar="true"
         ref={triggerRef}
@@ -461,20 +428,7 @@ function LineSpacingBtn({ value, onChange }) {
           if (!open) setCustom(String(value));
           setOpen(!open);
         }}
-        style={{
-          height: 28,
-          padding: '0 6px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          borderRadius: 5,
-          border: 'none',
-          cursor: 'pointer',
-          background: 'transparent',
-          color: 'var(--text-secondary)',
-          fontSize: 11,
-          flexShrink: 0,
-        }}
+        className="h-7 py-0 px-1.5 flex items-center gap-0.5 rounded-[5px] border-none cursor-pointer bg-transparent text-text-secondary text-[11px] shrink-0"
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'var(--bg-hover)';
         }}
@@ -1036,22 +990,11 @@ export default function FormattingToolbar({
       onMouseDown={(e) => {
         if (!e.target.closest('input, select, textarea')) e.preventDefault();
       }}
+      className="fixed z-[1500] flex items-center gap-px py-0 px-1.5 bg-bg-surface border border-border-default rounded-[9px] shadow-[0_4px_18px_rgba(0,0,0,0.28)] pointer-events-auto select-none"
       style={{
-        position: 'fixed',
         top: pos.top,
         left: pos.left,
-        zIndex: 1500,
         height: TOOLBAR_H,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-        padding: '0 6px',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        borderRadius: 9,
-        boxShadow: '0 4px 18px rgba(0,0,0,0.28)',
-        pointerEvents: 'auto',
-        userSelect: 'none',
         maxWidth: TOOLBAR_MAX_W,
       }}
     >
@@ -1064,17 +1007,7 @@ export default function FormattingToolbar({
           if (inline.inlineActive && inline.runInline('fontName', value)) return;
           ss({ fontFamily: value });
         }}
-        style={{
-          height: 26,
-          fontSize: 11,
-          borderRadius: 4,
-          padding: '0 4px',
-          background: 'var(--bg-app)',
-          border: '1px solid var(--border-default)',
-          color: 'var(--text-primary)',
-          maxWidth: 130,
-          flexShrink: 0,
-        }}
+        className="h-[26px] text-[11px] rounded py-0 px-1 bg-bg-app border border-border-default text-text-primary max-w-[130px] shrink-0"
       >
         {FONT_OPTIONS.map((f) => (
           <option key={f} value={f}>
@@ -1218,11 +1151,7 @@ export default function FormattingToolbar({
       <Sep />
 
       {/* ⋮ More */}
-      <div
-        ref={moreTriggerRef}
-        data-editor-toolbar="true"
-        style={{ position: 'relative', flexShrink: 0 }}
-      >
+      <div ref={moreTriggerRef} data-editor-toolbar="true" className="relative shrink-0">
         <button
           data-editor-toolbar="true"
           title="More options"

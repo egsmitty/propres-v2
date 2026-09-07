@@ -120,3 +120,14 @@ structure, no handler changes.
   `animation: slide-in-left 150ms ease` became an arbitrary-property class;
   pixels cannot see an animation, so the built CSS was read instead and
   carries the identical declaration.
+- **Slice 3** `Canvas` 43 → 16, `Filmstrip` 21 → 17, `FilmstripSlide` 5 → 2,
+  `SectionHeader` 7 → 1, and — because the selected-text-box capture shows
+  it — `FormattingToolbar` 32 → 24 (57 replacements). The editor needed an
+  E2 addendum first (#76: a selected text box with its handles and the
+  formatting toolbar, a section linked to a library song with the song
+  order tray, a slide whose background media is missing). Strict compare:
+  **0 differing pixels on all 20 captures.** Left inline on purpose, with
+  the ceilings saying so: the canvas empty states (no honest capture), the
+  filmstrip's drag ghost and drop indicators (drag states), the collapsed
+  filmstrip sliver, the inline text editor (`SlideTextEditor`, not in any
+  capture), and the toolbar's popovers and "More" panel (not captured).
