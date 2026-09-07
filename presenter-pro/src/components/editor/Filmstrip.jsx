@@ -1018,13 +1018,7 @@ export default function Filmstrip({ width = 224 }) {
         <button
           type="button"
           onClick={collapseAllSections}
-          className="px-2.5 py-1 rounded text-[11px] font-medium text-text-primary bg-bg-app border border-border-default"
-          onMouseEnter={(event) => {
-            event.currentTarget.style.background = 'var(--bg-hover)';
-          }}
-          onMouseLeave={(event) => {
-            event.currentTarget.style.background = 'var(--bg-app)';
-          }}
+          className="px-2.5 py-1 rounded text-[11px] font-medium text-text-primary bg-bg-app hover:bg-bg-hover border border-border-default"
         >
           {allSectionsCollapsed ? 'Expand All' : 'Collapse All'}
         </button>

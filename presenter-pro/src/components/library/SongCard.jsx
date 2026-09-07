@@ -57,14 +57,12 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
   }
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 border-b border-border-subtle"
+      className="flex items-center gap-2 px-3 py-2 border-b border-border-subtle hover:bg-bg-hover"
       draggable
       onDragStart={(event) => {
         event.dataTransfer.setData('application/presenterpro-song-id', String(song.id));
         event.dataTransfer.effectAllowed = 'copy';
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium truncate text-text-primary">{song.title}</p>
@@ -77,25 +75,14 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         onClick={handleInsert}
         disabled={isInserting || !presentation}
-        className="px-2.5 py-1 rounded text-xs font-medium shrink-0"
+        className={`px-2.5 py-1 rounded text-xs font-medium shrink-0 ${
+          isInserting || !presentation
+            ? 'bg-border-default text-text-tertiary'
+            : 'bg-[rgba(74,124,255,0.12)] text-accent hover:bg-accent hover:text-text-on-accent'
+        }`}
         style={{
-          background:
-            isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.12)',
-          color: isInserting || !presentation ? 'var(--text-tertiary)' : 'var(--accent)',
           border: `1px solid ${isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.16)'}`,
           cursor: isInserting || !presentation ? 'default' : 'pointer',
-        }}
-        onMouseEnter={(e) => {
-          if (!isInserting && presentation) {
-            e.currentTarget.style.background = 'var(--accent)';
-            e.currentTarget.style.color = 'var(--text-on-accent)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background =
-            isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.12)';
-          e.currentTarget.style.color =
-            isInserting || !presentation ? 'var(--text-tertiary)' : 'var(--accent)';
         }}
       >
         {isInserting ? 'Inserted' : 'Insert'}
@@ -104,10 +91,8 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         type="button"
         onClick={onEdit}
-        className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-text-tertiary border border-border-subtle bg-transparent"
+        className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-text-tertiary border border-border-subtle bg-transparent hover:bg-bg-surface"
         title="Edit Song"
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
         <Pencil size={13} />
       </button>
@@ -115,13 +100,8 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         type="button"
         onClick={handleDelete}
-        className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-danger border border-border-subtle bg-transparent"
+        className="flex items-center justify-center w-7 h-7 rounded shrink-0 text-danger border border-border-subtle bg-transparent hover:bg-[rgba(220,38,38,0.08)] hover:border-[rgba(220,38,38,0.35)]"
         title="Delete Song"
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(220,38,38,0.08)';
-          e.currentTarget.style.borderColor = 'rgba(220,38,38,0.35)';
-        }}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
         <Trash2 size={13} />
       </button>

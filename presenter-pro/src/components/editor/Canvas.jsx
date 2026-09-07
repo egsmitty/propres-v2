@@ -1521,9 +1521,7 @@ export default function Canvas() {
             </div>
           </div>
           <button
-            className="shrink-0 text-xs px-3 py-1.5 rounded-md font-medium bg-bg-surface border border-border-default text-text-primary"
-            onMouseEnter={(event) => (event.currentTarget.style.background = 'var(--bg-hover)')}
-            onMouseLeave={(event) => (event.currentTarget.style.background = 'var(--bg-surface)')}
+            className="shrink-0 text-xs px-3 py-1.5 rounded-md font-medium bg-bg-surface hover:bg-bg-hover border border-border-default text-text-primary"
             onClick={() => openMediaLibrary()}
           >
             {mediaOnlySlide ? 'Change Media' : 'Set Background'}

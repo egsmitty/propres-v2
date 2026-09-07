@@ -5,13 +5,13 @@
 
 ## Measured (2026-09-07, `main` after E4)
 
-| Fact                                        | Value                                                                                                                                                                                  |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `onMouseEnter` handlers in JSX              | **38** across 17 files                                                                                                                                                                 |
-| … that only mutate `currentTarget.style`    | **37** — `background` 34, `color` 3, `borderColor` 3, `boxShadow` 2, `transform` 1 (some set two)                                                                                       |
-| … that do something else                    | **1** — `MenuBar.jsx` opens a sibling menu on hover while one is open (`setOpenMenu`); stays                                                                                            |
-| Conditional hovers                          | several depend on `active` / `disabled` / `open` (`active ? accent-dim : hover`, `if (disabled) return`) — they become conditional class strings, the same condition, no new branches |
-| What the E2 net sees of hover               | nothing: no capture hovers anything                                                                                                                                                    |
+| Fact                                     | Value                                                                                                                                                                                 |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onMouseEnter` handlers in JSX           | **38** across 17 files                                                                                                                                                                |
+| … that only mutate `currentTarget.style` | **37** — `background` 34, `color` 3, `borderColor` 3, `boxShadow` 2, `transform` 1 (some set two)                                                                                     |
+| … that do something else                 | **1** — `MenuBar.jsx` opens a sibling menu on hover while one is open (`setOpenMenu`); stays                                                                                          |
+| Conditional hovers                       | several depend on `active` / `disabled` / `open` (`active ? accent-dim : hover`, `if (disabled) return`) — they become conditional class strings, the same condition, no new branches |
+| What the E2 net sees of hover            | nothing: no capture hovers anything                                                                                                                                                   |
 
 ## Why it is worth doing
 
@@ -59,12 +59,30 @@ that does anything but style is touched.
 
 ## Todos
 
-- [ ] 1. Hover spec: reach every hoverable control, hover, clipped capture;
-      CI baselines via `update_baselines`; E2 addendum PR.
-- [ ] 2. Convert, file by file, in one or two PRs; strict compare on all
-      captures; ratchet added with a red proof.
-- [ ] 3. Record.
+- [x] 1. Hover spec: reach every hoverable control, hover, clipped capture;
+      CI baselines via `update_baselines`; E2 addendum PR (#83, 29 captures).
+- [x] 2. Convert in one PR; strict compare on all 52 captures; ratchet added
+      with a red proof.
+- [x] 3. Record.
 
 ## Findings
 
-(filled as it goes)
+- **29 of 38 handlers converted** (30 replacements, 246 lines gone). Strict
+  compare: **0 differing pixels on all 52 captures** — the 29 hovered
+  controls and the 23 existing screens, so no base value was lost either.
+  Where the base background was an inline dynamic value it moved into the
+  same condition in the class string; an inline base would have beaten any
+  `hover:` utility.
+- **A bug fell out.** The song card's Delete button painted a red border on
+  hover and its leave handler restored only the background, so the red
+  border stayed until re-render. `hover:border-…` restores itself. Recorded,
+  not hidden: the hovered capture is identical, the un-hovered look after a
+  hover is now correct.
+- **Ratchet:** `HOVER_HANDLER_BUDGET` in `inlineStyleBudget.test.ts`, red
+  proof with Home's ceiling one too low. Left, with their ceilings: the two
+  handlers that set React state (`MenuBar` opens a sibling menu, `Home`'s
+  row `hovered` state), the two collapsed-panel slivers (no capture reaches
+  them the same way on every machine), the presenter divider (must stay
+  highlighted while dragging — not a pure hover), and `FormattingToolbar`'s
+  five (unreachable component, see the notes).
+- Inline style props: 198 → 197 (the pin button's whole object went).

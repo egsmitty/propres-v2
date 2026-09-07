@@ -454,13 +454,7 @@ function ResizeHandle({ onMouseDown }) {
     <div
       onMouseDown={onMouseDown}
       data-resize-handle="columns"
-      className="shrink-0 w-1 cursor-col-resize bg-transparent z-10"
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--border-default)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent';
-      }}
+      className="shrink-0 w-1 cursor-col-resize bg-transparent hover:bg-border-default z-10"
     />
   );
 }

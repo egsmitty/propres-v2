@@ -190,19 +190,20 @@ function CommandButton({
       disabled={disabled}
       title={title || label}
       data-editor-toolbar="true"
-      className="flex items-center gap-1.5 rounded-xl shrink-0 transition-colors"
+      className={`flex items-center gap-1.5 rounded-xl shrink-0 transition-colors ${
+        disabled
+          ? 'bg-transparent'
+          : active
+            ? 'bg-accent-dim'
+            : primary
+              ? 'bg-[rgba(74,124,255,0.08)] hover:bg-bg-hover'
+              : 'bg-transparent hover:bg-bg-hover'
+      }`}
       style={{
         height: compact ? 30 : 36,
         minWidth: showLabel ? (minWidth ?? 0) : compact ? 30 : 36,
         padding: showLabel ? (compact ? '0 9px' : '0 12px') : compact ? '0 8px' : '0 10px',
         border: primary ? '1px solid rgba(74,124,255,0.24)' : '1px solid transparent',
-        background: disabled
-          ? 'transparent'
-          : active
-            ? 'var(--accent-dim)'
-            : primary
-              ? 'rgba(74,124,255,0.08)'
-              : 'transparent',
         color: disabled
           ? 'var(--text-tertiary)'
           : danger
@@ -214,21 +215,6 @@ function CommandButton({
         opacity: disabled ? 0.58 : 1,
         fontSize: compact ? 12 : 13,
         fontWeight: showLabel ? 650 : 600,
-      }}
-      onMouseEnter={(event) => {
-        if (disabled) return;
-        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)';
-      }}
-      onMouseLeave={(event) => {
-        if (disabled) {
-          event.currentTarget.style.background = 'transparent';
-          return;
-        }
-        event.currentTarget.style.background = active
-          ? 'var(--accent-dim)'
-          : primary
-            ? 'rgba(74,124,255,0.08)'
-            : 'transparent';
       }}
     >
       <Icon size={compact ? 14 : 15} />
@@ -246,30 +232,18 @@ function PresentButton({ onPresent, isPresenting, disabled, collapseLabel = fals
       onClick={onPresent}
       title="Present (F5)"
       disabled={disabled}
-      className="flex items-center gap-1.5 rounded-xl shrink-0 h-[38px] text-text-on-accent text-[13px] font-bold"
+      className={`flex items-center gap-1.5 rounded-xl shrink-0 h-[38px] text-text-on-accent text-[13px] font-bold ${
+        disabled
+          ? 'bg-border-default'
+          : isPresenting
+            ? 'bg-live hover:bg-live-hover'
+            : 'bg-accent hover:bg-accent-hover'
+      }`}
       style={{
         padding: collapseLabel ? '0 11px' : '0 14px',
-        background: disabled
-          ? 'var(--border-default)'
-          : isPresenting
-            ? 'var(--live)'
-            : 'var(--accent)',
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.7 : 1,
         boxShadow: disabled ? 'none' : '0 4px 12px rgba(0,0,0,0.14)',
-      }}
-      onMouseEnter={(event) => {
-        if (disabled) return;
-        event.currentTarget.style.background = isPresenting
-          ? 'var(--live-hover)'
-          : 'var(--accent-hover)';
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.background = disabled
-          ? 'var(--border-default)'
-          : isPresenting
-            ? 'var(--live)'
-            : 'var(--accent)';
       }}
     >
       <Play size={14} />
@@ -285,16 +259,11 @@ function InlineStyleButton({ icon: Icon, title, active, onClick }) {
       data-editor-toolbar="true"
       title={title}
       onClick={onClick}
-      className="flex items-center justify-center rounded-lg shrink-0 w-[30px] h-[30px] border border-transparent cursor-pointer"
+      className={`flex items-center justify-center rounded-lg shrink-0 w-[30px] h-[30px] border border-transparent cursor-pointer ${
+        active ? 'bg-accent-dim' : 'bg-transparent hover:bg-bg-hover'
+      }`}
       style={{
-        background: active ? 'var(--accent-dim)' : 'transparent',
         color: active ? 'var(--accent)' : 'var(--text-primary)',
-      }}
-      onMouseEnter={(event) => {
-        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)';
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.background = active ? 'var(--accent-dim)' : 'transparent';
       }}
     >
       <Icon size={14} />
@@ -329,13 +298,7 @@ function InlineStepperButton({ icon: Icon, title, onClick }) {
       data-editor-toolbar="true"
       title={title}
       onClick={onClick}
-      className="flex items-center justify-center rounded-md shrink-0 w-[22px] h-[15px] border border-transparent bg-transparent text-text-secondary cursor-pointer"
-      onMouseEnter={(event) => {
-        event.currentTarget.style.background = 'var(--bg-hover)';
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.background = 'transparent';
-      }}
+      className="flex items-center justify-center rounded-md shrink-0 w-[22px] h-[15px] border border-transparent bg-transparent hover:bg-bg-hover text-text-secondary cursor-pointer"
     >
       <Icon size={11} />
     </button>
@@ -608,7 +571,13 @@ function PopoverMenuButton({
         ref={triggerRef}
         title={title}
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center shrink-0 transition-colors ${isCommandVariant ? 'rounded-xl gap-1.5' : 'justify-between gap-2 rounded-lg'}`}
+        className={`flex items-center shrink-0 transition-colors ${isCommandVariant ? 'rounded-xl gap-1.5' : 'justify-between gap-2 rounded-lg'} ${
+          open || active
+            ? 'bg-accent-dim'
+            : isCommandVariant
+              ? 'bg-transparent hover:bg-bg-hover'
+              : 'bg-bg-app hover:bg-bg-hover'
+        }`}
         style={{
           width: isCommandVariant ? undefined : showLabel ? width : undefined,
           height,
@@ -627,28 +596,10 @@ function PopoverMenuButton({
               ? '0 10px'
               : '0 8px',
           border: isCommandVariant ? '1px solid transparent' : '1px solid var(--border-default)',
-          background:
-            open || active
-              ? 'var(--accent-dim)'
-              : isCommandVariant
-                ? 'transparent'
-                : 'var(--bg-app)',
           color: open || active ? 'var(--accent)' : 'var(--text-primary)',
           fontSize: 12.5,
           fontWeight: showLabel ? (isCommandVariant ? 650 : 600) : 600,
           cursor: 'pointer',
-        }}
-        onMouseEnter={(event) => {
-          event.currentTarget.style.background =
-            open || active ? 'var(--accent-dim)' : 'var(--bg-hover)';
-        }}
-        onMouseLeave={(event) => {
-          event.currentTarget.style.background =
-            open || active
-              ? 'var(--accent-dim)'
-              : isCommandVariant
-                ? 'transparent'
-                : 'var(--bg-app)';
         }}
       >
         <span className="flex items-center min-w-0 gap-1.5">
@@ -691,20 +642,15 @@ function MenuOption({ active = false, onClick, children }) {
       type="button"
       data-editor-toolbar="true"
       onClick={onClick}
-      className="w-full flex items-center justify-between gap-2 rounded-md"
+      className={`w-full flex items-center justify-between gap-2 rounded-md ${
+        active ? 'bg-accent-dim' : 'bg-transparent hover:bg-bg-hover'
+      }`}
       style={{
         height: 30,
         padding: '0 10px',
-        background: active ? 'var(--accent-dim)' : 'transparent',
         color: active ? 'var(--accent)' : 'var(--text-primary)',
         fontSize: 12.5,
         fontWeight: active ? 650 : 500,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = active ? 'var(--accent-dim)' : 'var(--bg-hover)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = active ? 'var(--accent-dim)' : 'transparent';
       }}
     >
       <span className="truncate">{children}</span>
