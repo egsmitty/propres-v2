@@ -364,7 +364,6 @@ export default function Filmstrip({ width = 224 }) {
   const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide);
   const setSlideSelection = useEditorStore((s) => s.setSlideSelection);
   const setSelectedSlideIds = useEditorStore((s) => s.setSelectedSlideIds);
-  const setSuppressAutoEditSlideId = useEditorStore((s) => s.setSuppressAutoEditSlideId);
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide);
   // All sections collapsed per presentation; reset when the presentation changes (plan D2 #9).
   const [collapsed, setCollapsed] = useCollapsedSections(presentation?.id, presentation?.sections);
@@ -769,8 +768,7 @@ export default function Filmstrip({ width = 224 }) {
         return { ...sec, slides };
       })
     );
-    setSlideSelection(section.id, newSlide.id, [newSlide.id]);
-    setSuppressAutoEditSlideId(newSlide.id);
+    setSlideSelection(section.id, newSlide.id, [newSlide.id], { suppressAutoEdit: true });
     anchorSlideRef.current = newSlide.id;
   }
 

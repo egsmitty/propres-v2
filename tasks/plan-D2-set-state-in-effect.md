@@ -118,3 +118,9 @@ gets a render test that pins current behaviour before the change.
 - Coverage 14.27/12.09/13.11/15.18 → 14.51/12.29/13.36/15.39; thresholds raised.
 - Remaining in D2: the four Canvas findings (slice 4, its own plan: the
   selection/editing state duplicated between Canvas and the editor store).
+
+## Findings — slice 4 (2026-09-06): findings 5–8 — D2 complete
+
+See `tasks/plan-D2-4-canvas-selection-ownership.md`. All 16 findings are
+resolved: 12 by derivation or adjust-while-rendering, 3 by moving a decision
+into the store, 1 by deleting dead code. Suppressions 51 → 34 across D2.

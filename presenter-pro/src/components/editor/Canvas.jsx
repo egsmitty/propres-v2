@@ -315,11 +315,10 @@ export default function Canvas() {
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId);
   const editingSlideId = useEditorStore((s) => s.editingSlideId);
   const lastAddedTextBoxId = useEditorStore((s) => s.lastAddedTextBoxId);
-  const suppressAutoEditSlideId = useEditorStore((s) => s.suppressAutoEditSlideId);
-  const clearLastAddedTextBoxId = useEditorStore((s) => s.clearLastAddedTextBoxId);
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide);
-  const setSuppressAutoEditSlideId = useEditorStore((s) => s.setSuppressAutoEditSlideId);
-  const setSelectedTextBoxIdsInStore = useEditorStore((s) => s.setSelectedTextBoxIds);
+  // The store owns the text-box selection (plan D2 slice 4); Canvas no longer mirrors it.
+  const selectedTextBoxIds = useEditorStore((s) => s.selectedTextBoxIds);
+  const setSelectedTextBoxIds = useEditorStore((s) => s.setSelectedTextBoxIds);
   const updateSlideBody = useEditorStore((s) => s.updateSlideBody);
   const updateSlideTextBoxes = useEditorStore((s) => s.updateSlideTextBoxes);
   const duplicateSlideTextBoxes = useEditorStore((s) => s.duplicateSlideTextBoxes);
@@ -339,7 +338,6 @@ export default function Canvas() {
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [menu, setMenu] = useState(null);
   const [mediaDropActive, setMediaDropActive] = useState(false);
-  const [selectedTextBoxIds, setSelectedTextBoxIds] = useState([]);
   const [editingTextBoxId, setEditingTextBoxId] = useState(null);
   const [draftBoxes, setDraftBoxes] = useState(null);
   const [snapGuides, setSnapGuides] = useState({ vertical: null, horizontal: null });
@@ -354,7 +352,6 @@ export default function Canvas() {
   const viewportRef = useRef(null);
   const interactionRef = useRef(null);
   const pendingOutsideBlurRef = useRef(false);
-  const previousSlideIdRef = useRef(null);
   const activeEditorCommitRef = useRef(null);
   const suppressBlurCommitRef = useRef(false);
 
@@ -524,7 +521,6 @@ export default function Canvas() {
       }
     };
 
-    measure();
     const frame = window.requestAnimationFrame(measure);
     const observer = new ResizeObserver(() => {
       measure();
@@ -547,81 +543,47 @@ export default function Canvas() {
     loadMedia();
   }, [mediaLibraryOpen]);
 
-  useEffect(() => {
-    interactionRef.current = null;
+  // Selection changed → the canvas's transient UI state resets in the same
+  // render (React's adjust-state-while-rendering pattern, plan D2 slice 4).
+  // The store's own selection actions already clear the text-box selection
+  // and the editing slide, so nothing store-side happens here.
+  const selectionKey = `${selectedSectionId ?? ''}|${selectedSlideId ?? ''}`;
+  const [renderedSelectionKey, setRenderedSelectionKey] = useState(selectionKey);
+  if (renderedSelectionKey !== selectionKey) {
+    setRenderedSelectionKey(selectionKey);
     setDraftBoxes(null);
-    setSelectedTextBoxIds([]);
-    setSelectedTextBoxIdsInStore([]);
     setEditingTextBoxId(null);
     setSnapGuides({ vertical: null, horizontal: null });
     setSelectionRect(null);
     setMetric(null);
-    setEditingSlide(null);
     setSongOrderDragState(null);
-    activeEditorCommitRef.current = null;
-    suppressBlurCommitRef.current = false;
-  }, [selectedSectionId, selectedSlideId, setEditingSlide, setSelectedTextBoxIdsInStore]);
-
-  useEffect(() => {
+  }
+  const [renderedSectionId, setRenderedSectionId] = useState(selectedSectionId);
+  if (renderedSectionId !== selectedSectionId) {
+    setRenderedSectionId(selectedSectionId);
     setSongOrderTrayCollapsed(false);
     setSongSectionsCollapsed(false);
-  }, [selectedSectionId]);
-
+  }
+  // Refs are not state: they reset after the commit, as before.
   useEffect(() => {
-    setSelectedTextBoxIdsInStore(selectedTextBoxIds);
-  }, [selectedTextBoxIds, setSelectedTextBoxIdsInStore]);
+    interactionRef.current = null;
+    activeEditorCommitRef.current = null;
+    suppressBlurCommitRef.current = false;
+  }, [selectionKey]);
 
-  useEffect(() => {
-    const currentSlideId = slide?.id ?? null;
-    const slideChanged = previousSlideIdRef.current !== currentSlideId;
-    previousSlideIdRef.current = currentSlideId;
-
-    if (!slideChanged || !slide || mediaOnlySlide) return;
-    if (textBoxes.length !== 1) return;
-
-    const [box] = textBoxes;
-    if ((box.body || '').trim()) return;
-
-    if (suppressAutoEditSlideId === slide.id) {
-      setSelectedTextBoxIds([box.id]);
-      setEditingSlide(null);
-      setSuppressAutoEditSlideId(null);
-      return;
+  // A text box was just added: the store already selected it; the canvas's
+  // transient state resets in the same render (plan D2 slice 4).
+  const [renderedLastAddedTextBoxId, setRenderedLastAddedTextBoxId] = useState(lastAddedTextBoxId);
+  if (renderedLastAddedTextBoxId !== lastAddedTextBoxId) {
+    setRenderedLastAddedTextBoxId(lastAddedTextBoxId);
+    if (lastAddedTextBoxId) {
+      setDraftBoxes(null);
+      setEditingTextBoxId(null);
+      setSnapGuides({ vertical: null, horizontal: null });
+      setSelectionRect(null);
+      setMetric(null);
     }
-
-    setSelectedTextBoxIds([box.id]);
-    setEditingSlide(slide.id);
-  }, [
-    mediaOnlySlide,
-    setEditingSlide,
-    setSuppressAutoEditSlideId,
-    slide?.id,
-    suppressAutoEditSlideId,
-    textBoxes,
-  ]);
-
-  useEffect(() => {
-    if (!lastAddedTextBoxId || !slide || mediaOnlySlide) return;
-
-    const addedBox = textBoxes.find((box) => box.id === lastAddedTextBoxId);
-    if (!addedBox) return;
-
-    setDraftBoxes(null);
-    setEditingTextBoxId(null);
-    setSelectedTextBoxIds([lastAddedTextBoxId]);
-    setSnapGuides({ vertical: null, horizontal: null });
-    setSelectionRect(null);
-    setMetric(null);
-    setEditingSlide(null);
-    clearLastAddedTextBoxId();
-  }, [
-    clearLastAddedTextBoxId,
-    lastAddedTextBoxId,
-    mediaOnlySlide,
-    setEditingSlide,
-    slide,
-    textBoxes,
-  ]);
+  }
 
   useEffect(() => {
     if (!slide || mediaOnlySlide) return undefined;
@@ -782,6 +744,7 @@ export default function Canvas() {
     draftBoxes,
     mediaOnlySlide,
     nativeH,
+    setSelectedTextBoxIds,
     nativeW,
     renderedBoxes,
     selectedSectionId,
@@ -1021,6 +984,7 @@ export default function Canvas() {
     selectedSlideId,
     selectedTextBoxIds,
     setEditingSlide,
+    setSelectedTextBoxIds,
     setTextBoxClipboard,
     slide,
     textBoxClipboard,
@@ -1067,7 +1031,7 @@ export default function Canvas() {
       window.removeEventListener('blur', onWindowBlur);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [editingTextBoxId, selectedTextBoxIds, setEditingSlide]);
+  }, [editingTextBoxId, selectedTextBoxIds, setEditingSlide, setSelectedTextBoxIds]);
 
   function beginInteraction(event, type, options = {}) {
     event.preventDefault();
@@ -1185,6 +1149,7 @@ export default function Canvas() {
       <div
         key={box.id}
         data-textbox-root="true"
+        data-selected={selected ? 'true' : 'false'}
         onMouseDown={(event) => handleTextBoxMouseDown(event, box)}
         onDoubleClick={(event) => handleTextBoxDoubleClick(event, box.id)}
         onContextMenu={(event) => handleTextBoxContextMenu(event, box.id)}
@@ -1341,6 +1306,9 @@ export default function Canvas() {
           {slide ? (
             <div
               ref={canvasRef}
+              data-text-editing={
+                editingSlideId === selectedSlideId && Boolean(selectedSlideId) ? 'true' : 'false'
+              }
               className="relative rounded shadow-2xl overflow-hidden"
               style={{
                 width: fittedCanvasSize.width,

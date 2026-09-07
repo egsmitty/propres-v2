@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { normalizePresentation } from '@/utils/backgrounds';
+import { resolveSelectionEditing } from '@/utils/autoEdit';
 import {
   DEFAULT_TEXT_BOX,
   createDefaultTextBoxForSlide,
@@ -91,26 +92,34 @@ export const useEditorStore = create((set) => ({
       past: [],
       future: [],
     }),
-  setSelectedSlide: (sectionId, slideId) =>
-    set({
+  // Selecting a slide also decides whether to enter text editing (plan D2
+  // slice 4): an empty single-box slide is edited at once unless the caller
+  // passes { suppressAutoEdit: true } (a slide that was just inserted).
+  setSelectedSlide: (sectionId, slideId, options = {}) =>
+    set((state) => ({
       selectedSectionId: sectionId,
       selectedSlideId: slideId,
       selectedSlideIds: [],
-      selectedTextBoxIds: [],
-      editingSlideId: null,
       suppressAutoEditSlideId: null,
-    }),
-  setSlideSelection: (sectionId, slideId, slideIds = []) =>
-    set({
+      ...resolveSelectionEditing(state.presentation, sectionId, slideId, {
+        suppress: Boolean(options.suppressAutoEdit),
+      }),
+    })),
+  setSlideSelection: (sectionId, slideId, slideIds = [], options = {}) =>
+    set((state) => ({
       selectedSectionId: sectionId,
       selectedSlideId: slideId,
       selectedSlideIds: slideIds,
-      selectedTextBoxIds: [],
-      editingSlideId: null,
       suppressAutoEditSlideId: null,
-    }),
+      ...resolveSelectionEditing(state.presentation, sectionId, slideId, {
+        suppress: Boolean(options.suppressAutoEdit),
+      }),
+    })),
   setSelectedSlideIds: (ids) => set({ selectedSlideIds: ids }),
-  setSelectedTextBoxIds: (ids) => set({ selectedTextBoxIds: ids }),
+  setSelectedTextBoxIds: (ids) =>
+    set((state) => ({
+      selectedTextBoxIds: typeof ids === 'function' ? ids(state.selectedTextBoxIds) : ids,
+    })),
   clearLastAddedTextBoxId: () => set({ lastAddedTextBoxId: null }),
   setSuppressAutoEditSlideId: (slideId) => set({ suppressAutoEditSlideId: slideId }),
   setEditingSlide: (slideId) => set({ editingSlideId: slideId }),
@@ -218,9 +227,13 @@ export const useEditorStore = create((set) => ({
         ?.slides?.find((slide) => slide.id === slideId);
       const addedId = getSlideTextBoxes(updatedSlide).at(-1)?.id || null;
 
+      // The new box becomes the selection at once (plan D2 slice 4); Canvas used
+      // to do this in an effect keyed on lastAddedTextBoxId.
       return {
         ...nextState,
         lastAddedTextBoxId: addedId,
+        selectedTextBoxIds: addedId ? [addedId] : nextState.selectedTextBoxIds,
+        editingSlideId: addedId ? null : nextState.editingSlideId,
       };
     }),
 
