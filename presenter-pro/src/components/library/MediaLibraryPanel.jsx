@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLatest } from '@/hooks/useLatest';
 import { useClearWhenMissing } from '@/hooks/useClearWhenMissing';
 import {
   ArrowLeft,
@@ -51,6 +52,7 @@ export default function MediaLibraryPanel() {
     loadLibrary();
   }, []);
 
+  const latestHandleDeleteFolder = useLatest(handleDeleteFolder);
   useEffect(() => {
     function handleKeyDown(event) {
       if (!selectedFolderId) return;
@@ -60,12 +62,12 @@ export default function MediaLibraryPanel() {
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       event.preventDefault();
       const folder = folders.find((item) => item.id === selectedFolderId);
-      if (folder) void handleDeleteFolder(folder);
+      if (folder) void latestHandleDeleteFolder.current(folder);
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [folders, selectedFolderId]);
+  }, [folders, latestHandleDeleteFolder, selectedFolderId]);
 
   async function loadLibrary() {
     const [mediaResult, folderResult] = await Promise.all([getMedia(), getMediaFolders()]);

@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLatest } from '@/hooks/useLatest';
 import { createPortal } from 'react-dom';
 import {
   AlignCenter,
@@ -395,11 +396,15 @@ function LiveNumberField({ value, min, max, onChange, width = 72, integrated = f
     return commitDraft(liveValue);
   }
 
+  // Registry and document listeners call the newest commit without
+  // re-subscribing on every render (plan D3).
+  const latestCommitCurrentValue = useLatest(commitCurrentValue);
+
   useEffect(() => {
     if (!focused) return undefined;
 
     function flushPendingCommit() {
-      commitCurrentValue();
+      latestCommitCurrentValue.current();
       setFocused(false);
     }
 
@@ -407,14 +412,14 @@ function LiveNumberField({ value, min, max, onChange, width = 72, integrated = f
     return () => {
       clearPendingNumericFieldCommit(flushPendingCommit);
     };
-  }, [draft, focused, min, max, onChange, value]);
+  }, [focused, latestCommitCurrentValue]);
 
   useEffect(() => {
     if (!focused) return undefined;
 
     function commitOnOutsidePointerDown(event) {
       if (inputRef.current?.contains(event.target)) return;
-      commitCurrentValue();
+      latestCommitCurrentValue.current();
       setFocused(false);
     }
 
@@ -422,7 +427,7 @@ function LiveNumberField({ value, min, max, onChange, width = 72, integrated = f
     return () => {
       document.removeEventListener('mousedown', commitOnOutsidePointerDown, true);
     };
-  }, [draft, focused]);
+  }, [focused, latestCommitCurrentValue]);
 
   return (
     <input

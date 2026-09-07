@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLatest } from '@/hooks/useLatest';
 import Toolbar from '@/components/layout/Toolbar';
 import StatusBar from '@/components/layout/StatusBar';
 import Filmstrip from '@/components/editor/Filmstrip';
@@ -229,6 +230,11 @@ export default function Editor() {
   //
   // Guarded by src/pages/__tests__/unsavedChangesGuard.test.ts.
 
+  // The window listener calls the newest handlers without re-subscribing on
+  // every render (plan D3).
+  const latestHandleSave = useLatest(handleSave);
+  const latestHandlePresent = useLatest(handlePresent);
+  const latestHandleStopPresenting = useLatest(handleStopPresenting);
   useEffect(() => {
     function handleKeyDown(e) {
       if (panelOpen) return;
@@ -241,7 +247,7 @@ export default function Editor() {
 
       if (meta && e.key === 's') {
         e.preventDefault();
-        handleSave();
+        latestHandleSave.current();
         return;
       }
       if (!meta && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
@@ -264,12 +270,12 @@ export default function Editor() {
       }
       if (e.key === 'F5') {
         e.preventDefault();
-        handlePresent();
+        latestHandlePresent.current();
         return;
       }
       if (e.key === 'Escape' && isPresenting) {
         e.preventDefault();
-        handleStopPresenting();
+        latestHandleStopPresenting.current();
         return;
       }
       if (e.key === '?' && !meta) {
@@ -287,7 +293,14 @@ export default function Editor() {
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editingSlideId, isPresenting, presentation, isDirty, requiresInitialSave, panelOpen]);
+  }, [
+    editingSlideId,
+    isPresenting,
+    latestHandlePresent,
+    latestHandleSave,
+    latestHandleStopPresenting,
+    panelOpen,
+  ]);
 
   async function handleSave() {
     if (!presentation || (!isDirty && !requiresInitialSave)) return;

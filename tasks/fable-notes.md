@@ -659,3 +659,20 @@ main-process flag nothing read since S1, and the rest imports and store
 selectors). `eslint-suppressions.json` went 71 → **0** over this pass. What
 remains in workstream D is the 11 `exhaustive-deps` warnings (D3), each a
 stale-closure candidate that needs reading, not a bulk `useCallback`.
+
+### 2026-09-06 — D3: the last 11 lint warnings; workstream D is complete
+
+`tasks/plan-D3-exhaustive-deps.md`. None of the eleven was a live bug (each
+omitted handler read values that were already listed, or read refs), but each
+was a stale closure one edit away. Eight are subscription handlers (window and
+document listeners, the numeric-field commit registry); they now go through a
+tiny `useLatest` ref hook — the pattern behind React 19's `useEffectEvent`,
+written for React 18 — so the listener always calls the newest handler
+_without_ tearing down and re-creating the subscription every render. One was
+a deliberate exclusion (re-seeding the slide text editor on every keystroke
+would rewrite it while typing) and is now explicit instead of a silent
+omission.
+
+**Where the linter stands after workstream D:** `npx eslint .` prints nothing.
+Zero errors, zero warnings, an empty suppressions file, and the gate's warning
+ceiling is 0 — anything new fails CI. From 90 problems at the audit.
