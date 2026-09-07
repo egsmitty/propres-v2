@@ -81,5 +81,6 @@ _meant_ to be visible, and named in the PR.
   (`data-profile-card`), and the settings modals now close with Escape
   (#69). Shared helpers live in `e2e/fixtures/visual.ts`.
 - Proof on the laptop: both specs pass after a fresh capture and again under
-  `VISUAL_STRICT=1` (0 pixels). CI result recorded below once the runner's
-  baselines are committed.
+  `VISUAL_STRICT=1` (0 pixels). Proof in CI: the runner's capture (run
+  34082098999) committed, then the PR's own E2E run passed 23/23 against it
+  on the first attempt — the two visual specs included, no retry.
