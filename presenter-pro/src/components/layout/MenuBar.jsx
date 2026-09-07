@@ -177,11 +177,7 @@ export default function MenuBar() {
   return (
     <div
       ref={menuRef}
-      className="flex items-center px-2 h-9 shrink-0 gap-0.5"
-      style={{
-        background: 'var(--bg-toolbar)',
-        borderBottom: '1px solid var(--border-subtle)',
-      }}
+      className="flex items-center px-2 h-9 shrink-0 gap-0.5 bg-bg-toolbar border-b border-border-subtle"
     >
       {computedMenus.map((menu) => (
         <div key={menu.label} className="relative">

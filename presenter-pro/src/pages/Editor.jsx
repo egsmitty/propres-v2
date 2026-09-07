@@ -453,13 +453,7 @@ function ResizeHandle({ onMouseDown }) {
   return (
     <div
       onMouseDown={onMouseDown}
-      className="shrink-0"
-      style={{
-        width: 4,
-        cursor: 'col-resize',
-        background: 'transparent',
-        zIndex: 10,
-      }}
+      className="shrink-0 w-1 cursor-col-resize bg-transparent z-10"
       onMouseEnter={(e) => {
         e.currentTarget.style.background = 'var(--border-default)';
       }}
@@ -488,15 +482,7 @@ function LiveBanner() {
   }
 
   return (
-    <div
-      className="flex items-center px-4 shrink-0"
-      style={{
-        background: 'var(--live-bg)',
-        borderBottom: '1px solid var(--live-border)',
-        color: 'var(--live)',
-        height: 32,
-      }}
-    >
+    <div className="flex items-center px-4 shrink-0 bg-live-bg border-b border-live-border text-live h-8">
       <span className="text-xs font-medium">
         Presenting{slideNum > 0 && ` — Slide ${slideNum} of ${totalSlides}`}
       </span>

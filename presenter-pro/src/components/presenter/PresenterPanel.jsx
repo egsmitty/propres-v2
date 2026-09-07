@@ -287,12 +287,10 @@ export default function PresenterPanel({ onSetOpen }) {
   return (
     <div
       ref={panelRef}
-      className="shrink-0 overflow-hidden"
+      className="shrink-0 overflow-hidden border-l border-border-subtle bg-bg-surface"
       style={{
         width: presenterPanelWidth,
         transition: 'width 0.2s ease',
-        borderLeft: '1px solid var(--border-subtle)',
-        background: 'var(--bg-surface)',
       }}
     >
       {/* Fixed-width inner — gets clipped by overflow-hidden during animation */}
@@ -319,32 +317,14 @@ export default function PresenterPanel({ onSetOpen }) {
                       animation: 'pulse 2s infinite',
                     }}
                   />
-                  <span
-                    style={{
-                      fontSize: 9,
-                      color: 'var(--live)',
-                      fontWeight: 600,
-                      letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
+                  <span className="text-[9px] text-live font-semibold tracking-[0.12em] uppercase">
                     Live Output
                   </span>
                 </>
               ) : (
                 <>
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: 'var(--text-tertiary)', flexShrink: 0 }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 9,
-                      color: 'var(--text-tertiary)',
-                      letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
+                  <span className="w-1.5 h-1.5 rounded-full bg-text-tertiary shrink-0" />
+                  <span className="text-[9px] text-text-tertiary tracking-[0.12em] uppercase">
                     Preview
                   </span>
                 </>
@@ -352,15 +332,11 @@ export default function PresenterPanel({ onSetOpen }) {
             </div>
             <div className="flex-1 min-h-0 flex items-center justify-center">
               <div
-                className="rounded overflow-hidden flex items-center justify-center"
+                className="rounded overflow-hidden flex items-center justify-center w-full max-w-full max-h-full text-text-on-accent"
                 style={{
-                  width: '100%',
-                  maxWidth: '100%',
-                  maxHeight: '100%',
                   aspectRatio: getPresentationAspectRatio(presentation),
                   background: isBlack ? 'var(--projector-bg)' : 'var(--on-dark-1)',
                   border: isPresenting ? '1px solid var(--live)' : '1px solid var(--border-subtle)',
-                  color: 'var(--text-on-accent)',
                 }}
               >
                 {isBlack ? (
@@ -389,39 +365,31 @@ export default function PresenterPanel({ onSetOpen }) {
           <div className="shrink-0 px-3 pb-2 flex gap-1.5">
             <button
               onClick={isPresenting ? handleStop : handleStart}
-              className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium"
+              className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium h-11 text-text-on-accent border-none cursor-pointer"
               style={{
-                height: 44,
                 background: isPresenting ? 'var(--danger)' : 'var(--accent)',
-                color: 'var(--text-on-accent)',
-                border: 'none',
-                cursor: 'pointer',
               }}
             >
               {isPresenting ? '⏹ Stop' : '▶ Start'}
             </button>
             <button
               onClick={() => sendBlack()}
-              className="flex-1 flex items-center justify-center rounded text-xs font-medium"
+              className="flex-1 flex items-center justify-center rounded text-xs font-medium h-11 cursor-pointer"
               style={{
-                height: 44,
                 background: isBlack ? 'var(--on-dark-2)' : 'var(--bg-app)',
                 color: isBlack ? 'var(--text-on-accent)' : 'var(--text-secondary)',
                 border: `1px solid ${isBlack ? 'var(--on-dark-5)' : 'var(--border-default)'}`,
-                cursor: 'pointer',
               }}
             >
               ⬛ Black
             </button>
             <button
               onClick={() => sendLogo()}
-              className="flex-1 flex items-center justify-center rounded text-xs font-medium"
+              className="flex-1 flex items-center justify-center rounded text-xs font-medium h-11 cursor-pointer"
               style={{
-                height: 44,
                 background: isLogo ? 'rgba(74,124,255,0.15)' : 'var(--bg-app)',
                 color: isLogo ? 'var(--accent)' : 'var(--text-secondary)',
                 border: `1px solid ${isLogo ? 'var(--accent)' : 'var(--border-default)'}`,
-                cursor: 'pointer',
               }}
             >
               🏠 Logo
@@ -430,13 +398,9 @@ export default function PresenterPanel({ onSetOpen }) {
         </div>
 
         <div
-          className="shrink-0"
+          className="shrink-0 cursor-row-resize bg-transparent border-t border-b border-border-subtle"
           style={{
             height: PRESENTER_PANEL_DIVIDER_HEIGHT,
-            cursor: 'row-resize',
-            background: 'transparent',
-            borderTop: '1px solid var(--border-subtle)',
-            borderBottom: '1px solid var(--border-subtle)',
           }}
           onMouseDown={(event) => {
             event.preventDefault();
@@ -459,23 +423,16 @@ export default function PresenterPanel({ onSetOpen }) {
         <div ref={slideGridRef} className="flex-1 overflow-y-auto px-3 pb-2">
           {!presentation ? (
             <div className="flex items-center justify-center h-full">
-              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                No presentation open
-              </span>
+              <span className="text-xs text-text-tertiary">No presentation open</span>
             </div>
           ) : (
             presentation.sections.map((section) => (
               <div key={section.id} className="mb-3">
                 {/* Section divider label */}
-                <div
-                  className="flex items-center gap-2 mb-1.5"
-                  style={{ fontSize: 10, color: 'var(--text-tertiary)' }}
-                >
-                  <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
-                  <span className="shrink-0 truncate" style={{ maxWidth: 160 }}>
-                    {section.title}
-                  </span>
-                  <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+                <div className="flex items-center gap-2 mb-1.5 text-[10px] text-text-tertiary">
+                  <div className="flex-1 h-px bg-border-subtle" />
+                  <span className="shrink-0 truncate max-w-[160px]">{section.title}</span>
+                  <div className="flex-1 h-px bg-border-subtle" />
                 </div>
                 {/* Responsive thumbnail grid */}
                 <div
@@ -502,9 +459,9 @@ export default function PresenterPanel({ onSetOpen }) {
                           if (node) slideButtonRefs.current.set(slide.id, node);
                           else slideButtonRefs.current.delete(slide.id);
                         }}
+                        className="bg-on-dark-1 rounded overflow-hidden relative cursor-pointer"
                         style={{
                           aspectRatio: getPresentationAspectRatio(presentation),
-                          background: 'var(--on-dark-1)',
                           border: isLive
                             ? `4px solid ${LIVE_SLIDE_OUTLINE_COLOR}`
                             : isSelected
@@ -515,10 +472,6 @@ export default function PresenterPanel({ onSetOpen }) {
                             : isSelected
                               ? '0 0 0 2px rgba(74,124,255,0.22)'
                               : 'none',
-                          borderRadius: 4,
-                          overflow: 'hidden',
-                          position: 'relative',
-                          cursor: 'pointer',
                         }}
                       >
                         {/* Section color strip */}
@@ -556,7 +509,7 @@ export default function PresenterPanel({ onSetOpen }) {
                             </div>
                           </>
                         ) : null}
-                        <div style={{ position: 'absolute', inset: 0 }}>
+                        <div className="absolute inset-0">
                           <SlidePreviewSurface
                             presentation={presentation}
                             slide={enriched}
@@ -578,18 +531,12 @@ export default function PresenterPanel({ onSetOpen }) {
         </div>
 
         {/* ── Section 4: Navigation ───────────────────────────────── */}
-        <div
-          className="shrink-0 flex gap-1.5 px-3 py-2"
-          style={{ borderTop: '1px solid var(--border-subtle)' }}
-        >
+        <div className="shrink-0 flex gap-1.5 px-3 py-2 border-t border-border-subtle">
           <button
             onClick={goPrev}
             disabled={!canGoPrev}
-            className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium"
+            className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium h-9 bg-bg-app border border-border-default"
             style={{
-              height: 36,
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
               color: canGoPrev ? 'var(--text-primary)' : 'var(--text-tertiary)',
               cursor: canGoPrev ? 'pointer' : 'default',
             }}
@@ -599,11 +546,8 @@ export default function PresenterPanel({ onSetOpen }) {
           <button
             onClick={goNext}
             disabled={!canGoNext}
-            className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium"
+            className="flex-1 flex items-center justify-center gap-1 rounded text-xs font-medium h-9 bg-bg-app border border-border-default"
             style={{
-              height: 36,
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-default)',
               color: canGoNext ? 'var(--text-primary)' : 'var(--text-tertiary)',
               cursor: canGoNext ? 'pointer' : 'default',
             }}

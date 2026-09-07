@@ -131,3 +131,13 @@ structure, no handler changes.
   filmstrip's drag ghost and drop indicators (drag states), the collapsed
   filmstrip sliver, the inline text editor (`SlideTextEditor`, not in any
   capture), and the toolbar's popovers and "More" panel (not captured).
+- **Slice 4** `PresenterPanel` 33 → 23, `Toolbar` 32 → 23, `MenuBar` 6 → 5,
+  `TitleBar` 8 → 3, `StatusBar` 2 → 0, `pages/Editor.jsx` 3 → 1 (42
+  replacements). No new captures were needed: the editor, editor-presenting
+  and selected-text-box captures show the chrome in both toolbar modes and
+  the live state. Strict compare: **0 differing pixels on all 20
+  captures.** Left inline on purpose: the collapsed-panel slivers, the open
+  menus and popovers, the rename input, the presenter panel's live-dot
+  animation (its keyframes are Tailwind's own, only emitted when Tailwind
+  sees `animate-pulse` — not worth entangling), and the black/logo preview
+  labels (states no capture enters).

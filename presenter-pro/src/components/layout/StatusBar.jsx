@@ -26,14 +26,7 @@ export default function StatusBar() {
       : null;
 
   return (
-    <div
-      className="flex items-center justify-between px-3 h-6 shrink-0 text-xs"
-      style={{
-        background: 'var(--bg-toolbar)',
-        borderTop: '1px solid var(--border-subtle)',
-        color: 'var(--text-tertiary)',
-      }}
-    >
+    <div className="flex items-center justify-between px-3 h-6 shrink-0 text-xs bg-bg-toolbar border-t border-border-subtle text-text-tertiary">
       <span>
         {presentation
           ? `${totalSlides} slide${totalSlides !== 1 ? 's' : ''}`
@@ -46,11 +39,7 @@ export default function StatusBar() {
             Slide {slideIndex} of {totalSlides}
           </span>
         )}
-        {isPresenting && (
-          <span style={{ color: 'var(--live)' }} className="font-medium">
-            LIVE
-          </span>
-        )}
+        {isPresenting && <span className="font-medium text-live">LIVE</span>}
       </div>
     </div>
   );
