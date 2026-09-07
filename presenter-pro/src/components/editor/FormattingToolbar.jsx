@@ -293,7 +293,6 @@ function NumberField({
         borderRadius: 4,
         color: 'var(--text-primary)',
         fontSize: 11,
-        outline: 'none',
         flexShrink: 0,
       }}
     />
@@ -565,7 +564,6 @@ function LineSpacingBtn({ value, onChange }) {
                 border: '1px solid var(--border-default)',
                 color: 'var(--text-primary)',
                 fontSize: 11,
-                outline: 'none',
               }}
             />
           </div>
@@ -644,7 +642,6 @@ function MSelect({ value, onChange, children }) {
         fontSize: 11,
         borderRadius: 4,
         padding: '2px 4px',
-        outline: 'none',
         background: 'var(--bg-app)',
         border: '1px solid var(--border-default)',
         color: 'var(--text-primary)',
@@ -1072,7 +1069,6 @@ export default function FormattingToolbar({
           fontSize: 11,
           borderRadius: 4,
           padding: '0 4px',
-          outline: 'none',
           background: 'var(--bg-app)',
           border: '1px solid var(--border-default)',
           color: 'var(--text-primary)',

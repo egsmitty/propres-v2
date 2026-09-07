@@ -55,6 +55,10 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: tailwindcss
         update-types: ['version-update:semver-major']
+      # @types/node tracks the Node major in .nvmrc (the toolchain test enforces
+      # the agreement); it moves with the Node upgrade, not on its own.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     # Electron majors are intentionally NOT grouped: an Electron upgrade is a
     # real migration with breakage risk and deserves its own plan and PR.
 

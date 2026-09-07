@@ -1013,7 +1013,6 @@ export default function Filmstrip({ width = 224 }) {
         width,
         background: 'var(--bg-filmstrip)',
         borderRight: '1px solid var(--border-default)',
-        outline: 'none',
         boxShadow: 'none',
       }}
     >
