@@ -47,7 +47,7 @@ export default function ShortcutsOverlay({ onClose }) {
   return (
     <div
       data-backdrop="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.4)]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="rounded-xl shadow-2xl overflow-hidden w-[520px] bg-bg-surface border border-border-default">

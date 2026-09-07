@@ -71,7 +71,7 @@ export default function StageDisplayRenderer() {
         <button
           type="button"
           onClick={() => closeStageDisplayWindow()}
-          className="absolute top-[22px] right-[22px] z-10 h-[42px] pt-0 pr-3.5 pb-0 pl-3 rounded-[999px] border border-[rgba(255,255,255,0.18)] bg-[rgba(18,18,18,0.82)] text-[rgba(255,255,255,0.92)] inline-flex items-center gap-2 text-[15px] font-bold cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.32)]"
+          className="absolute top-[22px] right-[22px] z-10 h-[42px] pt-0 pr-3.5 pb-0 pl-3 rounded-[999px] border border-white/18 bg-[rgba(18,18,18,0.82)] text-white/92 inline-flex items-center gap-2 text-[15px] font-bold cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.32)]"
         >
           <X size={16} />
           <span>Close Preview</span>
@@ -96,8 +96,8 @@ export default function StageDisplayRenderer() {
         </div>
       </div>
 
-      <div className="absolute left-1/2 bottom-[3vh] -translate-x-1/2 w-[min(92vw,1760px)] min-h-[18vh] pt-[22px] px-8 pb-6 rounded-[20px] bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.16)] shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
-        <div className="text-[20px] font-bold tracking-[0.08em] uppercase text-[rgba(255,255,255,0.7)] mb-3">
+      <div className="absolute left-1/2 bottom-[3vh] -translate-x-1/2 w-[min(92vw,1760px)] min-h-[18vh] pt-[22px] px-8 pb-6 rounded-[20px] bg-white/10 border border-white/16 shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
+        <div className="text-[20px] font-bold tracking-[0.08em] uppercase text-white/70 mb-3">
           Next
         </div>
         <StageTextBlock

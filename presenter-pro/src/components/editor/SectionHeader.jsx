@@ -97,7 +97,7 @@ export default function SectionHeader({
 
         {section.backgroundId && (
           <span
-            className="flex items-center justify-center w-5 h-5 rounded-full mr-1 bg-[rgba(255,255,255,0.06)] text-text-secondary"
+            className="flex items-center justify-center w-5 h-5 rounded-full mr-1 bg-white/6 text-text-secondary"
             title="Section background set"
           >
             <Image size={10} />

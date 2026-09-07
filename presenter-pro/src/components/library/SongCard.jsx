@@ -78,7 +78,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
         className={`px-2.5 py-1 rounded-sm text-xs font-medium shrink-0 ${
           isInserting || !presentation
             ? 'bg-border-default text-text-tertiary'
-            : 'bg-[rgba(74,124,255,0.12)] text-accent hover:bg-accent hover:text-text-on-accent'
+            : 'bg-accent/12 text-accent hover:bg-accent hover:text-text-on-accent'
         }`}
         style={{
           border: `1px solid ${isInserting || !presentation ? 'var(--border-default)' : 'rgba(74,124,255,0.16)'}`,
@@ -100,7 +100,7 @@ export default function SongCard({ song, onEdit, onInsert, onRefresh }) {
       <button
         type="button"
         onClick={handleDelete}
-        className="flex items-center justify-center w-7 h-7 rounded-sm shrink-0 text-danger border border-border-subtle bg-transparent hover:bg-[rgba(220,38,38,0.08)] hover:border-[rgba(220,38,38,0.35)]"
+        className="flex items-center justify-center w-7 h-7 rounded-sm shrink-0 text-danger border border-border-subtle bg-transparent hover:bg-danger/8 hover:border-danger/35"
         title="Delete Song"
       >
         <Trash2 size={13} />

@@ -1235,7 +1235,7 @@ export default function Canvas() {
 
         {selected && (
           <div
-            className="absolute -inset-px border-2 border-[rgba(74,124,255,0.92)] shadow-[0_0_0_3px_rgba(74,124,255,0.14)] pointer-events-none"
+            className="absolute -inset-px border-2 border-accent/92 shadow-[0_0_0_3px_rgba(74,124,255,0.14)] pointer-events-none"
             style={{
               borderRadius: (box.cornerRadius ?? DEFAULT_TEXT_BOX.cornerRadius) + 1,
             }}
@@ -1723,7 +1723,7 @@ function ResizeHandles({ onBegin }) {
     <div
       key={handle}
       onMouseDown={(event) => onBegin(event, handle)}
-      className="absolute w-[10px] h-[10px] bg-white border-[1.5px] border-[rgba(74,124,255,0.96)] rounded-[999px] shadow-[0_2px_8px_rgba(0,0,0,0.28)] z-10"
+      className="absolute w-[10px] h-[10px] bg-white border-[1.5px] border-accent/96 rounded-[999px] shadow-[0_2px_8px_rgba(0,0,0,0.28)] z-10"
       style={style}
     />
   ));
@@ -1732,11 +1732,11 @@ function ResizeHandles({ onBegin }) {
 function RotationHandle({ onBegin }) {
   return (
     <>
-      <div className="absolute -top-[30px] left-1/2 w-px h-[22px] bg-[rgba(74,124,255,0.9)] -translate-x-1/2" />
+      <div className="absolute -top-[30px] left-1/2 w-px h-[22px] bg-accent/90 -translate-x-1/2" />
       <button
         type="button"
         onMouseDown={onBegin}
-        className="absolute -top-[46px] left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-[1.5px] border-[rgba(74,124,255,0.96)] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.28)]"
+        className="absolute -top-[46px] left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-[1.5px] border-accent/96 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.28)]"
       />
     </>
   );
@@ -1793,7 +1793,7 @@ function CanvasBackground({ media }) {
 
   if (!src || media.file_exists === false) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-[rgba(10,10,10,0.92)] text-[rgba(255,255,255,0.76)] text-[20px] font-semibold tracking-[0.02em]">
+      <div className="absolute inset-0 flex items-center justify-center bg-[rgba(10,10,10,0.92)] text-white/76 text-[20px] font-semibold tracking-[0.02em]">
         Missing media file
       </div>
     );
