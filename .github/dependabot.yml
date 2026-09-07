@@ -31,6 +31,15 @@ updates:
       # pinned to 5.x in Phase 6. Remove when typescript-eslint supports TS 7.
       - dependency-name: typescript
         update-types: ['version-update:semver-major']
+      # Vite is pinned to 7 because electron-vite 5 peers on Vite ^5–^7 (plan U1).
+      # @vitejs/plugin-react 6 peers on Vite ^8. Remove when electron-vite supports Vite 8.
+      - dependency-name: '@vitejs/plugin-react'
+        update-types: ['version-update:semver-major']
+      # eslint-plugin-react (latest 7.37) peers on ESLint ^9 only. Remove when it supports 10.
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
     # Electron majors are intentionally NOT grouped: an Electron upgrade is a
     # real migration with breakage risk and deserves its own plan and PR.
 
