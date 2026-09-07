@@ -64,6 +64,10 @@ test.describe('visual baseline — editor states', () => {
     const closeMedia = page.getByRole('button', { name: 'Close media library' });
     if (await closeMedia.isVisible().catch(() => false)) await closeMedia.click();
     await expect(closeMedia).toHaveCount(0);
+    // The tray hides so the canvas (and its overlay) is in view; this also
+    // captures the tray's collapsed header.
+    await page.getByRole('button', { name: /Hide$/ }).click();
+    await expect(page.getByText('Missing media file')).toBeVisible();
     await page.waitForTimeout(800);
     await expect(page).toHaveScreenshot('editor-missing-background.png', STRICT);
   });
