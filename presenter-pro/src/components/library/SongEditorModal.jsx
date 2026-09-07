@@ -712,7 +712,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Song title"
-                className="w-full px-2.5 py-1.5 rounded text-sm outline-none"
+                className="w-full px-2.5 py-1.5 rounded text-sm"
                 style={{
                   background: 'var(--bg-app)',
                   border: '1px solid var(--border-default)',
@@ -733,7 +733,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   value={artist}
                   onChange={(event) => setArtist(event.target.value)}
                   placeholder="Artist name"
-                  className="w-full px-2.5 py-1.5 rounded text-xs outline-none"
+                  className="w-full px-2.5 py-1.5 rounded text-xs"
                   style={{
                     background: 'var(--bg-app)',
                     border: '1px solid var(--border-default)',
@@ -752,7 +752,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   value={ccli}
                   onChange={(event) => setCcli(event.target.value)}
                   placeholder="CCLI"
-                  className="w-full px-2.5 py-1.5 rounded text-xs outline-none"
+                  className="w-full px-2.5 py-1.5 rounded text-xs"
                   style={{
                     background: 'var(--bg-app)',
                     border: '1px solid var(--border-default)',
@@ -799,7 +799,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   endLyricsEditing();
                 }}
                 placeholder="Paste or type song lyrics. Blank lines create a new slide inside the current section. A new section starts only when you label it as Verse, Chorus, Bridge, etc."
-                className="flex-1 px-2.5 py-2 rounded text-xs outline-none resize-none"
+                className="flex-1 px-2.5 py-2 rounded text-xs resize-none"
                 style={{
                   background: 'var(--bg-app)',
                   border: '1px solid var(--border-default)',
@@ -1038,7 +1038,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                       }
                       onFocus={beginLyricsEditing}
                       onBlur={endLyricsEditing}
-                      className="w-full rounded text-sm outline-none resize-none"
+                      className="w-full rounded text-sm resize-none"
                       style={{
                         minHeight: 180,
                         background: 'var(--bg-surface)',
@@ -1161,7 +1161,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                           <select
                             value={group.type}
                             onChange={(event) => updateGroupType(group.id, event.target.value)}
-                            className="text-xs px-2 py-1 rounded outline-none min-w-0 w-full"
+                            className="text-xs px-2 py-1 rounded min-w-0 w-full"
                             style={{
                               background: 'var(--bg-surface)',
                               border: '1px solid var(--border-default)',
@@ -1205,7 +1205,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                                 maxLength={CUSTOM_GROUP_NAME_LIMIT}
                                 autoFocus={pendingCustomFocusGroupId === group.id}
                                 placeholder="Custom section name"
-                                className="w-full px-2.5 py-2 rounded text-xs outline-none"
+                                className="w-full px-2.5 py-2 rounded text-xs"
                                 style={{
                                   background: 'var(--bg-surface)',
                                   border: '1px solid var(--border-default)',
@@ -1225,7 +1225,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                                 value={group.label}
                                 onChange={(event) => updateGroupLabel(group.id, event.target.value)}
                                 placeholder="Section name"
-                                className="w-full px-2.5 py-2 rounded text-xs outline-none"
+                                className="w-full px-2.5 py-2 rounded text-xs"
                                 style={{
                                   background: 'var(--bg-surface)',
                                   border: '1px solid var(--border-default)',
@@ -1285,7 +1285,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                                   onChange={(event) =>
                                     updateSlideBody(group.id, slide.id, event.target.value)
                                   }
-                                  className="w-full rounded text-xs outline-none resize-none"
+                                  className="w-full rounded text-xs resize-none"
                                   style={{
                                     minHeight: 72,
                                     background: 'var(--bg-app)',

@@ -46,6 +46,7 @@ export default function ShortcutsOverlay({ onClose }) {
 
   return (
     <div
+      data-backdrop="true"
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}

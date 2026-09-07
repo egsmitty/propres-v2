@@ -51,6 +51,7 @@ function Dialog({ dialog }) {
 
   return (
     <div
+      data-backdrop="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -132,7 +133,6 @@ function Dialog({ dialog }) {
                   border: '1px solid var(--border-default)',
                   background: 'var(--bg-app)',
                   color: 'var(--text-primary)',
-                  outline: 'none',
                 }}
               >
                 {(field.options || []).map((opt) => (
@@ -156,7 +156,6 @@ function Dialog({ dialog }) {
                   border: '1px solid var(--border-default)',
                   background: 'var(--bg-app)',
                   color: 'var(--text-primary)',
-                  outline: 'none',
                 }}
               />
             )}

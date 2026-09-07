@@ -487,7 +487,6 @@ function LiveNumberField({ value, min, max, onChange, width = 72, integrated = f
         color: 'var(--text-primary)',
         fontSize: 12.5,
         fontWeight: 650,
-        outline: 'none',
       }}
     />
   );

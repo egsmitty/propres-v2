@@ -695,3 +695,27 @@ editor and output screens — small, and it turns every future style change
 into a diff you can see — then (E4) the inline-style conversion behind it.
 Keyboard operability is next (E3) because it is testable now and matters most
 during a live service.
+
+### 2026-09-06 — E3: keyboard operability
+
+`tasks/plan-E3-keyboard-operability.md`. The app had no focus style at all and
+29 places that suppressed the browser's; a volunteer tabbing through the
+toolbar could not see where they were. Now there is one global
+`:focus-visible` ring (keyboard focus only — mouse clicks on buttons look as
+before), the two mouse-only controls (editor collapse slivers, Home
+presentation rows) work from the keyboard, and a test fails the gate if a new
+clickable non-button appears without a keyboard path. A keyboard-only E2E
+opens a presentation, toggles the `?` overlay, and starts/stops presenting
+with F5/Escape.
+
+**This is the one deliberate visual addition of the whole pass:** a 2px
+accent ring on keyboard focus. Your decision asked for keyboard operability;
+invisible focus is the opposite of that.
+
+**Not done, needs your call:** arrow-key navigation _inside_ the menu bar and
+the filmstrip (roving tabindex) — a UX design choice, not a correctness fix.
+
+**Where workstream E stands:** E1 (colour tokens + lint) and E3 (keyboard)
+are done and self-enforcing. E4 (the 490 inline style objects → classes) is
+not started, on purpose: build the Playwright screenshot baseline (E2) first
+so that refactor can be _seen_ to change nothing. E2 is small; say the word.

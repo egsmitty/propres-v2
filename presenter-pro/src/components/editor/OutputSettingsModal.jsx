@@ -174,6 +174,7 @@ export default function OutputSettingsModal() {
 
   return (
     <div
+      data-backdrop="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -230,7 +231,7 @@ export default function OutputSettingsModal() {
                   <select
                     value={mainDisplayId}
                     onChange={(e) => setMainDisplayId(e.target.value)}
-                    className="text-xs rounded outline-none"
+                    className="text-xs rounded"
                     style={{
                       background: 'var(--bg-surface)',
                       border: '1px solid var(--border-default)',
@@ -254,7 +255,7 @@ export default function OutputSettingsModal() {
                   <select
                     value={stageDisplayId}
                     onChange={(e) => setStageDisplayId(e.target.value)}
-                    className="text-xs rounded outline-none"
+                    className="text-xs rounded"
                     style={{
                       background: 'var(--bg-surface)',
                       border: '1px solid var(--border-default)',
@@ -333,7 +334,7 @@ export default function OutputSettingsModal() {
                         ),
                       }))
                     }
-                    className="text-xs rounded outline-none"
+                    className="text-xs rounded"
                     style={{
                       background: 'var(--bg-surface)',
                       border: '1px solid var(--border-default)',

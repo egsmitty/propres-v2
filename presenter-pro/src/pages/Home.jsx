@@ -842,7 +842,7 @@ function LibrarySearchField({ query, setQuery }) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search presentations by name or date..."
-        className="flex-1 bg-transparent text-sm outline-none"
+        className="flex-1 bg-transparent text-sm"
         style={{
           color: 'var(--text-primary)',
         }}
@@ -1086,6 +1086,16 @@ function PresentationRow({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${presentation.title || 'Untitled Presentation'}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect?.();
+          void onOpen(presentation);
+        }
+      }}
       className="grid grid-cols-[minmax(0,1.45fr)_180px_128px] gap-4 px-5 py-4 items-center cursor-pointer"
       style={{
         borderBottom: '1px solid var(--border-subtle)',
