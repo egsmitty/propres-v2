@@ -22,7 +22,7 @@ import {
   promptForSectionSetup,
 } from '@/utils/sectionTypes';
 import { DEFAULT_PLACEHOLDER_TEXT } from '@/utils/textBoxes';
-import { alertDialog, confirmDialog, promptDialog } from '@/utils/dialog';
+import { confirmDialog, promptDialog } from '@/utils/dialog';
 import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
 
 function selectFirstSlide(presentation) {

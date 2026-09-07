@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Music, Plus } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
-import { useEditorStore } from '@/store/editorStore';
 import { getSongs } from '@/utils/ipc';
 import SongCard from './SongCard';
 import SongEditorModal from './SongEditorModal';

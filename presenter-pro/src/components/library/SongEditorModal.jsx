@@ -43,14 +43,6 @@ function resolveSongEditorGroupLabel(group) {
   return group.label || makeSongGroupLabel(group.type);
 }
 
-function nextGroupLabel(type, groups) {
-  const normalizedType = normalizeSongEditorGroupType(type);
-  const count =
-    groups.filter((group) => normalizeSongEditorGroupType(group.type) === normalizedType).length +
-    1;
-  return makeSongGroupLabel(normalizedType, '', count > 1 ? String(count) : '');
-}
-
 function getGroupOccurrence(groups = [], groupId) {
   const target = groups.find((group) => group.id === groupId) || null;
   if (!target) return 1;

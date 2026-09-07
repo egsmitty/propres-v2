@@ -86,8 +86,6 @@ export default function Editor() {
   const outputSettingsOpen = useAppStore((s) => s.outputSettingsOpen);
   const filmstripVisible = useAppStore((s) => s.filmstripVisible);
   const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen);
-  const setSongLibraryOpen = useAppStore((s) => s.setSongLibraryOpen);
-  const setMediaLibraryOpen = useAppStore((s) => s.setMediaLibraryOpen);
   const isPresenting = usePresenterStore((s) => s.isPresenting);
   const stopPresenting = usePresenterStore((s) => s.stopPresenting);
   const setLiveSlide = usePresenterStore((s) => s.setLiveSlide);
@@ -192,7 +190,6 @@ export default function Editor() {
   const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave);
   const editingSlideId = useEditorStore((s) => s.editingSlideId);
   const panelOpen = songLibraryOpen || mediaLibraryOpen || newSongEditorOpen;
-  const libraryPanelOpen = songLibraryOpen || mediaLibraryOpen;
 
   // Listen for stop signal from output window (when presenter closes)
   useEffect(() => {
@@ -329,11 +326,6 @@ export default function Editor() {
 
   function handleStopPresenting() {
     stopPresentationSession().catch(() => stopPresenting());
-  }
-
-  function closeLibraryPanels() {
-    setSongLibraryOpen(false);
-    setMediaLibraryOpen(false);
   }
 
   return (

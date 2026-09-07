@@ -4,7 +4,6 @@ const {
   ipcMain,
   Menu,
   dialog,
-  shell,
   screen,
   nativeImage,
   protocol,
@@ -55,7 +54,6 @@ let countdownState = { active: false, endAt: null, durationSeconds: 0 };
 let countdownInterval = null;
 let outputReadyResolvers = [];
 let stageDisplayReadyResolvers = [];
-let presentationSessionActive = false;
 let presentationSessionSlides = [];
 let currentStageSlide = null;
 let currentStageBackground = null;
@@ -346,10 +344,6 @@ function waitForReady(kind) {
 
 function resetOutputState() {
   outputState = { isBlack: false, isLogo: false };
-}
-
-function setPresentationSessionActive(active) {
-  presentationSessionActive = active;
 }
 
 function broadcast(channel, payload) {
@@ -1320,7 +1314,6 @@ function registerIpcHandlers() {
     return { success: true, data: countdownState };
   });
   ipc.handle('output:stop', () => {
-    setPresentationSessionActive(false);
     resetOutputState();
     resetCountdownState();
     presentationSessionSlides = [];

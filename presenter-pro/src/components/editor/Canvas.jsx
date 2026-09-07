@@ -11,7 +11,7 @@ import {
   isMediaSlide,
   withColorAlpha,
 } from '@/utils/sectionTypes';
-import { getPresentationDimensions, getPresentationAspectRatio } from '@/utils/presentationSizing';
+import { getPresentationDimensions } from '@/utils/presentationSizing';
 import { slideBodyToHtml } from '@/utils/slideMarkup';
 import { clearEditorFormatting, runEditorCommand } from '@/utils/richTextEditor';
 import {
@@ -1045,10 +1045,6 @@ export default function Canvas() {
       ...options,
     };
     beginBodyInteraction(handleCursor(type === 'resize' ? options.handle : type));
-  }
-
-  function selectOnly(textBoxId) {
-    setSelectedTextBoxIds(textBoxId ? [textBoxId] : []);
   }
 
   function handleBlankMouseDown(event) {

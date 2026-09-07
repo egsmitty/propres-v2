@@ -315,7 +315,7 @@ function GhostSlide({
   );
 }
 
-function PreviewInsert({ slide, width, presentation }) {
+function PreviewInsert() {
   return (
     <div
       className="mx-2 mb-1 rounded"
@@ -361,7 +361,6 @@ export default function Filmstrip({ width = 224 }) {
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen);
   const selectedSlideId = useEditorStore((s) => s.selectedSlideId);
   const selectedSlideIds = useEditorStore((s) => s.selectedSlideIds);
-  const setSelectedSlide = useEditorStore((s) => s.setSelectedSlide);
   const setSlideSelection = useEditorStore((s) => s.setSlideSelection);
   const setSelectedSlideIds = useEditorStore((s) => s.setSelectedSlideIds);
   const setEditingSlide = useEditorStore((s) => s.setEditingSlide);

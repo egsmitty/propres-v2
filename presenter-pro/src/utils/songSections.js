@@ -86,13 +86,6 @@ export function parseSongGroupsFromLyrics(text = '') {
   let currentGroup = null;
   let currentSlideLines = [];
 
-  function ensureGroup(type = 'verse', label = 'Verse 1') {
-    if (currentGroup) return currentGroup;
-    currentGroup = createSongSectionGroup(type, label);
-    groups.push(currentGroup);
-    return currentGroup;
-  }
-
   function flushSlide() {
     if (!currentGroup || currentSlideLines.length === 0) return;
     currentGroup.slides.push({
