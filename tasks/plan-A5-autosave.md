@@ -303,9 +303,15 @@ proven before autosave can create the state that needs it.**
 | 3 | Retire the journal writer. |
 
 **`main` must be coherent after each slice.** Slice 1 alone is useful (Revert
-throws away in-memory edits and reloads the last save). Slice 2 alone would
-leave the journal incoherent, so **slice 3 must be merged the same day as slice
-2** — if slice 3 cannot land, revert slice 2 rather than leave both running.
+throws away in-memory edits and reloads the last save).
+
+**DEVIATION, applied 2026-09-09: slices 2 and 3 shipped as ONE PR.** The plan
+allowed for them landing the same day; in the event they could not be separated
+at all. Running slice 2 on its own turned two `e2e/recovery.spec.ts` specs red
+— the journal's staleness rule firing exactly as *The journal's fate* predicted
+— so a slice-2-only commit would have left `main` with a failing required
+check. The argument on paper and the observed behaviour agree; they merged
+together. Slice 1 shipped separately as planned (#94).
 
 ---
 
@@ -778,7 +784,7 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
 
 ### Slice 1 — version store and Revert
 
-- [ ] **1. Failing tests first (TDD — complete before todo 2).**
+- [x] **1. Failing tests first (TDD — complete before todo 2).**
 
       `src/utils/__tests__/presentationVersions.test.ts` — **all 9, exhaustive:**
       1. `presentationContentKey` includes all six `CONTENT_FIELDS` — assert by
@@ -880,19 +886,19 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
 
       *Verify:* `npx vitest run src/utils/__tests__/presentationVersions* electron/db/__tests__/versionQueries.test.ts` — must **FAIL** (modules absent). **Paste the failure output into the PR as proof.**
 
-- [ ] **2. Implement slice 1**: migration 5, `queries/versions.js`, the
+- [x] **2. Implement slice 1**: migration 5, `queries/versions.js`, the
       `deletePresentation` cascade, 4 contract rows + 4 handlers + 4 `ipc.ts`
       wrappers, `presentationVersions.ts`, `presentationVersionsSync.ts`, the 5
       capture sites, `revertCurrentPresentationToLastSave`, the
       `appCommands.js` case, and the two menu items.
       *Verify:* every todo-1 command passes.
 
-- [ ] **3. Rollup entry** `db/queries/versions` in `electron.vite.config.js`.
+- [x] **3. Rollup entry** `db/queries/versions` in `electron.vite.config.js`.
       Without it the packaged app crashes at startup **and the build still
       reports SUCCESS** (the A2 trap).
       *Verify:* `npm run build && ls out/db/queries/` shows `versions.js`.
 
-- [ ] **4. Migration expectations — 3 files, 8 sites, exhaustive.** All are
+- [x] **4. Migration expectations — 3 files, 8 sites, exhaustive.** All are
       **behaviour-change edits**: each fails under the old code (only 1–4
       recorded) and passes under the new. List every one in the summary.
 
@@ -913,7 +919,7 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
       "applies exactly 1–4" changes too.
       *Verify:* `npx vitest run electron/db` is green.
 
-- [ ] **5. `e2e/revert.spec.ts`** — **all 5, exhaustive:**
+- [x] **5. `e2e/revert.spec.ts`** — **all 5, exhaustive:**
       1. Blank presentation → `file:save` → `insert:newSlide` → File ▸ Revert to
          Last Save → confirm → the DB row's slide count is back to **1** and the
          editor shows 1 slide.
@@ -932,7 +938,7 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
       `webContents.send('app:command', …)` idiom from `recovery.spec.ts:54-56`.
       *Verify:* `npm run test:e2e` — **all** specs, run twice in a row.
 
-- [ ] **6. Prove the 52 baselines did not move.** The File menu is never
+- [x] **6. Prove the 52 baselines did not move.** The File menu is never
       captured open (fact 7) — this todo *checks* that rather than trusting it.
 
       **A bare local `VISUAL=1` run proves nothing about the committed
@@ -950,19 +956,19 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
       required `E2E (macOS)` check compares the real 52. If any committed
       baseline moves, that is a finding: report it, do not recapture.
 
-- [ ] **7. Raise coverage thresholds** in `vitest.config.mjs` to just below the
+- [x] **7. Raise coverage thresholds** in `vitest.config.mjs` to just below the
       new measured floor. Run `npx vitest run --coverage`, read the four
       numbers, set each threshold ≤ measured. **The ratchet only moves up.**
       Note: it is already ~2 points stale (measured 17.55/15.45/17.28/18.39),
       so it must rise even before this slice's tests are counted.
 
-- [ ] **8. Gate and PR.** `npm run gate` && `npm run format:check`; commit with
+- [x] **8. Gate and PR.** `npm run gate` && `npm run format:check`; commit with
       **explicit paths** (never `git add -A`); PR body carries Summary / Proof /
       Findings. Wait for **both** `PR Gate` and `E2E (macOS)`. Squash-merge.
 
 ### Slice 2 — autosave
 
-- [ ] **9. Failing tests first (TDD — complete before todo 10).**
+- [x] **9. Failing tests first (TDD — complete before todo 10).**
 
       `src/utils/__tests__/autosave.test.ts` — **all 4, exhaustive:**
       1. First change, never written → `AUTOSAVE_DEBOUNCE_MS`.
@@ -1008,13 +1014,13 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
 
       *Verify:* `npx vitest run src/utils/__tests__/autosave*` — must **FAIL**. Paste the output.
 
-- [ ] **10. Implement slice 2**: `autosave.ts`, `autosaveSync.ts`, the `App.jsx`
+- [x] **10. Implement slice 2**: `autosave.ts`, `autosaveSync.ts`, the `App.jsx`
       start call (**main window only** — inside the existing branch guarded by
       `isOutputWindow || isStageDisplayWindow`), the `unsavedChanges.js`
       rewiring, and dirty-on-open in `openPresentationInEditor`.
       *Verify:* todo-9 commands pass.
 
-- [ ] **11. `e2e/autosave.spec.ts`** — **all 4, exhaustive:**
+- [x] **11. `e2e/autosave.spec.ts`** — **all 4, exhaustive:**
       Define `const AUTOSAVE_SETTLE_MS = 3_500;` at the top of the spec — greater
       than `AUTOSAVE_DEBOUNCE_MS` (2 s) with margin, mirroring
       `recovery.spec.ts`'s `JOURNAL_SETTLE_MS`.
@@ -1037,12 +1043,12 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
       `e2e/recovery.spec.ts` already does.
       *Verify:* `npm run test:e2e` twice in a row.
 
-- [ ] **12. Baselines, thresholds, gate, PR** — repeat todos 6, 7 and 8 for this
+- [x] **12. Baselines, thresholds, gate, PR** — repeat todos 6, 7 and 8 for this
       slice. **Slice 3 must be opened before this one merges.**
 
 ### Slice 3 — retire the journal writer
 
-- [ ] **13. Remove the writer** — the 9 symbols named in *The journal's fate*,
+- [x] **13. Remove the writer** — the 9 symbols named in *The journal's fate*,
       and only those. **Do not drop the table. Do not touch migrations.**
       Delete the now-dead unit cases (3 in `recoveryJournal.test.ts`, the writer
       cases in `recoveryJournalSync.test.ts`, 1 in `journalQueries.test.ts`) —
@@ -1057,7 +1063,7 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
       is still `{}` (it does catch the now-unused imports and the local
       `baseUpdatedAtOf`).
 
-- [ ] **14. Rewrite `e2e/recovery.spec.ts`** — **behaviour-change edit, all 3,
+- [x] **14. Rewrite `e2e/recovery.spec.ts`** — **behaviour-change edit, all 3,
       exhaustive:**
       1. Editing while dirty writes **no** `presentation_journal` row (the
          writer is gone) — the inverse of the spec it replaces.
@@ -1068,9 +1074,9 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
       3. Discard on that seeded row deletes it.
       The suite's case count changes; state the old and new counts in the summary.
 
-- [ ] **15. Baselines, thresholds, gate, PR** — repeat todos 6, 7 and 8.
+- [x] **15. Baselines, thresholds, gate, PR** — repeat todos 6, 7 and 8.
 
-- [ ] **16. Records, in the same PR as slice 3.** Update
+- [x] **16. Records, in the same PR as slice 3.** Update
       `tasks/fable-pass-plan.md` (a status row for A5), `tasks/fable-notes.md`
       (a dated narrative entry, newest at the bottom, including every opinion
       and correction found along the way), and tick this file's todos.

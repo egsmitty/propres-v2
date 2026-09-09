@@ -61,7 +61,7 @@ PowerPoint-style alternative to ProPresenter.
   - presenter/editor black and logo state sync improved
   - song section labels expanded to 9 types with color badges and custom labels
   - presenter panel moved to an in-editor right sidebar (300px, collapsible);
-    separate `presenterWindow` code commented out in `main.js` for rollback
+    the separate presenter-window code was deleted in plan S1
   - slide rendering scales from presentation-native dimensions
   - newline preservation normalized across canvas, filmstrip, presenter
     previews, and output rendering
@@ -90,10 +90,11 @@ PowerPoint-style alternative to ProPresenter.
 
 ## In Progress
 
-**Phase 6 — Engineering System** (`tasks/todo.md`). Porting the governance,
-TDD, CI/CD, and branch model from `Motion-Worship/builder`. Phases 6F–6G are a
-full audit and repair pass over the existing code, and are deliberately
-sequenced *after* the test harness exists.
+**The Fable pass** (`tasks/fable-pass-plan.md`, status table at the bottom;
+narrative in `tasks/fable-notes.md`). Phase 6's engineering system is done and
+every charter workstream has landed except workstream F (structure), which stays
+blocked until the six large files have characterization tests under them.
+Start a fresh session from `tasks/HANDOFF-2026-09-09.md`.
 
 ## What's Pending
 
@@ -101,16 +102,15 @@ sequenced *after* the test harness exists.
 - Improve background rendering fidelity in filmstrip/home previews.
 - Decide whether "Open…" stays a Home/recent-navigation action or grows into a
   fuller presentation picker / export-import flow.
-- Resolve the runtime font warning for `/fonts/Inter-Variable.woff2`.
 - Full manual runtime verification on both macOS and Windows hardware,
   especially multi-display output assignment and native presentation behavior.
 
 ## Known Issues
 
-- Build succeeds, but Vite warns that `/fonts/Inter-Variable.woff2` is
-  unresolved at build time.
-- Presentation backgrounds are stored in the DB, but older rows may not have
-  `default_background_id` populated.
+- `default_background_id` is effectively dead: `normalizePresentation` hard-nulls
+  both of its spellings on every path, so every save clears it. That — not a
+  missing backfill — is why older rows have no value. Decide whether to drop the
+  column or stop nulling it.
 - Some slide move / context-menu flows still use prompt-based UX.
 - `.git` is ~49M because test media was committed as raw blobs. History is
   intentionally left alone; `test-media/` is ignored going forward.
@@ -128,3 +128,11 @@ sequenced *after* the test harness exists.
 - Renderer talks to main only through `src/utils/ipc.js`, which returns a
   `{ success, data, error }` envelope. Do not call `window.electronAPI` directly
   from components.
+- **Save model (plan A5).** Edits autosave to the presentation's own row a
+  couple of seconds after typing stops. `isDirty` means "the live row differs
+  from the newest restore point", so autosave never clears it — only Save (which
+  appends to `presentation_versions`) and Revert do. `File ▸ Revert to Last Save`
+  puts the row back; Discard in the Unsaved Changes dialog does the same. The
+  crash-recovery journal from plan A2 is no longer written: autosave bumps
+  `updated_at`, which would make every journal row stale before it was read.
+  Its table and startup drain remain for profiles written by older builds.
