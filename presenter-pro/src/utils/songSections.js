@@ -1,5 +1,5 @@
 import { uuid } from '@/utils/uuid';
-import { createTextSlide, getSectionType, getSectionTypeMeta } from '@/utils/sectionTypes';
+import { createTextSlide, getSongPart, getSectionTypeMeta } from '@/utils/sectionTypes';
 
 const SONG_GROUP_LABEL_RE =
   /^\[?(verse|chorus|bridge|intro|outro|pre-chorus|tag|turnaround|turn|t\.a\.|blank|custom)(?:\s+(\d+))?\]?$/i;
@@ -44,7 +44,7 @@ export function resolveSongSectionType(raw = '') {
 export function makeSongGroupLabel(type, explicitLabel = '', number = '') {
   if (explicitLabel) return stripBrackets(explicitLabel);
 
-  const sectionType = getSectionType(type);
+  const sectionType = getSongPart(type);
   const base = sectionType?.label || toTitleCase(type);
   return number ? `${base} ${number}` : base;
 }
@@ -150,7 +150,7 @@ export function normalizeSongGroupsFromSlides(slides = []) {
   for (const slide of slides) {
     const type = slide?.type || 'verse';
     const label =
-      slide?.label || getSectionType(type)?.label || getSectionTypeMeta('song').defaultSlideLabel;
+      slide?.label || getSongPart(type)?.label || getSectionTypeMeta('song').defaultSlideLabel;
     const explicitGroupId = slide?.groupId || slide?.sectionGroupId || null;
 
     const shouldAppend =

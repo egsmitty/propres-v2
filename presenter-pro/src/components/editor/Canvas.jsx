@@ -8,7 +8,7 @@ import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { getMedia } from '@/utils/ipc';
 import { getEffectiveBackgroundId, getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds';
 import {
-  getSectionColor,
+  getSongPartColor,
   getSectionTypeLabel,
   isMediaSlide,
   withColorAlpha,
@@ -1622,8 +1622,8 @@ function SongOrderTray({
                         onClick={() => onAddGroup(group.id)}
                         className="text-sm px-3 py-1.5 rounded-full"
                         style={{
-                          background: withColorAlpha(getSectionColor(group.type), 0.13),
-                          border: `1px solid ${withColorAlpha(getSectionColor(group.type), 0.33)}`,
+                          background: withColorAlpha(getSongPartColor(group.type), 0.13),
+                          border: `1px solid ${withColorAlpha(getSongPartColor(group.type), 0.33)}`,
                           color: 'var(--text-primary)',
                           cursor: disabled ? 'default' : 'grab',
                         }}
@@ -1664,8 +1664,8 @@ function SongOrderTray({
                         }}
                         className="flex items-center gap-1 rounded-full px-2.5 py-1.5"
                         style={{
-                          background: withColorAlpha(getSectionColor(entry.group.type), 0.13),
-                          border: `1px solid ${withColorAlpha(getSectionColor(entry.group.type), 0.33)}`,
+                          background: withColorAlpha(getSongPartColor(entry.group.type), 0.13),
+                          border: `1px solid ${withColorAlpha(getSongPartColor(entry.group.type), 0.33)}`,
                           color: 'var(--text-primary)',
                           cursor: disabled ? 'default' : 'grab',
                         }}

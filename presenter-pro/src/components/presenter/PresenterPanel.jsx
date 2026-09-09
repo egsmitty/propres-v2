@@ -6,7 +6,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { usePresenterStore } from '@/store/presenterStore';
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow';
 import { getMedia, sendBlack, sendLogo, sendSlide } from '@/utils/ipc';
-import { getSectionColor, withColorAlpha } from '@/utils/sectionTypes';
+import { getSongPartColor, withColorAlpha } from '@/utils/sectionTypes';
 import { getPresentationAspectRatio } from '@/utils/presentationSizing';
 import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
 import { withEffectiveBackground } from '@/utils/backgrounds';
@@ -446,7 +446,7 @@ export default function PresenterPanel({ onSetOpen }) {
                   {section.slides.map((slide) => {
                     const isLive = slide.id === liveSlideId;
                     const isSelected = !isPresenting && slide.id === selectedSlideId;
-                    const songSectionColor = slide.groupId ? getSectionColor(slide.type) : null;
+                    const songSectionColor = slide.groupId ? getSongPartColor(slide.type) : null;
                     // Use the enriched slide (with sectionId + effectiveBackgroundId) from allSlides when available
                     const enriched = allSlides.find((s) => s.id === slide.id) || {
                       ...slide,

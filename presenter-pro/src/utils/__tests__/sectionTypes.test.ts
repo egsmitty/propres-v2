@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   SECTION_TYPE_META,
-  SECTION_TYPES,
+  SONG_PART_TYPES,
   normalizeSectionType,
   isKnownSectionType,
   getSectionTypeLabel,
@@ -9,17 +9,19 @@ import {
   isMediaSlide,
 } from '@/utils/sectionTypes';
 
-// NOTE: this module holds TWO different vocabularies with confusingly similar
-// names. Keep them straight when reading these tests:
+// This module holds TWO vocabularies. They used to have confusingly similar
+// names — `SECTION_TYPES` for song parts against `SECTION_TYPE_META` for
+// presentation sections — which plan F0 renamed apart:
 //
-//   SECTION_TYPES     — song *part* labels (verse, chorus, bridge, …) used by
+//   SONG_PART_TYPES   — song *part* labels (verse, chorus, bridge, …), used by
 //                       the song editor and the lyric parser.
 //   SECTION_TYPE_META — presentation *section* kinds (song, announcement,
 //                       sermon), which is what normalizeSectionType speaks.
 //
-// normalizeSectionType('verse') therefore returns 'announcement', not 'verse'.
-// That is current behavior and these tests pin it; see
-// tasks/phase7-remediation.md before "fixing" it.
+// The names no longer collide, but the coercion still exists:
+// normalizeSectionType('verse') returns 'announcement', not 'verse'. That is
+// current behavior and these tests pin it; see tasks/phase7-remediation.md
+// before "fixing" it.
 
 describe('normalizeSectionType', () => {
   it('passes through every known presentation section kind', () => {
@@ -74,16 +76,16 @@ describe('church-facing labels', () => {
   });
 });
 
-describe('SECTION_TYPES (song part vocabulary)', () => {
+describe('SONG_PART_TYPES (song part vocabulary)', () => {
   it('gives every song part a unique id, label, abbreviation, and color', () => {
-    expect(SECTION_TYPES.length).toBeGreaterThan(0);
+    expect(SONG_PART_TYPES.length).toBeGreaterThan(0);
 
-    const ids = SECTION_TYPES.map((type) => type.id);
-    // Exactness: a duplicated id would make getSectionType return the wrong
+    const ids = SONG_PART_TYPES.map((type) => type.id);
+    // Exactness: a duplicated id would make getSongPart return the wrong
     // part, so compare the deduplicated count to the full count.
     expect(new Set(ids).size).toBe(ids.length);
 
-    for (const type of SECTION_TYPES) {
+    for (const type of SONG_PART_TYPES) {
       expect(type.label).toBeTruthy();
       expect(type.abbr).toBeTruthy();
       expect(type.color).toMatch(/^#[0-9a-f]{6}$/i);

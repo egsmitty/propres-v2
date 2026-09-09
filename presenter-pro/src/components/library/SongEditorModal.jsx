@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronRight, GripVertical, Plus, Trash2, X } from 'lucide-react';
 import { createSong, updateSong } from '@/utils/ipc';
 import { alertDialog, showDialog } from '@/utils/dialog';
-import { SECTION_TYPES, getSectionColor, withColorAlpha } from '@/utils/sectionTypes';
+import { SONG_PART_TYPES, getSongPartColor, withColorAlpha } from '@/utils/sectionTypes';
 import {
   createSongSectionGroup,
   flattenSongGroupsToSlides,
@@ -14,7 +14,7 @@ import { uuid } from '@/utils/uuid';
 
 const CUSTOM_GROUP_NAME_LIMIT = 24;
 const CUSTOM_GROUP_DEFAULT_LABEL = 'Custom';
-const SONG_EDITOR_SECTION_TYPES = SECTION_TYPES;
+const SONG_EDITOR_SECTION_TYPES = SONG_PART_TYPES;
 
 function normalizeSongEditorGroupType(type = 'verse') {
   return type || 'verse';
@@ -59,7 +59,7 @@ function getGroupOccurrence(groups = [], groupId) {
 }
 
 function getGroupColor(groups = [], groupId, type = 'verse') {
-  return getSectionColor(type, getGroupOccurrence(groups, groupId));
+  return getSongPartColor(type, getGroupOccurrence(groups, groupId));
 }
 
 function getAutoLabelForGroup(groups = [], groupId, type = 'verse') {
