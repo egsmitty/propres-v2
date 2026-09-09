@@ -1305,7 +1305,7 @@ export default function Canvas() {
           {slide ? (
             <div
               ref={canvasRef}
-              data-text-editing={
+              data-slide-editing={
                 editingSlideId === selectedSlideId && Boolean(selectedSlideId) ? 'true' : 'false'
               }
               className="relative rounded-sm shadow-2xl overflow-hidden max-w-full max-h-full bg-bg-canvas"

@@ -8,7 +8,7 @@ import { test, expect, dismissTutorialIfPresent } from './fixtures/launchApp';
 // The store's "editing" state is reflected on the canvas root; the selected
 // text box on its root. (The inline contentEditable only opens on a
 // double-click or Enter — that is a different, later step.)
-const EDITING = '[data-text-editing="true"]';
+const EDITING = '[data-slide-editing="true"]';
 const SELECTED_BOX = '[data-textbox-root="true"][data-selected="true"]';
 
 test.describe('slide text editing', () => {

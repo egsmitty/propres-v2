@@ -19,15 +19,15 @@ test.describe('visual baseline — editor states', () => {
     const row = page.getByRole('button', { name: /Sunday Morning Service/ }).first();
     await row.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('[data-text-editing]')).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.locator('[data-slide-editing]')).toHaveCount(1, { timeout: 15_000 });
     await showPresenterPanel(page);
 
     // 1. A selected text box, not editing: the resize and rotation handles.
     await page.locator('[data-textbox-root]').first().click();
     await expect(page.locator('[data-textbox-root][data-selected="true"]')).toHaveCount(1);
-    // A box with content selects without opening the inline editor. (The
-    // canvas root's data-text-editing flag means "this slide is the one being
-    // edited", not "the inline text editor is open".)
+    // A box with content selects without opening the inline editor; the
+    // canvas root's data-slide-editing flag is about the slide, not the
+    // inline text editor (that one is [data-slide-text-editor]).
     await expect(page.locator('[data-slide-text-editor]')).toHaveCount(0);
     await page.waitForTimeout(500);
     await expect(page).toHaveScreenshot('editor-textbox-selected.png', STRICT);

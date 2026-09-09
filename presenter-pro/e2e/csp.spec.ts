@@ -37,7 +37,7 @@ test.describe('renderer Content-Security-Policy', () => {
     const row = page.getByRole('button', { name: /Sunday Morning Service/ }).first();
     await row.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('[data-text-editing]')).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.locator('[data-slide-editing]')).toHaveCount(1, { timeout: 15_000 });
 
     // A real image through the media scheme, as a slide background.
     const icon = path.resolve(__dirname, '..', 'public', 'icons', 'app-icon.png');
