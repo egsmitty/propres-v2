@@ -971,3 +971,25 @@ those upstreams move.
 **What is left in the style debt, exactly:** 197 inline style props (all
 dynamic or in uncaptured states), 9 hover handlers, 9 + 23 + 83 colour
 literals. The ratchets name every file.
+
+### 2026-09-09 — Your decisions, applied
+
+You answered the open list; here is what each became.
+
+1. **FormattingToolbar deleted** (1,197 lines plus its characterisation
+   test; the "NumberField empty→min" opinion dies with it). You confirmed
+   it had been tried and decided against.
+2. **Hero template card padding restored** — the 18px `px-4.5 / pb-4.5`
+   that Tailwind 3 silently dropped now paints; Home's baselines were
+   recaptured on the runner for it.
+3. **Repo moved out of iCloud**: it now lives at `~/code/ProPresV2`
+   (`/Users/ethansmith/code/ProPresV2`). 143 more "name 2" duplicates went
+   with the move. Start the next session there.
+4. **Sample songs stay** — they carry the tutorial and the templates; a
+   user who dislikes them can delete a song in two clicks. Struck from the
+   opinions list.
+5. Undo/redo: left as is (no auto-edit on undo); you will raise it if it
+   bothers you.
+6. Roving tabindex: on hold, listed under E3 follow-ups.
+7. `data-text-editing` renamed to `data-slide-editing` (what it means).
+8. The menu bar closes on Escape.
