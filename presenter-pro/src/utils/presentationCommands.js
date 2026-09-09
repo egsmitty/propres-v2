@@ -89,11 +89,23 @@ export function loadPresentationIntoEditor(presentation) {
   return normalized;
 }
 
-export async function openPresentationInEditor(id) {
+/**
+ * @param {object} [options]
+ * @param {boolean} [options.fresh] The presentation was just created, so it
+ *   counts as never-saved and cannot have diverged from its own first version.
+ */
+export async function openPresentationInEditor(id, options = {}) {
   await touchPresentation(id);
   const loaded = await getPresentation(id);
   if (!loaded?.success || !loaded.data) return null;
   const normalized = loadPresentationIntoEditor(loaded.data);
+
+  // Set the flags BEFORE any version I/O. A brand-new presentation has to count
+  // as unsaved from the instant the editor appears — if a quit lands while the
+  // version round trips are still in flight, `resolveUnsavedChanges` sees a
+  // clean document and skips the Unsaved Changes gate entirely.
+  if (options.fresh) markPresentationFreshOpen();
+
   // First restore point for a presentation that has none. Pass the SAME
   // normalized object that went into the store — a second, independent
   // normalization would re-mint uuids for id-less content and the snapshot
@@ -102,8 +114,10 @@ export async function openPresentationInEditor(id) {
 
   // The crash story: after a crash the row holds autosaved edits while the
   // newest version holds the last deliberate save. They differ, so the document
-  // opens unsaved with Revert available — no recovery prompt needed.
-  if (await isDivergedFromLatest(normalized)) {
+  // opens unsaved with Revert available — no recovery prompt needed. A freshly
+  // created presentation is skipped: it cannot differ from the version just
+  // written from it, so the extra round trip buys nothing.
+  if (!options.fresh && (await isDivergedFromLatest(normalized))) {
     const state = useEditorStore.getState();
     state.setDirty(true);
     state.setRequiresInitialSave(false);
@@ -129,9 +143,7 @@ export async function createNewPresentation(title = 'Untitled Presentation') {
   });
 
   if (!result?.success || !result.data) return null;
-  const loaded = await openPresentationInEditor(result.data.id);
-  if (loaded) markPresentationFreshOpen();
-  return loaded;
+  return openPresentationInEditor(result.data.id, { fresh: true });
 }
 
 export async function createPresentationFromTemplate(templateId) {
@@ -193,9 +205,7 @@ export async function createPresentationFromTemplate(templateId) {
   const result = await createPresentation(payload);
   if (!result?.success || !result.data) return null;
 
-  const loaded = await openPresentationInEditor(result.data.id);
-  if (loaded) markPresentationFreshOpen();
-  return loaded;
+  return openPresentationInEditor(result.data.id, { fresh: true });
 }
 
 export async function saveCurrentPresentation() {

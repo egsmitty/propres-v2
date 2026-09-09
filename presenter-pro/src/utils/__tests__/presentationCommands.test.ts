@@ -86,6 +86,30 @@ describe('restore points across every write path', () => {
     expect(writeVersion).toHaveBeenCalledTimes(0);
   });
 
+  it('marks a new presentation unsaved BEFORE the version I/O settles', async () => {
+    // Regression (CI, 2026-09-09). The flags used to be set after
+    // openPresentationInEditor resolved, so on a slow machine a quit landing
+    // during the version round trips saw a clean document and skipped the
+    // Unsaved Changes gate entirely — losing the new presentation silently.
+    let releaseWrite: () => void = () => {};
+    vi.mocked(writeVersion).mockReturnValue(
+      new Promise((resolve) => {
+        releaseWrite = () => resolve({ success: true });
+      }) as ReturnType<typeof writeVersion>
+    );
+
+    const pending = createNewPresentation();
+    // Let the synchronous part and the pre-version awaits run, but leave
+    // writeVersion hanging — the window the race lived in.
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+
+    expect(useEditorStore.getState().requiresInitialSave).toBe(true);
+
+    releaseWrite();
+    await pending;
+    expect(useEditorStore.getState().requiresInitialSave).toBe(true);
+  });
+
   it('createNewPresentation writes EXACTLY ONE version, not two', async () => {
     await createNewPresentation();
     // It routes through openPresentationInEditor, which already captured.
