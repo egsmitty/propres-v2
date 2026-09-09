@@ -37,6 +37,12 @@ export const INVOKE_METHODS = {
   listJournals: 'db:journal:list',
   deleteJournal: 'db:journal:delete',
 
+  // Restore points (plan A5)
+  writeVersion: 'db:versions:write',
+  getLatestVersion: 'db:versions:latest',
+  listVersions: 'db:versions:list',
+  deleteVersionsFor: 'db:versions:deleteFor',
+
   // Songs
   getSongs: 'db:songs:getAll',
   createSong: 'db:songs:create',

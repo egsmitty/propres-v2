@@ -58,6 +58,23 @@ export async function deleteJournal(presentationId: Id): Promise<Envelope> {
   return api().deleteJournal(presentationId);
 }
 
+// ─── Restore points (plan A5) ────────────────────────────────────────────────
+
+export async function writeVersion(data: Fields): Promise<Envelope> {
+  return api().writeVersion(data);
+}
+export async function getLatestVersion<T = unknown>(
+  presentationId: Id
+): Promise<Envelope<T | null>> {
+  return api().getLatestVersion(presentationId) as Promise<Envelope<T | null>>;
+}
+export async function listVersions<T = unknown>(presentationId: Id): Promise<Envelope<T[]>> {
+  return api().listVersions(presentationId) as Promise<Envelope<T[]>>;
+}
+export async function deleteVersionsFor(presentationId: Id): Promise<Envelope> {
+  return api().deleteVersionsFor(presentationId);
+}
+
 // ─── Songs ───────────────────────────────────────────────────────────────────
 
 export async function getSongs<T = unknown>(): Promise<Envelope<T[]>> {

@@ -13,6 +13,7 @@ const MENUS = [
       { label: 'Open…', shortcutTokens: ['mod', 'o'], action: 'file:open' },
       { label: 'Save', shortcutTokens: ['mod', 's'], action: 'file:save' },
       { label: 'Save As…', shortcutTokens: ['mod', 'shift', 's'], action: 'file:saveAs' },
+      { label: 'Revert to Last Save', action: 'file:revert' },
       { divider: true },
       { label: 'Close', action: 'file:close' },
     ],
@@ -73,6 +74,10 @@ function MenuItem({ item, onAction, onClose }) {
 
   return (
     <button
+      // A greyed item that is still focusable and still reports itself as
+      // enabled is a keyboard/screen-reader trap (workstream E3). The click was
+      // already guarded below; this makes the DOM agree.
+      disabled={disabled}
       className={`w-full text-left flex items-center justify-between px-3 py-1.5 text-[12px] rounded-md ${disabled ? '' : 'hover:bg-bg-hover'}`}
       style={{
         color: disabled ? 'var(--text-tertiary)' : 'var(--text-primary)',
@@ -102,6 +107,8 @@ export default function MenuBar() {
 
   const filmstripVisible = useAppStore((s) => s.filmstripVisible);
   const presentation = useEditorStore((s) => s.presentation);
+  const isDirty = useEditorStore((s) => s.isDirty);
+  const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave);
   const isPresenting = usePresenterStore((s) => s.isPresenting);
   const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen);
 
@@ -138,6 +145,11 @@ export default function MenuBar() {
       }
       if (['edit:presentationSettings', 'view:outputSettings'].includes(item.action)) {
         disabled = !presentation;
+      }
+      if (item.action === 'file:revert') {
+        // Nothing to revert to until the document has been saved once, and
+        // nothing to revert while it matches its last save.
+        disabled = !presentation || !isDirty || requiresInitialSave;
       }
       if (item.action === 'present:start') disabled = disabled || isPresenting;
       if (['present:stop', 'present:black', 'present:logo'].includes(item.action)) {

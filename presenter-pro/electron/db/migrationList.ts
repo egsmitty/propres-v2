@@ -166,9 +166,35 @@ function builtInRevision(db: MigrationDb): void {
   addColumnIfMissing(db, 'songs', 'built_in_revision', 'TEXT');
 }
 
+/**
+ * Migration 5 — restore points (plan A5). One row per deliberate save, so
+ * "Revert to Last Save" has something to revert to once autosave starts
+ * writing the live row continuously. Append-only and pruned per presentation;
+ * policy in src/utils/presentationVersions.ts, queries in db/queries/versions.js.
+ *
+ * The index is on (presentation_id, id DESC) because "newest" is resolved by
+ * `id`, never by `saved_at` — unixepoch() is second-resolution and two saves in
+ * one second would tie.
+ */
+function presentationVersions(db: MigrationDb): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS presentation_versions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      presentation_id INTEGER NOT NULL,
+      snapshot TEXT NOT NULL,
+      saved_at INTEGER NOT NULL
+    );
+  `);
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_presentation_versions_lookup
+       ON presentation_versions(presentation_id, id DESC)`
+  );
+}
+
 export const MIGRATIONS: ReadonlyArray<Migration> = [
   { version: 1, name: 'baseline-schema', up: baselineSchema },
   { version: 2, name: 'presentation-journal', up: presentationJournal },
   { version: 3, name: 'claim-legacy-built-in-hymns', up: claimLegacyBuiltInHymns },
   { version: 4, name: 'built-in-revision', up: builtInRevision },
+  { version: 5, name: 'presentation-versions', up: presentationVersions },
 ];
