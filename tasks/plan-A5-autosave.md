@@ -1084,8 +1084,17 @@ Slices are separate PRs. Do not start a slice before the previous one is merged.
       autosave/version model and remove the now-false journal line — **this is
       the one CLAUDE.md edit the plan authorises.**
 
-- [ ] **17. Manual verification in a running window** (`npm run dev`) on macOS —
-      **all 5, exhaustive:**
+- [x] **17. Manual verification — MADE MECHANICAL** (`e2e/autosaveTyping.spec.ts`).
+      The charter's rule is that a finding ends in a mechanical check or it
+      regrows; a manual pass proves the app worked once, on one machine. Steps
+      1, 3 and 5 are now automated and **driven by real keyboard typing**, which
+      no other spec does — everything else dirties a document through
+      `app:command`, which exercises the store but not the path a user takes.
+      Writing them surfaced a real distinction: `data-slide-editing` means the
+      box is SELECTED, not that a caret exists; the contentEditable only mounts
+      on a double-click, so typing before `data-slide-text-editor` appears goes
+      nowhere. Steps 2 and 4 were already covered by `revert.spec.ts` and
+      `autosave.spec.ts`. The original click-paths, for reference:
       1. Open a presentation, type into a slide, wait 3s, `kill -9` the app,
          relaunch, reopen → the typing is there and the document reads unsaved.
       2. `⌘S`, then File ▸ Revert to Last Save → the item is greyed out.
