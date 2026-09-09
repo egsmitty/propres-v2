@@ -111,3 +111,8 @@ block to the token definitions.
 
 Proof: gate green (315 tests); **0 differing pixels on all 52 captures**;
 then CI at its own baselines.
+
+- **2026-09-09, Ethan's decision on finding 2:** the hero card's 18px
+  padding was the intent. `px-4.5 / pb-4.5` are back and now paint; Home's
+  baselines were recaptured on the runner for it (a deliberate visual
+  change, the first since E2 began).
