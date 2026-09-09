@@ -993,3 +993,17 @@ You answered the open list; here is what each became.
 6. Roving tabindex: on hold, listed under E3 follow-ups.
 7. `data-text-editing` renamed to `data-slide-editing` (what it means).
 8. The menu bar closes on Escape.
+
+### 2026-09-09 — Handoff document
+
+`tasks/HANDOFF-2026-09-09.md` is the single file a fresh session should
+read first: where the repo lives now, your standing rules, the charter
+status with verified numbers, how the screenshot net works and how to
+recapture baselines, the conventions the code follows after the Tailwind 4
+and React 19 upgrades, the recipes for landing a PR, and the traps that
+cost time. It replaces having to reconstruct context from the notes.
+
+Also corrected in it: the counts drifted while the decisions were being
+applied. On `main` today it is 308 unit tests in 41 files, 17 E2E spec
+files (30 test cases), 52 baselines, 173 inline style props and 5
+mouse-enter handlers — the last two dropped when FormattingToolbar went.
