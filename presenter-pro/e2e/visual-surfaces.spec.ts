@@ -39,7 +39,7 @@ test.describe('visual baseline — surfaces', () => {
     // Into the editor.
     await row.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('[data-text-editing]')).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.locator('[data-slide-editing]')).toHaveCount(1, { timeout: 15_000 });
     await showPresenterPanel(page);
     await page.waitForTimeout(800);
 

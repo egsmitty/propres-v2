@@ -111,8 +111,15 @@ export default function MenuBar() {
         setOpenMenu(null);
       }
     }
+    function handleEscape(e) {
+      if (e.key === 'Escape') setOpenMenu(null);
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   async function handleAction(action) {

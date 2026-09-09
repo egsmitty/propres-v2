@@ -20,7 +20,7 @@ test.describe('visual baseline — media library states', () => {
     const row = page.getByRole('button', { name: /Sunday Morning Service/ }).first();
     await row.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('[data-text-editing]')).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.locator('[data-slide-editing]')).toHaveCount(1, { timeout: 15_000 });
     await showPresenterPanel(page);
 
     // Seed through the same door the app uses; the panel loads on open.

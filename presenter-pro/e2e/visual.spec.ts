@@ -30,7 +30,7 @@ test.describe('visual baseline', () => {
     const row = page.getByRole('button', { name: /Sunday Morning Service/ }).first();
     await row.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('[data-text-editing]')).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.locator('[data-slide-editing]')).toHaveCount(1, { timeout: 15_000 });
     await showPresenterPanel(page);
     await page.waitForTimeout(1_000);
     await expect(page).toHaveScreenshot('editor.png', { fullPage: false, ...STRICT });
