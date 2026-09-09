@@ -6,17 +6,22 @@ import {
   expect,
   launchApp,
   closeApp,
-  crashApp,
   dismissTutorialIfPresent,
   type LaunchedApp,
 } from './fixtures/launchApp';
 
-// Plan A2: the crash-recovery journal, end to end against the built app. The
-// crash is a real SIGKILL of the main process; the journal is inspected from
-// outside with the sqlite3 CLI; the document is dirtied through the same
-// `app:command` channel the native menu uses, so no canvas typing is needed.
+// Plan A5 slice 3. The crash-recovery journal's WRITER is gone: autosave puts
+// edits into the real record within seconds, and every autosave bumps
+// `presentations.updated_at`, which would make `selectRecoverable` call every
+// journal row stale before it was ever read. A shadow copy that can never fire
+// is worse than none.
+//
+// What remains is the drain: a journal left in a profile by a pre-autosave
+// build is still offered once, then removed. These specs prove both halves —
+// nothing is written, and a pre-existing row still works.
 
-const JOURNAL_SETTLE_MS = 3_500; // > JOURNAL_DEBOUNCE_MS (2s) with margin
+const CREATED_TITLE = 'Untitled Presentation';
+const AUTOSAVE_SETTLE_MS = 3_500;
 
 function dbPathIn(userDataDir: string): string {
   return path.join(userDataDir, 'presenterpro.db');
@@ -27,6 +32,10 @@ function query<T = Record<string, unknown>>(dbFile: string, sql: string): T[] {
   return out ? (JSON.parse(out) as T[]) : [];
 }
 
+function exec(dbFile: string, sql: string): void {
+  execFileSync('sqlite3', [dbFile, sql], { encoding: 'utf8' });
+}
+
 function journalRows(dir: string) {
   return query<{ presentation_id: number }>(
     dbPathIn(dir),
@@ -34,34 +43,19 @@ function journalRows(dir: string) {
   );
 }
 
-/**
- * Slide count of the presentation the spec created. A fresh profile also holds
- * the sample presentation main's seed() inserts, so select by the title
- * createNewPresentation assigns rather than assuming a single row.
- */
-const CREATED_TITLE = 'Untitled Presentation';
-function slideCountOfCreatedPresentation(dir: string): number {
-  const rows = query<{ sections: string }>(
+function createdPresentation(dir: string): { id: number; updated_at: number; sections: string } {
+  const rows = query<{ id: number; updated_at: number; sections: string }>(
     dbPathIn(dir),
-    `SELECT sections FROM presentations WHERE title = '${CREATED_TITLE}'`
+    `SELECT id, updated_at, sections FROM presentations WHERE title = '${CREATED_TITLE}'`
   );
   expect(rows).toHaveLength(1);
-  const sections = JSON.parse(rows[0]!.sections) as Array<{ slides: unknown[] }>;
-  return sections.reduce((n, s) => n + s.slides.length, 0);
+  return rows[0]!;
 }
 
 async function sendAppCommand(launched: LaunchedApp, command: string): Promise<void> {
   await launched.app.evaluate(({ BrowserWindow }, cmd) => {
     BrowserWindow.getAllWindows()[0]?.webContents.send('app:command', cmd);
   }, command);
-}
-
-/** Open a blank presentation and add a slide, so the document is dirty. */
-async function makeDirtyPresentation(launched: LaunchedApp): Promise<void> {
-  await dismissTutorialIfPresent(launched.window);
-  await launched.window.getByRole('button', { name: /blank presentation/i }).click();
-  await sendAppCommand(launched, 'insert:newSlide');
-  await launched.window.waitForTimeout(JOURNAL_SETTLE_MS);
 }
 
 function recoveryDialog(window: Page) {
@@ -72,15 +66,53 @@ function recoveryDialog(window: Page) {
     .last();
 }
 
-test.describe('crash recovery', () => {
-  test('crash then Recover restores the unsaved edit', async () => {
+test.describe('crash recovery journal', () => {
+  test('editing writes no journal row — the writer is gone', async () => {
+    const app = await launchApp();
+    const dir = app.userDataDir;
+    try {
+      await dismissTutorialIfPresent(app.window);
+      await app.window.getByRole('button', { name: /blank presentation/i }).click();
+      await sendAppCommand(app, 'file:save');
+      await app.window.waitForTimeout(1_000);
+
+      await sendAppCommand(app, 'insert:newSlide');
+      await app.window.waitForTimeout(AUTOSAVE_SETTLE_MS);
+
+      // The edit is safe in the record instead.
+      expect(journalRows(dir)).toEqual([]);
+      const sections = JSON.parse(createdPresentation(dir).sections) as Array<{
+        slides: unknown[];
+      }>;
+      expect(sections.reduce((n, s) => n + s.slides.length, 0)).toBe(2);
+    } finally {
+      await closeApp(app);
+    }
+  });
+
+  test('a journal left by an older build is still offered and recovered', async () => {
+    // Launch once to create a presentation, then seed a journal row against it
+    // exactly as a pre-autosave build would have left one.
     const first = await launchApp();
     const dir = first.userDataDir;
-    await makeDirtyPresentation(first);
-    expect(journalRows(dir)).toHaveLength(1);
-    expect(slideCountOfCreatedPresentation(dir)).toBe(1); // nothing saved yet
+    await dismissTutorialIfPresent(first.window);
+    await first.window.getByRole('button', { name: /blank presentation/i }).click();
+    await sendAppCommand(first, 'file:save');
+    await first.window.waitForTimeout(1_000);
+    const row = createdPresentation(dir);
+    // keepUserData: closeApp deletes the throwaway profile by default, and the
+    // next launch has to reuse this one to find the seeded journal.
+    await closeApp(first, { keepUserData: true });
 
-    await crashApp(first);
+    const recovered = JSON.parse(row.sections) as Array<{ slides: unknown[] }>;
+    recovered[0]!.slides.push({ ...(recovered[0]!.slides[0] as object), id: 'recovered-slide' });
+    const snapshot = JSON.stringify({ id: row.id, title: CREATED_TITLE, sections: recovered });
+    exec(
+      dbPathIn(dir),
+      `INSERT INTO presentation_journal (presentation_id, snapshot, saved_at, base_updated_at)
+       VALUES (${row.id}, '${snapshot.replace(/'/g, "''")}', unixepoch(), ${row.updated_at})`
+    );
+    expect(journalRows(dir)).toHaveLength(1);
 
     const second = await launchApp({ userDataDir: dir });
     try {
@@ -91,23 +123,32 @@ test.describe('crash recovery', () => {
 
       await dialog.getByRole('button', { name: 'Recover', exact: true }).click();
       await expect(dialog).toBeHidden();
-      // Recovered work is unsaved: the journal must survive until a save.
-      expect(journalRows(dir)).toHaveLength(1);
-
-      await sendAppCommand(second, 'file:save');
-      await second.window.waitForTimeout(1_000);
-      expect(journalRows(dir)).toEqual([]);
-      expect(slideCountOfCreatedPresentation(dir)).toBe(2);
+      // Recovered work is unsaved, so autosave commits it to the record.
+      await second.window.waitForTimeout(AUTOSAVE_SETTLE_MS);
+      const after = JSON.parse(createdPresentation(dir).sections) as Array<{ slides: unknown[] }>;
+      expect(after.reduce((n, s) => n + s.slides.length, 0)).toBe(2);
     } finally {
       await closeApp(second);
     }
   });
 
-  test('crash then Discard drops the journal and leaves the saved record alone', async () => {
+  test('Discard drops a legacy journal and leaves the record alone', async () => {
     const first = await launchApp();
     const dir = first.userDataDir;
-    await makeDirtyPresentation(first);
-    await crashApp(first);
+    await dismissTutorialIfPresent(first.window);
+    await first.window.getByRole('button', { name: /blank presentation/i }).click();
+    await sendAppCommand(first, 'file:save');
+    await first.window.waitForTimeout(1_000);
+    const row = createdPresentation(dir);
+    // keepUserData: closeApp deletes the throwaway profile by default, and the
+    // next launch has to reuse this one to find the seeded journal.
+    await closeApp(first, { keepUserData: true });
+
+    exec(
+      dbPathIn(dir),
+      `INSERT INTO presentation_journal (presentation_id, snapshot, saved_at, base_updated_at)
+       VALUES (${row.id}, '{"id":${row.id},"sections":[]}', unixepoch(), ${row.updated_at})`
+    );
 
     const second = await launchApp({ userDataDir: dir });
     try {
@@ -115,28 +156,10 @@ test.describe('crash recovery', () => {
       await expect(dialog).toBeVisible();
       await dialog.getByRole('button', { name: 'Discard', exact: true }).click();
       await expect(dialog).toBeHidden();
+
       expect(journalRows(dir)).toEqual([]);
-      expect(slideCountOfCreatedPresentation(dir)).toBe(1);
-    } finally {
-      await closeApp(second);
-    }
-  });
-
-  test('a clean save leaves no journal and no prompt on the next launch', async () => {
-    const first = await launchApp();
-    const dir = first.userDataDir;
-    await makeDirtyPresentation(first);
-    expect(journalRows(dir)).toHaveLength(1);
-
-    await sendAppCommand(first, 'file:save');
-    await first.window.waitForTimeout(1_000);
-    expect(journalRows(dir)).toEqual([]);
-    await closeApp(first, { keepUserData: true });
-
-    const second = await launchApp({ userDataDir: dir });
-    try {
-      await second.window.waitForTimeout(2_000);
-      await expect(recoveryDialog(second.window)).toHaveCount(0);
+      const after = JSON.parse(createdPresentation(dir).sections) as Array<{ slides: unknown[] }>;
+      expect(after.reduce((n, s) => n + s.slides.length, 0)).toBe(1);
     } finally {
       await closeApp(second);
     }

@@ -26,6 +26,7 @@ import { alertDialog, confirmDialog, promptDialog } from '@/utils/dialog';
 import {
   captureVersion,
   ensureVersion,
+  isDivergedFromLatest,
   revertToLatestVersion,
 } from '@/utils/presentationVersionsSync';
 import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
@@ -98,6 +99,15 @@ export async function openPresentationInEditor(id) {
   // normalization would re-mint uuids for id-less content and the snapshot
   // would never match the live document again (plan A5, pitfall 2).
   await ensureVersion(normalized);
+
+  // The crash story: after a crash the row holds autosaved edits while the
+  // newest version holds the last deliberate save. They differ, so the document
+  // opens unsaved with Revert available — no recovery prompt needed.
+  if (await isDivergedFromLatest(normalized)) {
+    const state = useEditorStore.getState();
+    state.setDirty(true);
+    state.setRequiresInitialSave(false);
+  }
   return normalized;
 }
 

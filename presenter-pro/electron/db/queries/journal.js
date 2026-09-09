@@ -1,20 +1,8 @@
-// Crash-recovery journal: one snapshot row per presentation while it has
-// unsaved edits (see src/utils/recoveryJournal.ts for the policy). Table is
-// created by migration 2.
-
-function writeJournal(db, { presentationId, snapshot, baseUpdatedAt }) {
-  db.prepare(
-    `
-    INSERT INTO presentation_journal (presentation_id, snapshot, saved_at, base_updated_at)
-    VALUES (?, ?, unixepoch(), ?)
-    ON CONFLICT(presentation_id) DO UPDATE SET
-      snapshot = excluded.snapshot,
-      saved_at = excluded.saved_at,
-      base_updated_at = excluded.base_updated_at
-  `
-  ).run(presentationId, snapshot, baseUpdatedAt ?? null);
-  return { presentationId };
-}
+// Crash-recovery journal (migration 2). NOTHING WRITES THESE ANY MORE — plan
+// A5 slice 3 removed the writer, because autosave puts edits in the real record
+// and every autosave bumps `presentations.updated_at`, which would make every
+// journal row stale before it was ever read. These two readers remain to drain
+// rows left by a pre-autosave build.
 
 function listJournals(db) {
   return db
@@ -29,4 +17,4 @@ function deleteJournal(db, presentationId) {
   return { presentationId };
 }
 
-module.exports = { writeJournal, listJournals, deleteJournal };
+module.exports = { listJournals, deleteJournal };

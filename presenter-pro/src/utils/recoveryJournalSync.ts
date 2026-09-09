@@ -1,31 +1,22 @@
 import { useEditorStore } from '@/store/editorStore';
-import { deleteJournal, getPresentations, listJournals, writeJournal } from '@/utils/ipc';
+import { deleteJournal, getPresentations, listJournals } from '@/utils/ipc';
 import { showDialog } from '@/utils/dialog';
 import { loadPresentationIntoEditor } from '@/utils/presentationCommands';
-import {
-  nextWriteDelayMs,
-  selectRecoverable,
-  type JournalRow,
-  type PresentationRow,
-} from '@/utils/recoveryJournal';
+import { selectRecoverable, type JournalRow, type PresentationRow } from '@/utils/recoveryJournal';
 
 /**
  * Crash-recovery journal — the wiring.
  *
- * `startRecoveryJournalSync` subscribes to the editor store and journals the
- * in-memory presentation while it is dirty. `offerRecoveryOnStartup` checks
- * for journals on launch and asks the user what to do with each recoverable
- * one. Every collaborator is injectable so the unit tests use fakes; the
- * defaults wire the real modules. Runs in the main window only (see App.jsx).
+ * NOTHING WRITES JOURNALS ANY MORE (plan A5 slice 3). Autosave puts edits into
+ * the real record within seconds, so a shadow copy is redundant — and would be
+ * broken anyway, since every autosave bumps `presentations.updated_at` and
+ * `selectRecoverable` would then call every row stale before reading it.
  *
- * Save keeps its meaning: nothing here writes to the `presentations` table.
+ * `offerRecoveryOnStartup` remains to drain journals written by a pre-autosave
+ * build. Once no profile has any rows left, this module and the
+ * `presentation_journal` table can go. Every collaborator is injectable so the
+ * unit tests use fakes; the defaults wire the real modules. Main window only.
  */
-
-/**
- * Presentation ids never journaled. Every entry REQUIRES a justifying comment
- * and must be reported. Do not add entries to make something pass.
- */
-export const JOURNAL_EXEMPT_PRESENTATION_IDS: ReadonlyArray<number> = [];
 
 interface Envelope<T> {
   success?: boolean;
@@ -43,11 +34,6 @@ interface DialogAction {
 
 export interface SyncDeps {
   store: typeof useEditorStore;
-  writeJournal: (data: {
-    presentationId: number;
-    snapshot: string;
-    baseUpdatedAt: number | null;
-  }) => Promise<unknown>;
   deleteJournal: (presentationId: number) => Promise<unknown>;
   listJournals: () => Promise<Envelope<JournalRow[]> | null | undefined>;
   getPresentations: () => Promise<Envelope<PresentationRow[]> | null | undefined>;
@@ -57,94 +43,16 @@ export interface SyncDeps {
     actions: DialogAction[];
   }) => Promise<{ action?: string } | null | undefined>;
   loadPresentationIntoEditor: (presentation: unknown) => void;
-  now: () => number;
 }
 
 function defaultDeps(): SyncDeps {
   return {
     store: useEditorStore,
-    writeJournal,
     deleteJournal,
     listJournals,
     getPresentations,
     showDialog,
     loadPresentationIntoEditor,
-    now: () => Date.now(),
-  };
-}
-
-type EditorState = ReturnType<typeof useEditorStore.getState>;
-
-function baseUpdatedAtOf(presentation: unknown): number | null {
-  const value = (presentation as { updated_at?: unknown } | null)?.updated_at;
-  return typeof value === 'number' ? value : null;
-}
-
-/**
- * Journal the presentation while it is dirty. Returns a stop function that
- * cancels any pending write and unsubscribes.
- */
-export function startRecoveryJournalSync(deps: SyncDeps = defaultDeps()): () => void {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let lastWriteAt: number | null = null;
-
-  const cancel = () => {
-    if (timer !== null) {
-      clearTimeout(timer);
-      timer = null;
-    }
-  };
-
-  const flush = async () => {
-    timer = null;
-    const state = deps.store.getState();
-    const id = state.presentationId;
-    if (!state.isDirty || !state.presentation || id === null || id === undefined) return;
-    if (JOURNAL_EXEMPT_PRESENTATION_IDS.includes(id)) return;
-    lastWriteAt = deps.now();
-    await deps.writeJournal({
-      presentationId: id,
-      snapshot: JSON.stringify(state.presentation),
-      baseUpdatedAt: baseUpdatedAtOf(state.presentation),
-    });
-  };
-
-  const schedule = () => {
-    cancel();
-    const now = deps.now();
-    const delay = nextWriteDelayMs({ now, lastChangeAt: now, lastWriteAt });
-    timer = setTimeout(() => {
-      void flush();
-    }, delay);
-  };
-
-  const unsubscribe = deps.store.subscribe((state: EditorState, prev: EditorState) => {
-    if (state.presentationId !== prev.presentationId) {
-      // A different document: any pending write belonged to the old one.
-      cancel();
-      lastWriteAt = null;
-    }
-
-    if (prev.isDirty && !state.isDirty) {
-      // Saved or discarded: the journal is no longer needed either way.
-      cancel();
-      const id = prev.presentationId;
-      if (id !== null && id !== undefined) void deps.deleteJournal(id);
-      return;
-    }
-
-    if (
-      state.isDirty &&
-      state.presentation &&
-      (!prev.isDirty || state.presentation !== prev.presentation)
-    ) {
-      schedule();
-    }
-  });
-
-  return () => {
-    cancel();
-    unsubscribe();
   };
 }
 

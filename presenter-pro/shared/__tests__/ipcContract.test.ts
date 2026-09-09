@@ -22,10 +22,10 @@ function duplicates(values: string[]): string[] {
 }
 
 describe('IPC contract tables', () => {
-  it('has the measured surface: 53 invoke, 1 send, 12 event methods', () => {
+  it('has the measured surface: 52 invoke, 1 send, 12 event methods', () => {
     // Exact counts, not floors: a channel added or removed must be a deliberate
     // edit here, in the same PR as its handler and wrapper.
-    expect(Object.keys(INVOKE_METHODS)).toHaveLength(53);
+    expect(Object.keys(INVOKE_METHODS)).toHaveLength(52);
     expect(Object.keys(SEND_METHODS)).toHaveLength(1);
     expect(Object.keys(EVENT_METHODS)).toHaveLength(12);
   });

@@ -4,8 +4,14 @@
  * While a presentation has unsaved edits, the app keeps a journal snapshot in
  * SQLite (`presentation_journal`, migration 2). After a crash, the next launch
  * offers to recover it. This module decides *which* journals may be offered
- * and *when* the next journal write should happen. No I/O, no store — the
- * wiring lives in `recoveryJournalSync.ts`.
+ * be offered. No I/O, no store — the wiring lives in `recoveryJournalSync.ts`.
+ *
+ * NOTHING WRITES JOURNALS ANY MORE (plan A5 slice 3). Autosave puts edits in
+ * the real record within seconds, which makes a shadow copy redundant — and
+ * actively broken: every autosave sets `presentations.updated_at`, so a journal
+ * row's `base_updated_at` never matches again and `selectRecoverable` would
+ * call every row stale before it was ever read. What remains here drains rows
+ * written by a pre-autosave build; it can go once no profile has any.
  */
 
 export interface JournalRow {
@@ -29,11 +35,6 @@ export interface RecoverySelection {
   recoverable: Array<{ journal: JournalRow; presentation: PresentationRow }>;
   stale: Array<{ journal: JournalRow; reason: StaleReason }>;
 }
-
-/** Trailing debounce after the last change. */
-export const JOURNAL_DEBOUNCE_MS = 2_000;
-/** Upper bound between writes while changes keep coming, so continuous editing still journals. */
-export const JOURNAL_MAX_WAIT_MS = 10_000;
 
 /**
  * Partition journals into those that may be offered for recovery and those
@@ -62,21 +63,4 @@ export function selectRecoverable(
     }
   }
   return selection;
-}
-
-/**
- * Milliseconds until the next journal write: the debounce measured from the
- * last change, capped so no more than `JOURNAL_MAX_WAIT_MS` passes since the
- * last write while edits continue. Zero means write now.
- */
-export function nextWriteDelayMs(input: {
-  now: number;
-  lastChangeAt: number;
-  lastWriteAt: number | null;
-}): number {
-  const { now, lastChangeAt, lastWriteAt } = input;
-  const debounceRemaining = Math.max(0, lastChangeAt + JOURNAL_DEBOUNCE_MS - now);
-  if (lastWriteAt === null) return debounceRemaining;
-  const maxWaitRemaining = Math.max(0, lastWriteAt + JOURNAL_MAX_WAIT_MS - now);
-  return Math.min(debounceRemaining, maxWaitRemaining);
 }

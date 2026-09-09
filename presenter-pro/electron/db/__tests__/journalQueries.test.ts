@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { writeJournal, listJournals, deleteJournal } from '../queries/journal';
+import { listJournals, deleteJournal } from '../queries/journal';
 
 // Query module for the crash-recovery journal, tested against a fake that
 // records every prepared statement and its parameters. better-sqlite3 is never
@@ -34,23 +34,6 @@ function createFakeDb(rows: unknown[] = []) {
 }
 
 describe('journal queries', () => {
-  it('writeJournal upserts on presentation_id with the exact parameters', () => {
-    const { db, log } = createFakeDb();
-    writeJournal(db, { presentationId: 41, snapshot: '{"id":41}', baseUpdatedAt: 1234 });
-
-    expect(log).toHaveLength(1);
-    const [call] = log;
-    expect(call!.sql).toContain('INSERT INTO presentation_journal');
-    expect(call!.sql).toContain('ON CONFLICT(presentation_id) DO UPDATE');
-    expect(call!.params).toEqual([41, '{"id":41}', 1234]);
-  });
-
-  it('writeJournal stores null when there is no base timestamp', () => {
-    const { db, log } = createFakeDb();
-    writeJournal(db, { presentationId: 41, snapshot: '{}', baseUpdatedAt: undefined });
-    expect(log[0]!.params).toEqual([41, '{}', null]);
-  });
-
   it('listJournals returns every row with the columns the policy needs', () => {
     const rows = [{ presentation_id: 1, snapshot: '{}', saved_at: 9, base_updated_at: 8 }];
     const { db, log } = createFakeDb(rows);

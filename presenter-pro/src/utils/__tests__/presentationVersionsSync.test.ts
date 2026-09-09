@@ -7,9 +7,11 @@ vi.mock('@/utils/ipc', () => ({
   updatePresentation: vi.fn(),
 }));
 vi.mock('@/utils/dialog', () => ({ alertDialog: vi.fn() }));
+vi.mock('@/utils/autosaveSync', () => ({ cancelPendingAutosave: vi.fn() }));
 
 import { getLatestVersion, updatePresentation, writeVersion } from '@/utils/ipc';
 import { alertDialog } from '@/utils/dialog';
+import { cancelPendingAutosave } from '@/utils/autosaveSync';
 import { useEditorStore } from '@/store/editorStore';
 import {
   VERSION_EXEMPT_PRESENTATION_IDS,
@@ -119,6 +121,25 @@ describe('revertToLatestVersion', () => {
     expect(vi.mocked(updatePresentation).mock.calls).toEqual([[7, STORED]]);
     expect(useEditorStore.getState().presentation?.title).toBe('Last Saved');
     expect(useEditorStore.getState().isDirty).toBe(false);
+  });
+
+  it('cancels the pending autosave BEFORE reading anything', async () => {
+    const order: string[] = [];
+    vi.mocked(cancelPendingAutosave).mockImplementation(() => void order.push('cancel'));
+    vi.mocked(getLatestVersion).mockImplementation(async () => {
+      order.push('read');
+      return {
+        success: true,
+        data: { id: 3, presentation_id: 7, snapshot: snapshotOf(STORED), saved_at: 1 },
+      };
+    });
+
+    await revertToLatestVersion(7);
+
+    // Every step below the cancel yields. A debounced autosave firing mid-revert
+    // would issue its write AFTER the revert's and leave the reverted-away
+    // edits in the row, while the editor showed the reverted document.
+    expect(order[0]).toBe('cancel');
   });
 
   it('never appends a version — reverting is not a save', async () => {

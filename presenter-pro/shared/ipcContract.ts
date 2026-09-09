@@ -32,8 +32,8 @@ export const INVOKE_METHODS = {
   touchPresentation: 'db:presentations:touch',
   deletePresentation: 'db:presentations:delete',
 
-  // Crash-recovery journal (plan A2)
-  writeJournal: 'db:journal:write',
+  // Crash-recovery journal (plan A2). The writer is gone (plan A5 slice 3);
+  // these two remain to drain journals left by a pre-autosave build.
   listJournals: 'db:journal:list',
   deleteJournal: 'db:journal:delete',
 
