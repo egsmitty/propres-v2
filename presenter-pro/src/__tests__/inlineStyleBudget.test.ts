@@ -15,7 +15,6 @@ const SRC = join(__dirname, '..');
 
 /** Ceiling per file, relative to src/. Files not listed have a ceiling of 0. */
 const BUDGET: Record<string, number> = {
-  'components/editor/FormattingToolbar.jsx': 24,
   'components/layout/Toolbar.jsx': 23,
   'components/presenter/PresenterPanel.jsx': 23,
   'components/editor/Canvas.jsx': 19,
@@ -63,11 +62,9 @@ function countInlineStyles(file: string): number {
  * Plan E4b. Mouse-enter handlers that paint a hover look belong in `hover:`
  * classes; the ones left are the two that set React state, the collapsed
  * slivers (no capture reaches them the same way on every machine), a divider
- * that must stay highlighted while dragging, and the unreachable
- * FormattingToolbar. Ceiling 0 everywhere else.
+ * that must stay highlighted while dragging. Ceiling 0 everywhere else.
  */
 const HOVER_HANDLER_BUDGET: Record<string, number> = {
-  'components/editor/FormattingToolbar.jsx': 5,
   'components/presenter/PresenterPanel.jsx': 2,
   'components/layout/MenuBar.jsx': 1,
   'pages/Editor.jsx': 1,
