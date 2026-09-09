@@ -26,6 +26,7 @@ import {
   insertNewSlideIntoCurrentPresentation,
   insertNewSectionIntoCurrentPresentation,
   pasteSlideAfterSelected,
+  revertCurrentPresentationToLastSave,
   saveCurrentPresentation,
   saveCurrentPresentationAs,
 } from '@/utils/presentationCommands';
@@ -48,6 +49,8 @@ export async function runAppCommand(command) {
       return saveCurrentPresentation();
     case 'file:saveAs':
       return saveCurrentPresentationAs();
+    case 'file:revert':
+      return revertCurrentPresentationToLastSave();
     case 'file:close': {
       const canClose = await resolveUnsavedChanges({
         presentation: editorState.presentation,

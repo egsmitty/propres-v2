@@ -120,7 +120,7 @@ async function expectNoFatalStderr(launched: LaunchedApp): Promise<void> {
 }
 
 test.describe('database migrations', () => {
-  test('fresh install: creates the schema and records exactly migrations 1 through 4', async ({
+  test('fresh install: creates the schema and records exactly migrations 1 through 5', async ({
     launched,
   }) => {
     await expectNoFatalStderr(launched);
@@ -131,6 +131,7 @@ test.describe('database migrations', () => {
       { version: 2, name: 'presentation-journal' },
       { version: 3, name: 'claim-legacy-built-in-hymns' },
       { version: 4, name: 'built-in-revision' },
+      { version: 5, name: 'presentation-versions' },
     ]);
     // All six application tables exist, by exact name (presentation_journal
     // arrived with migration 2 — a behaviour-change edit to this expectation).
@@ -143,6 +144,7 @@ test.describe('database migrations', () => {
       'media',
       'media_folders',
       'presentation_journal',
+      'presentation_versions',
       'presentations',
       'settings',
       'songs',
@@ -156,12 +158,13 @@ test.describe('database migrations', () => {
       const dir = launched.userDataDir;
       const db = dbPathIn(dir);
 
-      // Recorded as versions 1 through 4 without a baseline special case.
+      // Recorded as versions 1 through 5 without a baseline special case.
       expect(query(db, 'SELECT version, name FROM schema_migrations')).toEqual([
         { version: 1, name: 'baseline-schema' },
         { version: 2, name: 'presentation-journal' },
         { version: 3, name: 'claim-legacy-built-in-hymns' },
         { version: 4, name: 'built-in-revision' },
+        { version: 5, name: 'presentation-versions' },
       ]);
 
       // The missing table was created and every missing column added by
@@ -230,6 +233,7 @@ test.describe('database migrations', () => {
         { version: 2 },
         { version: 3 },
         { version: 4 },
+        { version: 5 },
       ]);
       // Still exactly the one backup from the first launch.
       expect(listBackups(dir)).toHaveLength(1);

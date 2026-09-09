@@ -95,8 +95,20 @@ function touchPresentation(db, id) {
   return getPresentation(db, id);
 }
 
+// Deleting a presentation takes its dependents with it, in one transaction.
+// The versions half is required by plan A5 (an append-only table that is never
+// cleaned is a slow disk leak); the journal half closes a pre-existing orphan
+// leak that A2 left for `selectRecoverable` to notice at some later launch.
 function deletePresentation(db, id) {
-  db.prepare('DELETE FROM presentations WHERE id = ?').run(id);
+  const deletePresentationRow = db.prepare('DELETE FROM presentations WHERE id = ?');
+  const deleteVersions = db.prepare('DELETE FROM presentation_versions WHERE presentation_id = ?');
+  const deleteJournal = db.prepare('DELETE FROM presentation_journal WHERE presentation_id = ?');
+
+  db.transaction(() => {
+    deleteVersions.run(id);
+    deleteJournal.run(id);
+    deletePresentationRow.run(id);
+  })();
 }
 
 function parse(row) {

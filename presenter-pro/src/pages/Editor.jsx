@@ -21,9 +21,9 @@ import {
   onSlideAdvance,
   sendBlack,
   sendLogo,
-  updatePresentation,
 } from '@/utils/ipc';
 import { deleteSelectedSlideFromCurrentPresentation } from '@/utils/presentationCommands';
+import { saveFromEditor } from '@/pages/editorSave';
 import {
   startSidebarPresentationSession,
   stopPresentationSession,
@@ -187,8 +187,6 @@ export default function Editor() {
   const presentation = useEditorStore((s) => s.presentation);
   const isDirty = useEditorStore((s) => s.isDirty);
   const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave);
-  const setDirty = useEditorStore((s) => s.setDirty);
-  const setRequiresInitialSave = useEditorStore((s) => s.setRequiresInitialSave);
   const editingSlideId = useEditorStore((s) => s.editingSlideId);
   const panelOpen = songLibraryOpen || mediaLibraryOpen || newSongEditorOpen;
 
@@ -303,17 +301,9 @@ export default function Editor() {
   ]);
 
   async function handleSave() {
-    if (!presentation || (!isDirty && !requiresInitialSave)) return;
-    const result = await updatePresentation(presentation.id, presentation);
-    if (result?.success) {
-      setDirty(false);
-      setRequiresInitialSave(false);
-      return;
-    }
-
-    await alertDialog(result?.error || 'Failed to save your presentation.', {
-      title: 'Save Failed',
-    });
+    // Delegates to saveCurrentPresentation so Cmd-S in the canvas captures a
+    // restore point like every other save path (plan A5, fact 9).
+    await saveFromEditor({ presentation, isDirty, requiresInitialSave });
   }
 
   async function handlePresent() {

@@ -43,13 +43,15 @@ export default defineConfig({
       // they are raised as tests are added. Never set an aspirational number
       // here; a threshold that fails on day one gets deleted rather than met.
       //
-      // Measured 2026-09-06 after plan E1: 15.36/13.05/14.55/16.17 (previously after A3:
-      //   statements 5.99% · branches 4.46% · functions 5.41% · lines 6.33%
+      // Measured 2026-09-09 after plan A5 slice 1: 20.11/17.96/18.87/21.14.
+      // (After E1: 15.36/13.05/14.55/16.17; after A3: 5.99/4.46/5.41/6.33.)
+      // Note the ratchet had drifted ~2 points stale before this slice — the
+      // suite already measured 17.55/15.45/17.28/18.39 on the previous commit.
       thresholds: {
-        statements: 15.2,
-        branches: 12.9,
-        functions: 14.4,
-        lines: 16.0,
+        statements: 20.0,
+        branches: 17.8,
+        functions: 18.7,
+        lines: 21.0,
       },
     },
   },

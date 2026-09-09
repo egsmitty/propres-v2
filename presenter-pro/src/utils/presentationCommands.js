@@ -22,7 +22,12 @@ import {
   promptForSectionSetup,
 } from '@/utils/sectionTypes';
 import { DEFAULT_PLACEHOLDER_TEXT } from '@/utils/textBoxes';
-import { confirmDialog, promptDialog } from '@/utils/dialog';
+import { alertDialog, confirmDialog, promptDialog } from '@/utils/dialog';
+import {
+  captureVersion,
+  ensureVersion,
+  revertToLatestVersion,
+} from '@/utils/presentationVersionsSync';
 import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
 
 function selectFirstSlide(presentation) {
@@ -87,7 +92,13 @@ export async function openPresentationInEditor(id) {
   await touchPresentation(id);
   const loaded = await getPresentation(id);
   if (!loaded?.success || !loaded.data) return null;
-  return loadPresentationIntoEditor(loaded.data);
+  const normalized = loadPresentationIntoEditor(loaded.data);
+  // First restore point for a presentation that has none. Pass the SAME
+  // normalized object that went into the store — a second, independent
+  // normalization would re-mint uuids for id-less content and the snapshot
+  // would never match the live document again (plan A5, pitfall 2).
+  await ensureVersion(normalized);
+  return normalized;
 }
 
 function markPresentationFreshOpen() {
@@ -184,12 +195,38 @@ export async function saveCurrentPresentation() {
 
   const result = await updatePresentation(presentation.id, presentation);
   if (result?.success && result.data) {
-    loadPresentationIntoEditor(result.data);
+    const normalized = loadPresentationIntoEditor(result.data);
+    // Save is the commit: it is what moves the restore point forward.
+    await captureVersion(normalized);
   } else if (result?.success) {
     state.setDirty(false);
     state.setRequiresInitialSave(false);
   }
   return result;
+}
+
+/**
+ * Throw away every change since the last save (plan A5).
+ *
+ * The native File menu has no enable/disable plumbing, so this must fail out
+ * loud rather than silently returning — otherwise the same command behaves
+ * differently depending on which menu bar the user reaches for.
+ */
+export async function revertCurrentPresentationToLastSave() {
+  const state = useEditorStore.getState();
+  if (!state.presentation) return false;
+  if (!state.isDirty || state.requiresInitialSave) {
+    await alertDialog('There are no changes to revert.', { title: 'Revert to Last Save' });
+    return false;
+  }
+
+  const ok = await confirmDialog(
+    'Your changes since the last save will be lost. This cannot be undone.',
+    { title: 'Revert to Last Save', confirmLabel: 'Revert', danger: true }
+  );
+  if (!ok) return false;
+
+  return revertToLatestVersion(state.presentation.id);
 }
 
 export async function saveCurrentPresentationAs() {
@@ -244,11 +281,15 @@ export async function insertNewSlideIntoCurrentPresentation() {
     state.editingSlideId === state.selectedSlideId && Boolean(state.selectedSlideId);
   const preservedTextBoxIds = preserveCurrentEditing ? [...(state.selectedTextBoxIds || [])] : [];
 
+  // setPresentation resets both flags unless told otherwise; an ordinary edit
+  // must not silently turn a never-saved presentation into a saved one, or
+  // Discard picks the wrong (destructive) branch.
   state.setPresentation(
     normalizePresentation({
       ...presentation,
       sections: inserted.sections,
-    })
+    }),
+    { isDirty: true, requiresInitialSave: state.requiresInitialSave }
   );
   state.setDirty(true);
   if (preserveCurrentEditing) {
@@ -464,10 +505,15 @@ export async function renamePresentationById(id, currentTitle) {
   const loaded = await getPresentation(id);
   if (!loaded?.success || !loaded.data) return loaded;
 
-  return updatePresentation(id, {
+  const result = await updatePresentation(id, {
     ...loaded.data,
     title,
   });
+  // Renaming from Home writes the row without touching the editor store. With
+  // no version captured, the row would diverge from its newest restore point
+  // and the presentation would open dirty forever (plan A5, fact 10).
+  if (result?.success && result.data) await captureVersion(normalizePresentation(result.data));
+  return result;
 }
 
 export async function deletePresentationById(id, title) {

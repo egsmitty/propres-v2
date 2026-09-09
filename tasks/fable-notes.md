@@ -1007,3 +1007,65 @@ Also corrected in it: the counts drifted while the decisions were being
 applied. On `main` today it is 308 unit tests in 41 files, 17 E2E spec
 files (30 test cases), 52 baselines, 173 inline style props and 5
 mouse-enter handlers — the last two dropped when FormattingToolbar went.
+
+### 2026-09-09 — A5 planned, and what the diagnostics found
+
+`tasks/plan-A5-autosave.md`. Autosave was the one item on your own 2026-09-06
+decision list that never shipped: you asked for "autosave AND a recovery
+journal" and only the journal was built. `grep -rni autosave src electron
+shared` returns 0, and `recoveryJournalSync.ts:22` says it in the code —
+"Save keeps its meaning: nothing here writes to the `presentations` table."
+The charter still calls this the largest product risk in the project.
+
+The plan answers the consequence you were warned about on day one — that
+autosave kills "discard my changes" — with **revert-to-last-save** rather than
+version history: a `presentation_baseline` table holding the last *manual*
+save, `File ▸ Revert to Last Save`, and a Discard that actually reverts the row
+instead of pretending to. Three slices, three PRs, Revert proven before
+autosave can create the state that needs it.
+
+**The finding that needs your eye: autosave and the A2 journal cannot both
+run.** `selectRecoverable` calls a journal stale when its `base_updated_at` no
+longer matches `presentations.updated_at`; every autosave sets
+`updated_at = unixepoch()`. So every journal row would be stale before it was
+ever read, and `offerRecoveryOnStartup` would silently delete it —
+`presentation_journal` becomes a write-only table, a safety net that looks
+alive and can never fire. Slice 3 therefore removes the journal's *writer*
+(9 symbols) and keeps the table, `selectRecoverable` and the startup offer, so
+rows written by the current build on your real profile still drain. Nothing is
+dropped and no migration is destructive. If you would rather keep the journal
+writing, say so — but then autosave should not land, because the two designs
+contradict each other.
+
+**Held Dependabot majors, re-checked today (all four still genuinely blocked):**
+vite 8 — electron-vite 5.0.0 still peers `^5 || ^6 || ^7`; @vitejs/plugin-react
+6.1.1 peers vite `^8`, so it waits on the same thing; typescript 7 —
+typescript-eslint 8.70.0 peers typescript `>=4.8.4 <6.1.0`. **One correction to
+the record:** typescript-eslint's *eslint* peer has widened to
+`^8.57 || ^9 || ^10`, so it is no longer part of the eslint 10 hold. The sole
+remaining blocker for eslint 10 is eslint-plugin-react 7.37.5 (`... || ^9.7`).
+
+**The coverage ratchet is stale by about two points.** Measured today:
+17.55 / 15.45 / 17.28 / 18.39 against thresholds of 15.2 / 12.9 / 14.4 / 16.0.
+It only ever moves up, so it should be raised whether or not A5 starts.
+
+**Workstream F is still properly blocked, and the numbers say why.** The six
+decomposition targets measure: `Canvas.jsx` 0 %, `Toolbar.jsx` 0 %,
+`electron/main/index.js` 0 %, `Filmstrip.jsx` 0 %, `Home.jsx` 0 %,
+`SongEditorModal.jsx` 31.7 %. Also at 0 %: `presentationCommands.js`,
+`unsavedChanges.js`, `dialog.js` — three core paths A5 will be the first to
+cover. F needs a characterization-test workstream in front of it, not a
+decomposition plan.
+
+**The `sectionTypes` collision is smaller than it looks.** `SECTION_TYPES`
+(verse/chorus/bridge — song parts) and `SECTION_TYPE_META`
+(song/announcement/sermon — presentation sections) between them touch only
+three files: `sectionTypes.js`, `SongEditorModal.jsx` and the existing test.
+A rename is a contained, standalone piece of work that does not wait on F.
+
+**`CLAUDE.md` is stale in three places, all verified:** the
+`Inter-Variable.woff2` warning under Known Issues (no reference to that font
+remains in the source), the claim that `presenterWindow` is commented out in
+`main.js` for rollback (`grep presenterWindow electron/main/index.js` → 0; S1
+deleted it), and "In Progress: Phase 6". Plan A5 todo 16 fixes the journal line
+in Architectural Decisions; the other three want a small docs PR.

@@ -52,7 +52,10 @@ export default function TitleBar() {
   function commitRename() {
     const title = renameVal.trim() || presentation.title;
     if (title !== presentation.title) {
-      setPresentation({ ...presentation, title });
+      // setPresentation resets both flags unless told otherwise; renaming must
+      // not silently turn a never-saved presentation into a saved one, or
+      // Discard picks the wrong (destructive) branch (plan A5, fact 11).
+      setPresentation({ ...presentation, title }, { isDirty: true, requiresInitialSave });
       setDirty(true);
     }
     setRenaming(false);

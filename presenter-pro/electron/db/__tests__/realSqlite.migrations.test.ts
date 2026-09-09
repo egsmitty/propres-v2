@@ -63,9 +63,9 @@ function run() {
 }
 
 describe('migration runner on the legacy schema (real SQLite)', () => {
-  it('applies exactly 1–4, records them, and adds every column the legacy schema lacks', () => {
+  it('applies exactly 1–5, records them, and adds every column the legacy schema lacks', () => {
     const result = run();
-    expect(result.applied).toEqual([1, 2, 3, 4]);
+    expect(result.applied).toEqual([1, 2, 3, 4, 5]);
     expect(
       db.prepare('SELECT version, name FROM schema_migrations ORDER BY version').all()
     ).toEqual([
@@ -73,6 +73,7 @@ describe('migration runner on the legacy schema (real SQLite)', () => {
       { version: 2, name: 'presentation-journal' },
       { version: 3, name: 'claim-legacy-built-in-hymns' },
       { version: 4, name: 'built-in-revision' },
+      { version: 5, name: 'presentation-versions' },
     ]);
     for (const [table, column] of COLUMNS_LEGACY_LACKS) {
       expect(columnsOf(db, table), `${table}.${column}`).toContain(column);
@@ -81,6 +82,7 @@ describe('migration runner on the legacy schema (real SQLite)', () => {
       'media',
       'media_folders',
       'presentation_journal',
+      'presentation_versions',
       'presentations',
       'schema_migrations',
       'settings',
@@ -126,6 +128,6 @@ describe('migration runner on the legacy schema (real SQLite)', () => {
     const second = run();
     expect(second).toEqual({ applied: [], backupPath: null });
     expect(readdirSync(dir)).toEqual(before);
-    expect(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()).toEqual({ n: 4 });
+    expect(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()).toEqual({ n: 5 });
   });
 });

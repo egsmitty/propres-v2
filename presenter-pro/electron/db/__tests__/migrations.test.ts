@@ -45,8 +45,8 @@ function createFakeDb() {
 const migrations = MIGRATIONS as Migration[];
 
 describe('MIGRATIONS list', () => {
-  it('is exactly versions 1, 2, 3, 4 and well-formed', () => {
-    expect(migrations.map((m) => m.version)).toEqual([1, 2, 3, 4]);
+  it('is exactly versions 1, 2, 3, 4, 5 and well-formed', () => {
+    expect(migrations.map((m) => m.version)).toEqual([1, 2, 3, 4, 5]);
     expect(() => assertMigrationsWellFormed(migrations)).not.toThrow();
   });
 

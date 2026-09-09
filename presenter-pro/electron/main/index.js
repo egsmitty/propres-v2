@@ -20,6 +20,7 @@ const songQueries = require('../db/queries/songs');
 const presentationQueries = require('../db/queries/presentations');
 const mediaQueries = require('../db/queries/media');
 const journalQueries = require('../db/queries/journal');
+const versionQueries = require('../db/queries/versions');
 
 const isDev = !app.isPackaged;
 
@@ -1003,6 +1004,34 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
+  ipc.handle('db:versions:write', (_, data) => {
+    try {
+      return { success: true, data: versionQueries.writeVersion(db, data) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+  ipc.handle('db:versions:latest', (_, presentationId) => {
+    try {
+      return { success: true, data: versionQueries.getLatestVersion(db, presentationId) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+  ipc.handle('db:versions:list', (_, presentationId) => {
+    try {
+      return { success: true, data: versionQueries.listVersions(db, presentationId) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+  ipc.handle('db:versions:deleteFor', (_, presentationId) => {
+    try {
+      return { success: true, data: versionQueries.deleteVersionsFor(db, presentationId) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
   ipc.handle('db:presentations:touch', (_, id) => {
     try {
       return { success: true, data: presentationQueries.touchPresentation(db, id) };
@@ -1428,6 +1457,11 @@ function buildNativeMenu() {
           accelerator: 'CmdOrCtrl+Shift+S',
           click: () => sendCommand('file:saveAs'),
         },
+        // No accelerator: Pages and Keynote give Revert none either, and an
+        // unbid shortcut for a destructive action is a hazard. This app has no
+        // menu-state plumbing, so the item is always enabled and the renderer
+        // command alerts when there is nothing to revert.
+        { label: 'Revert to Last Save', click: () => sendCommand('file:revert') },
         { type: 'separator' },
         { label: 'Close', accelerator: 'CmdOrCtrl+W', click: () => sendCommand('file:close') },
       ],

@@ -68,6 +68,7 @@ export default defineConfig({
           'db/queries/presentations': resolve(__dirname, 'electron/db/queries/presentations.js'),
           'db/queries/media': resolve(__dirname, 'electron/db/queries/media.js'),
           'db/queries/journal': resolve(__dirname, 'electron/db/queries/journal.js'),
+          'db/queries/versions': resolve(__dirname, 'electron/db/queries/versions.js'),
         },
         output: {
           entryFileNames: '[name].js',
