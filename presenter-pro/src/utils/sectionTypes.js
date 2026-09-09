@@ -2,7 +2,7 @@ import { SECTION_COLORS } from '@/utils/backgrounds';
 
 // ── Song slide section types ──────────────────────────────────────────────────
 
-export const SECTION_TYPES = [
+export const SONG_PART_TYPES = [
   { id: 'verse', label: 'Verse', abbr: 'V', color: '#2563eb' },
   { id: 'chorus', label: 'Chorus', abbr: 'C', color: '#16a34a' },
   { id: 'bridge', label: 'Bridge', abbr: 'B', color: '#9333ea' },
@@ -15,8 +15,8 @@ export const SECTION_TYPES = [
   { id: 'custom', label: 'Custom', abbr: '?', color: '#0891b2' },
 ];
 
-export function getSectionType(id) {
-  return SECTION_TYPES.find((t) => t.id === id) || SECTION_TYPES[0];
+export function getSongPart(id) {
+  return SONG_PART_TYPES.find((t) => t.id === id) || SONG_PART_TYPES[0];
 }
 
 function hexToHsl(hex) {
@@ -62,8 +62,8 @@ function hexToRgb(hex) {
   };
 }
 
-export function getSectionColor(id, occurrence = 1) {
-  const baseColor = getSectionType(id).color;
+export function getSongPartColor(id, occurrence = 1) {
+  const baseColor = getSongPart(id).color;
   const { h, s, l } = hexToHsl(baseColor);
   const shadeIndex = Math.max(0, Number(occurrence || 1) - 1);
   const nextLightness = Math.max(20, l - shadeIndex * 5);
