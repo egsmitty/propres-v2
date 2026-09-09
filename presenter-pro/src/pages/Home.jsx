@@ -825,7 +825,7 @@ function TemplatePreview({ visual, blank, variant }) {
       <div
         className={
           isHero
-            ? 'rounded-[22px] h-full pt-4 flex flex-col shadow-[0_10px_24px_rgba(17,25,40,0.12)]'
+            ? 'rounded-[22px] h-full px-4.5 pt-4 pb-4.5 flex flex-col shadow-[0_10px_24px_rgba(17,25,40,0.12)]'
             : 'rounded-[18px] h-full px-3.5 pt-3.5 pb-3.5 flex flex-col shadow-[0_10px_24px_rgba(17,25,40,0.12)]'
         }
         style={{
