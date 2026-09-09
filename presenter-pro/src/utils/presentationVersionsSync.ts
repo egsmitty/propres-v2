@@ -3,7 +3,12 @@ import { useEditorStore } from '@/store/editorStore';
 import { normalizePresentation } from '@/utils/backgrounds';
 import { alertDialog } from '@/utils/dialog';
 import { getLatestVersion, updatePresentation, writeVersion } from '@/utils/ipc';
-import { hasDiverged, presentationContentKey } from '@/utils/presentationVersions';
+import {
+  VERSION_EXEMPT_PRESENTATION_IDS,
+  hasDiverged,
+  presentationContentKey,
+} from '@/utils/presentationVersions';
+import { cancelPendingAutosave } from '@/utils/autosaveSync';
 
 /**
  * Restore-point wiring (plan A5).
@@ -17,13 +22,6 @@ import { hasDiverged, presentationContentKey } from '@/utils/presentationVersion
  * be real. It also needs a no-navigate mode, which that helper cannot offer.
  * The store update below is therefore written out.
  */
-
-/**
- * Presentation ids for which no version is ever captured. Every entry REQUIRES
- * a justifying comment and must be reported. Do not add entries to make
- * something pass.
- */
-export const VERSION_EXEMPT_PRESENTATION_IDS: ReadonlyArray<number> = [];
 
 type Presentation = Record<string, unknown>;
 
@@ -128,6 +126,12 @@ export async function revertToLatestVersion(
 ): Promise<boolean> {
   const { navigate = true } = options;
 
+  // FIRST, before any await. Every step below yields, and a debounced autosave
+  // firing mid-revert would issue its write after this one and leave the
+  // reverted-away edits in the row while the editor showed the reverted
+  // document and the pill read "Saved".
+  cancelPendingAutosave();
+
   const row = await latestRow(id, deps);
   if (!row) {
     await deps.alertDialog('There is no saved version to revert to.', {
@@ -188,4 +192,4 @@ export async function isDivergedFromLatest(
 }
 
 /** Re-exported so callers need only one import for the restore-point concept. */
-export { presentationContentKey };
+export { VERSION_EXEMPT_PRESENTATION_IDS, presentationContentKey };

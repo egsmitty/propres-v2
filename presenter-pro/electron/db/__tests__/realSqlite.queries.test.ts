@@ -223,13 +223,20 @@ describe('media and folders', () => {
   });
 });
 
-describe('presentation journal', () => {
-  const write = (fields: Row) =>
-    (journal.writeJournal as unknown as (db: RealDb, f: Row) => unknown)(db, fields);
+describe('presentation journal (legacy rows only)', () => {
+  // Plan A5 slice 3 removed `writeJournal`, so rows are seeded with raw SQL —
+  // which is exactly the state these readers now exist for: journals left in a
+  // profile by a pre-autosave build, drained once on the next launch.
+  const seed = (presentationId: number, snapshot: string, baseUpdatedAt: number | null = null) =>
+    db
+      .prepare(
+        `INSERT INTO presentation_journal (presentation_id, snapshot, saved_at, base_updated_at)
+         VALUES (?, ?, unixepoch(), ?)`
+      )
+      .run(presentationId, snapshot, baseUpdatedAt);
 
-  it('writeJournal upserts: a second write for the same presentation replaces, never duplicates', () => {
-    write({ presentationId: 7, snapshot: '{"v":1}', baseUpdatedAt: 100 });
-    write({ presentationId: 7, snapshot: '{"v":2}', baseUpdatedAt: 200 });
+  it('lists every seeded row with the columns the policy needs', () => {
+    seed(7, '{"v":2}', 200);
     const rows = journal.listJournals(db) as Row[];
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -240,9 +247,9 @@ describe('presentation journal', () => {
     expect(rows[0]!.saved_at as number).toBeGreaterThan(0);
   });
 
-  it('keeps one row per presentation and lists them all', () => {
-    write({ presentationId: 1, snapshot: 'a' });
-    write({ presentationId: 2, snapshot: 'b' });
+  it('lists rows for several presentations, with a null base timestamp preserved', () => {
+    seed(1, 'a');
+    seed(2, 'b');
     expect((journal.listJournals(db) as Row[]).map((r) => r.presentation_id).sort()).toEqual([
       1, 2,
     ]);
@@ -252,8 +259,8 @@ describe('presentation journal', () => {
   });
 
   it('deleteJournal removes only that presentation’s row', () => {
-    write({ presentationId: 1, snapshot: 'a' });
-    write({ presentationId: 2, snapshot: 'b' });
+    seed(1, 'a');
+    seed(2, 'b');
     journal.deleteJournal(db, 1);
     expect((journal.listJournals(db) as Row[]).map((r) => r.presentation_id)).toEqual([2]);
   });

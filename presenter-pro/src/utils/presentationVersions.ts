@@ -37,6 +37,16 @@ const SNAKE_CASE_ALIASES: Record<(typeof CONTENT_FIELDS)[number], string> = {
   customAspectHeight: 'custom_aspect_height',
 };
 
+/**
+ * Presentation ids that are never versioned and never autosaved. Every entry
+ * REQUIRES a justifying comment and must be reported. Do not add entries to
+ * make something pass.
+ *
+ * Lives in this (pure) module so `autosaveSync` and `presentationVersionsSync`
+ * can both read it without importing each other.
+ */
+export const VERSION_EXEMPT_PRESENTATION_IDS: ReadonlyArray<number> = [];
+
 type Fields = Record<string, unknown>;
 
 function read(source: Fields, field: (typeof CONTENT_FIELDS)[number]): unknown {

@@ -1,15 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useEditorStore } from '@/store/editorStore';
-import {
-  startRecoveryJournalSync,
-  offerRecoveryOnStartup,
-  JOURNAL_EXEMPT_PRESENTATION_IDS,
-  type SyncDeps,
-} from '@/utils/recoveryJournalSync';
-import { JOURNAL_DEBOUNCE_MS } from '@/utils/recoveryJournal';
+import { offerRecoveryOnStartup, type SyncDeps } from '@/utils/recoveryJournalSync';
 
-// The wiring between the editor store and the journal. Timers are faked and
-// every collaborator is injected, so nothing here touches IPC or a dialog.
+// The startup drain for journals left by a pre-autosave build. The writer was
+// removed in plan A5 slice 3 — autosave puts edits in the real record — so the
+// cases that covered it went with it. Every collaborator is injected, so
+// nothing here touches IPC or a dialog.
 
 const INITIAL_STATE = useEditorStore.getState();
 
@@ -24,7 +20,6 @@ const presentationFixture = () => ({
 });
 
 function makeDeps(overrides: Partial<SyncDeps> = {}): SyncDeps & {
-  writeJournal: ReturnType<typeof vi.fn>;
   deleteJournal: ReturnType<typeof vi.fn>;
   listJournals: ReturnType<typeof vi.fn>;
   getPresentations: ReturnType<typeof vi.fn>;
@@ -33,7 +28,6 @@ function makeDeps(overrides: Partial<SyncDeps> = {}): SyncDeps & {
 } {
   const deps = {
     store: useEditorStore,
-    writeJournal: vi.fn(async () => ({ success: true, data: { presentationId: 41 } })),
     deleteJournal: vi.fn(async () => ({ success: true, data: { presentationId: 41 } })),
     listJournals: vi.fn(async () => ({ success: true, data: [] })),
     getPresentations: vi.fn(async () => ({ success: true, data: [] })),
@@ -56,64 +50,6 @@ afterEach(() => {
   stop?.();
   stop = null;
   vi.useRealTimers();
-});
-
-describe('startRecoveryJournalSync', () => {
-  it('writes nothing while the store is clean', async () => {
-    const deps = makeDeps();
-    stop = startRecoveryJournalSync(deps);
-    useEditorStore.getState().setPresentation(presentationFixture());
-
-    await vi.advanceTimersByTimeAsync(JOURNAL_DEBOUNCE_MS * 5);
-    expect(deps.writeJournal).not.toHaveBeenCalled();
-  });
-
-  it('writes exactly one journal after the debounce, with the exact payload', async () => {
-    const deps = makeDeps();
-    stop = startRecoveryJournalSync(deps);
-    useEditorStore.getState().setPresentation(presentationFixture());
-    useEditorStore.getState().updateSlideBody('sec-1', 'sl-1', 'edited');
-
-    await vi.advanceTimersByTimeAsync(JOURNAL_DEBOUNCE_MS - 1);
-    expect(deps.writeJournal).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1);
-
-    expect(deps.writeJournal).toHaveBeenCalledTimes(1);
-    expect(deps.writeJournal).toHaveBeenCalledWith({
-      presentationId: 41,
-      snapshot: JSON.stringify(useEditorStore.getState().presentation),
-      baseUpdatedAt: 1_700_000_000,
-    });
-  });
-
-  it('coalesces rapid changes into a single write', async () => {
-    const deps = makeDeps();
-    stop = startRecoveryJournalSync(deps);
-    useEditorStore.getState().setPresentation(presentationFixture());
-
-    for (const body of ['a', 'ab', 'abc']) {
-      useEditorStore.getState().updateSlideBody('sec-1', 'sl-1', body);
-      await vi.advanceTimersByTimeAsync(500);
-    }
-    await vi.advanceTimersByTimeAsync(JOURNAL_DEBOUNCE_MS);
-
-    expect(deps.writeJournal).toHaveBeenCalledTimes(1);
-  });
-
-  it('cancels a pending write and deletes the journal when the document becomes clean', async () => {
-    const deps = makeDeps();
-    stop = startRecoveryJournalSync(deps);
-    useEditorStore.getState().setPresentation(presentationFixture());
-    useEditorStore.getState().updateSlideBody('sec-1', 'sl-1', 'edited');
-    await vi.advanceTimersByTimeAsync(500);
-
-    useEditorStore.getState().setDirty(false); // save or discard
-
-    await vi.advanceTimersByTimeAsync(JOURNAL_DEBOUNCE_MS * 5);
-    expect(deps.writeJournal).not.toHaveBeenCalled();
-    expect(deps.deleteJournal).toHaveBeenCalledTimes(1);
-    expect(deps.deleteJournal).toHaveBeenCalledWith(41);
-  });
 });
 
 describe('offerRecoveryOnStartup', () => {
@@ -179,11 +115,5 @@ describe('offerRecoveryOnStartup', () => {
     expect(useEditorStore.getState().isDirty).toBe(true);
     expect(useEditorStore.getState().requiresInitialSave).toBe(false);
     expect(recover.deleteJournal).not.toHaveBeenCalled();
-  });
-});
-
-describe('escape hatch', () => {
-  it('has no exempt presentation ids', () => {
-    expect(JOURNAL_EXEMPT_PRESENTATION_IDS).toEqual([]);
   });
 });

@@ -10,7 +10,8 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import ShortcutsOverlay from '@/components/shared/ShortcutsOverlay';
 import OnboardingTutorial from '@/components/shared/OnboardingTutorial';
 import DialogHost from '@/components/shared/Dialog';
-import { offerRecoveryOnStartup, startRecoveryJournalSync } from '@/utils/recoveryJournalSync';
+import { offerRecoveryOnStartup } from '@/utils/recoveryJournalSync';
+import { startAutosave } from '@/utils/autosaveSync';
 import { runAppCommand } from '@/utils/appCommands';
 import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
 import { getSettings, onAppCommand, setSetting } from '@/utils/ipc';
@@ -33,16 +34,21 @@ export default function App() {
     });
   }, []);
 
-  // Crash-recovery journal (plan A2): main window only. Journal unsaved edits
-  // while the document is dirty, and offer recovery of any journal left by a
-  // previous session. Output/stage windows never edit, so never journal.
+  // Drain any journal left by a pre-autosave build (plan A5 slice 3). Nothing
+  // writes journals any more — autosave puts edits in the real record — so this
+  // finds nothing on a profile that has already been drained once.
   React.useEffect(() => {
     if (isOutputWindow || isStageDisplayWindow) return;
-    const stop = startRecoveryJournalSync();
     offerRecoveryOnStartup().catch((error) => {
       console.error('[recovery] failed to check for unsaved work:', error);
     });
-    return stop;
+  }, []);
+
+  // Autosave (plan A5): main window only. The output and stage windows never
+  // edit, and three processes writing the same row would race.
+  React.useEffect(() => {
+    if (isOutputWindow || isStageDisplayWindow) return;
+    return startAutosave();
   }, []);
 
   React.useEffect(() => {

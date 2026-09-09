@@ -983,13 +983,6 @@ function registerIpcHandlers() {
   });
 
   // Crash-recovery journal (plan A2). Same envelope as every other handler.
-  ipc.handle('db:journal:write', (_, data) => {
-    try {
-      return { success: true, data: journalQueries.writeJournal(db, data) };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  });
   ipc.handle('db:journal:list', () => {
     try {
       return { success: true, data: journalQueries.listJournals(db) };

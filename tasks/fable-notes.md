@@ -1069,3 +1069,75 @@ remains in the source), the claim that `presenterWindow` is commented out in
 `main.js` for rollback (`grep presenterWindow electron/main/index.js` → 0; S1
 deleted it), and "In Progress: Phase 6". Plan A5 todo 16 fixes the journal line
 in Architectural Decisions; the other three want a small docs PR.
+
+### 2026-09-09 — A5 shipped: autosave, restore points, and the journal's writer retired
+
+Three slices, two PRs. **#94** (slice 1) added migration 5's append-only
+`presentation_versions` table and `File ▸ Revert to Last Save`; the second PR
+carried slices 2 and 3 together — autosave, the honest Discard, and the removal
+of the crash-recovery journal's writer.
+
+**Slices 2 and 3 could not be separated, and the reason is worth recording.**
+The plan argued on paper that autosave and the A2 journal cannot coexist:
+autosave sets `presentations.updated_at` on every write, `selectRecoverable`
+calls a journal stale when its `base_updated_at` no longer matches, so every
+journal row would be stale before it was ever read. Running slice 2 on its own
+turned two `e2e/recovery.spec.ts` specs red — the same fact, observed rather
+than reasoned. A slice-2-only commit would have left `main` red, so they
+merged as one PR. The table, the migration and `offerRecoveryOnStartup` are all
+untouched; only the writer is gone, and the startup drain still handles rows
+left by a pre-autosave build.
+
+**The independent review was worth far more than it cost.** Two fresh agents
+audited the plan before a line was written. Between them they found four
+blockers, and every one was real when I checked it against the code:
+
+1. The autosave subscription condition I wrote (`presentation changed && isDirty`)
+   **never fires** for the two most common edits. `insertNewSlideIntoCurrentPresentation`
+   and `TitleBar.commitRename` both call `setPresentation` (which sets
+   `isDirty: false`) and *then* `setDirty(true)`, so the two halves arrive in
+   separate Zustand notifications and neither satisfies both. A2's journal got
+   this right with a disjunction; my plan copied the shape and turned it into an
+   AND. There is now a named unit case for exactly this sequence.
+2. `Editor.jsx:305` was a **seventh save path** — its own `handleSave` writing
+   the row directly, bound to in-canvas `⌘S` and `<Canvas onSave>`. It would
+   have cleared the dirty flag without capturing a restore point.
+3. `revertToLatestVersion` had no envelope guard: a failed write would have
+   passed `undefined` through `normalizePresentation` into `setPresentation`
+   and **blanked the open document** with no error.
+4. Autosave failing silently, with slice 3 removing the only loud failure path.
+   It now retries, alerts after three consecutive failures, and stops entirely
+   when the row has been deleted underneath it.
+
+Also caught: migration 5 breaks four *existing* test files that were in no
+blast-radius table; `realSqlite.queries.test.ts` seeds journal rows through
+`writeJournal`; and my "prove the baselines did not move" step could not
+possibly do that, because `playwright.config.ts` sends non-CI runs to the
+gitignored `.local-snapshots/`.
+
+**Four pre-existing bugs surfaced and fixed**, each with a test first:
+`setPresentation` silently clearing `requiresInitialSave` (so Discard picked
+the wrong destructive branch); `MenuItem` greying disabled items without ever
+setting the HTML `disabled` attribute, leaving every one focusable and
+announced as enabled; `deletePresentation` cascading to nothing; and the
+duplicate save path above.
+
+**On the local visual proof.** `tutorial.png` drifted ~4,300 px on the laptop —
+and a base-vs-base control run reproduced it at 4,252 px, so it is the same
+local template-card nondeterminism the handoff already records, not a real
+change. CI agreed: all 52 baselines unmoved on #94. Treat a local strict
+compare as a tool, and always run the control before believing a diff.
+
+**Numbers:** 308 → 378 unit tests (slice 3 deleted tests for deleted code, so
+the count fell from 388); 30 → 35 E2E cases; coverage ratchet 15.2/12.9/14.4/16.0
+→ 21.0/18.7/19.0/22.2. The ratchet was set once at the end state rather than at
+slice 2's higher intermediate, because slice 3 removed well-tested code along
+with it — it still rises on every axis against where `main` was.
+
+**Ten findings recorded and NOT fixed**, in the plan's "Findings for Ethan"
+section. The two you may care about most: **song editing has no autosave and no
+journal at all** (`SongEditorModal` keeps its own dirty flag over the separate
+`songs` table) — it deserves its own plan; and **`default_background_id` is
+dead**, hard-nulled by `normalizePresentation` on every path, which is the real
+cause of the `CLAUDE.md` known issue about older rows. Decide whether to drop
+the column or stop nulling it.

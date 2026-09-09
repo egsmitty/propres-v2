@@ -48,9 +48,6 @@ export async function deletePresentation(id: Id): Promise<Envelope> {
 
 // ─── Crash-recovery journal (plan A2) ────────────────────────────────────────
 
-export async function writeJournal(data: Fields): Promise<Envelope> {
-  return api().writeJournal(data);
-}
 export async function listJournals<T = unknown>(): Promise<Envelope<T[]>> {
   return api().listJournals() as Promise<Envelope<T[]>>;
 }

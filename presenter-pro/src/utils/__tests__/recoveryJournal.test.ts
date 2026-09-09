@@ -1,15 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import {
-  selectRecoverable,
-  nextWriteDelayMs,
-  JOURNAL_DEBOUNCE_MS,
-  JOURNAL_MAX_WAIT_MS,
-  type JournalRow,
-  type PresentationRow,
-} from '@/utils/recoveryJournal';
+import { selectRecoverable, type JournalRow, type PresentationRow } from '@/utils/recoveryJournal';
 
-// Pure policy for the crash-recovery journal. Which journals may be offered,
-// and when the next journal write should happen. No I/O, no store.
+// Pure policy for the crash-recovery journal: which journals may be offered.
+// Nothing writes journals any more (plan A5 slice 3), so the write-timing
+// policy and its cases went with the writer.
 
 const journal = (presentation_id: number, base_updated_at: number | null): JournalRow => ({
   presentation_id,
@@ -68,24 +62,5 @@ describe('selectRecoverable', () => {
       { journal: missing, reason: 'presentation-missing' },
       { journal: saved, reason: 'saved-since' },
     ]);
-  });
-});
-
-describe('nextWriteDelayMs', () => {
-  it('waits the full debounce after the first change when nothing was ever written', () => {
-    expect(nextWriteDelayMs({ now: 10_000, lastChangeAt: 10_000, lastWriteAt: null })).toBe(
-      JOURNAL_DEBOUNCE_MS
-    );
-  });
-
-  it('caps the wait so continuous editing still journals within the max wait', () => {
-    // Last write 9s ago: the debounce would wait 2s, but the max wait allows only 1s more.
-    expect(nextWriteDelayMs({ now: 19_000, lastChangeAt: 19_000, lastWriteAt: 10_000 })).toBe(
-      JOURNAL_MAX_WAIT_MS - 9_000
-    );
-  });
-
-  it('writes immediately once the max wait has elapsed', () => {
-    expect(nextWriteDelayMs({ now: 25_000, lastChangeAt: 25_000, lastWriteAt: 10_000 })).toBe(0);
   });
 });
