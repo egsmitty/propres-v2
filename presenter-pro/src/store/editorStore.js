@@ -92,6 +92,26 @@ export const useEditorStore = create((set) => ({
       past: [],
       future: [],
     }),
+  // The document was just persisted. Replace the canonical copy WITHOUT
+  // disturbing where the user is: selection, text-box selection, inline editing
+  // and undo history all survive, because nothing about the document changed —
+  // it was only written to disk.
+  //
+  // This is NOT setPresentation. That one means "load a different document" and
+  // resets everything, which on save sent the user back to slide 1 and threw
+  // away their undo stack. Cmd-S is a routine gesture under autosave, so that
+  // was the difference between a save and an interruption.
+  //
+  // Replacing the object is still correct: selection is by id, and ids survive
+  // the round trip through SQLite, so the in-memory copy and the newest version
+  // snapshot cannot drift apart.
+  syncSavedPresentation: (presentation) =>
+    set({
+      presentation: normalizePresentation(presentation),
+      isDirty: false,
+      requiresInitialSave: false,
+    }),
+
   // Selecting a slide also decides whether to enter text editing (plan D2
   // slice 4): an empty single-box slide is edited at once unless the caller
   // passes { suppressAutoEdit: true } (a slide that was just inserted).

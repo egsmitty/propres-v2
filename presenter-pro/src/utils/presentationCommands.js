@@ -215,9 +215,13 @@ export async function saveCurrentPresentation() {
 
   const result = await updatePresentation(presentation.id, presentation);
   if (result?.success && result.data) {
-    const normalized = loadPresentationIntoEditor(result.data);
-    // Save is the commit: it is what moves the restore point forward.
-    await captureVersion(normalized);
+    // Deliberately NOT loadPresentationIntoEditor: that resets the selection to
+    // the first slide and clears undo history, which is fine when opening a
+    // document and wrong when saving the one you are working in.
+    state.syncSavedPresentation(result.data);
+    // Save is the commit: it is what moves the restore point forward. The
+    // snapshot is taken from the same normalized value the store now holds.
+    await captureVersion(useEditorStore.getState().presentation);
   } else if (result?.success) {
     state.setDirty(false);
     state.setRequiresInitialSave(false);

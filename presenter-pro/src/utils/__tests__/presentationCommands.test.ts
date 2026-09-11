@@ -32,6 +32,7 @@ import {
   writeVersion,
 } from '@/utils/ipc';
 import { confirmDialog, alertDialog } from '@/utils/dialog';
+import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
 import {
   createNewPresentation,
@@ -160,6 +161,63 @@ describe('restore points across every write path', () => {
     // Reflexive Cmd-S must not append: 25 of them would prune away every real
     // restore point.
     expect(writeVersion).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('saving keeps you where you are', () => {
+  it('does not move the selection to the first slide', async () => {
+    const multi = {
+      ...ROW,
+      sections: [
+        {
+          id: 'sec-1',
+          type: 'announcement',
+          title: 'Slides',
+          slides: [
+            { id: 's1', body: 'one' },
+            { id: 's2', body: 'two' },
+            { id: 's3', body: 'three' },
+          ],
+        },
+      ],
+    };
+    vi.mocked(updatePresentation).mockResolvedValue({ success: true, data: multi });
+    useEditorStore.setState({
+      presentation: multi,
+      presentationId: 7,
+      selectedSectionId: 'sec-1',
+      selectedSlideId: 's3',
+      isDirty: true,
+    });
+
+    await saveCurrentPresentation();
+
+    // Cmd-S is a routine gesture under autosave; jumping the user back to slide
+    // 1 on every save is the difference between a save and an interruption.
+    expect(useEditorStore.getState().selectedSlideId).toBe('s3');
+    expect(useEditorStore.getState().selectedSectionId).toBe('sec-1');
+    expect(useEditorStore.getState().isDirty).toBe(false);
+  });
+
+  it('does not clear undo history', async () => {
+    useEditorStore.setState({
+      presentation: ROW,
+      presentationId: 7,
+      isDirty: true,
+      past: [{ presentation: { ...ROW, title: 'Before' } }],
+    });
+
+    await saveCurrentPresentation();
+
+    // Saving is not a new document. Every comparable editor lets you undo
+    // across a save.
+    expect(useEditorStore.getState().past).toHaveLength(1);
+  });
+
+  it('still leaves the view in the editor', async () => {
+    useEditorStore.setState({ presentation: ROW, presentationId: 7, isDirty: true });
+    await saveCurrentPresentation();
+    expect(useAppStore.getState().currentView).toBe('editor');
   });
 });
 
