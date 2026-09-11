@@ -592,14 +592,21 @@ function HomeLibrary({
           </button>
         </div>
 
-        <div className="flex flex-nowrap gap-5 overflow-x-auto pb-2 [scrollbar-width:thin]">
-          <div className="flex-[0_0_clamp(260px,calc((100%_-_48px)_/_4),360px)]">
+        {/* `overflow-x-auto` forces overflow-y to `auto` as well, which clips the
+            cards' 34-38px drop shadow. The padding gives the shadow room and the
+            negative margin cancels it, so spacing is unchanged. Each wrapper is
+            a flex container so its card STRETCHES to the row height — the blank
+            card is deliberately taller than the templates, and without this it
+            is the only one that sticks out. `NewLibrary` gets both for free by
+            using a grid. */}
+        <div className="flex flex-nowrap gap-5 overflow-x-auto pt-2 -mt-2 pb-10 -mb-8 [scrollbar-width:thin]">
+          <div className="flex flex-[0_0_clamp(260px,calc((100%_-_48px)_/_4),360px)]">
             <TemplateCard blank variant="hero" onSelect={onBlankPresentation} />
           </div>
           {homeTemplates.map((template) => (
             <div
               key={template.id}
-              className="flex-[0_0_clamp(260px,calc((100%_-_48px)_/_4),360px)]"
+              className="flex flex-[0_0_clamp(260px,calc((100%_-_48px)_/_4),360px)]"
             >
               <TemplateCard
                 template={template}
