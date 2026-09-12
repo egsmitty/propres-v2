@@ -43,8 +43,11 @@ export default defineConfig({
       // they are raised as tests are added. Never set an aspirational number
       // here; a threshold that fails on day one gets deleted rather than met.
       //
-      // Measured 2026-09-11 after plan F1 (pure-helper characterization):
-      // 25.0/22.41/22.02/26.01. Note what F1 did NOT do: Canvas.jsx and
+      // Measured 2026-09-11 after plans G1 (blank names) and G3 (song editor):
+      // 26.93/24.8/24.59/27.88. G1 added 21 cases without moving the ratchet,
+      // so this raise covers both.
+      // (After plan F1, pure-helper characterization:
+      // 25.0/22.41/22.02/26.01.) Note what F1 did NOT do: Canvas.jsx and
       // Toolbar.jsx are still 0 % each. The rise is real but it comes from
       // moving 17 already-pure helpers into tested modules, not from covering
       // either component — the decomposition those tests unblock is what will
@@ -60,10 +63,10 @@ export default defineConfig({
       // Note the ratchet had drifted ~2 points stale before this slice — the
       // suite already measured 17.55/15.45/17.28/18.39 on the previous commit.
       thresholds: {
-        statements: 24.9,
-        branches: 22.3,
-        functions: 21.9,
-        lines: 25.9,
+        statements: 26.8,
+        branches: 24.7,
+        functions: 24.4,
+        lines: 27.7,
       },
     },
   },

@@ -188,10 +188,6 @@ function createSongEditorSnapshot({ title, artist, ccli, lyrics, groups, arrange
   });
 }
 
-function clampFocusCount(count) {
-  return Math.max(0, count);
-}
-
 function getGroupSlideSelection(groups, arrangement, selectedGroupId, selectedSlideId) {
   const fallbackGroupId =
     arrangement.find((groupId) => groups.some((group) => group.id === groupId)) ||
@@ -282,17 +278,23 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   const [selectedSlideId, setSelectedSlideId] = useState(initial.selectedSlideId);
   const [dragState, setDragState] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [lyricsFocusCount, setLyricsFocusCount] = useState(0);
+  const [asking, setAsking] = useState(false);
   const [rawLyricsFocused, setRawLyricsFocused] = useState(false);
   const [rawLyricsDirty, setRawLyricsDirty] = useState(false);
   const [collapsedGroupIds, setCollapsedGroupIds] = useState([]);
   const [pendingCustomFocusGroupId, setPendingCustomFocusGroupId] = useState(null);
 
+  // Plan G3. True once the structure has been edited SINCE the last raw-lyrics
+  // keystroke — i.e. the two sides genuinely disagree and saving must destroy
+  // one of them. `rawLyricsDirty` alone is not that: pasting lyrics into a new
+  // song and hitting Save sets it and touches no structure, which is simply how
+  // songs are created.
+  const structureTouchedSinceRawEditRef = useRef(false);
   const initialSnapshotRef = useRef(createSongEditorSnapshot(initial));
   const titleInputRef = useRef(null);
-  const editingLyrics = lyricsFocusCount > 0;
 
   function commitGroups(nextGroupsOrUpdater) {
+    structureTouchedSinceRawEditRef.current = true;
     setGroups((current) =>
       normalizeSongEditorGroups(
         typeof nextGroupsOrUpdater === 'function'
@@ -368,16 +370,10 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     [arrangement, groups]
   );
 
-  function beginLyricsEditing() {
-    setLyricsFocusCount((count) => count + 1);
-  }
-
-  function endLyricsEditing() {
-    setLyricsFocusCount((count) => clampFocusCount(count - 1));
-  }
-
   function handleParse() {
     if (!lyricsShown.trim()) return;
+    // Parsing makes the two sides agree again by definition.
+    structureTouchedSinceRawEditRef.current = false;
     const nextSongState = buildSongEditorStateFromLyrics(lyricsShown);
     setGroups(nextSongState.groups);
     setArrangement(nextSongState.arrangement);
@@ -409,6 +405,12 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     setCollapsedGroupIds((current) =>
       current.length === groups.length ? [] : groups.map((group) => group.id)
     );
+  }
+
+  /** Every arrangement change EXCEPT handleParse's, which is not a conflict. */
+  function commitArrangement(nextArrangementOrUpdater) {
+    structureTouchedSinceRawEditRef.current = true;
+    setArrangement(nextArrangementOrUpdater);
   }
 
   function updateGroup(groupId, updater) {
@@ -514,7 +516,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
           : entry
       );
     });
-    setArrangement((current) => [group.id, ...current]);
+    commitArrangement((current) => [group.id, ...current]);
     setCollapsedGroupIds((current) => current.filter((id) => id !== group.id));
     setSelectedGroupId(group.id);
     setSelectedSlideId(group.slides[0].id);
@@ -528,7 +530,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     const remainingGroups = groups.filter((group) => group.id !== groupId);
     const remainingArrangement = arrangement.filter((entry) => entry !== groupId);
     setGroups(remainingGroups);
-    setArrangement(remainingArrangement);
+    commitArrangement(remainingArrangement);
     setCollapsedGroupIds((current) => current.filter((id) => id !== groupId));
     const nextSelection = getGroupSlideSelection(remainingGroups, remainingArrangement, null, null);
     setSelectedGroupId(nextSelection.groupId);
@@ -566,7 +568,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   }
 
   function moveArrangementEntry(fromIndex, toIndex) {
-    setArrangement((current) => {
+    commitArrangement((current) => {
       if (
         fromIndex === toIndex ||
         fromIndex < 0 ||
@@ -585,7 +587,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   }
 
   function insertIntoArrangement(groupId, index) {
-    setArrangement((current) => {
+    commitArrangement((current) => {
       const next = [...current];
       next.splice(index, 0, groupId);
       return next;
@@ -603,7 +605,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
   }
 
   function removeArrangementEntry(index) {
-    setArrangement((current) => current.filter((_, entryIndex) => entryIndex !== index));
+    commitArrangement((current) => current.filter((_, entryIndex) => entryIndex !== index));
   }
 
   async function handleRequestClose() {
@@ -642,6 +644,40 @@ export default function SongEditorModal({ song, onClose, onSave }) {
       return false;
     }
 
+    // Plan G3. Saving used to silently pick a side whenever the raw lyrics had
+    // been touched: it re-parsed them and threw away the groups and arrangement
+    // built on the right. The loss runs both ways — the raw text is an input
+    // surface only, with no column on the songs table — so neither side can be
+    // chosen silently. Ask, but ONLY when the two sides actually disagree.
+    let useRawLyrics = rawLyricsDirty;
+    const sidesDisagree =
+      rawLyricsDirty && structureTouchedSinceRawEditRef.current && groups.length > 0;
+
+    if (sidesDisagree) {
+      // `asking` disables Save and the close buttons: a second Save would
+      // replace this dialog in the store and the await below would never
+      // resolve, hanging the save for good.
+      setAsking(true);
+      const choice = await showDialog({
+        title: 'Two versions of this song',
+        description:
+          'You edited the pasted lyrics and also changed the sections. Saving keeps one of them: using the pasted lyrics rebuilds the sections from scratch, which discards the names, splits and order you set.',
+        actions: [
+          // Neither content action is `primary`, so Enter does nothing: both of
+          // them destroy work, and a destructive default is how you lose it.
+          // Cancel is `cancel`, so Escape and the backdrop land here rather
+          // than on whichever action happens to be first.
+          { label: 'Cancel', value: null, cancel: true },
+          { label: 'Use Pasted Lyrics', value: 'reparse', variant: 'danger' },
+          { label: 'Keep My Sections', value: 'keep' },
+        ],
+      });
+      setAsking(false);
+
+      if (!choice?.action) return false;
+      useRawLyrics = choice.action === 'reparse';
+    }
+
     setSaving(true);
 
     try {
@@ -649,7 +685,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
         setTitle(resolvedTitle);
       }
 
-      const nextSongState = rawLyricsDirty
+      const nextSongState = useRawLyrics
         ? buildSongEditorStateFromLyrics(lyricsShown)
         : { groups, arrangement, lyrics: lyricsShown };
       const finalizedGroups = finalizeSongEditorGroups(nextSongState.groups);
@@ -692,7 +728,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
           </h2>
           <button
             onClick={handleRequestClose}
-            disabled={saving}
+            disabled={saving || asking}
             aria-label="Close song editor"
             className="flex items-center justify-center w-6 h-6 rounded-sm text-text-tertiary hover:bg-bg-hover"
           >
@@ -758,34 +794,24 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                 onChange={(event) => {
                   setLyrics(event.target.value);
                   setRawLyricsDirty(true);
+                  structureTouchedSinceRawEditRef.current = false;
                 }}
-                onFocus={() => {
-                  setRawLyricsFocused(true);
-                  beginLyricsEditing();
-                }}
-                onBlur={() => {
-                  setRawLyricsFocused(false);
-                  endLyricsEditing();
-                }}
+                onFocus={() => setRawLyricsFocused(true)}
+                onBlur={() => setRawLyricsFocused(false)}
                 placeholder="Paste or type song lyrics. Blank lines create a new slide inside the current section. A new section starts only when you label it as Verse, Chorus, Bridge, etc."
                 className="flex-1 px-2.5 py-2 rounded-sm text-xs resize-none bg-bg-app border border-border-default text-text-primary font-[monospace] min-h-[240px]"
               />
               <p className="text-xs mt-2 text-text-tertiary">
-                Blank lines create slides. Section labels like &quot;Verse 1&quot; or
-                &quot;Chorus&quot; create a new section group.
+                {rawLyricsDirty
+                  ? 'Not applied yet — press Parse Song to rebuild the sections from this text.'
+                  : 'Blank lines create slides. Section labels like "Verse 1" or "Chorus" create a new section group.'}
               </p>
             </div>
           </div>
 
           <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
             {selectedGroup && selectedSlide ? (
-              <div
-                className="shrink-0 px-4 py-3 border-b border-border-subtle"
-                style={{
-                  opacity: editingLyrics ? 0.55 : 1,
-                  pointerEvents: editingLyrics ? 'none' : 'auto',
-                }}
-              >
+              <div className="shrink-0 px-4 py-3 border-b border-border-subtle">
                 <div className="flex items-center justify-between gap-4 mb-2">
                   <div>
                     <p className="text-xs font-medium text-text-primary">Song Order</p>
@@ -809,7 +835,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                         onDragEnd={() => {
                           setDragState(null);
                         }}
-                        onClick={() => setArrangement((current) => [...current, group.id])}
+                        onClick={() => commitArrangement((current) => [...current, group.id])}
                         className="text-xs px-2.5 py-1 rounded-full"
                         style={{
                           background: withColorAlpha(group.color, 0.13),
@@ -941,8 +967,6 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                       onChange={(event) =>
                         updateSlideBody(selectedGroup.id, selectedSlide.id, event.target.value)
                       }
-                      onFocus={beginLyricsEditing}
-                      onBlur={endLyricsEditing}
                       className="w-full rounded-sm text-sm resize-none min-h-[180px] bg-bg-surface border border-border-default text-text-primary font-[monospace] p-3 leading-[1.45]"
                     />
                   </div>
@@ -1127,11 +1151,7 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                                 </div>
                                 <textarea
                                   value={slide.body}
-                                  onFocus={() => {
-                                    beginLyricsEditing();
-                                    selectSlide(group.id, slide.id);
-                                  }}
-                                  onBlur={endLyricsEditing}
+                                  onFocus={() => selectSlide(group.id, slide.id)}
                                   onChange={(event) =>
                                     updateSlideBody(group.id, slide.id, event.target.value)
                                   }
@@ -1166,14 +1186,14 @@ export default function SongEditorModal({ song, onClose, onSave }) {
           <div className="flex items-center gap-2">
             <button
               onClick={handleRequestClose}
-              disabled={saving}
+              disabled={saving || asking}
               className="px-3 py-1.5 rounded-sm text-xs bg-bg-surface border border-border-default text-text-primary"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || asking}
               title={
                 title.trim() ? 'Save this song to the library' : 'Save this song as Untitled Song'
               }
