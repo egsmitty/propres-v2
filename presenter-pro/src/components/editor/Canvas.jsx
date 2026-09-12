@@ -35,12 +35,29 @@ import {
 } from '@/utils/textBoxes';
 import { flushPendingNumericFieldCommit } from '@/utils/pendingNumericCommit';
 import { applyDroppedMediaToTargets, isMediaLibraryDrag } from '@/utils/mediaDropActions';
+import {
+  MIN_TEXT_BOX_HEIGHT,
+  MIN_TEXT_BOX_WIDTH,
+  clamp,
+  getResizeHandleCode,
+  getRotationFromPointer,
+  handleCursor,
+  normalizeRect,
+  rectsIntersect,
+  resizeBoxFromCenter,
+  snapGroupToGuides,
+} from '@/utils/canvasGeometry';
+import {
+  baseHighlightStyle,
+  cycleCase,
+  renderOutline,
+  renderShadow,
+  renderTextDecoration,
+  resolveVerticalAlignment,
+} from '@/utils/canvasTextStyle';
+import { getSelectedSlide } from '@/utils/selectedSlide';
 import SlideTextEditor from './SlideTextEditor';
 
-const SNAP_THRESHOLD = 8;
-const MIN_TEXT_BOX_WIDTH = 20;
-const MIN_TEXT_BOX_HEIGHT = 20;
-const ROTATION_SNAP = 15;
 const DEFAULT_GHOST_OFFSET = 24;
 const MARQUEE_FILL = 'rgba(74,124,255,0.12)';
 const MARQUEE_BORDER = 'rgba(74,124,255,0.9)';
@@ -59,143 +76,6 @@ const INDICATOR_STYLE = {
   boxShadow: '0 12px 28px rgba(0,0,0,0.32)',
 };
 
-function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
-  if (!presentation) return null;
-  const section = presentation.sections.find((item) => item.id === selectedSectionId);
-  if (!section) return null;
-  return section.slides.find((item) => item.id === selectedSlideId) || null;
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function getResizeHandleCode(handle) {
-  return String(handle || '').replace(/^resize_/, '');
-}
-
-function getResizeHandleDirections(handle) {
-  const code = getResizeHandleCode(handle);
-  return {
-    x: code.includes('e') ? 1 : code.includes('w') ? -1 : 0,
-    y: code.includes('s') ? 1 : code.includes('n') ? -1 : 0,
-  };
-}
-
-function resizeBoxFromCenter(box, handle, pointerX, pointerY, nativeW, nativeH, keepRatio = false) {
-  const centerX = box.x + box.width / 2;
-  const centerY = box.y + box.height / 2;
-  const maxWidth = 2 * Math.min(centerX, nativeW - centerX);
-  const maxHeight = 2 * Math.min(centerY, nativeH - centerY);
-  const halfWidth = box.width / 2;
-  const halfHeight = box.height / 2;
-  const direction = getResizeHandleDirections(handle);
-
-  let width = box.width;
-  let height = box.height;
-
-  if (keepRatio && direction.x && direction.y) {
-    const scaleX = halfWidth > 0 ? (halfWidth + direction.x * pointerX) / halfWidth : 1;
-    const scaleY = halfHeight > 0 ? (halfHeight + direction.y * pointerY) / halfHeight : 1;
-    let scale = Math.abs(scaleX - 1) >= Math.abs(scaleY - 1) ? scaleX : scaleY;
-    const minScale = Math.max(
-      MIN_TEXT_BOX_WIDTH / Math.max(1, box.width),
-      MIN_TEXT_BOX_HEIGHT / Math.max(1, box.height)
-    );
-    const maxScale = Math.min(
-      maxWidth / Math.max(1, box.width),
-      maxHeight / Math.max(1, box.height)
-    );
-
-    scale = clamp(scale, minScale, maxScale);
-    width = clamp(box.width * scale, MIN_TEXT_BOX_WIDTH, maxWidth);
-    height = clamp(box.height * scale, MIN_TEXT_BOX_HEIGHT, maxHeight);
-  } else {
-    if (direction.x) {
-      const nextHalfWidth = halfWidth + direction.x * pointerX;
-      width = clamp(nextHalfWidth * 2, MIN_TEXT_BOX_WIDTH, maxWidth);
-    }
-    if (direction.y) {
-      const nextHalfHeight = halfHeight + direction.y * pointerY;
-      height = clamp(nextHalfHeight * 2, MIN_TEXT_BOX_HEIGHT, maxHeight);
-    }
-  }
-
-  return {
-    ...box,
-    x: centerX - width / 2,
-    y: centerY - height / 2,
-    width,
-    height,
-  };
-}
-
-function normalizeRect(startX, startY, endX, endY) {
-  const left = Math.min(startX, endX);
-  const top = Math.min(startY, endY);
-  const width = Math.abs(endX - startX);
-  const height = Math.abs(endY - startY);
-  return { x: left, y: top, width, height };
-}
-
-function rectsIntersect(a, b) {
-  return !(
-    a.x + a.width < b.x ||
-    b.x + b.width < a.x ||
-    a.y + a.height < b.y ||
-    b.y + b.height < a.y
-  );
-}
-
-function boxBounds(box) {
-  return {
-    left: box.x,
-    top: box.y,
-    right: box.x + box.width,
-    bottom: box.y + box.height,
-    centerX: box.x + box.width / 2,
-    centerY: box.y + box.height / 2,
-  };
-}
-
-function resolveVerticalAlignment(textStyle) {
-  if (textStyle?.valign === 'top') return 'flex-start';
-  if (textStyle?.valign === 'bottom') return 'flex-end';
-  return 'center';
-}
-
-function renderOutline(box) {
-  const width = box.outlineWidth || 0;
-  if (!width || box.outlineColor === 'transparent') return 'none';
-  return `${Math.max(1, width)}px ${box.outlineStyle || 'solid'} ${box.outlineColor || DEFAULT_TEXT_COLOR}`;
-}
-
-function renderShadow(box) {
-  if (!box.shadowEnabled) return 'none';
-  return `${box.shadowOffsetX || 0}px ${box.shadowOffsetY || 10}px ${Math.max(2, box.shadowBlur || 18)}px ${box.shadowColor || 'rgba(0,0,0,0.35)'}`;
-}
-
-function renderTextDecoration(style) {
-  return (
-    [style?.underline ? 'underline' : null, style?.strikethrough ? 'line-through' : null]
-      .filter(Boolean)
-      .join(' ') || 'none'
-  );
-}
-
-function baseHighlightStyle(style) {
-  const color = style?.highlightColor;
-  if (!color || color === 'transparent') return null;
-  return {
-    display: 'inline-block',
-    maxWidth: '100%',
-    backgroundColor: color,
-    boxDecorationBreak: 'clone',
-    WebkitBoxDecorationBreak: 'clone',
-    padding: '0 0.05em',
-  };
-}
-
 function renderTextBody(bodyHtml, style) {
   const highlightStyle = baseHighlightStyle(style);
   if (!highlightStyle) {
@@ -207,108 +87,6 @@ function renderTextBody(bodyHtml, style) {
       <span style={highlightStyle} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
     </div>
   );
-}
-
-function cycleCase(text, index) {
-  const modes = ['sentence', 'lower', 'upper', 'title', 'toggle'];
-  const mode = modes[index % modes.length];
-  if (mode === 'lower') return text.toLowerCase();
-  if (mode === 'upper') return text.toUpperCase();
-  if (mode === 'title')
-    return text.replace(
-      /\w\S*/g,
-      (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    );
-  if (mode === 'toggle')
-    return text
-      .split('')
-      .map((char) => (char === char.toUpperCase() ? char.toLowerCase() : char.toUpperCase()))
-      .join('');
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-}
-
-function snapGroupToGuides(movingBoxes, otherBoxes, nativeWidth, nativeHeight) {
-  if (!movingBoxes.length) return { dx: 0, dy: 0, guides: { vertical: null, horizontal: null } };
-
-  const threshold = SNAP_THRESHOLD;
-  const group = movingBoxes.reduce(
-    (acc, box) => ({
-      left: Math.min(acc.left, box.x),
-      top: Math.min(acc.top, box.y),
-      right: Math.max(acc.right, box.x + box.width),
-      bottom: Math.max(acc.bottom, box.y + box.height),
-    }),
-    { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
-  );
-  const width = group.right - group.left;
-  const height = group.bottom - group.top;
-  const centerX = group.left + width / 2;
-  const centerY = group.top + height / 2;
-
-  const verticalCandidates = [{ value: nativeWidth / 2, source: centerX, guide: nativeWidth / 2 }];
-  const horizontalCandidates = [
-    { value: nativeHeight / 2, source: centerY, guide: nativeHeight / 2 },
-  ];
-
-  otherBoxes.forEach((box) => {
-    const bounds = boxBounds(box);
-    verticalCandidates.push(
-      { value: bounds.left, source: group.left, guide: bounds.left },
-      { value: bounds.right, source: group.right, guide: bounds.right },
-      { value: bounds.centerX, source: centerX, guide: bounds.centerX }
-    );
-    horizontalCandidates.push(
-      { value: bounds.top, source: group.top, guide: bounds.top },
-      { value: bounds.bottom, source: group.bottom, guide: bounds.bottom },
-      { value: bounds.centerY, source: centerY, guide: bounds.centerY }
-    );
-  });
-
-  let bestVertical = { delta: 0, distance: Infinity, guide: null };
-  let bestHorizontal = { delta: 0, distance: Infinity, guide: null };
-
-  verticalCandidates.forEach((candidate) => {
-    const delta = candidate.value - candidate.source;
-    const distance = Math.abs(delta);
-    if (distance <= threshold && distance < bestVertical.distance) {
-      bestVertical = { delta, distance, guide: candidate.guide };
-    }
-  });
-
-  horizontalCandidates.forEach((candidate) => {
-    const delta = candidate.value - candidate.source;
-    const distance = Math.abs(delta);
-    if (distance <= threshold && distance < bestHorizontal.distance) {
-      bestHorizontal = { delta, distance, guide: candidate.guide };
-    }
-  });
-
-  return {
-    dx: bestVertical.guide === null ? 0 : bestVertical.delta,
-    dy: bestHorizontal.guide === null ? 0 : bestHorizontal.delta,
-    guides: {
-      vertical: bestVertical.guide,
-      horizontal: bestHorizontal.guide,
-    },
-  };
-}
-
-function getRotationFromPointer(box, pointerX, pointerY, shiftKey) {
-  const centerX = box.x + box.width / 2;
-  const centerY = box.y + box.height / 2;
-  const angle = Math.atan2(pointerY - centerY, pointerX - centerX) * (180 / Math.PI) + 90;
-  if (!shiftKey) return angle;
-  return Math.round(angle / ROTATION_SNAP) * ROTATION_SNAP;
-}
-
-function handleCursor(mode) {
-  if (mode === 'move') return 'move';
-  if (mode === 'rotate') return 'crosshair';
-  if (mode === 'resize_nw' || mode === 'resize_se') return 'nwse-resize';
-  if (mode === 'resize_ne' || mode === 'resize_sw') return 'nesw-resize';
-  if (mode === 'resize_n' || mode === 'resize_s') return 'ns-resize';
-  if (mode === 'resize_e' || mode === 'resize_w') return 'ew-resize';
-  return 'default';
 }
 
 export default function Canvas() {
