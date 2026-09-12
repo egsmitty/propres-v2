@@ -20,7 +20,7 @@ const BUDGET: Record<string, number> = {
   'components/editor/Canvas.jsx': 19,
   'components/editor/Filmstrip.jsx': 17,
   'components/presenter/OutputRenderer.jsx': 13,
-  'components/library/SongEditorModal.jsx': 11,
+  'components/library/SongEditorModal.jsx': 10,
   'pages/Home.jsx': 9,
   'components/editor/PresentationSettingsModal.jsx': 7,
   'components/library/MediaLibraryPanel.jsx': 7,

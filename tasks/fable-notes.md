@@ -1282,3 +1282,78 @@ baselines must not move — a stronger check than looking at it.
 _Section name_, where the app means _part_. Renaming that one string while the
 chips beside it still say "Available Sections" would make the vocabulary worse,
 not better, so they go together.
+
+---
+
+## G3 — the song editor stops choosing for you (2026-09-11)
+
+UX review §2.1 was the only finding on the whole review that could **lose work**,
+and it is a small expression. Type one character in Raw Lyrics Import and
+`rawLyricsDirty` is true; from that moment Save re-parsed the raw text and threw
+away the groups and arrangement built on the right — renamed labels, split
+slides, the order arranged. No prompt, no diff, no undo.
+
+**The loss runs both ways, which is the bit that decides the design.** The raw
+text is an input surface only: the `songs` table has no lyrics column, and
+`handleSave` sends none. So "just keep the structure" would silently discard what
+was typed on the left, exactly as today silently discards what was built on the
+right. Either branch, chosen without asking, destroys something — so Save asks.
+
+**The review stopped me shipping something worse than the bug.** My first draft
+triggered on `rawLyricsDirty` alone. But a new song starts with `groups = []`,
+and the normal way to create one is _open New Song, paste lyrics, Save_ — which
+sets that flag and touches no structure. The draft would have put a three-action
+dialog in front of **every song anyone ever created**, and its chosen default,
+"Keep My Sections", would have saved an **empty song** on one Enter press. A
+rare silent data loss turned into a constant loud one.
+
+The trigger is now the thing the sentence actually means — _the two sides
+disagree_ — `rawLyricsDirty && structureTouchedSinceRawEdit && groups.length > 0`,
+with the middle term a ref cleared by a raw keystroke and by `handleParse`, and
+set by `commitGroups` and a new `commitArrangement` funnel. Paste-and-save
+re-parses in silence; the dialog appears only after you edit the raw text _and
+then_ edit the structure. There is a test asserting `showDialog` is called
+**zero** times on the creation flow, which is the one I would want if this ever
+regresses.
+
+**Second thing the review caught: don't give a destructive branch the Enter
+key.** `Dialog.jsx` binds Enter to whichever action has `primary` and Escape to
+`actions.find(a => a.cancel) || actions[0]`. Both content branches here destroy
+something, so **neither is primary** and Cancel carries `cancel: true`. Enter
+does nothing, which is the right answer when every answer costs you work.
+
+**And third: the save was not re-entrant.** While the dialog is open `saving` is
+still false, so Save and ✕ stayed enabled — a second Save would replace the
+dialog in the store and leave the first `await showDialog` unresolved forever,
+hanging the save. An `asking` flag now joins the disabled conditions. That one
+was invisible until someone asked "what if they click it twice".
+
+**§2.3 was a deletion, not a fix.** The Song Order panel set `opacity: 0.55` and
+`pointerEvents: none` whenever _any_ lyrics field had focus, so clicking a
+section chip did nothing at all while you typed — and a greyed-out-but-not-
+disabled control is exactly what a broken control looks like. `editingLyrics`
+had no other consumer anywhere in `src/` or `e2e/`. Editing lyrics never
+conflicted with reordering sections; the lock had no reason to exist. Gone:
+the counter, its two functions, its clamp helper and three `onFocus`/`onBlur`
+pairs — keeping the per-slide `onFocus`'s `selectSlide`, which was riding along
+with it.
+
+Worth noting that its style object held _only_ those two properties, so deleting
+the lock removed a whole `style={` prop and took the file from 11 to 10. E4's
+ratchet fails in **both** directions, so the ceiling moved in the same commit —
+and the new "Not applied yet" hint had to be class-only, or it would have put the
+count straight back.
+
+**The unmount-without-blur leak the review suspected is probably not
+user-reachable**: both delete paths are reached by clicking a button, which blurs
+the textarea first. It would only ever show in jsdom, where `fireEvent.click`
+does not move focus. No test claims it — deleting the lock removes the question.
+
+**Numbers:** 522 → 529 unit tests. Coverage 25.0/22.41/22.02/26.01 →
+26.93/24.8/24.59/27.88 (G1 had added cases without moving the ratchet, so this
+raise covers both).
+
+**Still open: §2.2.** The raw box is still a mirror of the structure until you
+touch it and an independent draft afterwards, with nothing on screen saying which
+mode it is in. G3 removes the data loss; §2.2 removes the class of bug, and it
+is a real redesign of that pane.
