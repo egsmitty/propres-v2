@@ -1282,3 +1282,67 @@ baselines must not move — a stronger check than looking at it.
 _Section name_, where the app means _part_. Renaming that one string while the
 chips beside it still say "Available Sections" would make the vocabulary worse,
 not better, so they go together.
+
+---
+
+## G2 — the presenter preview was never 16:9, and no screenshot could have caught it (2026-09-11)
+
+Ethan's screenshots showed the live preview at roughly **3.8 : 1** with the panel
+dragged wide, and about **2 : 1** at an ordinary width. It is 16 : 9 in the data
+and always was; the box was lying.
+
+**One line of CSS, and a rule worth remembering.** The box was
+`w-full max-w-full max-h-full` with `aspectRatio` in its style.
+`aspect-ratio` transfers a min/max constraint **only into an axis whose size is
+`auto`**. `w-full` makes the width definite, so the ratio derived the height,
+`max-h-full` truncated that height, and nothing clamped the width back. The box
+kept its full width and lost the height it had asked for. It breaks whenever the
+container is wider than `ratio x its height` — and at the default 300–320px
+panel it is not, which is exactly why 52 screenshot baselines never caught it.
+**All of them capture one window size and one panel geometry.**
+
+**Two corrections came out of reading the actual code.**
+
+1. **The UX review said four other previews "get it right only because a grid or
+   a fixed width constrains them first".** That is not why. None of them clamps
+   height at all (`Filmstrip`, `FilmstripSlide` x2, `Home`, and the presenter's
+   own slide grid), so their ratio _cannot_ break. That turned a proposed
+   five-site shared `SlideAspectBox` into a **one-site fix** — a much smaller
+   diff, and no risk of moving baselines on four previews that were already
+   correct.
+2. **The review — and my own plan — blamed panel width. The reviewer found the
+   other half:** available height comes from the panel's **horizontal divider**.
+   The top half defaults to 320px and floors at 220; after the button row,
+   padding and the LIVE header that leaves ~229px, or ~129px at the floor. At
+   the default 320px panel width the box needs ~166px. Fine at 229, **broken at
+   129**. So the bug reproduces at the _default_ width with the divider dragged
+   down, which is probably what the second screenshot actually was. The E2E now
+   asserts both geometries.
+
+**The fix is the letterbox calculation, declared rather than computed.**
+`width: min(100cqw, calc(100cqh * ratio))` against a `container-type: size`
+parent is exactly `Math.min(w / width, h / height)` — the thing
+`getPresentationScale` already does in JS, which the review suggested using here
+with a `ResizeObserver`. One declaration beats a hook, an observer and a
+re-render per resize frame. There is no non-container-query CSS form of it:
+`h-full w-auto` fails for a narrow-tall container and `w-full h-auto` for a
+wide-short one, and nothing else takes the `min()` of two axes for a
+non-replaced element.
+
+**Proving it without opening the app.** Standing rule 7 says no local Playwright
+while Ethan is at the machine, and jsdom has no layout engine, so neither a unit
+test nor a local capture could check this. Two things filled the gap: the built
+CSS was grepped directly (`container-type:size` is present in
+`out/renderer/assets/*.css`, so Tailwind 4's `source(none)` + `@source` really
+does generate the arbitrary class), and the E2E measures `getBoundingClientRect`
+on CI.
+
+**The test asserts its own precondition**, which is the part worth copying. A
+drag that silently fails to take would leave the container in a shape where the
+old code was already correct, and the test would pass on broken code. So each
+case first asserts `container width > ratio x container height` — the state that
+used to break — and only then asserts the ratio. A green test now means the
+geometry was actually reached.
+
+**Found and not fixed:** `CLAUDE.md` says the presenter panel is 300px. It is
+320 default, 240 minimum.

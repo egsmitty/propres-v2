@@ -7,7 +7,7 @@ import { usePresenterStore } from '@/store/presenterStore';
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow';
 import { getMedia, sendBlack, sendLogo, sendSlide } from '@/utils/ipc';
 import { getSongPartColor, withColorAlpha } from '@/utils/sectionTypes';
-import { getPresentationAspectRatio } from '@/utils/presentationSizing';
+import { getPresentationAspectRatio, getPresentationDimensions } from '@/utils/presentationSizing';
 import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
 import { withEffectiveBackground } from '@/utils/backgrounds';
 
@@ -218,6 +218,10 @@ export default function PresenterPanel({ onSetOpen }) {
   const canGoPrev = isPresenting && liveIdx > 0;
   const canGoNext = isPresenting && liveIdx < allSlides.length - 1;
   const slideGridColumns = Math.min(5, Math.max(1, Math.floor((presenterPanelWidth - 32) / 118)));
+  // A NUMBER, deliberately: getPresentationAspectRatio returns the CSS string
+  // "1920/1080", which cannot be multiplied inside calc().
+  const previewDimensions = getPresentationDimensions(presentation);
+  const previewRatio = previewDimensions.width / previewDimensions.height;
 
   if (!presenterPanelOpen) {
     return (
@@ -330,10 +334,19 @@ export default function PresenterPanel({ onSetOpen }) {
                 </>
               )}
             </div>
-            <div className="flex-1 min-h-0 flex items-center justify-center">
+            <div className="flex-1 min-h-0 flex items-center justify-center [container-type:size]">
               <div
-                className="rounded-sm overflow-hidden flex items-center justify-center w-full max-w-full max-h-full text-text-on-accent"
+                data-live-preview="true"
+                className="rounded-sm overflow-hidden flex items-center justify-center max-w-full max-h-full text-text-on-accent"
                 style={{
+                  // Letterbox against BOTH axes (plan G2). `w-full` made the
+                  // width definite, so `aspect-ratio` derived the height and
+                  // `max-h-full` then truncated it — and a definite width is
+                  // never clamped back, so the box silently stopped being 16:9
+                  // whenever it was wider than ratio x its available height.
+                  // That is `Math.min(w / width, h / height)`, the letterbox
+                  // calculation, expressed in one declaration.
+                  width: `min(100cqw, calc(100cqh * ${previewRatio}))`,
                   aspectRatio: getPresentationAspectRatio(presentation),
                   background: isBlack ? 'var(--projector-bg)' : 'var(--on-dark-1)',
                   border: isPresenting ? '1px solid var(--live)' : '1px solid var(--border-subtle)',
