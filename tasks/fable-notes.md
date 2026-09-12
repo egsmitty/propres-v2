@@ -1141,3 +1141,50 @@ journal at all** (`SongEditorModal` keeps its own dirty flag over the separate
 dead**, hard-nulled by `normalizePresentation` on every path, which is the real
 cause of the `CLAUDE.md` known issue about older rows. Decide whether to drop
 the column or stop nulling it.
+
+### 2026-09-11 — Records catch-up, and a new handoff
+
+This entry exists because the records drifted. Between A5 shipping and today,
+five PRs merged and none of them reached this file or the charter's status
+table: **#96** (F0, the song-part rename), **#97** (the 2026-09-09 handoff and
+plan F1), **#98** (A5's manual verification converted into three
+keyboard-driven E2E specs), **#108** (the Home template row) and **#109**
+(saving no longer jumps you to slide 1). Rule 5 says records are updated in the
+same PR as the work; that slipped, and the charter now has a row for each.
+
+**Two of those were real bugs found by using the app, not by a plan.** #108 was
+a container problem, not a card problem — `overflow-x-auto` computes
+`overflow-y` to `auto` as well, so the scroller clipped a 34–38px drop shadow
+with 8px of room, and the card sat content-height in a wrapper `div` while the
+New tab's grid cell stretched it. #109 is the more interesting one: saving
+routed through `loadPresentationIntoEditor` → `setPresentation`, which resets
+selection to slide 1 and clears undo history. That was **always** true. A5 is
+what made it hurt, because autosave promoted `⌘S` from an occasional act to a
+routine one — it had been recorded as an A5 finding rather than fixed, and it
+was hit within minutes of real use, which answers whether it mattered.
+
+**A6 is the same pattern at a larger scale.** Ethan used the A5 feature and
+found its design flaw: *"once i make a save i cant revert to last save… it
+should be a version history with memory that isnt too long but useful enough,
+an undo can revert well enough."* `Revert to Last Save` is gated on `isDirty`,
+so it greys out at exactly the moment you would want it; what it really does is
+discard uncommitted changes, which `⌘Z` already covers at a finer grain. The
+plan keeps both commands (Apple's model), thins retention by time instead of a
+flat 25, and makes restoring undoable by capturing the current state first.
+
+The invariant that plan turns on is worth repeating here, because the first
+draft broke it: **the newest version row must always equal the committed state
+of the presentation row.** `openPresentationInEditor` derives the dirty flag by
+comparing the two, so a violation means every affected presentation opens
+"Unsaved changes" forever, and `Revert to Last Save` restores the state you just
+restored away from. Every operation therefore ends by appending the state it
+left the row in — restore writes two rows, and that is the correct cost.
+
+**Dependency holds re-checked today**, and nothing moved: electron-vite is still
+5.0.0 (so vite 8 stays blocked, and `@vitejs/plugin-react` 6 with it),
+`eslint-plugin-react` is still 7.37.5 (now the sole blocker for eslint 10), and
+typescript-eslint 8.70.0 still peers typescript `<6.1`.
+
+New handoff: `tasks/HANDOFF-2026-09-11.md`. The 2026-09-09 one is marked
+superseded, and the root `HANDOFF.md` — written 2026-09-06, still pointing at
+the old iCloud path — is now marked historical with its path corrected.

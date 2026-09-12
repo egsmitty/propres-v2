@@ -94,7 +94,11 @@ PowerPoint-style alternative to ProPresenter.
 narrative in `tasks/fable-notes.md`). Phase 6's engineering system is done and
 every charter workstream has landed except workstream F (structure), which stays
 blocked until the six large files have characterization tests under them.
-Start a fresh session from `tasks/HANDOFF-2026-09-09.md`.
+Start a fresh session from `tasks/HANDOFF-2026-09-11.md`.
+
+**Plan A6, Version History** (`tasks/plan-A6-version-history.md`) is being
+implemented on `feat/a6-version-history`. Run `git status` before touching that
+branch — it may still hold uncommitted work.
 
 ## What's Pending
 

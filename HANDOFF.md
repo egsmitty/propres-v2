@@ -1,5 +1,10 @@
 # PresenterPro Handoff
 
+> **Historical — written 2026-09-06, before the Fable pass.** The current
+> handoff is [`tasks/HANDOFF-2026-09-11.md`](tasks/HANDOFF-2026-09-11.md);
+> project state lives in [`CLAUDE.md`](CLAUDE.md). Kept for the packaging and
+> run notes below.
+
 ## What We Built
 
 PresenterPro is a local-first Electron desktop app for worship presentations. It is designed as a simpler, PowerPoint-style alternative to ProPresenter, with a focus on fast editing and a clear live presentation flow.
@@ -32,7 +37,7 @@ PresenterPro is a local-first Electron desktop app for worship presentations. It
 
 ## Repo / Project Location
 
-- Local project: `/Users/ethansmith/Desktop/ClaudeAccess/ProPresV2`
+- Local project: `/Users/ethansmith/code/ProPresV2` (moved out of iCloud on 2026-09-09; never put it back under a synced folder)
 - GitHub repo: `https://github.com/egsmitty/propres-v2`
 
 ## Packaged Build Status
