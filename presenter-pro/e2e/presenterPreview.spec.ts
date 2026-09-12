@@ -80,7 +80,12 @@ async function dragHandle(page: Page, selector: string, dx: number, dy: number) 
 }
 
 function expectRatio(geometry: PreviewGeometry) {
-  expect(Math.abs(geometry.ratio - EXPECTED_RATIO)).toBeLessThanOrEqual(TOLERANCE);
+  // The message carries the measured ratio, so a failure reports the shape the
+  // box actually took rather than an abstract difference.
+  expect(
+    Math.abs(geometry.ratio - EXPECTED_RATIO),
+    `measured ${geometry.ratio.toFixed(3)} : 1, expected ${EXPECTED_RATIO.toFixed(3)} : 1`
+  ).toBeLessThanOrEqual(TOLERANCE);
   // A letterbox fills one axis and fits within the other; it never exceeds
   // either. One pixel of slack for sub-pixel rounding.
   expect(geometry.widthOverflow).toBeLessThanOrEqual(1);
