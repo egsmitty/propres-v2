@@ -51,6 +51,10 @@ export async function runAppCommand(command) {
       return saveCurrentPresentationAs();
     case 'file:revert':
       return revertCurrentPresentationToLastSave();
+    case 'file:versionHistory':
+      if (!editorState.presentation) return false;
+      appState.setVersionHistoryOpen(true);
+      return true;
     case 'file:close': {
       const canClose = await resolveUnsavedChanges({
         presentation: editorState.presentation,

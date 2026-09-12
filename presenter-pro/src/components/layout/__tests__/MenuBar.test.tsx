@@ -36,6 +36,35 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe('File ▸ Version History…', () => {
+  function historyItem(): HTMLButtonElement {
+    return screen.getByRole('button', { name: /Version History/ }) as HTMLButtonElement;
+  }
+
+  it('is available with a presentation open', () => {
+    useEditorStore.setState({ presentation: PRESENTATION });
+    openFileMenu();
+    expect(historyItem()).toBeEnabled();
+  });
+
+  it('is disabled with no presentation open', () => {
+    openFileMenu();
+    expect(historyItem()).toBeDisabled();
+  });
+
+  it('is disabled while presenting', async () => {
+    // Restoring mid-service replaces the presentation; if the live slide is not
+    // in the restored document, the next spacebar jumps to slide 1 in front of
+    // the room.
+    const { usePresenterStore } = await import('@/store/presenterStore');
+    useEditorStore.setState({ presentation: PRESENTATION });
+    act(() => usePresenterStore.setState({ isPresenting: true }));
+    openFileMenu();
+    expect(historyItem()).toBeDisabled();
+    act(() => usePresenterStore.setState({ isPresenting: false }));
+  });
+});
+
 describe('File ▸ Revert to Last Save', () => {
   it('appears in the File menu', () => {
     useEditorStore.setState({ presentation: PRESENTATION, isDirty: true });

@@ -14,6 +14,7 @@ const MENUS = [
       { label: 'Save', shortcutTokens: ['mod', 's'], action: 'file:save' },
       { label: 'Save As…', shortcutTokens: ['mod', 'shift', 's'], action: 'file:saveAs' },
       { label: 'Revert to Last Save', action: 'file:revert' },
+      { label: 'Version History…', action: 'file:versionHistory' },
       { divider: true },
       { label: 'Close', action: 'file:close' },
     ],
@@ -145,6 +146,13 @@ export default function MenuBar() {
       }
       if (['edit:presentationSettings', 'view:outputSettings'].includes(item.action)) {
         disabled = !presentation;
+      }
+      if (item.action === 'file:versionHistory') {
+        // Disabled mid-service: restoring replaces the presentation, and if the
+        // live slide is not in the restored document PresenterPanel's liveIdx
+        // becomes -1, which makes canGoNext true and sends the next spacebar to
+        // slide 1 of the deck, in front of the room.
+        disabled = !presentation || isPresenting;
       }
       if (item.action === 'file:revert') {
         // Nothing to revert to until the document has been saved once, and

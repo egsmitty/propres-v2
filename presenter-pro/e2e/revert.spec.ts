@@ -45,6 +45,19 @@ function slideCount(dir: string): number {
   return sections.reduce((n, s) => n + s.slides.length, 0);
 }
 
+/** Slide count of the NEWEST version — the other half of THE INVARIANT. */
+function newestVersionSlideCount(dir: string): number {
+  const rows = query<{ snapshot: string }>(
+    dbPathIn(dir),
+    `SELECT snapshot FROM presentation_versions
+     WHERE presentation_id = ${createdPresentationId(dir)}
+     ORDER BY id DESC LIMIT 1`
+  );
+  expect(rows).toHaveLength(1);
+  const sections = JSON.parse(rows[0]!.snapshot).sections as Array<{ slides: unknown[] }>;
+  return sections.reduce((n, s) => n + s.slides.length, 0);
+}
+
 function versionCount(dir: string): number {
   const id = createdPresentationId(dir);
   const rows = query<{ n: number }>(
@@ -171,7 +184,7 @@ test.describe('revert to last save', () => {
     }
   });
 
-  test('two saves append two versions, and a revert appends none', async () => {
+  test('a revert preserves the pre-revert state AND re-anchors the newest version', async () => {
     const app = await launchApp();
     const dir = app.userDataDir;
     try {
@@ -195,8 +208,14 @@ test.describe('revert to last save', () => {
       await revertDialog(app).getByRole('button', { name: 'Revert', exact: true }).click();
       await app.window.waitForTimeout(1_000);
 
-      // Reverting is not a save: it must never append.
-      expect(versionCount(dir)).toBe(2);
+      // BEHAVIOUR CHANGE (plan A6). A5's rule was "reverting never appends".
+      // A revert now writes TWO rows: the pre-revert state, so the revert is
+      // itself recoverable, and the restored content, which is what keeps THE
+      // INVARIANT — the newest version must equal the document, or this
+      // presentation opens "Unsaved changes" forever and Revert to Last Save
+      // starts targeting the state it just discarded.
+      expect(versionCount(dir)).toBe(4);
+      expect(newestVersionSlideCount(dir)).toBe(slideCount(dir));
     } finally {
       await closeApp(app);
     }

@@ -43,7 +43,8 @@ export default defineConfig({
       // they are raised as tests are added. Never set an aspirational number
       // here; a threshold that fails on day one gets deleted rather than met.
       //
-      // Measured 2026-09-09 after plan A5 slices 2+3: 21.11/18.76/19.12/22.24.
+      // Measured 2026-09-11 after plan A6 (version history): 22.7/19.86/20.38/23.83.
+      // (After A5 slices 2+3: 21.11/18.76/19.12/22.24.)
       // Slice 2 alone measured 21.63/19.16/19.49/22.81; slice 3 then deleted the
       // journal writer AND its tests, so the floor settled slightly lower. Both
       // ship in one PR, so the ratchet is set once, at the end state — and it
@@ -53,10 +54,10 @@ export default defineConfig({
       // Note the ratchet had drifted ~2 points stale before this slice — the
       // suite already measured 17.55/15.45/17.28/18.39 on the previous commit.
       thresholds: {
-        statements: 21.0,
-        branches: 18.7,
-        functions: 19.0,
-        lines: 22.2,
+        statements: 22.6,
+        branches: 19.8,
+        functions: 20.3,
+        lines: 23.8,
       },
     },
   },

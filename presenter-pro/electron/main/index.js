@@ -1004,6 +1004,20 @@ function registerIpcHandlers() {
       return { success: false, error: e.message };
     }
   });
+  ipc.handle('db:versions:get', (_, versionId) => {
+    try {
+      return { success: true, data: versionQueries.getVersion(db, versionId) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+  ipc.handle('db:versions:summaries', (_, presentationId) => {
+    try {
+      return { success: true, data: versionQueries.listVersionSummaries(db, presentationId) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
   ipc.handle('db:versions:latest', (_, presentationId) => {
     try {
       return { success: true, data: versionQueries.getLatestVersion(db, presentationId) };
@@ -1455,6 +1469,7 @@ function buildNativeMenu() {
         // menu-state plumbing, so the item is always enabled and the renderer
         // command alerts when there is nothing to revert.
         { label: 'Revert to Last Save', click: () => sendCommand('file:revert') },
+        { label: 'Version History…', click: () => sendCommand('file:versionHistory') },
         { type: 'separator' },
         { label: 'Close', accelerator: 'CmdOrCtrl+W', click: () => sendCommand('file:close') },
       ],
