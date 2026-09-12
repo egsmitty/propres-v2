@@ -34,27 +34,45 @@ export async function confirmDialog(message, options = {}) {
 }
 
 // Convenience: single-line text prompt. Resolves to string (trimmed) or null.
+//
+// `options.requireValue` (plan G1): a message to show when the user confirms an
+// EMPTY box, after which the prompt comes back. Rename flows pass it, because
+// there is no sensible default for a name someone chose and silently dropping
+// the rename — which is what this did for every caller — tells them nothing.
+// Create flows leave it off, where empty legitimately means "never mind".
+// Cancel always cancels, with or without it.
 export async function promptDialog(message, defaultValue = '', options = {}) {
-  const result = await showDialog({
-    title: options.title || 'Input',
-    description: message,
-    fields: [
-      {
-        name: 'value',
-        type: 'text',
-        defaultValue,
-        placeholder: options.placeholder,
-        autoFocus: true,
-      },
-    ],
-    actions: [
-      { label: 'Cancel', value: null, cancel: true },
-      { label: options.confirmLabel || 'OK', value: 'confirm', primary: true },
-    ],
-  });
-  if (!result || result.action !== 'confirm') return null;
-  const value = (result.values?.value || '').trim();
-  return value || null;
+  let seededValue = defaultValue;
+
+  for (;;) {
+    const result = await showDialog({
+      title: options.title || 'Input',
+      description: message,
+      fields: [
+        {
+          name: 'value',
+          type: 'text',
+          defaultValue: seededValue,
+          placeholder: options.placeholder,
+          autoFocus: true,
+        },
+      ],
+      actions: [
+        { label: 'Cancel', value: null, cancel: true },
+        { label: options.confirmLabel || 'OK', value: 'confirm', primary: true },
+      ],
+    });
+
+    if (!result || result.action !== 'confirm') return null;
+    const value = (result.values?.value || '').trim();
+    if (value) return value;
+    if (!options.requireValue) return null;
+
+    await alertDialog(options.requireValue, {
+      title: options.requireValueTitle || 'Name Required',
+    });
+    seededValue = '';
+  }
 }
 
 // Convenience: info alert. Resolves when acknowledged.

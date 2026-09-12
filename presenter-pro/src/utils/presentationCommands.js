@@ -523,6 +523,10 @@ export async function renamePresentationById(id, currentTitle) {
     title: 'Rename Presentation',
     confirmLabel: 'Rename',
     placeholder: 'Presentation title',
+    // Plan G1. Not a default name here: this renames a presentation in a list,
+    // and quietly substituting "Untitled Presentation" would overwrite a name
+    // the user chose AND pin it as the newest restore point below.
+    requireValue: 'A presentation needs a name.',
   });
   if (!title) return null;
 

@@ -30,6 +30,7 @@ export default function SectionHeader({
             ? 'Rename Sermon'
             : 'Rename Section',
       confirmLabel: 'Rename',
+      requireValue: 'This section needs a name.',
     });
     if (!title) return;
     updateSectionMeta(section.id, { title });
