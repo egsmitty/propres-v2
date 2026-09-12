@@ -1357,3 +1357,115 @@ raise covers both).
 touch it and an independent draft afterwards, with nothing on screen saying which
 mode it is in. G3 removes the data loss; §2.2 removes the class of bug, and it
 is a real redesign of that pane.
+
+## G2 — the presenter preview was never 16:9, and no screenshot could have caught it (2026-09-11)
+
+Ethan's screenshots showed the live preview at roughly **3.8 : 1** with the panel
+dragged wide, and about **2 : 1** at an ordinary width. It is 16 : 9 in the data
+and always was; the box was lying.
+
+**One line of CSS, and a rule worth remembering.** The box was
+`w-full max-w-full max-h-full` with `aspectRatio` in its style.
+`aspect-ratio` transfers a min/max constraint **only into an axis whose size is
+`auto`**. `w-full` makes the width definite, so the ratio derived the height,
+`max-h-full` truncated that height, and nothing clamped the width back. The box
+kept its full width and lost the height it had asked for. It breaks whenever the
+container is wider than `ratio x its height` — and at the default 300–320px
+panel it is not, which is exactly why 52 screenshot baselines never caught it.
+**All of them capture one window size and one panel geometry.**
+
+**Two corrections came out of reading the actual code.**
+
+1. **The UX review said four other previews "get it right only because a grid or
+   a fixed width constrains them first".** That is not why. None of them clamps
+   height at all (`Filmstrip`, `FilmstripSlide` x2, `Home`, and the presenter's
+   own slide grid), so their ratio _cannot_ break. That turned a proposed
+   five-site shared `SlideAspectBox` into a **one-site fix** — a much smaller
+   diff, and no risk of moving baselines on four previews that were already
+   correct.
+2. **The review — and my own plan — blamed panel width. The reviewer found the
+   other half:** available height comes from the panel's **horizontal divider**.
+   The top half defaults to 320px and floors at 220; after the button row,
+   padding and the LIVE header that leaves ~229px, or ~129px at the floor. At
+   the default 320px panel width the box needs ~166px. Fine at 229, **broken at
+   129**. So the bug reproduces at the _default_ width with the divider dragged
+   down, which is probably what the second screenshot actually was. The E2E now
+   asserts both geometries.
+
+**The fix is the letterbox calculation, declared rather than computed.**
+`width: min(100cqw, calc(100cqh * ratio))` against a `container-type: size`
+parent is exactly `Math.min(w / width, h / height)` — the thing
+`getPresentationScale` already does in JS, which the review suggested using here
+with a `ResizeObserver`. One declaration beats a hook, an observer and a
+re-render per resize frame. There is no non-container-query CSS form of it:
+`h-full w-auto` fails for a narrow-tall container and `w-full h-auto` for a
+wide-short one, and nothing else takes the `min()` of two axes for a
+non-replaced element.
+
+**Proving it without opening the app.** Standing rule 7 says no local Playwright
+while Ethan is at the machine, and jsdom has no layout engine, so neither a unit
+test nor a local capture could check this. Two things filled the gap: the built
+CSS was grepped directly (`container-type:size` is present in
+`out/renderer/assets/*.css`, so Tailwind 4's `source(none)` + `@source` really
+does generate the arbitrary class), and the E2E measures `getBoundingClientRect`
+on CI.
+
+**The test asserts its own precondition**, which is the part worth copying. A
+drag that silently fails to take would leave the container in a shape where the
+old code was already correct, and the test would pass on broken code. So each
+case first asserts `container width > ratio x container height` — the state that
+used to break — and only then asserts the ratio. A green test now means the
+geometry was actually reached.
+
+**Found and not fixed:** `CLAUDE.md` says the presenter panel is 300px. It is
+320 default, 240 minimum.
+
+---
+
+## The red proof, and the baselines it explains (2026-09-11)
+
+Todo 1 asked for the spec to fail on unfixed code before the fix existed. It did
+not get that in order — the spec and the fix landed in the same commit — so the
+proof was taken afterwards, on a throwaway branch off `main` carrying **only**
+the spec:
+
+```
+✘  23 presenterPreview.spec.ts › at the default panel geometry (13.5s)
+✘  24 presenterPreview.spec.ts › at the default panel geometry (retry #1) (15.3s)
+✘  25 presenterPreview.spec.ts › with the panel dragged wide (14.6s)
+✘  26 presenterPreview.spec.ts › with the panel dragged wide (retry #1) (14.5s)
+✘  27 presenterPreview.spec.ts › with the panel divider dragged down (13.8s)
+✘  28 presenterPreview.spec.ts › with the panel divider dragged down (retry #1) (13.4s)
+```
+
+**All three fail on `main`, both attempts. All three pass with the fix.** The
+throwaway branch was deleted.
+
+**The `at the default panel geometry` failure is the important one**, and it was
+not expected: the plan predicted the default geometry was _fine_ and that only a
+dragged panel broke. It is not fine — which is exactly why **12 of the 52
+screenshot baselines moved**. The preview has been stretched in every editor
+capture since the net was built, at the ordinary geometry, and 52 baselines
+recorded it as correct for months because they only ever compared against
+themselves.
+
+That is the real lesson here. A screenshot net pins what the app _does_, not what
+it _should do_: it will hold a bug perfectly still and report green forever. The
+only thing that caught this was measuring the box against the number it was
+supposed to be.
+
+**What the red proof does not contain:** the measured "before" ratios. The `list`
+reporter prints assertion detail only in its end-of-run summary, and the run was
+cancelled before that — it was holding the only macOS runner and blocking the
+PR's own E2E. The failure message now carries the measured ratio, so the next
+person to see this red gets the number for free.
+
+**The 12 that moved** are exactly the editor views showing the presenter panel:
+`editor`, `editor-textbox-selected`, `editor-song-order-tray`,
+`editor-missing-background`, `editor-media-library-folder`,
+`editor-media-library-items`, `dialog-unsaved-changes`, `editor-media-library`,
+`editor-presenting`, `editor-song-library`, `presentation-settings`,
+`shortcuts-overlay`. The other 40 are byte-identical: every Home view, the output
+window, the stage display, the tutorial, the song editor modal, output settings,
+and all 29 clipped hover captures — including `hover-presenter-divider`, which
+crops to the divider and never saw the preview.
