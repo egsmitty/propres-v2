@@ -1211,3 +1211,74 @@ fix (a `test:coverage` step in CI) and its own decision.
 **Numbers:** 420 → 501 unit tests, 55 → 59 files. `Canvas.jsx` 1816 → 1594
 lines, `Toolbar.jsx` 1768 → 1709. Inline-style budgets unmoved (19 and 23, both
 still exactly on their ceilings).
+
+---
+
+## G1 — the name you type is the name you get (2026-09-11)
+
+Ethan, 2026-09-11: _"you cant properly name things like you cant do spaces or
+when you delete it just repopulates with the name infinitely rather than a
+proper blank state catcher."_ Then, narrowing it: _"i was talking about the name
+of a verse or bridge if you delete it all it just fills it."_
+
+Both halves were **one expression**, and it is worth spelling out how it
+happened. `commitGroups` re-normalizes the whole group list on every call, and
+`normalizeSongEditorGroups` trimmed the label and regenerated the auto name when
+the result was empty. The input is controlled, so the rewritten value went
+straight back into the DOM **between keystrokes**: the trailing space of
+`"Verse "` was deleted before you could reach the `1`, so `Verse 1` was
+literally untypeable, and clearing the field refilled it instantly, forever. The
+`placeholder="Section name"` on that input had never once been seen by anyone,
+because the value could never be empty.
+
+The fix is the boundary, not the expression: **structural normalisation runs on
+every keystroke; the empty-name decision runs once, at commit.**
+`normalizeSongEditorGroups(groups, { fillEmptyLabels })` is off by default and
+only `finalizeSongEditorGroups` — i.e. save — turns it on. One counter, one
+place.
+
+**Four surfaces, four different wrong answers.** Measuring first turned a
+one-field bug into the real finding: nothing in this app shared a name field, so
+every surface had improvised. The title bar put the old name back
+(`renameVal.trim() || presentation.title`) — clearing a title was impossible and
+you were never told why. The rename dialogs returned `value || null` and every
+caller did `if (!name) return`, so an emptied rename just closed the box and
+changed nothing. Only the custom-part field was already right.
+
+**The review caught two things I would have shipped.** A fresh agent read the
+plan before any code existed (standing rule 9 — third time it has paid):
+
+1. **"Empty always resolves to a default" is destructive for a rename dialog.**
+   Clear the box on a presentation called `Sunday Service`, press Rename, and it
+   would have been overwritten with `Untitled Presentation` — and
+   `captureVersion` would have pinned that as the newest restore point. Media
+   renames have no undo at all. So the contract resolves two ways, and which one
+   is not arbitrary: for **the identity of the thing you are editing** (the open
+   presentation's title, a song part) empty resolves to a visible default, the
+   way Docs commits to _Untitled document_; for **a rename dialog acting on a
+   named object** empty is **refused with a message**, the way PowerPoint does.
+   Both make the decision once, at commit, and show it. Neither is silent.
+2. **The empty-label display fallback would have been a new silent rewrite.**
+   `resolveSongEditorGroupLabel` fell back to `makeSongGroupLabel(type)` —
+   without the occurrence number — and it is **not display-only**:
+   `groupsToLyrics` feeds the visible Raw Lyrics textarea, which feeds the dirty
+   check _and_ the save re-parse branch. Clearing Verse 2's name would have
+   rewritten that header to `Verse` as you typed, and two cleared verses would
+   both have emitted `Verse`, collapsing the numbering on save with no prompt.
+   Exactly the class of bug the plan existed to remove, reintroduced one layer
+   down. The fallback is now occurrence-aware, and there is a two-verse
+   regression test for it that is a guard rather than a reproduction.
+
+It also caught a test that would have **passed for the wrong reason**: a
+TitleBar fixture named `Untitled Presentation` hits `commitRename`'s
+`title !== presentation.title` no-op branch, so the assertion "the title is the
+default" would be green while the bug was untouched. The fixture is
+`Sunday Service`.
+
+**Numbers:** 501 → 522 unit tests, 59 → 62 files. No layout changed, so the 52
+baselines must not move — a stronger check than looking at it.
+
+**Left for §2.8:** the placeholder that is now visible for the first time says
+_Section name_, where the app means _part_. Renaming that one string while the
+chips beside it still say "Available Sections" would make the vocabulary worse,
+not better, so they go together.

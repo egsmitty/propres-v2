@@ -98,6 +98,8 @@ export default function MediaLibraryPanel() {
     const nextName = await promptDialog('Rename folder:', folder.name, {
       title: 'Rename Folder',
       confirmLabel: 'Rename',
+      // Plan G1: an emptied rename used to close the box and change nothing.
+      requireValue: 'A folder needs a name.',
     });
     if (!nextName || nextName === folder.name) return;
     const result = await updateMediaFolder(folder.id, { name: nextName });
@@ -129,6 +131,7 @@ export default function MediaLibraryPanel() {
     const nextName = await promptDialog('Rename media item:', item.name, {
       title: 'Rename Media',
       confirmLabel: 'Rename',
+      requireValue: 'This item needs a name.',
     });
     if (!nextName || nextName === item.name) return;
     const result = await updateMedia(item.id, { name: nextName });

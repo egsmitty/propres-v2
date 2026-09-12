@@ -4,6 +4,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
 import { touchPresentation } from '@/utils/ipc';
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
+import { DEFAULT_NAMES, commitName } from '@/utils/nameDraft';
 
 export default function TitleBar() {
   const presentation = useEditorStore((s) => s.presentation);
@@ -50,7 +51,10 @@ export default function TitleBar() {
   }
 
   function commitRename() {
-    const title = renameVal.trim() || presentation.title;
+    // Empty resolves to a documented default you can see, not to the name you
+    // just cleared: `renameVal.trim() || presentation.title` made clearing the
+    // title impossible and never said why (plan G1).
+    const title = commitName(renameVal, DEFAULT_NAMES.presentation);
     if (title !== presentation.title) {
       // setPresentation resets both flags unless told otherwise; renaming must
       // not silently turn a never-saved presentation into a saved one, or
