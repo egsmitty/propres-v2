@@ -11,7 +11,8 @@ import React from 'react';
 vi.mock('@/utils/ipc', () => ({ createSong: vi.fn(), updateSong: vi.fn() }));
 vi.mock('@/utils/dialog', () => ({ alertDialog: vi.fn(), showDialog: vi.fn() }));
 
-import { updateSong } from '@/utils/ipc';
+import { createSong, updateSong } from '@/utils/ipc';
+import { showDialog } from '@/utils/dialog';
 import { makeSongGroupLabel } from '@/utils/songSections';
 import SongEditorModal from '@/components/library/SongEditorModal';
 
@@ -183,5 +184,131 @@ describe('SongEditorModal — part names are free-form while you type (plan G1)'
     fireEvent.change(typeSelect, { target: { value: 'bridge' } });
 
     expect(partNameInput().value).toBe(makeSongGroupLabel('bridge'));
+  });
+});
+
+// Plan G3 — the song editor never silently throws work away.
+//
+// UX review §2.1, the only finding on the whole review that can LOSE work: type
+// one character in Raw Lyrics Import and `rawLyricsDirty` is true; from that
+// moment Save re-parsed the raw text and discarded the groups and arrangement
+// built on the right — renamed labels, split slides, the order arranged. No
+// prompt, no diff, no undo.
+//
+// The loss runs both ways, which is why Save has to ask rather than pick: the
+// raw text is an input surface only (the songs table has no lyrics column), so
+// silently keeping the structure would silently discard what was typed on the
+// left.
+
+/** Put a real edit in the raw textarea, which is what sets `rawLyricsDirty`. */
+function editRawLyrics(text: string) {
+  fireEvent.focus(lyricsBox());
+  fireEvent.change(lyricsBox(), { target: { value: text } });
+}
+
+describe('SongEditorModal — saving never silently discards work (plan G3)', () => {
+  it('keeps structural edits made after a raw-lyrics edit', async () => {
+    (showDialog as Mock).mockResolvedValue({ action: 'keep' });
+    render(<SongEditorModal song={SONG} onClose={vi.fn()} onSave={vi.fn()} />);
+
+    editRawLyrics('Verse 1\n\nSomething I typed on the left');
+    fireEvent.change(partNameInput(), { target: { value: 'My Renamed Verse' } });
+    fireEvent.click(screen.getByText('Save to Library'));
+
+    await waitFor(() => expect(updateSong).toHaveBeenCalled());
+    const groups = JSON.parse(savedSongData().songGroups);
+    // Exactly the label that was typed. Before this plan the whole structure
+    // was replaced by a re-parse of the raw text and the rename was gone.
+    expect(groups[0].label).toBe('My Renamed Verse');
+  });
+
+  it('asks before re-parsing, rather than choosing for you', async () => {
+    (showDialog as Mock).mockResolvedValue({ action: 'keep' });
+    render(<SongEditorModal song={SONG} onClose={vi.fn()} onSave={vi.fn()} />);
+
+    editRawLyrics('Verse 1\n\nSomething I typed on the left');
+    fireEvent.change(partNameInput(), { target: { value: 'My Renamed Verse' } });
+    fireEvent.click(screen.getByText('Save to Library'));
+
+    await waitFor(() => expect(showDialog).toHaveBeenCalledTimes(1));
+  });
+
+  it('re-parses when you choose the pasted lyrics', async () => {
+    (showDialog as Mock).mockResolvedValue({ action: 'reparse' });
+    render(<SongEditorModal song={SONG} onClose={vi.fn()} onSave={vi.fn()} />);
+
+    editRawLyrics('Chorus\n\nOnly what is on the left');
+    fireEvent.change(partNameInput(), { target: { value: 'My Renamed Verse' } });
+    fireEvent.click(screen.getByText('Save to Library'));
+
+    await waitFor(() => expect(updateSong).toHaveBeenCalled());
+    const groups = JSON.parse(savedSongData().songGroups);
+    // The destructive branch, chosen deliberately: the structure is replaced by
+    // what the raw text parses to, so the rename is gone ON PURPOSE.
+    expect(groups).toHaveLength(1);
+    expect(groups[0].type).toBe('chorus');
+  });
+
+  it('saves nothing at all when you cancel', async () => {
+    (showDialog as Mock).mockResolvedValue(null);
+    render(<SongEditorModal song={SONG} onClose={vi.fn()} onSave={vi.fn()} />);
+
+    editRawLyrics('Verse 1\n\nSomething I typed on the left');
+    fireEvent.change(partNameInput(), { target: { value: 'My Renamed Verse' } });
+    fireEvent.click(screen.getByText('Save to Library'));
+
+    await waitFor(() => expect(showDialog).toHaveBeenCalled());
+    expect(updateSong).not.toHaveBeenCalled();
+    expect(createSong).not.toHaveBeenCalled();
+  });
+
+  it('never asks when creating a song from pasted lyrics', async () => {
+    // THE case the plan's first draft got wrong. Open New Song, paste, Save is
+    // the normal way to create a song: it sets rawLyricsDirty and never touches
+    // the structure, so there is nothing to lose and nothing to ask about.
+    // Triggering on rawLyricsDirty alone would have put a dialog in front of
+    // every song anyone ever created.
+    render(<SongEditorModal song={null} onClose={vi.fn()} onSave={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText('Song title'), {
+      target: { value: 'Brand New Song' },
+    });
+    editRawLyrics('Verse 1\n\nPasted from somewhere else');
+    fireEvent.click(screen.getByText('Save to Library'));
+
+    await waitFor(() => expect(createSong).toHaveBeenCalled());
+    // Zero, not "rarely".
+    expect(showDialog).not.toHaveBeenCalled();
+  });
+
+  it('does not ask when the raw edit is the only edit', async () => {
+    // Same rule on an existing song: editing only the raw text means the raw
+    // text is what you meant.
+    render(<SongEditorModal song={SONG} onClose={vi.fn()} onSave={vi.fn()} />);
+
+    editRawLyrics('Verse 1\n\nJust fixing a typo');
+    fireEvent.click(screen.getByText('Save to Library'));
+
+    await waitFor(() => expect(updateSong).toHaveBeenCalled());
+    expect(showDialog).not.toHaveBeenCalled();
+  });
+});
+
+describe('SongEditorModal — the Song Order panel stays usable (plan G3)', () => {
+  it('is interactive while a lyrics field has focus', () => {
+    // UX review §2.3. The panel dimmed itself to 0.55 and set
+    // `pointerEvents: none` whenever ANY lyrics field had focus, so clicking a
+    // section chip did nothing at all — which reads as "the app is broken",
+    // because a greyed-out-but-not-disabled control is what a broken control
+    // looks like. Editing lyrics never conflicted with reordering sections.
+    render(<SongEditorModal song={SONG} onClose={vi.fn()} onSave={vi.fn()} />);
+
+    fireEvent.focus(lyricsBox());
+
+    const panel = screen.getByText('Song Order').closest('div')?.parentElement?.parentElement;
+    expect(panel).toBeTruthy();
+    const style = (panel as HTMLElement).style;
+    expect(style.pointerEvents).not.toBe('none');
+    expect(style.opacity === '' || Number(style.opacity) === 1).toBe(true);
   });
 });
