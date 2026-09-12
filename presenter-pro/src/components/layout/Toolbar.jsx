@@ -57,6 +57,14 @@ import {
   saveEditorSelection,
 } from '@/utils/richTextEditor';
 import { isMediaSlide } from '@/utils/sectionTypes';
+import { getSelectedSlide } from '@/utils/selectedSlide';
+import {
+  FONT_OPTIONS,
+  getRenderedBodyFontSize,
+  normalizeAlignValue,
+  normalizeColorValue,
+  normalizeFontFamilyValue,
+} from '@/utils/toolbarValues';
 import {
   DEFAULT_TEXT_STYLE,
   FONT_SIZE_DISPLAY_PRESETS,
@@ -78,79 +86,12 @@ import {
   insertNewSlideIntoCurrentPresentation,
 } from '@/utils/presentationCommands';
 
-const FONT_OPTIONS = [
-  'Arial',
-  'Helvetica',
-  'Georgia',
-  'Times New Roman',
-  'Trebuchet MS',
-  'Avenir Next',
-  'Gill Sans',
-  'Courier New',
-  'Verdana',
-];
-
 const LINE_SPACING_PRESETS = [1, 1.15, 1.3, 1.5, 2];
 const PRESENT_CLUSTER_FALLBACK_WIDTH = 312;
 const RIBBON_COLLISION_BUFFER = 28;
 const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8);
 const MAX_FONT_SIZE_DISPLAY = internalToDisplayFontSize(320);
 const INSERT_BUTTON_MIN_WIDTH = 118;
-
-function getSelectedSlide(presentation, selectedSectionId, selectedSlideId) {
-  const section = presentation?.sections?.find((item) => item.id === selectedSectionId);
-  if (!section) return null;
-  return section.slides?.find((item) => item.id === selectedSlideId) || null;
-}
-
-function normalizeFontFamilyValue(value, fallback = FONT_OPTIONS[0]) {
-  const family = String(value || fallback).replace(/["']/g, '');
-  return (
-    FONT_OPTIONS.find((option) => family.toLowerCase().includes(option.toLowerCase())) ||
-    FONT_OPTIONS[0]
-  );
-}
-
-function rgbToHex(value) {
-  const match = String(value || '').match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-  if (!match) return value;
-  const [, r, g, b] = match;
-  return `#${[r, g, b].map((part) => Number(part).toString(16).padStart(2, '0')).join('')}`;
-}
-
-function normalizeColorValue(value, fallback) {
-  if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)') return fallback;
-  return rgbToHex(value);
-}
-
-function normalizeAlignValue(value, fallback = 'center') {
-  const next = String(value || '').toLowerCase();
-  if (next.includes('justify')) return 'justify';
-  if (next.includes('right')) return 'right';
-  if (next.includes('left')) return 'left';
-  if (next.includes('center')) return 'center';
-  return fallback;
-}
-
-function getRenderedBodyFontSize(body, fallback) {
-  if (typeof window === 'undefined' || typeof DOMParser === 'undefined' || !body) return fallback;
-
-  try {
-    const doc = new DOMParser().parseFromString(`<div>${body}</div>`, 'text/html');
-    const sizes = new Set();
-
-    doc.body.querySelectorAll('*').forEach((node) => {
-      const fontSize = node.style?.fontSize;
-      if (!fontSize || !fontSize.endsWith('px')) return;
-      const numeric = Number.parseFloat(fontSize);
-      if (Number.isFinite(numeric) && numeric > 0) sizes.add(Math.round(numeric));
-    });
-
-    return sizes.size === 1 ? [...sizes][0] : fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 function Group({ title, children, grow = false, noDivider = false }) {
   return (

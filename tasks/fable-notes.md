@@ -1019,7 +1019,7 @@ The charter still calls this the largest product risk in the project.
 
 The plan answers the consequence you were warned about on day one — that
 autosave kills "discard my changes" — with **revert-to-last-save** rather than
-version history: a `presentation_baseline` table holding the last *manual*
+version history: a `presentation_baseline` table holding the last _manual_
 save, `File ▸ Revert to Last Save`, and a Discard that actually reverts the row
 instead of pretending to. Three slices, three PRs, Revert proven before
 autosave can create the state that needs it.
@@ -1030,7 +1030,7 @@ longer matches `presentations.updated_at`; every autosave sets
 `updated_at = unixepoch()`. So every journal row would be stale before it was
 ever read, and `offerRecoveryOnStartup` would silently delete it —
 `presentation_journal` becomes a write-only table, a safety net that looks
-alive and can never fire. Slice 3 therefore removes the journal's *writer*
+alive and can never fire. Slice 3 therefore removes the journal's _writer_
 (9 symbols) and keeps the table, `selectRecoverable` and the startup offer, so
 rows written by the current build on your real profile still drain. Nothing is
 dropped and no migration is destructive. If you would rather keep the journal
@@ -1041,7 +1041,7 @@ contradict each other.
 vite 8 — electron-vite 5.0.0 still peers `^5 || ^6 || ^7`; @vitejs/plugin-react
 6.1.1 peers vite `^8`, so it waits on the same thing; typescript 7 —
 typescript-eslint 8.70.0 peers typescript `>=4.8.4 <6.1.0`. **One correction to
-the record:** typescript-eslint's *eslint* peer has widened to
+the record:** typescript-eslint's _eslint_ peer has widened to
 `^8.57 || ^9 || ^10`, so it is no longer part of the eslint 10 hold. The sole
 remaining blocker for eslint 10 is eslint-plugin-react 7.37.5 (`... || ^9.7`).
 
@@ -1095,7 +1095,7 @@ blockers, and every one was real when I checked it against the code:
 1. The autosave subscription condition I wrote (`presentation changed && isDirty`)
    **never fires** for the two most common edits. `insertNewSlideIntoCurrentPresentation`
    and `TitleBar.commitRename` both call `setPresentation` (which sets
-   `isDirty: false`) and *then* `setDirty(true)`, so the two halves arrive in
+   `isDirty: false`) and _then_ `setDirty(true)`, so the two halves arrive in
    separate Zustand notifications and neither satisfies both. A2's journal got
    this right with a disjunction; my plan copied the shape and turned it into an
    AND. There is now a named unit case for exactly this sequence.
@@ -1109,7 +1109,7 @@ blockers, and every one was real when I checked it against the code:
    It now retries, alerts after three consecutive failures, and stops entirely
    when the row has been deleted underneath it.
 
-Also caught: migration 5 breaks four *existing* test files that were in no
+Also caught: migration 5 breaks four _existing_ test files that were in no
 blast-radius table; `realSqlite.queries.test.ts` seeds journal rows through
 `writeJournal`; and my "prove the baselines did not move" step could not
 possibly do that, because `playwright.config.ts` sends non-CI runs to the
@@ -1141,3 +1141,73 @@ journal at all** (`SongEditorModal` keeps its own dirty flag over the separate
 dead**, hard-nulled by `normalizePresentation` on every path, which is the real
 cause of the `CLAUDE.md` known issue about older rows. Decide whether to drop
 the column or stop nulling it.
+
+---
+
+## F1 — the pure helpers, and why "move it verbatim" was the wrong instruction (2026-09-11)
+
+Workstream F is blocked until characterization tests exist under the six large
+files. F1 builds the cheapest part of that: the functions that were _already_
+pure and _already_ at module top level in `Canvas.jsx` and `Toolbar.jsx`, and
+were untestable for one reason only — they were not exported. 17 of them moved
+into four modules with 81 tests. Nothing rendered differently; the diff on both
+components is deletions plus import lines, nothing else.
+
+**The plan said 18 helpers and "byte-identical apart from `export`". Both were
+wrong, and a fresh-agent review caught it before any code was written** — which
+is the second time standing rule 9 has paid for itself.
+
+**The one that would have gone red.** `renderTextBody` returns JSX. Moving it
+would have taken 2 inline `style={` props out of `Canvas.jsx`, dropping it from
+19 to 17 — and E4's `inlineStyleBudget.test.ts` asserts each ceiling is
+**exact**, failing when a file is _under_ its budget as loudly as when it is
+over. The plan never listed that file in its blast radius, so the gate would
+have failed on a test nobody was thinking about, in a file nobody had touched.
+It stays in `Canvas.jsx` and imports `baseHighlightStyle` — the only logic it
+had — from the new module. A function that returns JSX is a component, and the
+plan's own rule was not to move components.
+
+**"Byte-identical" cannot survive contact with TypeScript.** New files are `.ts`
+per AGENTS.md, and new `.ts` files are fully checked under `strict` — the
+`checkJs: false` exemption only covers the existing `.jsx`. A literal move emits
+`TS7006` on every parameter. So the honest rule is _"identical apart from
+`export`, type annotations, and one union widening — no logic edits"_, and a
+future extraction plan should say that instead. Worth noting the plan's own
+prediction here was inverted: it worried about `noUncheckedIndexedAccess`
+biting `cycleCase`, which it does not, and missed implicit-any, which bites
+everything.
+
+**Constants are part of the function.** Three of the moved helpers read module
+constants the plan's tables never mentioned. `MIN_TEXT_BOX_WIDTH/HEIGHT` and
+`FONT_OPTIONS` are _also_ read by code that stayed behind, so they live in the
+new modules and are imported back. The alternative — parameterising them — would
+have changed signatures, and a signature change is a behaviour surface, which is
+exactly what a characterization step must not do.
+
+**A real bug, fixed.** `getSelectedSlide` was defined **twice**, same name, same
+signature, different behaviour: Canvas's copy threw a `TypeError` on a
+presentation whose `sections` was missing, Toolbar's returned `null`. Both were
+reachable from the same store, so which one you got depended on which file you
+were in. The null-safe one won. What settles it: two lines below its own call
+site, Canvas already wrote `presentation?.sections?.find(…)` — the file was
+inconsistent with itself, so the shared version matches its neighbours rather
+than changing them.
+
+**What F1 did not do, stated plainly.** `Canvas.jsx` and `Toolbar.jsx` are still
+**0 % covered**, before and after. The global ratchet rose
+(22.7/19.86/20.38/23.83 → 25.0/22.41/22.02/26.01) because the new modules are
+covered, not because either component is. F1 removed uncovered lines rather than
+covering them. That is the correct outcome for a gate opener — the decomposition
+plans it unblocks are what will actually cover the components — but a findings
+report that quoted only the global number would be telling a nicer story than
+the truth.
+
+**Also found, not fixed:** the coverage thresholds are **not enforced by the
+gate**. They apply only under `--coverage`, and both `npm run gate` and CI's
+`PR Gate` run `vitest run` without it. Raising the ratchet records the floor but
+nothing stops a later change from dropping below it silently. It wants a one-line
+fix (a `test:coverage` step in CI) and its own decision.
+
+**Numbers:** 420 → 501 unit tests, 55 → 59 files. `Canvas.jsx` 1816 → 1594
+lines, `Toolbar.jsx` 1768 → 1709. Inline-style budgets unmoved (19 and 23, both
+still exactly on their ceilings).
