@@ -202,3 +202,53 @@ an accident, and a custom ratio makes it worse. The fix uses
 `CLAUDE.md` says the presenter panel is **300px**; it is **320 default / 240
 minimum** (`presenterStore.js`). Documentation drift, one line, someone else's
 PR.
+
+---
+
+## The red proof, and the baselines it explains (2026-09-11)
+
+Todo 1 asked for the spec to fail on unfixed code before the fix existed. It did
+not get that in order — the spec and the fix landed in the same commit — so the
+proof was taken afterwards, on a throwaway branch off `main` carrying **only**
+the spec:
+
+```
+✘  23 presenterPreview.spec.ts › at the default panel geometry (13.5s)
+✘  24 presenterPreview.spec.ts › at the default panel geometry (retry #1) (15.3s)
+✘  25 presenterPreview.spec.ts › with the panel dragged wide (14.6s)
+✘  26 presenterPreview.spec.ts › with the panel dragged wide (retry #1) (14.5s)
+✘  27 presenterPreview.spec.ts › with the panel divider dragged down (13.8s)
+✘  28 presenterPreview.spec.ts › with the panel divider dragged down (retry #1) (13.4s)
+```
+
+**All three fail on `main`, both attempts. All three pass with the fix.** The
+throwaway branch was deleted.
+
+**The `at the default panel geometry` failure is the important one**, and it was
+not expected: the plan predicted the default geometry was _fine_ and that only a
+dragged panel broke. It is not fine — which is exactly why **12 of the 52
+screenshot baselines moved**. The preview has been stretched in every editor
+capture since the net was built, at the ordinary geometry, and 52 baselines
+recorded it as correct for months because they only ever compared against
+themselves.
+
+That is the real lesson here. A screenshot net pins what the app _does_, not what
+it _should do_: it will hold a bug perfectly still and report green forever. The
+only thing that caught this was measuring the box against the number it was
+supposed to be.
+
+**What the red proof does not contain:** the measured "before" ratios. The `list`
+reporter prints assertion detail only in its end-of-run summary, and the run was
+cancelled before that — it was holding the only macOS runner and blocking the
+PR's own E2E. The failure message now carries the measured ratio, so the next
+person to see this red gets the number for free.
+
+**The 12 that moved** are exactly the editor views showing the presenter panel:
+`editor`, `editor-textbox-selected`, `editor-song-order-tray`,
+`editor-missing-background`, `editor-media-library-folder`,
+`editor-media-library-items`, `dialog-unsaved-changes`, `editor-media-library`,
+`editor-presenting`, `editor-song-library`, `presentation-settings`,
+`shortcuts-overlay`. The other 40 are byte-identical: every Home view, the output
+window, the stage display, the tutorial, the song editor modal, output settings,
+and all 29 clipped hover captures — including `hover-presenter-divider`, which
+crops to the divider and never saw the preview.
