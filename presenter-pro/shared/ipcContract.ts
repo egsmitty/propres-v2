@@ -39,7 +39,9 @@ export const INVOKE_METHODS = {
 
   // Restore points (plan A5)
   writeVersion: 'db:versions:write',
+  getVersion: 'db:versions:get',
   getLatestVersion: 'db:versions:latest',
+  listVersionSummaries: 'db:versions:summaries',
   listVersions: 'db:versions:list',
   deleteVersionsFor: 'db:versions:deleteFor',
 

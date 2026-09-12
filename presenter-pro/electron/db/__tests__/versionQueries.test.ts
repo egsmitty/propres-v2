@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
-  MAX_VERSIONS_PER_PRESENTATION,
   deleteVersionsFor,
   getLatestVersion,
+  getVersion,
+  listVersionSummaries,
   listVersions,
   writeVersion,
 } from '../queries/versions';
+import { versionsToPrune } from '../versionRetention';
 
 // Plan A5 slice 1. Append-only restore points, tested against a fake that
 // records every prepared statement and its parameters. better-sqlite3 is never
@@ -62,16 +64,69 @@ describe('version queries', () => {
     expect(transactionCount()).toBe(1);
   });
 
-  it('the prune keeps MAX_VERSIONS_PER_PRESENTATION and is scoped to one presentation', () => {
-    const { db, log } = createFakeDb();
-    writeVersion(db, { presentationId: 41, snapshot: '{}' });
+  it('deletes exactly the ids the retention policy names, and nothing else', () => {
+    // BEHAVIOUR CHANGE (plan A6): retention is time-thinned, not "keep the last
+    // 25". The query no longer decides anything — it asks versionsToPrune and
+    // deletes what it is told, so the calendar logic stays pure and testable.
+    const NOW = new Date(2026, 8, 11, 14, 0, 0, 0).getTime();
+    const dayAgo = Math.floor(NOW / 1000) - 86_400;
+    const rows = [
+      { id: 1, saved_at: dayAgo },
+      { id: 2, saved_at: dayAgo + 60 },
+      { id: 3, saved_at: Math.floor(NOW / 1000) - 60 },
+    ];
+    const expected = versionsToPrune(rows, NOW);
+    expect(expected.length).toBeGreaterThan(0); // the fixture must exercise pruning
+
+    const { db, log } = createFakeDb(rows);
+    writeVersion(db, { presentationId: 41, snapshot: '{}' }, NOW);
 
     const prune = log.find((call) => call.sql.startsWith('DELETE FROM presentation_versions'));
     expect(prune).toBeDefined();
-    // Scoped: one document's saves must never prune another's.
-    expect(prune!.sql).toContain('presentation_id = ?');
-    expect(prune!.params).toEqual([41, 41, MAX_VERSIONS_PER_PRESENTATION]);
-    expect(MAX_VERSIONS_PER_PRESENTATION).toBeGreaterThan(1);
+    expect(prune!.params).toEqual(expected);
+  });
+
+  it("reads the presentation's own rows before pruning, scoped by id", () => {
+    // One document's saves must never prune another's.
+    const { db, log } = createFakeDb([{ id: 1, saved_at: 1 }]);
+    writeVersion(db, { presentationId: 41, snapshot: '{}' });
+    const read = log.find((call) => call.sql.includes('SELECT id, saved_at'));
+    expect(read).toBeDefined();
+    expect(read!.sql).toContain('WHERE presentation_id = ?');
+    expect(read!.params).toEqual([41]);
+  });
+
+  it('issues no DELETE when nothing needs pruning', () => {
+    const { db, log } = createFakeDb([{ id: 1, saved_at: Math.floor(Date.now() / 1000) }]);
+    writeVersion(db, { presentationId: 41, snapshot: '{}' });
+    expect(log.some((call) => call.sql.startsWith('DELETE'))).toBe(false);
+  });
+
+  it('getVersion selects one row by its own id, with the snapshot', () => {
+    const row = { id: 3, presentation_id: 41, snapshot: '{"a":1}', saved_at: 9 };
+    const { db, log } = createFakeDb([row]);
+    expect(getVersion(db, 3)).toEqual(row);
+    expect(log[0]!.sql).toContain('WHERE id = ?');
+    expect(log[0]!.params).toEqual([3]);
+    // The restore path needs presentation_id to check the row belongs to the
+    // open document, so it must be selected.
+    expect(log[0]!.sql).toContain('presentation_id');
+  });
+
+  it('listVersionSummaries returns counts WITHOUT shipping snapshots', () => {
+    const rows = [{ id: 3, saved_at: 9, slide_count: 12 }];
+    const { db, log } = createFakeDb(rows);
+    expect(listVersionSummaries(db, 41)).toEqual(rows);
+
+    // A snapshot is ~1.1KB per slide; listing 40 versions of an 80-slide set
+    // would push ~3.6MB across IPC just to render a number. The snapshot may be
+    // READ inside json_each to count slides, but must never be RETURNED, so
+    // strip the json_each call and require no mention survives.
+    const returned = log[0]!.sql.replace(/json_each\([^)]*\)/g, '');
+    expect(returned).not.toContain('snapshot');
+    expect(log[0]!.sql).toContain('json_array_length');
+    expect(log[0]!.sql).toContain('ORDER BY id DESC');
+    expect(log[0]!.params).toEqual([41]);
   });
 
   it('getLatestVersion orders by id, never by saved_at', () => {

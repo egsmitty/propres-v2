@@ -12,7 +12,9 @@ vi.mock('@/utils/ipc', () => ({
   touchPresentation: vi.fn(),
   updatePresentation: vi.fn(),
   writeVersion: vi.fn(),
+  getVersion: vi.fn(),
   getLatestVersion: vi.fn(),
+  listVersionSummaries: vi.fn(),
   deleteVersionsFor: vi.fn(),
   listVersions: vi.fn(),
 }));

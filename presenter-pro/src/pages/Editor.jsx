@@ -11,6 +11,7 @@ import PresenterPanel from '@/components/presenter/PresenterPanel';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import PresentationSettingsModal from '@/components/editor/PresentationSettingsModal';
 import OutputSettingsModal from '@/components/editor/OutputSettingsModal';
+import VersionHistoryModal from '@/components/editor/VersionHistoryModal';
 import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
 import { usePresenterStore } from '@/store/presenterStore';
@@ -84,6 +85,7 @@ export default function Editor() {
   const mediaLibraryOpen = useAppStore((s) => s.mediaLibraryOpen);
   const newSongEditorOpen = useAppStore((s) => s.newSongEditorOpen);
   const presentationSettingsOpen = useAppStore((s) => s.presentationSettingsOpen);
+  const versionHistoryOpen = useAppStore((s) => s.versionHistoryOpen);
   const outputSettingsOpen = useAppStore((s) => s.outputSettingsOpen);
   const filmstripVisible = useAppStore((s) => s.filmstripVisible);
   const setNewSongEditorOpen = useAppStore((s) => s.setNewSongEditorOpen);
@@ -334,6 +336,7 @@ export default function Editor() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {presentationSettingsOpen && <PresentationSettingsModal />}
+      {versionHistoryOpen && <VersionHistoryModal />}
       {outputSettingsOpen && <OutputSettingsModal />}
       {newSongEditorOpen && (
         <SongEditorModal

@@ -106,9 +106,20 @@ describe('resolveUnsavedChanges', () => {
     // BEHAVIOUR CHANGE (plan A5 slice 2). This branch used to leave the row
     // alone, which was honest only while nothing wrote it. Autosave writes it
     // continuously now, so Discard has to undo those writes.
-    expect(vi.mocked(revertToLatestVersion).mock.calls).toEqual([[7, { navigate: false }]]);
+    expect(vi.mocked(revertToLatestVersion).mock.calls).toEqual([
+      [7, { navigate: false, capture: false }],
+    ]);
     expect(deletePresentation).toHaveBeenCalledTimes(0);
     expect(input.setDirty).toHaveBeenCalledWith(false);
+  });
+
+  it('Discard writes NO version — it means "this never happened"', async () => {
+    vi.mocked(showDialog).mockResolvedValue({ action: 'discard' });
+    await resolveUnsavedChanges(args({ requiresInitialSave: false }));
+    // capture:false is the whole point; without it the discarded work lands in
+    // Version History beside real saves and retention pins it as unprunable.
+    const [, options] = vi.mocked(revertToLatestVersion).mock.calls[0]!;
+    expect(options).toMatchObject({ capture: false });
   });
 
   it('a failed revert alerts and does NOT clear the flags', async () => {

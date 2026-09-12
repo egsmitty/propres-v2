@@ -69,6 +69,9 @@ export default defineConfig({
           'db/queries/media': resolve(__dirname, 'electron/db/queries/media.js'),
           'db/queries/journal': resolve(__dirname, 'electron/db/queries/journal.js'),
           'db/queries/versions': resolve(__dirname, 'electron/db/queries/versions.js'),
+          // Required by queries/versions.js via relative require (CommonJS main),
+          // so it needs its own entry — same reason as migrationList.
+          'db/versionRetention': resolve(__dirname, 'electron/db/versionRetention.js'),
         },
         output: {
           entryFileNames: '[name].js',

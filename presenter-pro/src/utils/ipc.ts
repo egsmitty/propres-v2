@@ -60,6 +60,14 @@ export async function deleteJournal(presentationId: Id): Promise<Envelope> {
 export async function writeVersion(data: Fields): Promise<Envelope> {
   return api().writeVersion(data);
 }
+export async function getVersion<T = unknown>(versionId: Id): Promise<Envelope<T | null>> {
+  return api().getVersion(versionId) as Promise<Envelope<T | null>>;
+}
+export async function listVersionSummaries<T = unknown>(
+  presentationId: Id
+): Promise<Envelope<T[]>> {
+  return api().listVersionSummaries(presentationId) as Promise<Envelope<T[]>>;
+}
 export async function getLatestVersion<T = unknown>(
   presentationId: Id
 ): Promise<Envelope<T | null>> {

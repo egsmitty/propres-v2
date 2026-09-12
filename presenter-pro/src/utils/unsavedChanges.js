@@ -74,7 +74,15 @@ export async function resolveUnsavedChanges({
   } else if (presentation.id) {
     // `navigate: false` — every caller of this is LEAVING the editor, so the
     // revert must not drag the view back to it.
-    const reverted = await revertToLatestVersion(presentation.id, { navigate: false });
+    //
+    // `capture: false` — Discard means "this never happened". Appending the work
+    // the user just asked to throw away would put it in Version History beside
+    // real saves, and the retention rule that never drops the newest version
+    // would pin it there permanently.
+    const reverted = await revertToLatestVersion(presentation.id, {
+      navigate: false,
+      capture: false,
+    });
     if (!reverted) {
       await alertDialog('Your changes could not be discarded. They are still saved.', {
         title: 'Discard Failed',
