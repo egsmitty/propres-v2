@@ -1,8 +1,25 @@
 #!/bin/sh
 # Enforce Conventional Commits (see .github/BRANCHING.md).
 #
-# Git invokes this hook from the repository root and passes the message path
-# relative to it, so resolve it to an absolute path BEFORE changing directory.
-MSG_FILE="$PWD/$1"
+# Git passes the message path RELATIVE to the repository root from the main
+# checkout (`.git/COMMIT_EDITMSG`) but ABSOLUTE from a linked worktree
+# (`/…/.git/worktrees/<name>/COMMIT_EDITMSG`). Prefixing `$PWD` unconditionally
+# doubled the worktree path and failed every worktree commit with ENOENT, so
+# resolve it BEFORE changing directory, and only when it is relative.
+[ "$HUSKY" = "0" ] && exit 0
+
+case "$1" in
+  /*) MSG_FILE="$1" ;;
+  *) MSG_FILE="$PWD/$1" ;;
+esac
+
 cd presenter-pro || exit 1
-npx commitlint --edit "$MSG_FILE"
+
+# A fresh worktree has no node_modules of its own. Fall back to the main
+# checkout's, which `--git-common-dir` locates from any worktree.
+BIN=node_modules/.bin
+if [ ! -x "$BIN/commitlint" ]; then
+  BIN="$(git rev-parse --path-format=absolute --git-common-dir)/../presenter-pro/node_modules/.bin"
+fi
+
+"$BIN/commitlint" --edit "$MSG_FILE"
