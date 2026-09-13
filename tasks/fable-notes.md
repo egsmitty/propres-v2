@@ -1469,3 +1469,31 @@ person to see this red gets the number for free.
 window, the stage display, the tutorial, the song editor modal, output settings,
 and all 29 clipped hover captures — including `hover-presenter-divider`, which
 crops to the divider and never saw the preview.
+
+---
+
+## L0 — the presenting flow had no tests, so pin it before fixing it (2026-09-13)
+
+The whole-app audit (`tasks/fable-pass-2-audit.md`, local) found the worst bugs
+in the app in the presenting flow — a settings modal that closes the projector,
+an edit that un-blacks it, Backspace deleting slides mid-service — and found
+that the code deciding what goes on the projector had **zero** tests. Its own
+verification pass moved this plan ahead of every fix.
+
+**The design choice that matters: pin what is right, not what is wrong.** A
+characterization test that pinned a bug would have to be *edited* by the PR that
+fixes the bug, which is exactly the "the test changed alongside the code" shape
+that proves nothing. So the 28 cases here pin only behaviour that must survive
+every Wave 1 fix: start goes live on the selected slide (or the first), stop
+clears the session, a live slide carries its inherited background and the
+presentation's ratio, an edit refreshes the live slide by id, → / ← / Space
+move one slide with both ends bounded, typing in a field never moves the
+projector, and the Present menu only acts when it should. Each bug gets its own
+red test in its own fix PR. That means a deliberately *unpinned* case sits right
+next to a pinned one: "a deleted live slide is not refreshed" is pinned, "a live
+slide moved to another section is not refreshed" is not — LIVE-A4 changes it.
+
+**Two jsdom gaps, stubbed rather than asserted:** the panel scrolls the live
+thumbnail into view on every live change and jsdom has no `scrollIntoView`
+(all six keyboard cases failed on that before the stub), and starting a session
+calls `window.focus()`, which jsdom does not implement.
