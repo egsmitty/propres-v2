@@ -2,10 +2,10 @@
 # nothing lands unverified.
 #
 # Non-major updates are grouped into one PR per ecosystem per week so the PR
-# list is not buried; majors arrive individually so each gets read. There is
-# deliberately no `ignore` list — pinning things away from updates is how a
-# dependency file quietly rots. Hold a specific update back only as a recorded
-# decision, not here.
+# list is not buried; majors arrive individually so each gets read. The
+# `ignore` list below is not a set of pre-emptive pins (those are how a
+# dependency file quietly rots) — every entry is a specific, recorded hold;
+# see that list's own comment for the policy.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -14,6 +14,11 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    # Lets a just-published version sit for a few days before Dependabot opens
+    # a PR for it, so a bad release gets yanked before it reaches us instead
+    # of during our own PR Gate run.
+    cooldown:
+      default-days: 3
     commit-message:
       # Keeps history Conventional-Commits shaped. Not enforced for Dependabot
       # (husky runs locally, not on GitHub) — this is for readable history.
@@ -57,6 +62,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 3
     commit-message:
       prefix: chore
       include: scope
