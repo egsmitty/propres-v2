@@ -5,7 +5,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
 import SectionHeader from './SectionHeader';
 import FilmstripSlide from './FilmstripSlide';
-import ScaledSlideText from '@/components/shared/ScaledSlideText';
+import SlideRender from '@/components/shared/SlideRender';
 import SongEditorModal from '@/components/library/SongEditorModal';
 import { createSection, createTextSlide, isMediaSlide } from '@/utils/sectionTypes';
 import { getPresentationAspectRatio } from '@/utils/presentationSizing';
@@ -287,14 +287,7 @@ function GhostSlide({
               <div className="truncate text-[10px]">{slide.label || 'Media'}</div>
             </div>
           ) : (
-            <ScaledSlideText
-              presentation={presentation}
-              slide={slide}
-              empty="Click to edit"
-              shadow="none"
-              minPaddingX={6}
-              minPaddingY={6}
-            />
+            <SlideRender presentation={presentation} slide={slide} site="filmstrip-preview" />
           )}
         </div>
       </div>

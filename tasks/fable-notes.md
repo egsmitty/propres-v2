@@ -2638,6 +2638,54 @@ the safe shape is `const p = waitForEvent(…); await action(); await p;`.
 
 ---
 
+## ED36 slice 1 — one slide renderer for every preview (2026-09-14)
+
+**What was wrong.** Six places drew a slide and four of them (thumbnails, the
+Home cards, the presenter panel, the projector) went through a component that
+multiplied every pixel value by a scale factor and rewrote font sizes inside the
+HTML with a regular expression — then clamped padding to a screen-pixel floor so
+thumbnails would not look cramped. The floor narrowed the text column, the
+multiplication rounded differently from the wall, and a lyric that fit on one
+line on the projector could wrap in the thumbnail. On top of that the sites did
+not agree about shadows: the editor drew a soft text-shadow and treated the
+user's Shadow setting as a shape shadow; the projector drew a strong text-shadow
+unless the user's shadow was on, then turned that into a text-shadow and dropped
+the other; thumbnails drew none. And media backgrounds were darkened by 0.18 in
+the editor but 0.22 on the wall.
+
+**What changed.** A single `SlideRender` lays the slide out at its native size
+(1920×1080 for 16:9) and scales the whole stage with one CSS transform — the
+way the editor canvas already worked. One pure module, `slideRenderStyle`, is
+the only description of how a text box looks, in native pixels, with no floors.
+The projector's values are the truth: every box carries the projector's
+legibility text-shadow, media is darkened by 0.22, and the user's Shadow is a
+shape shadow everywhere (it lives beside fill, outline and corner radius —
+PowerPoint's shape effects). This slice moves the five preview sites; the
+projector keeps its old layer for one more slice and the canvas follows.
+
+**Proof.** Two unit suites (17 cases) pin the style module and the renderer's
+structure. A new E2E measures the same seeded slide at three sites and asserts
+identical computed styles, identical wrapped-line counts and the same native
+geometry within one pixel — it cannot run against the old code (the seams did
+not exist), so its red is the measured table in the plan: padding 4 / 8 / 7 px
+at the three sites. Baselines that show thumbnails were recaptured on CI and
+triaged; nothing else moved.
+
+**Worth knowing.** The `empty` prop the old previews passed ("Click to edit",
+"No slide") was dead: `normalizeTextBox` already stores a resolved placeholder
+on every box, so thumbnails have always said "Double-click to edit". Song
+slides store `autoFit: 'shrink'` and nothing renders it. Thumbnails still
+autoplay `<video>` backgrounds (FS-31). No UI sets a text box's `shadowEnabled`,
+so the Shadow setting cannot be checked by hand — it is pinned by unit tests.
+And the recapture exposed a hole in the screenshot net: `editor-song-library`'s
+committed baseline still showed the pre-#125 seed (seven songs, two of them
+copyrighted) and had passed every run since, because CI allows
+`maxDiffPixelRatio: 0.01` and a changed song list in small text stays under 1 %
+of the frame. The corrected baseline is committed with this slice; the
+tolerance itself is a CI item, not this plan's.
+
+---
+
 ## CMDS1 PR A — one command registry (2026-09-14)
 
 **What was wrong.** Four hand-written lists described the app's commands and
