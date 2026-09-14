@@ -1669,3 +1669,87 @@ slide moved to another section is not refreshed" is not — LIVE-A4 changes it.
 thumbnail into view on every live change and jsdom has no `scrollIntoView`
 (all six keyboard cases failed on that before the stub), and starting a session
 calls `window.focus()`, which jsdom does not implement.
+
+---
+
+## T1 — tooling cleanup: no import cycle, one file walker, cached lint (2026-09-13)
+
+Six small audit items in one PR (REPO-30a, REPO-30b, REPO-33, REPO-35,
+REPO-36, WF-45/46) — see `tasks/plan-T1-tooling-cleanup.md`.
+
+**REPO-30a.** `sectionTypes.js` and `backgrounds.js` imported each other:
+`sectionTypes.js` wanted `SECTION_COLORS` from `backgrounds.js`;
+`backgrounds.js` wanted `isMediaSlide`/`normalizeSectionType` from
+`sectionTypes.js`. Fixed by giving `SECTION_COLORS` its own leaf module
+(`src/utils/sectionColors.js`, imports nothing) and having both original
+files import it from there — `backgrounds.js` re-exports it too, so nothing
+that already imported `SECTION_COLORS` from `backgrounds.js` would have had
+to change (in practice nothing did; it was only ever consumed from
+`sectionTypes.js`). New `src/__tests__/importCycles.test.ts` walks the whole
+internal `src` import graph (regex-parsed static `import`/`export ... from`
+specifiers, `@/` alias resolved per `vitest.config.mjs`) and fails on any
+cycle, not just this one. Red proof before the fix: it found exactly the one
+cycle, printed as `backgrounds.js -> sectionTypes.js -> backgrounds.js`.
+
+**REPO-30b.** `src/utils/slideParser.js` was dead — `grep -rn "slideParser"`
+across the whole repo (excluding node_modules/.git) hit only two `.cursor/
+rules/*.mdc` doc examples and a `tasks/todo.md` mention, no real import, no
+test file. Deleted.
+
+**REPO-33 — the one surprise this PR turned up.** The audit item's premise
+was that three named test files (`inlineStyleBudget.test.ts`,
+`keyboardReachability.test.ts`, `tailwindTokens.test.ts`) each hand-roll a
+recursive directory walker. Reading all three: the first two do, and are now
+both built on one `listSourceFiles()` helper in `src/__tests__/
+sourceFiles.ts`. **`tailwindTokens.test.ts` does not walk anything** — it
+only reads `src/styles/globals.css` once and diffs two regex-parsed maps
+against each other. There was nothing there to extract, so it was left
+untouched. (There is a fourth, unrelated walker at `src/styles/__tests__/
+tokens.test.ts` — plan E1's colour-token guard — that duplicates the same
+shape again; it wasn't one of the three named files and was left alone, but
+it's a candidate for the same treatment in a future pass.) The two real
+walkers had slightly different behavior (different extension sets, and
+`keyboardReachability`'s didn't filter iCloud-duplicate names or
+`node_modules`) — verified with `find` that no file under `src` currently
+trips those extra filters, so unifying them changed nothing observable: both
+files reported the same 6 passing cases before and after.
+
+**REPO-35.** `lint` and `type-check` now pass `--cache`/`--incremental` with
+cache files under `node_modules/.cache/` (already gitignored via the existing
+`presenter-pro/node_modules/` entry). Measured: lint 7.3s cold → ~1.0s warm;
+type-check ~2.4s (7.15s user) cold → ~1.5s warm on repeat. Verified a
+deliberate lint error (an unused non-underscore-prefixed const) and a
+deliberate type error (`number` into a `string`-typed const) are both still
+caught with the cache populated, then reverted both.
+
+**REPO-36.** Added `presenter-pro/.npmrc` with `engine-strict=true`. This
+landed as pure enforcement of a pin that already existed everywhere else:
+`package.json` already had `engines.node >= 22.12.0`, all three workflows
+already read Node from `.nvmrc` (22), and `electron/main/__tests__/
+toolchain.test.ts` (plan U1) already asserts `.nvmrc`/`engines.node`/
+`@types/node` agree on the major. `npm install --dry-run` under the active
+Node 22 shell exits 0.
+
+**WF-45/46.** `scripts/new-plan.mjs <id> <slug> [outputDir]` scaffolds a plan
+file with the anti-weakening clause verbatim and both Compliance Manifest
+tables pre-filled (14 writing-executable-plans rows, 10 testing-standards
+rows, item names copied from the two `.mdc` files) — refuses to overwrite,
+and never touches the real `tasks/` directory unless nothing else is given.
+Its test (`electron/main/__tests__/newPlanScript.test.ts`) runs the real
+script into a fresh OS tmpdir on every case. `scripts/baselines.sh <branch>`
+dispatches `e2e.yml` with `update_baselines=true`, watches the run, downloads
+the `visual-baselines` artifact, and copies only the PNGs that actually
+`cmp` different into the matching `presenter-pro/e2e/*-snapshots/` file — it
+resolves each downloaded file to its target by the path suffix starting at
+the nearest `*-snapshots` ancestor directory, which is robust to whichever
+root `actions/upload-artifact` normalizes the download to (verified by hand
+against a throwaway fixture tree mimicking both possible roots; the script
+itself was never run against the real workflow — that would dispatch a real
+CI run, which this plan explicitly avoided). If a downloaded file doesn't
+resolve to exactly one match, the script prints what it would have done and
+exits 1 without copying anything, rather than guessing.
+
+Gate: `type-check ✓ · lint ✓ · vitest 536/536 passed (0 skipped)`. One
+flake observed mid-run (`SongEditorModal.test.tsx` timed out under the full
+64-worker parallel gate load) — reran in isolation, 17/17 passed in 1.5s;
+not a regression, and that file is untouched by this PR.
