@@ -6,6 +6,7 @@ import {
   SNAP_THRESHOLD,
   boxBounds,
   clamp,
+  clampBoxPosition,
   getResizeHandleCode,
   getResizeHandleDirections,
   getRotationFromPointer,
@@ -32,6 +33,7 @@ const EXPECTED_EXPORTS = [
   'SNAP_THRESHOLD',
   'boxBounds',
   'clamp',
+  'clampBoxPosition',
   'getResizeHandleCode',
   'getResizeHandleDirections',
   'getRotationFromPointer',
@@ -96,6 +98,77 @@ describe('clamp', () => {
     // Math.min(max, …) is applied last, so max beats min. Documented, not
     // endorsed — callers rely on it never happening.
     expect(clamp(5, 10, 0)).toBe(0);
+  });
+});
+
+describe('clampBoxPosition', () => {
+  // ED-11 (fable-pass-2-audit.md, Part 3). `clamp(value, 0, extent - size)`
+  // has inverted bounds whenever `size > extent` (a box wider/taller than the
+  // slide), and `clamp`'s own "lets max win when inverted" behaviour then
+  // pins the box to a fixed negative position no matter what the pointer
+  // does. `clampBoxPosition` orders the bounds itself so dragging stays
+  // controllable either way.
+
+  describe('a box that fits (size < extent)', () => {
+    const size = 200;
+    const extent = 1920; // a 200-wide box on a 1920-wide slide
+
+    it('passes an in-range value through unchanged', () => {
+      expect(clampBoxPosition(500, size, extent)).toBe(500);
+    });
+
+    it('clamps below 0 up to 0', () => {
+      expect(clampBoxPosition(-50, size, extent)).toBe(0);
+    });
+
+    it('clamps above extent - size down to extent - size', () => {
+      expect(clampBoxPosition(5000, size, extent)).toBe(extent - size);
+    });
+  });
+
+  describe('a box that exactly fits (size === extent)', () => {
+    const size = 1920;
+    const extent = 1920;
+
+    it('clamps any value to 0, the only position that fits', () => {
+      expect(clampBoxPosition(0, size, extent)).toBe(0);
+      expect(clampBoxPosition(500, size, extent)).toBe(0);
+      expect(clampBoxPosition(-500, size, extent)).toBe(0);
+    });
+  });
+
+  describe('a box wider than the slide (size > extent) — the bug case', () => {
+    const size = 2400;
+    const extent = 1920; // extent - size === -480
+
+    it('passes a value inside [extent - size, 0] through unchanged', () => {
+      expect(clampBoxPosition(-200, size, extent)).toBe(-200);
+    });
+
+    it('clamps below extent - size up to extent - size, not to a fixed jump', () => {
+      expect(clampBoxPosition(-9000, size, extent)).toBe(extent - size);
+    });
+
+    it('clamps above 0 down to 0', () => {
+      expect(clampBoxPosition(500, size, extent)).toBe(0);
+    });
+  });
+
+  describe('a box taller than the slide (same shape, the height/y axis)', () => {
+    const size = 1400;
+    const extent = 1080; // extent - size === -320
+
+    it('passes a value inside [extent - size, 0] through unchanged', () => {
+      expect(clampBoxPosition(-100, size, extent)).toBe(-100);
+    });
+
+    it('clamps below extent - size up to extent - size', () => {
+      expect(clampBoxPosition(-5000, size, extent)).toBe(extent - size);
+    });
+
+    it('clamps above 0 down to 0', () => {
+      expect(clampBoxPosition(200, size, extent)).toBe(0);
+    });
   });
 });
 
