@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # required to create the release and upload assets
+  contents: read
 
 defaults:
   run:
@@ -22,6 +22,7 @@ jobs:
   build:
     name: Package (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -34,16 +35,19 @@ jobs:
             artifact: presenterpro-windows
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: presenter-pro/package-lock.json
 
-      # Full install: electron-builder needs the native better-sqlite3 rebuild.
+      # Full install: electron-builder needs the real Electron binary to
+      # package the app. There is no native-module rebuild here either —
+      # better-sqlite3 ships N-API prebuilds (`build.npmRebuild: false`, no
+      # postinstall script).
       - name: Install dependencies
         run: npm ci
 
@@ -55,7 +59,7 @@ jobs:
         run: npm run ${{ matrix.script }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ matrix.artifact }}
           # Only the distributable files — not the unpacked app directories,
@@ -74,14 +78,17 @@ jobs:
     # Only tag pushes produce a release; workflow_dispatch just leaves artifacts.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # required to create the release and upload assets
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
 
       - name: Create draft release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           draft: true
           generate_release_notes: true

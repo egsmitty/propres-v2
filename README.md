@@ -16,7 +16,7 @@ Everything is stored locally in a SQLite database inside Electron's user-data fo
 | `.cursor/rules/`                      | Testing and executable-plan standards that every change follows                      |
 | `AGENTS.md`, `AI_OPERATING_MANUAL.md` | How work is planned, executed, and reviewed in this repo                             |
 | `tasks/`                              | Executable plans, remediation logs, and the running engineering notes                |
-| `test-media/`                         | Sample images and video used by the app and the E2E suite                            |
+| `test-media/`                         | Sample images/video the built-in media resolver and E2E suite read at runtime; gitignored, so a fresh clone does not have it (see `CLAUDE.md` Known Issues) |
 
 ## Requirements
 
@@ -52,7 +52,7 @@ Useful pieces on their own:
 | `npm run test:watch`                | Vitest in watch mode                                                                            |
 | `npm run test:coverage`             | Coverage report under `coverage/`                                                               |
 | `npm run lint` / `npm run lint:fix` | ESLint. Pre-existing warnings are frozen in `eslint-suppressions.json` and may only shrink      |
-| `npm run type-check`                | `tsc --noEmit` over the whole project (JS is type-checked too)                                  |
+| `npm run type-check`                | `tsc --noEmit` over the whole project (`.js`/`.jsx` are checked only where they opt in with `// @ts-check`) |
 
 Pre-commit hooks run Prettier and ESLint on staged files, and commit messages must follow Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, ...). Hooks are installed automatically by `npm ci` via the `prepare` script.
 
@@ -71,7 +71,7 @@ Specs cover launch, quitting, the unsaved-changes prompt, versioned database mig
 ## The database
 
 - **Migrations are versioned and recorded** in a `schema_migrations` table. On launch the app applies only the pending ones, each in its own transaction, after writing a consistent backup (`presenterpro.backup-v<N>-<timestamp>.db`, newest three kept) next to the database. A launch with nothing pending performs zero writes.
-- **Crash recovery**: unsaved presentation edits are journaled a couple of seconds after each change. After a crash the next launch offers Recover / Discard / Later.
+- **Crash recovery**: edits autosave to the presentation's own row a couple of seconds after typing stops (see the Save model in `CLAUDE.md`). The earlier crash-recovery journal is no longer written — autosave keeps `updated_at` fresh, which would make every journal row stale before it was read — but the table and startup drain remain, so a profile carried over from an older build can still see one Recover / Discard / Later prompt for its last pending journal entry.
 - **Built-in hymns** are identified by `built_in_key`, never by title. The seeder never deletes anything, and it refreshes a hymn only while the row still matches the text the seeder wrote, so your edits to a built-in hymn are permanent.
 - **Check a real database before upgrading** (works on a copy, never the original):
 
@@ -86,7 +86,7 @@ It reports the migrations that would apply, the backup that would be written, an
 
 1. Branch from `main`: `feat/<topic>`, `fix/<topic>`, `chore/<topic>`, `docs/<topic>`.
 2. Tests first. Non-trivial work starts from an executable plan in `tasks/` (see `.cursor/rules/writing-executable-plans.mdc`); the rules in `.cursor/rules/testing-standards.mdc` are enforced, not advisory.
-3. Open a pull request. `main` is protected for everyone, including admins: the **PR Gate** check (gate + macOS and Windows builds) must pass and the branch must be up to date. Nothing lands on `main` directly.
+3. Open a pull request. `main` is protected for everyone, including admins: the **PR Gate** check (gate + macOS and Windows builds) and the **E2E (macOS)** check must both pass and the branch must be up to date. Nothing lands on `main` directly.
 4. Every PR description ends with a short findings report: what was verified, what changed behaviour, and anything discovered but not fixed.
 
 Ongoing engineering decisions and the reasoning behind them live in `tasks/fable-notes.md`; the current plan and status table are in `tasks/fable-pass-plan.md`.
