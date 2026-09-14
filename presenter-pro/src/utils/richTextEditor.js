@@ -350,17 +350,78 @@ export function applyEditorFontSize(size, editor = getCurrentOrSavedSlideTextEdi
   return true;
 }
 
+// Block-level tags that carry line structure. Kept (re-created with no
+// attributes, so a pasted inline style/class is also stripped) rather than
+// unwrapped, so multi-line selections built from `<div>`-per-line content keep
+// their line breaks.
+const FORMATTING_STRIP_BLOCK_TAGS = new Set([
+  'div',
+  'p',
+  'li',
+  'ol',
+  'ul',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'blockquote',
+]);
+
+/**
+ * Rebuilds `sourceNode`'s children with every formatting element removed but
+ * every line-structure node kept: text nodes are copied as-is, `<br>` is kept
+ * as `<br>`, block tags are kept (attribute-stripped) and recursed into, and
+ * any other element (`<b>`, `<i>`, `<span>`, `<font>`, ...) is unwrapped —
+ * its children are recursed into and appended directly, dropping the wrapper.
+ */
+function buildFormattingStrippedFragment(sourceNode, doc) {
+  const fragment = doc.createDocumentFragment();
+  sourceNode.childNodes.forEach((child) => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      fragment.appendChild(doc.createTextNode(child.nodeValue));
+      return;
+    }
+    if (child.nodeType !== Node.ELEMENT_NODE) return;
+
+    const tag = child.nodeName.toLowerCase();
+    if (tag === 'br') {
+      fragment.appendChild(doc.createElement('br'));
+      return;
+    }
+    if (FORMATTING_STRIP_BLOCK_TAGS.has(tag)) {
+      const block = doc.createElement(tag);
+      block.appendChild(buildFormattingStrippedFragment(child, doc));
+      fragment.appendChild(block);
+      return;
+    }
+
+    fragment.appendChild(buildFormattingStrippedFragment(child, doc));
+  });
+  return fragment;
+}
+
 export function clearEditorFormatting(editor = getCurrentOrSavedSlideTextEditor()) {
   const range = getEditorRange(editor);
   if (!editor || !range || range.collapsed) return false;
   const selection = getSelectionObject();
-  const text = selection?.toString() || range.cloneContents().textContent || '';
-  const textNode = document.createTextNode(text);
+  const plainFragment = buildFormattingStrippedFragment(range.cloneContents(), document);
+  // A DocumentFragment empties itself once inserted, so the nodes to
+  // re-select must be captured before insertNode moves them into the range.
+  const insertedNodes = Array.from(plainFragment.childNodes);
+
   range.deleteContents();
-  range.insertNode(textNode);
+  range.insertNode(plainFragment);
 
   const nextRange = document.createRange();
-  nextRange.selectNodeContents(textNode);
+  if (insertedNodes.length) {
+    nextRange.setStartBefore(insertedNodes[0]);
+    nextRange.setEndAfter(insertedNodes[insertedNodes.length - 1]);
+  } else {
+    nextRange.setStart(range.startContainer, range.startOffset);
+    nextRange.collapse(true);
+  }
   selection?.removeAllRanges();
   selection?.addRange(nextRange);
 

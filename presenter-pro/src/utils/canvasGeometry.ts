@@ -43,6 +43,23 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Clamps a box's position on one axis so the box stays as fully on the slide
+ * as it can be. `extent - size` is negative when the box is wider (or
+ * taller) than the slide itself — `clamp(value, 0, extent - size)` would then
+ * have inverted bounds and always return the negative bound, jumping the box
+ * to a fixed off-slide position regardless of the pointer. Using
+ * `[min(0, extent - size), max(0, extent - size)]` keeps the bounds ordered
+ * either way: when the box fits, the range is the usual `[0, extent - size]`;
+ * when it doesn't, the range is `[extent - size, 0]`, so the box can still
+ * slide (and the pointer still controls it) without ever exceeding either
+ * edge.
+ */
+export function clampBoxPosition(value: number, size: number, extent: number): number {
+  const delta = extent - size;
+  return clamp(value, Math.min(0, delta), Math.max(0, delta));
+}
+
 export function getResizeHandleCode(handle: string | null | undefined): string {
   return String(handle || '').replace(/^resize_/, '');
 }

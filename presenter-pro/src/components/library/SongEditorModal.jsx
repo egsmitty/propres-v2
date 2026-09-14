@@ -708,10 +708,15 @@ export default function SongEditorModal({ song, onClose, onSave }) {
         builtInKey: song?.builtInKey || song?.built_in_key || null,
       };
 
-      if (song?.id) {
-        await updateSong(song.id, data);
-      } else {
-        await createSong(data);
+      const result = song?.id ? await updateSong(song.id, data) : await createSong(data);
+      // A failed save keeps the editor open and says so. It used to close as if
+      // the song were saved, taking the edits with it (plan D1, audit SAVE-A2).
+      if (!result?.success || result.data == null) {
+        const message = result?.success
+          ? 'This song no longer exists in the library, so it could not be saved.'
+          : result?.error || 'Your song could not be saved.';
+        await alertDialog(message, { title: 'Save Failed' });
+        return false;
       }
 
       onSave();
