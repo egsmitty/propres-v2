@@ -31,6 +31,7 @@ import {
   syncPresentationSession,
 } from '@/utils/presenterFlow';
 import { alertDialog } from '@/utils/dialog';
+import { shouldStopPresentingOnEscape } from '@/utils/escapeKey';
 
 const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth';
 const FILMSTRIP_MIN_WIDTH = 276;
@@ -273,7 +274,7 @@ export default function Editor() {
         latestHandlePresent.current();
         return;
       }
-      if (e.key === 'Escape' && isPresenting) {
+      if (shouldStopPresentingOnEscape(e, isPresenting)) {
         e.preventDefault();
         latestHandleStopPresenting.current();
         return;

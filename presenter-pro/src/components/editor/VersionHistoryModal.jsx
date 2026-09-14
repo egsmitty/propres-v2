@@ -57,8 +57,9 @@ export default function VersionHistoryModal() {
       e.preventDefault();
       setVersionHistoryOpen(false);
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    // Capture phase: consumed before the Editor's stop-presenting listener (L1).
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [setVersionHistoryOpen]);
 
   // The number of slides in the open document, used to mark which row you are
