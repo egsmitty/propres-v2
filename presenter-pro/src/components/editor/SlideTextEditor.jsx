@@ -18,6 +18,51 @@ function normalizeEditorHtml(html) {
   return String(html || '').replace(/&nbsp;/gi, ' ');
 }
 
+/**
+ * Plan ED3 (audit ED-9). Inserts plain text at the caret. The browser's
+ * `insertText` command is preferred: it keeps the native undo stack and turns
+ * newlines into line breaks. Where it is missing or refuses (jsdom has none),
+ * the text goes in as text nodes separated by `<br>`, and the caret moves to
+ * the end of what was inserted.
+ */
+function insertPlainText(element, text) {
+  try {
+    if (
+      typeof document.execCommand === 'function' &&
+      document.execCommand('insertText', false, text)
+    ) {
+      return;
+    }
+  } catch {
+    // Fall back to inserting the nodes by hand.
+  }
+
+  const selection = window.getSelection();
+  let range = selection && selection.rangeCount ? selection.getRangeAt(0) : null;
+  if (!range || !element.contains(range.commonAncestorContainer)) {
+    range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+  }
+
+  range.deleteContents();
+  const fragment = document.createDocumentFragment();
+  text.split('\n').forEach((line, index) => {
+    if (index > 0) fragment.appendChild(document.createElement('br'));
+    if (line) fragment.appendChild(document.createTextNode(line));
+  });
+  const lastInserted = fragment.lastChild;
+  range.insertNode(fragment);
+
+  if (lastInserted && selection) {
+    const caret = document.createRange();
+    caret.setStartAfter(lastInserted);
+    caret.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(caret);
+  }
+}
+
 function isTextInsertionKey(event) {
   if (!event) return false;
   if (event.metaKey || event.ctrlKey || event.altKey) return false;
@@ -123,8 +168,19 @@ export default function SlideTextEditor({
     }
   }
 
-  function handlePaste() {
+  // ED-9: paste keeps text only, like PowerPoint's "Keep Text Only". Letting the
+  // browser paste the clipboard's HTML brought Word/Docs spans, inline styles
+  // and `pt` font sizes into the slide body. A paste with no text (an image)
+  // does nothing.
+  function handlePaste(e) {
+    e.preventDefault();
+    const text = (e.clipboardData?.getData('text/plain') || '').replace(/\r\n?/g, '\n');
+    if (!text || !ref.current) return;
+
     clearPlaceholder();
+    insertPlainText(ref.current, text);
+    // preventDefault() also suppresses the input event, so save the same way.
+    handleInput();
   }
 
   function handleBlur(e) {

@@ -2472,6 +2472,33 @@ tested predicate beside L3's window options.
 
 ---
 
+## ED3 — paste keeps text only (2026-09-14)
+
+**What was wrong.** Almost every song reaches a slide by copy and paste — from a
+Word document, a Google Doc, a lyrics website. `SlideTextEditor`'s paste handler
+only cleared the placeholder and then let the browser paste, and the browser
+pastes the clipboard's HTML: spans, inline styles, a `font-size: 14pt` that the
+thumbnails and the projector do not scale. `handleInput` saved all of it as the
+slide body. An image on the clipboard went in as an `<img>` inside a text box.
+
+**What changed.** Paste prevents the default and inserts `text/plain` only, with
+Windows and old-Mac line endings normalised. It goes in through the browser's
+`insertText` command, which keeps the native undo stack and turns newlines into
+line breaks; where that command is missing or refuses, the text goes in as text
+nodes separated by `<br>` at the caret. Then it saves through the same
+`handleInput` typing uses — preventing the default also suppresses the `input`
+event, so without that call the paste would never be saved. A paste with no text
+does nothing.
+
+**Worth knowing.** jsdom has no native paste, so no unit test can watch a
+browser insert Word's HTML. The red tests prove the mechanism instead: the old
+handler never prevented the default, and nothing inserted or saved text. The
+fallback insertion path is also the one the tests exercise, because jsdom has no
+`execCommand`; a separate case pins that the native command is used when it
+exists. "Paste and Match Style" on ⌘⇧V (CMD-M2) stays its own item.
+
+---
+
 ## DLG1 — Enter obeys whichever dialog button is focused (2026-09-14)
 
 **What was wrong.** `Dialog.jsx`'s `handleEnter` resolved the `primary` action
