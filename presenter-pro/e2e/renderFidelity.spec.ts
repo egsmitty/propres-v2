@@ -19,9 +19,10 @@ import type { Page } from '@playwright/test';
 // presenter grid's to `5px 7px 5px 7px` (each site had its own screen-pixel
 // floor), with font sizes that differed by rounding.
 //
-// Preconditions: the seeded presentation is open (its first slide selected)
-// and the presenter panel is shown — the live preview and the grid do not
-// exist otherwise.
+// Preconditions: the seeded presentation is open (its first slide selected),
+// the presenter panel is shown (the live preview and the grid do not exist
+// otherwise) and the Service Order is expanded (a collapsed section has no
+// thumbnails — the first CI run failed on exactly that).
 //
 // If an assertion fails, the bug is elsewhere — never loosen the assertion to
 // pass. Fix the root cause or record it as a suspected regression.
@@ -59,6 +60,12 @@ async function openSeededPresentation(page: Page) {
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-slide-editing]')).toHaveCount(1, { timeout: 15_000 });
   await showPresenterPanel(page);
+  // Precondition: the Service Order starts with every section collapsed, and a
+  // collapsed section mounts no thumbnails (`Filmstrip.jsx`, plan D2 #9).
+  await page.getByRole('button', { name: 'Expand All', exact: true }).click();
+  await expect(page.locator('[data-slide-render="thumbnail"]').first()).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 async function measureSite(page: Page, site: string): Promise<SiteFacts> {
