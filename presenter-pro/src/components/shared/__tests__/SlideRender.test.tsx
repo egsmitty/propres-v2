@@ -166,6 +166,65 @@ describe('SlideRender', () => {
     expect(span).toHaveStyle({ backgroundColor: '#ffff00' });
   });
 
+  it('11. backgroundMedia, when given, wins over the library lookup (the projector resolves its own)', () => {
+    render(
+      <SlideRender
+        presentation={{}}
+        slide={textSlide('Hello', { backgroundId: 7 })}
+        mediaLibrary={[{ id: 7, type: 'image', file_path: '/library.jpg', name: 'Library' }]}
+        backgroundMedia={{ id: 42, type: 'image', file_path: '/resolved.jpg', name: 'Resolved' }}
+      />
+    );
+    measure({ width: 480, height: 270 });
+    expect(screen.getByRole('img', { name: 'Resolved' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Library' })).toBeNull();
+  });
+
+  it('12. mediaSlideItem, when given, wins over the library lookup', () => {
+    render(
+      <SlideRender
+        presentation={{}}
+        slide={{ id: 'slide-2', type: 'media', mediaId: 9 }}
+        mediaLibrary={[{ id: 9, type: 'image', file_path: '/library.jpg', name: 'Library' }]}
+        mediaSlideItem={{ id: 9, type: 'image', file_path: '/resolved.jpg', name: 'Resolved' }}
+      />
+    );
+    measure({ width: 480, height: 270 });
+    expect(screen.getByRole('img', { name: 'Resolved' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Library' })).toBeNull();
+  });
+
+  it('13. a custom renderBackground also receives an item whose file is missing; the default draws nothing', () => {
+    const missing = {
+      id: 7,
+      type: 'image',
+      file_path: '/gone.jpg',
+      file_exists: false,
+      name: 'Gone',
+    };
+    const renderBackground = vi.fn((media: object) => (
+      <div data-testid="custom-background">{(media as { name: string }).name}</div>
+    ));
+    const { unmount } = render(
+      <SlideRender
+        presentation={{}}
+        slide={textSlide('Hello')}
+        backgroundMedia={missing}
+        renderBackground={renderBackground}
+      />
+    );
+    measure({ width: 480, height: 270 });
+    // The projector draws its own "Missing media file" notice; it must still be asked.
+    expect(screen.getByTestId('custom-background')).toHaveTextContent('Gone');
+    // No overlay over a background that is not there.
+    expect(document.querySelector('[data-slide-overlay]')).toBeNull();
+    unmount();
+
+    render(<SlideRender presentation={{}} slide={textSlide('Hello')} backgroundMedia={missing} />);
+    measure({ width: 480, height: 270 });
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
   it('10. without a ResizeObserver the frame renders hidden instead of throwing', () => {
     vi.stubGlobal('ResizeObserver', undefined);
     render(<SlideRender presentation={{}} slide={textSlide('Hello')} />);
