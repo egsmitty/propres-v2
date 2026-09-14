@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { openMigratedMemoryDb, type RealDb } from './helpers/realDb';
 import * as songs from '../queries/songs';
 import * as presentations from '../queries/presentations';
@@ -80,17 +80,23 @@ describe('songs', () => {
     expect(songs.getSongByBuiltInKey(db, '')).toBeNull();
   });
 
-  it('getSongs orders by title and deleteSong removes exactly that row', () => {
+  it('getSongs orders by title case-insensitively and deleteSong removes exactly that row (SONG-16)', () => {
     const b = create({ title: 'B song' });
     create({ title: 'a song' });
     create({ title: 'C song' });
     expect((songs.getSongs(db) as Row[]).map((s) => s.title)).toEqual([
+      'a song',
       'B song',
       'C song',
-      'a song',
-    ]); // SQLite ASC is byte order
+    ]); // COLLATE NOCASE: case is ignored for ordering
     songs.deleteSong(db, b.id);
-    expect((songs.getSongs(db) as Row[]).map((s) => s.title)).toEqual(['C song', 'a song']);
+    expect((songs.getSongs(db) as Row[]).map((s) => s.title)).toEqual(['a song', 'C song']);
+  });
+
+  it('getSongs breaks same-title (case-insensitive) ties by id ASC (SONG-16)', () => {
+    const first = create({ title: 'Same' });
+    const second = create({ title: 'same' });
+    expect((songs.getSongs(db) as Row[]).map((s) => s.id)).toEqual([first.id, second.id]);
   });
 });
 
@@ -162,6 +168,72 @@ describe('presentations', () => {
     presentations.deletePresentation(db, row.id);
     expect(presentations.getPresentations(db)).toEqual([]);
   });
+
+  it('getPresentations returns the other rows and flags a corrupt one instead of throwing (MAIN-B2)', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const a = create({ title: 'Good A' });
+      const b = create({ title: 'Good B' });
+      const corruptResult = db
+        .prepare('INSERT INTO presentations (title, sections) VALUES (?, ?)')
+        .run('Corrupt', 'not valid json{');
+      const corruptId = Number(corruptResult.lastInsertRowid);
+
+      const rows = presentations.getPresentations(db) as Row[];
+      // Exact count: the bad row must not take the other two down with it.
+      expect(rows).toHaveLength(3);
+
+      const good = rows.filter((r) => r.id === a.id || r.id === b.id);
+      const corrupt = rows.filter((r) => r.id === corruptId);
+      expect(corrupt).toHaveLength(1);
+      expect(corrupt[0]!.corrupt).toBe(true);
+      expect(corrupt[0]!.sections).toEqual([]);
+      // Healthy rows keep their existing shape — no `corrupt` key added.
+      expect(good).toHaveLength(2);
+      for (const row of good) {
+        expect(row).not.toHaveProperty('corrupt');
+      }
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('getPresentation returns a flagged row instead of throwing when sections is corrupt (MAIN-B2)', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const corruptResult = db
+        .prepare('INSERT INTO presentations (title, sections) VALUES (?, ?)')
+        .run('Corrupt', 'not valid json{');
+      const corruptId = Number(corruptResult.lastInsertRowid);
+
+      const row = presentations.getPresentation(db, corruptId) as Row;
+      expect(row).not.toBeNull();
+      expect(row.corrupt).toBe(true);
+      expect(row.sections).toEqual([]);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('getPresentations lists most recently updated first, with id DESC breaking ties (MAIN-B16)', () => {
+    const older = create({ title: 'older' });
+    const tiedA = create({ title: 'tiedA' });
+    const tiedB = create({ title: 'tiedB' });
+    db.prepare('UPDATE presentations SET updated_at = ? WHERE id = ?').run(1000, older.id);
+    // Same second: nothing but id should decide order between these two.
+    db.prepare('UPDATE presentations SET updated_at = 2000 WHERE id IN (?, ?)').run(
+      tiedA.id,
+      tiedB.id
+    );
+    const higherId = Math.max(tiedA.id as number, tiedB.id as number);
+    const lowerId = Math.min(tiedA.id as number, tiedB.id as number);
+    expect((presentations.getPresentations(db) as Row[]).map((p) => p.id)).toEqual([
+      higherId,
+      lowerId,
+      older.id,
+    ]);
+  });
 });
 
 describe('media and folders', () => {
@@ -220,6 +292,25 @@ describe('media and folders', () => {
     const f = folder('Old');
     expect((media.updateMediaFolder(db, f.id, { name: 'New' }) as Row).name).toBe('New');
     expect(media.updateMediaFolder(db, 999, { name: 'x' })).toBeNull();
+  });
+
+  // MAIN-B15: media import used to scan the whole table per imported file
+  // (getMedia + JS .find); this indexed lookup replaces it.
+  it('findMediaByCanonicalPath finds the matching row by canonical_path and returns undefined for no match', () => {
+    item({ name: 'a.png', canonical_path: '/canon/a.png' });
+    const match = item({ name: 'b.png', canonical_path: '/canon/b.png' });
+    expect((media.findMediaByCanonicalPath(db, '/canon/b.png') as Row).id).toBe(match.id);
+    expect(media.findMediaByCanonicalPath(db, '/does/not/exist.png')).toBeUndefined();
+  });
+
+  it('getMedia orders most recently created first, with id DESC breaking ties (MAIN-B16)', () => {
+    const tiedA = item({ name: 'tiedA.png' });
+    const tiedB = item({ name: 'tiedB.png' });
+    // Same second: nothing but id should decide order between these two.
+    db.prepare('UPDATE media SET created_at = 5000 WHERE id IN (?, ?)').run(tiedA.id, tiedB.id);
+    const higherId = Math.max(tiedA.id as number, tiedB.id as number);
+    const lowerId = Math.min(tiedA.id as number, tiedB.id as number);
+    expect((media.getMedia(db) as Row[]).map((m) => m.id)).toEqual([higherId, lowerId]);
   });
 });
 
