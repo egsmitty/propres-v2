@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TEMPLATE_VISUALS } from '@/utils/templateVisuals';
 import { useClearWhenMissing } from '@/hooks/useClearWhenMissing';
 import {
@@ -206,14 +206,28 @@ export default function Home() {
     await createPresentationFromTemplate(templateId);
   }
 
+  // A real double-click dispatches click, click, dblclick. Each open touches
+  // the row, loads it, and runs version checks, so re-entering `handleOpen`
+  // for a presentation that already has an open in flight would run those
+  // three times concurrently (HOME-9). The ref is keyed by presentation id
+  // rather than a single boolean so opening two different rows in quick
+  // succession (e.g. arrow key + Enter) is still allowed.
+  const openingPresentationIdsRef = useRef(new Set());
+
   async function handleOpen(pres) {
-    setHiddenRecentIds((current) => {
-      if (!current.includes(pres.id)) return current;
-      const next = current.filter((id) => id !== pres.id);
-      saveHiddenRecentPresentationIds(next);
-      return next;
-    });
-    await openPresentationInEditor(pres.id);
+    if (openingPresentationIdsRef.current.has(pres.id)) return;
+    openingPresentationIdsRef.current.add(pres.id);
+    try {
+      setHiddenRecentIds((current) => {
+        if (!current.includes(pres.id)) return current;
+        const next = current.filter((id) => id !== pres.id);
+        saveHiddenRecentPresentationIds(next);
+        return next;
+      });
+      await openPresentationInEditor(pres.id);
+    } finally {
+      openingPresentationIdsRef.current.delete(pres.id);
+    }
   }
 
   async function handleRename(pres) {
@@ -960,9 +974,14 @@ function PresentationRow({
   onActionMenuToggle,
 }) {
   const [hovered, setHovered] = useState(false);
+  // A keyboard user tabbing onto the row (it is natively focusable) needs the
+  // same Pin/More reveal a mouse hover gets (HOME-11). Tracked with plain
+  // state rather than a CSS focus-within variant so it slots into the
+  // existing `showActions` boolean without touching any class.
+  const [focusWithin, setFocusWithin] = useState(false);
   const metadataText = describePresentation(presentation);
   const menuOpen = menu?.pres?.id === presentation.id;
-  const showActions = hovered || selected || menuOpen;
+  const showActions = hovered || selected || menuOpen || focusWithin;
 
   return (
     <div
@@ -991,12 +1010,15 @@ function PresentationRow({
         onSelect?.();
         void onOpen(presentation);
       }}
-      onDoubleClick={() => void onOpen(presentation)}
       onContextMenu={(e) => {
         onContextMenu(e, presentation, listContext);
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocusWithin(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setFocusWithin(false);
+      }}
     >
       <div className="min-w-0 flex items-center gap-4">
         <PresentationPreview presentation={presentation} />

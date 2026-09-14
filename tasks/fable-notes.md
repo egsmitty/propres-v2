@@ -1784,3 +1784,41 @@ is SUSPECTED rather than proven — Playwright cannot see native accelerators �
 it removes the second path instead of trying to demonstrate the double fire. It
 still needs a check in a packaged build on both macOS and Windows; the exact
 click-path is in the plan.
+
+---
+
+## H1 — Home list opens once, and keyboard users can reach Pin/More (2026-09-13)
+
+The whole-app audit found a real double-click on a Home presentation row
+opening it three times, not once. The browser's own double-click dispatches
+`click`, `click`, `dblclick` in sequence — the row had a handler on each of
+those first two clicks *and* a separate `onDoubleClick`, so a double-click ran
+three concurrent `touchPresentation`/`getPresentation`/`ensureVersion` round
+trips against the same row. The fix is not a debounce (that still lets two
+genuinely separate clicks each open something) but a per-presentation-id
+in-flight guard on `handleOpen` itself, plus dropping `onDoubleClick`
+entirely — single click opens, the same as Google Docs. The guard is keyed by
+id rather than a single flag so opening two *different* rows back to back
+(e.g. arrow key then Enter) still works.
+
+Fixed alongside it: the row's Pin and More buttons only ever appeared on
+`hovered || selected || menuOpen` — a keyboard user who tabbed onto the row
+(it's natively focusable) got a spacer div instead of the actions. Added a
+fourth `focusWithin` boolean, set via the row's `onFocus`/`onBlur` (React's
+bubbling focus-in/focus-out, not native non-bubbling `focus`/`blur`, so one
+handler pair on the row root correctly tracks "focus is somewhere inside this
+row" without false-clearing when focus moves from the row to its own Pin
+button). Left alone, and recorded as a Finding: the row is `role="button"`
+containing two real `<button>`s, invalid nesting, but restructuring it would
+move the Home screenshot baselines and the task explicitly scoped that out.
+
+**Skipped, not fixed: HOME-24 (locale-aware dates, "Today, 9:14 AM").** The
+screenshot baselines mask a row's date cell via `homeMasks` in
+`e2e/fixtures/visual.ts`, but the mask regex (`DATE_TEXT`) only matches the
+literal `"Mon D, YYYY"` shape the app renders today. A relative/time form for
+rows updated "today" would render text the mask can't see, leaving a live,
+clock-dependent string unmasked in a pixel-diffed baseline on any day a
+captured row happened to be "today." Fixing that means widening `DATE_TEXT`
+too, which is baseline-safety infrastructure the task brief named as
+read-before-touching, not a drive-by edit for an unrelated P2 item — left for
+a follow-up that does both together and re-captures if anything moves.
