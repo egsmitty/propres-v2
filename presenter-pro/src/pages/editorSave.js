@@ -1,4 +1,3 @@
-import { alertDialog } from '@/utils/dialog';
 import { saveCurrentPresentation } from '@/utils/presentationCommands';
 
 /**
@@ -10,15 +9,13 @@ import { saveCurrentPresentation } from '@/utils/presentationCommands';
  * a seventh way to write a presentation row, bypassing `saveCurrentPresentation`
  * entirely. Under plan A5 that would clear the dirty flag WITHOUT capturing a
  * restore point, so Cmd-S in the canvas would not be a commit and the document
- * would reopen dirty. It now delegates, and keeps the alert it always had.
+ * would reopen dirty. It now delegates; the failure alert lives in
+ * saveCurrentPresentation, so every way of saving reports failures (plan D1).
  */
 export async function saveFromEditor({ presentation, isDirty, requiresInitialSave }) {
   if (!presentation || (!isDirty && !requiresInitialSave)) return;
 
-  const result = await saveCurrentPresentation();
-  if (result?.success) return;
-
-  await alertDialog(result?.error || 'Failed to save your presentation.', {
-    title: 'Save Failed',
-  });
+  // saveCurrentPresentation reports its own failures now (plan D1, audit
+  // SAVE-A8), for every caller, so this must not alert a second time.
+  await saveCurrentPresentation();
 }
