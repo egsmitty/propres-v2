@@ -7,8 +7,12 @@ export default function ContextMenu({ x, y, items, onClose }) {
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     }
+    // A document listener already runs before any window listener; consuming
+    // the key stops closing a menu from also stopping a presentation (plan L1).
     function handleKey(e) {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      onClose();
     }
     document.addEventListener('mousedown', handleClick);
     document.addEventListener('keydown', handleKey);

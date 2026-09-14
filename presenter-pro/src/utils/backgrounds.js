@@ -1,10 +1,7 @@
-export const SECTION_COLORS = [
-  'var(--section-1)',
-  'var(--section-2)',
-  'var(--section-3)',
-  'var(--section-4)',
-  'var(--section-5)',
-];
+// Re-exported from its own leaf module (REPO-30a) so this stays the place
+// other code can import SECTION_COLORS from, without backgrounds.js needing
+// to import anything from sectionTypes.js's side of the former cycle.
+export { SECTION_COLORS } from '@/utils/sectionColors';
 const MEDIA_PROTOCOL_SCHEME = 'presenterpro-media';
 
 import { isMediaSlide, normalizeSectionType } from '@/utils/sectionTypes';

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, resolve, relative } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve, relative } from 'node:path';
+import { listSourceFiles } from './sourceFiles';
 
 // Plan E3. Every clickable thing must be reachable from the keyboard. A native
 // element that is not a button but reacts to clicks is either a deliberate
@@ -20,14 +21,8 @@ const NATIVE_INTERACTIVE = new Set([
   'option',
 ]);
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) {
-      if (name !== '__tests__') walk(full, out);
-    } else if (name.endsWith('.jsx')) out.push(full);
-  }
-  return out;
+function walk(dir: string): string[] {
+  return listSourceFiles(dir, { extensions: ['.jsx'], excludeTestFiles: false });
 }
 
 interface Offender {
