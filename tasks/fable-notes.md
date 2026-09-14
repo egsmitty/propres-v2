@@ -1469,3 +1469,35 @@ person to see this red gets the number for free.
 window, the stage display, the tutorial, the song editor modal, output settings,
 and all 29 clipped hover captures — including `hover-presenter-divider`, which
 crops to the divider and never saw the preview.
+
+---
+
+## R22 — the worktree commit trap was one line of our own shell (2026-09-13)
+
+First item executed from `tasks/fable-pass-2-audit.md` (local, untracked — the
+whole-app audit and its verification pass). It went first because every other
+item on that list is done from a worktree, and every worktree commit needed
+`--no-verify`.
+
+**The cause was never husky or commitlint.** `.husky/commit-msg` did
+`MSG_FILE="$PWD/$1"`. Git passes that argument relative from the main checkout
+and **absolute** from a linked worktree, so the worktree path was doubled:
+`/…/worktrees/repo22-hooks/Users/ethansmith/code/ProPresV2/.git/worktrees/…`.
+Both handoffs recorded the symptom and the workaround; neither had the cause.
+
+**Two pieces of folklore turned out to be facts about the setup:**
+
+- `HUSKY=0` did nothing because nothing reads it: `core.hooksPath` points
+  straight at `.husky/` plain scripts, with no husky runtime in between. Both
+  hooks now honour it explicitly, so the escape hatch the docs imply is real.
+- `core.hooksPath` is the **absolute** main-checkout path. Every worktree runs
+  the main checkout's copy of the hooks, so this fix reaches other worktrees
+  only once it is on `main` and the main checkout is on `main` — which is one
+  more reason for the rule that the main checkout stays on `main`.
+
+**The test runs the real hook**, the way git does, rather than grepping the
+script: absolute path, relative path, a rejected message, and `HUSKY=0`. Against
+the old hook three of four failed; against the fix all four pass. The hooks now
+call `node_modules/.bin` directly with a fallback to the main checkout's, instead
+of `npx`, which would otherwise quietly reach for the registry in a fresh
+worktree.
