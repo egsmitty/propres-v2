@@ -2066,3 +2066,30 @@ as scoped. No suspected regression found. 8 new test cases plus the one
 intentional edit, all in the two existing real-SQLite test files
 (`realSqlite.queries.test.ts`, `migrationRunner.test.ts`) — no new test
 directory.
+
+---
+
+## D3 — song edits can't vanish on quit or on a stale lyrics box (2026-09-14)
+
+**What was wrong.** The song editor keeps its edits in modal state, and every
+way out of the app (quit, File ▸ Close, New, Open) consulted only the editor
+store, so an edited song was dropped without a word. Separately, focusing Raw
+Lyrics showed the text from when the editor opened: edit a slide on the right,
+click into Raw Lyrics, type one character, Save — the song was rebuilt from the
+stale text. Plan G3's "Two versions of this song" question did not catch it,
+because the keystroke resets "structure touched since the raw edit".
+
+**What changed.** A small `blockingEditors` registry: an editor whose work lives
+outside the store registers `{ isDirty, resolve }` while mounted, and the four
+exit commands ask every dirty one first. The song modal resolves through its
+existing Unsaved Changes dialog, which now reports whether it actually closed.
+On quit the registry is asked **before** the Still Presenting guard — otherwise
+a service could be stopped and the quit then cancelled by the song dialog. Raw
+Lyrics now refreshes from the current sections on focus, until the user types
+in it.
+
+**Worth knowing.** The first red run of the SONG-2 cases failed for the wrong
+reason: the slide text appears in two textareas (the slide editor and the
+section's slide list), so the selector threw. The selector was scoped and the
+pair re-proved red by reverting only the one-line fix — a failure is only proof
+when it fails on the assertion.
