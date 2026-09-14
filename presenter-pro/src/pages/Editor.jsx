@@ -31,7 +31,8 @@ import {
   syncPresentationSession,
 } from '@/utils/presenterFlow';
 import { alertDialog } from '@/utils/dialog';
-import { shouldStopPresentingOnEscape } from '@/utils/escapeKey';
+import { editorKeyAction } from '@/utils/editorKeyAction';
+import { isModalOpen, isTypingTarget } from '@/utils/shortcutGuard';
 
 const FILMSTRIP_WIDTH_KEY = 'presenterpro.filmstripWidth';
 const FILMSTRIP_MIN_WIDTH = 276;
@@ -237,59 +238,63 @@ export default function Editor() {
   const latestHandlePresent = useLatest(handlePresent);
   const latestHandleStopPresenting = useLatest(handleStopPresenting);
   useEffect(() => {
+    // The decision lives in editorKeyAction (plan L2), where it is tested: while
+    // presenting, Backspace / Delete / ↑ / ↓ never touch slides (the presenter
+    // panel owns navigation), and nothing fires behind a dialog or settings sheet.
     function handleKeyDown(e) {
-      if (panelOpen) return;
-      if (editingSlideId) return;
-      const tag = document.activeElement?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable)
-        return;
+      const action = editorKeyAction(e, {
+        isPresenting,
+        panelOpen,
+        editing: Boolean(editingSlideId),
+        typing: isTypingTarget(document.activeElement),
+        modalOpen: isModalOpen(),
+      });
+      if (!action) return;
 
-      const meta = e.metaKey || e.ctrlKey;
-
-      if (meta && e.key === 's') {
-        e.preventDefault();
-        latestHandleSave.current();
-        return;
-      }
-      if (!meta && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        e.preventDefault();
-        const state = useEditorStore.getState();
-        const pres = state.presentation;
-        if (!pres) return;
-        const allSlides = pres.sections.flatMap((sec) =>
-          sec.slides.map((sl) => ({ ...sl, sectionId: sec.id }))
-        );
-        const idx = allSlides.findIndex((sl) => sl.id === state.selectedSlideId);
-        const next = e.key === 'ArrowUp' ? allSlides[idx - 1] : allSlides[idx + 1];
-        if (next) state.setSelectedSlide(next.sectionId, next.id);
-        return;
-      }
-      if (!meta && (e.key === 'Delete' || e.key === 'Backspace')) {
-        e.preventDefault();
-        deleteSelectedSlideFromCurrentPresentation();
-        return;
-      }
-      if (e.key === 'F5') {
-        e.preventDefault();
-        latestHandlePresent.current();
-        return;
-      }
-      if (shouldStopPresentingOnEscape(e, isPresenting)) {
-        e.preventDefault();
-        latestHandleStopPresenting.current();
-        return;
-      }
-      if (e.key === '?' && !meta) {
-        useAppStore.getState().setShortcutsOpen(!useAppStore.getState().shortcutsOpen);
-        return;
-      }
-      if ((e.key === 'b' || e.key === 'B') && isPresenting && !meta) {
-        sendBlack();
-        return;
-      }
-      if ((e.key === 'l' || e.key === 'L') && isPresenting && !meta) {
-        sendLogo();
-        return;
+      switch (action) {
+        case 'save':
+          e.preventDefault();
+          latestHandleSave.current();
+          return;
+        case 'selectPrev':
+        case 'selectNext': {
+          e.preventDefault();
+          const state = useEditorStore.getState();
+          const pres = state.presentation;
+          if (!pres) return;
+          const allSlides = pres.sections.flatMap((sec) =>
+            sec.slides.map((sl) => ({ ...sl, sectionId: sec.id }))
+          );
+          const idx = allSlides.findIndex((sl) => sl.id === state.selectedSlideId);
+          const next = action === 'selectPrev' ? allSlides[idx - 1] : allSlides[idx + 1];
+          if (next) state.setSelectedSlide(next.sectionId, next.id);
+          return;
+        }
+        case 'deleteSlide':
+          e.preventDefault();
+          deleteSelectedSlideFromCurrentPresentation();
+          return;
+        case 'present':
+          e.preventDefault();
+          latestHandlePresent.current();
+          return;
+        case 'stopPresenting':
+          e.preventDefault();
+          latestHandleStopPresenting.current();
+          return;
+        case 'toggleShortcuts':
+          useAppStore.getState().setShortcutsOpen(!useAppStore.getState().shortcutsOpen);
+          return;
+        case 'black':
+          e.preventDefault();
+          sendBlack();
+          return;
+        case 'logo':
+          e.preventDefault();
+          sendLogo();
+          return;
+        default:
+          return;
       }
     }
     window.addEventListener('keydown', handleKeyDown);
