@@ -2,5 +2,15 @@
 # Format and lint only the staged files. Runs from presenter-pro because that
 # is where package.json, node_modules, and eslint.config.mjs live; lint-staged
 # then only considers staged files under that directory.
+[ "$HUSKY" = "0" ] && exit 0
+
 cd presenter-pro || exit 1
-npx lint-staged
+
+# A fresh worktree has no node_modules of its own. Fall back to the main
+# checkout's, which `--git-common-dir` locates from any worktree.
+BIN=node_modules/.bin
+if [ ! -x "$BIN/lint-staged" ]; then
+  BIN="$(git rev-parse --path-format=absolute --git-common-dir)/../presenter-pro/node_modules/.bin"
+fi
+
+"$BIN/lint-staged"
