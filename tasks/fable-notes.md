@@ -1472,6 +1472,206 @@ crops to the divider and never saw the preview.
 
 ---
 
+## R22 — the worktree commit trap was one line of our own shell (2026-09-13)
+
+First item executed from `tasks/fable-pass-2-audit.md` (local, untracked — the
+whole-app audit and its verification pass). It went first because every other
+item on that list is done from a worktree, and every worktree commit needed
+`--no-verify`.
+
+**The cause was never husky or commitlint.** `.husky/commit-msg` did
+`MSG_FILE="$PWD/$1"`. Git passes that argument relative from the main checkout
+and **absolute** from a linked worktree, so the worktree path was doubled:
+`/…/worktrees/repo22-hooks/Users/ethansmith/code/ProPresV2/.git/worktrees/…`.
+Both handoffs recorded the symptom and the workaround; neither had the cause.
+
+**Two pieces of folklore turned out to be facts about the setup:**
+
+- `HUSKY=0` did nothing because nothing reads it: `core.hooksPath` points
+  straight at `.husky/` plain scripts, with no husky runtime in between. Both
+  hooks now honour it explicitly, so the escape hatch the docs imply is real.
+- `core.hooksPath` is the **absolute** main-checkout path. Every worktree runs
+  the main checkout's copy of the hooks, so this fix reaches other worktrees
+  only once it is on `main` and the main checkout is on `main` — which is one
+  more reason for the rule that the main checkout stays on `main`.
+
+**The test runs the real hook**, the way git does, rather than grepping the
+script: absolute path, relative path, a rejected message, and `HUSKY=0`. Against
+the old hook three of four failed; against the fix all four pass. The hooks now
+call `node_modules/.bin` directly with a fallback to the main checkout's, instead
+of `npx`, which would otherwise quietly reach for the registry in a fresh
+worktree.
+
+---
+
+## DOC1 — the docs describe the repo as it is today (2026-09-13)
+
+Eight stale-docs items, all verified against code before writing, all fixed.
+
+**What was actually wrong, not just old.** `CLAUDE.md` and `AGENTS.md` both
+said Electron 29 + React 18 — this repo is on Electron 44 / React 19
+(`presenter-pro/package.json`), a gap this exact file already flagged once for
+the sidebar width ("Found and not fixed: CLAUDE.md says the presenter panel is
+300px. It is 320 default, 240 minimum.") but the stack line had drifted
+further and nobody had gone back for it. `AGENTS.md` also claimed existing
+`.js`/`.jsx` is "type-checked via `checkJs` + JSDoc" — `checkJs` is `false`
+project-wide (`presenter-pro/tsconfig.json:26`); the real mechanism is a
+per-file `// @ts-check` opt-in, described in that file's own comment but never
+carried into `AGENTS.md`.
+
+**The release instructions in `BRANCHING.md` could not have worked.**
+`npm version minor --workspace presenter-pro` needs a root `package.json`
+with npm workspaces; there is neither (`ls package.json` at repo root: no such
+file). REL-18 replaces it with a two-PR sequence: bump `presenter-pro/`'s own
+`package.json` + lockfile through a normal PR, merge it, then tag the merge
+commit and push the tag — `build-release.yml` triggers on `v*` either way, so
+nothing about packaging changes, only how the tag gets there.
+
+**`.nvmrc` and branch protection were checked live, not assumed.** `.nvmrc` is
+`22`, not the `20` `BRANCHING.md` claimed. `gh api
+repos/egsmitty/propres-v2/branches/main/protection --jq
+'.required_status_checks.contexts'` returned `["PR Gate","E2E (macOS)"]` —
+`E2E (macOS)` went required on 2026-09-08 per its own workflow comment, but
+`BRANCHING.md` and `README.md` still only named `PR Gate`.
+
+**The crash-recovery paragraph in `README.md` described a system that no
+longer runs.** `CLAUDE.md`'s own "Save model (plan A5)" section already
+says the A2 journal writer was retired when autosave shipped — the README
+just hadn't been updated to match its neighbor.
+
+**`test-media/` needed a real answer, not just "gitignored."**
+`git ls-files test-media` returns zero files and the directory does not exist
+in a fresh worktree, but `electron/main/index.js`'s
+`resolveBuiltInMediaAssetPath` does read from it at runtime and
+`package.json`'s `build.extraResources` does bundle it — so "used by the app"
+was true, "used by the E2E suite" was left unqualified, and the missing fact
+was that a fresh clone doesn't have it at all.
+
+**One reference deliberately not fixed.** `AI_OPERATING_MANUAL.md:152`
+("regressions belong in `tasks/todo.md` or on the PR") went stale the moment
+`tasks/todo.md` was renamed to `tasks/phase6-todo.md`, but that manual is
+explicit out-of-scope governance philosophy for this task. Recorded here and
+in the PR body rather than edited.
+
+**Root `HANDOFF.md` and `tasks/todo.md` were both 2026-09-06 fossils of the
+pre-move layout** (`~/Desktop/ClaudeAccess/ProPresV2` and
+`~/Desktop/ClaudeAccess/builder`). The handoff had no other links to it and
+was deleted outright; the todo list is real project history, so it was
+`git mv`'d to `tasks/phase6-todo.md` per the archive convention instead.
+
+**The PR template matched no recent PR.** The last several merged PRs (#115,
+#114, ...) all use `## Summary` / `## Proof` / `## Findings` / `## Records`;
+the template still asked for a "Self-Review Report" and a checkbox list
+nobody had filled in for a while. Replaced with the shape actually in use.
+
+**New standing rule (D8).** `writing-executable-plans.mdc` had no requirement
+that a data-rewriting plan name its backup and rollback path. Added a bullet
+to "Patterns that work" and a matching line to the reviewer checklist, naming
+`BACKUP_FILE_PATTERN` / `VACUUM INTO` in `migrationRunner.ts` so the next
+migration plan doesn't have to re-derive it.
+
+Full detail, every `file:line` quoted before it was changed, is in
+`tasks/plan-DOC1-stale-docs.md`.
+
+---
+
+## CI1 — every job has a timeout, every action is pinned, coverage is enforced (2026-09-13)
+
+Nine items from the audit's Part 8, all mechanical: CI-1, CI-4, CI-5, CI-6,
+CI-7, CI-8, CI-10, CI-11, and the gate half of SEC-6.
+
+**What:** `test:unit` now runs `vitest run --coverage --coverage.reporter=text-summary`,
+so the ratchet thresholds in `vitest.config.mjs` — dead since they were
+written, because nothing ever passed `--coverage` — finally run on every PR.
+They pass today with room to spare (26.93/24.8/24.59/27.87 measured against
+26.8/24.7/24.4/27.7), so no threshold change was needed. Every job in all
+three workflows got `timeout-minutes` (gate 10, build 15, pr-gate 5, e2e 25,
+package 30, release 10) and every `uses:` got pinned to a 40-char commit SHA
+with a `# vN` comment, both enforced by a new
+`electron/main/__tests__/workflows.test.ts` that reads the workflow YAML as
+plain text (no `yaml` dependency — the repo doesn't have one) and asserts
+both properties for every job and every `uses:` line it finds, with a
+non-empty-parse guard so a broken file walker can't pass vacuously. Red before
+the fix (3 of 4 checks failed against `main`'s workflows), green after. The
+PR-matrix `build` job's `macos-latest` entry is gone — `E2E (macOS)` already
+builds and runs the app on macOS on every PR, so it was pure duplication, not
+coverage. `build-release.yml`'s top-level `contents: write` moved down to
+just the `release` job; the top level is `contents: read` and the packaging
+job never touches it. Dependabot's header comment claimed "deliberately no
+`ignore` list" three lines above an `ignore:` block with 5 entries — fixed to
+describe the actual policy (specific, recorded holds, not blanket pins) —
+and both `updates` entries got `cooldown: { default-days: 3 }`.
+`playwright.config.ts` gained `failOnFlakyTests: !!process.env.CI` next to
+`retries`, which is unchanged. The gate job gained
+`npm audit --omit=dev --audit-level=high` after install; run locally first
+(same command, same flags) — 0 vulnerabilities today, so it ships as a real
+gate rather than a step nobody has verified goes green.
+
+**Why:** CI-4's premise was worth checking rather than trusting the audit
+outright — `package.json`'s `build.npmRebuild: false` and the total absence
+of a `postinstall` script confirm better-sqlite3 (`^13.0.3`, N-API) never
+gets natively rebuilt by *any* install in this project, full or
+`--ignore-scripts`. The old comments in `pr-checks.yml`, `e2e.yml`, and
+`build-release.yml` each guessed at a different wrong reason for the same
+non-event. The corrected comments say what the full installs are actually
+for: getting the real Electron binary onto the runner for a job that builds,
+packages, or launches the app, not compiling a native dependency that was
+never compiled to begin with.
+
+**Surprises:**
+- The three "full install" comments weren't copies of each other — pr-checks
+  and build-release both invoked a nonexistent "better-sqlite3 rebuild",
+  while e2e.yml specifically claimed the rebuild was "for Electron's ABI."
+  Same wrong idea, independently rephrased three times, which is its own
+  small argument for CI-4 as a category: an inaccurate comment doesn't just
+  sit still, it gets re-derived wrong at each new call site.
+- `softprops/action-gh-release@v3` is the one action in this repo pinned to
+  an *annotated* tag — `gh api .../git/ref/tags/v3` returned an object of
+  type `tag`, not `commit`, and needed a second `gh api .../git/tags/<sha>`
+  call to reach the actual commit SHA. The other four actions (all
+  `actions/*`) are lightweight tags and resolved in one call. Worth knowing
+  before assuming every tag resolves the same way.
+- The coverage thresholds passed on the first real `--coverage` run with
+  margin under 0.2 points on every axis (branches: 24.8% measured vs. 24.7%
+  threshold). That's not a coincidence — the ratchet comments in
+  `vitest.config.mjs` already track the suite's real numbers by hand across
+  several plans; they just never had `--coverage` actually running against
+  them to prove it. This PR is the first time the numbers in that file's
+  comments and the numbers CI enforces are the same measurement.
+
+Everything else — CI-12/13/14, and the non-mechanical CI-2/CI-9 decisions —
+is explicitly out of scope for this pass; see the audit for those.
+
+---
+
+## L0 — the presenting flow had no tests, so pin it before fixing it (2026-09-13)
+
+The whole-app audit (`tasks/fable-pass-2-audit.md`, local) found the worst bugs
+in the app in the presenting flow — a settings modal that closes the projector,
+an edit that un-blacks it, Backspace deleting slides mid-service — and found
+that the code deciding what goes on the projector had **zero** tests. Its own
+verification pass moved this plan ahead of every fix.
+
+**The design choice that matters: pin what is right, not what is wrong.** A
+characterization test that pinned a bug would have to be *edited* by the PR that
+fixes the bug, which is exactly the "the test changed alongside the code" shape
+that proves nothing. So the 28 cases here pin only behaviour that must survive
+every Wave 1 fix: start goes live on the selected slide (or the first), stop
+clears the session, a live slide carries its inherited background and the
+presentation's ratio, an edit refreshes the live slide by id, → / ← / Space
+move one slide with both ends bounded, typing in a field never moves the
+projector, and the Present menu only acts when it should. Each bug gets its own
+red test in its own fix PR. That means a deliberately *unpinned* case sits right
+next to a pinned one: "a deleted live slide is not refreshed" is pinned, "a live
+slide moved to another section is not refreshed" is not — LIVE-A4 changes it.
+
+**Two jsdom gaps, stubbed rather than asserted:** the panel scrolls the live
+thumbnail into view on every live change and jsdom has no `scrollIntoView`
+(all six keyboard cases failed on that before the stub), and starting a session
+calls `window.focus()`, which jsdom does not implement.
+
+---
+
 ## T1 — tooling cleanup: no import cycle, one file walker, cached lint (2026-09-13)
 
 Six small audit items in one PR (REPO-30a, REPO-30b, REPO-33, REPO-35,
