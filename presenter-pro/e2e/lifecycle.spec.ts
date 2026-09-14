@@ -51,8 +51,10 @@ test.describe('lifecycle', () => {
     const { app, window: page } = launched;
     await dismissTutorialIfPresent(page);
 
+    // Listen before opening, or a fast window's event is missed (plan E2E1).
+    const opened = app.waitForEvent('window', { timeout: 15_000 });
     await page.evaluate(() => window.electronAPI.openOutputWindow({ useConfiguredDisplay: false }));
-    const output = await app.waitForEvent('window', { timeout: 15_000 });
+    const output = await opened;
     await output.waitForLoadState('domcontentloaded');
     expect(output.url()).toContain('#/output');
     expect(app.windows()).toHaveLength(2);
@@ -68,8 +70,9 @@ test.describe('lifecycle', () => {
     const { app, window: page } = launched;
     await dismissTutorialIfPresent(page);
 
+    const opened = app.waitForEvent('window', { timeout: 15_000 });
     await page.evaluate(() => window.electronAPI.openOutputWindow({ useConfiguredDisplay: false }));
-    const output = await app.waitForEvent('window', { timeout: 15_000 });
+    const output = await opened;
     await output.waitForLoadState('domcontentloaded');
 
     // Kill the output renderer the way a real crash would.

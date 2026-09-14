@@ -87,8 +87,10 @@ test.describe('visual baseline — surfaces', () => {
     await page.keyboard.press('Escape');
 
     // 8. The editor while presenting (live banner, presenter panel live state).
+    // Listen before pressing, or a fast window's event is missed (plan E2E1).
+    const opened = app.waitForEvent('window', { timeout: 15_000 });
     await page.keyboard.press('F5');
-    const output = await app.waitForEvent('window', { timeout: 15_000 });
+    const output = await opened;
     await output.waitForLoadState('load');
     await expect(page.getByText(/^Presenting/)).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(800);

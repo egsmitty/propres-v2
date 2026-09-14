@@ -27,8 +27,15 @@ Written per `.cursor/rules/writing-executable-plans.mdc`. Branch base `main` @
 2. Nothing else changes: the same assertions, timeouts and flow.
 3. **No retry, timeout or `failOnFlakyTests` change** — that would be demoting the
    check, which the workflow forbids.
-4. **Not in this plan:** auditing every other `waitForEvent` in `e2e/`. A grep for
-   the same press-then-wait pattern is recorded as a finding.
+4. **Every** act-then-wait site, not just the one that flaked. A grep of
+   `waitForEvent` across `e2e/` found seven more triggers that start the wait
+   after the action: `csp.spec.ts` (output and stage), `visual-modals.spec.ts`
+   (stage), `visual-surfaces.spec.ts` (F5), `visual.spec.ts` (output) and
+   `lifecycle.spec.ts` (output, twice). All get the same reorder. The
+   `close` waits (`keyboard.spec.ts`, `lifecycle.spec.ts`, `visual-surfaces.spec.ts`)
+   were already registered first and are unchanged. After the change,
+   `grep -rn -B2 "waitForEvent" e2e` shows no `waitForEvent` whose preceding
+   line is the action that fires it.
 
 **Anti-weakening clause (verbatim):** _If an assertion fails, the bug is
 elsewhere — never loosen the assertion to pass. Fix the root cause or record it
@@ -36,9 +43,11 @@ as a suspected regression._
 
 ## Blast radius
 
-May change: `presenter-pro/e2e/keyboard.spec.ts` (the F5 step only), this plan,
-the charter row, the notes entry. **May not** change any other spec, fixture,
-config or app code.
+May change: the `window` wait ordering in `presenter-pro/e2e/keyboard.spec.ts`,
+`csp.spec.ts`, `visual-modals.spec.ts`, `visual-surfaces.spec.ts`,
+`visual.spec.ts` and `lifecycle.spec.ts`; this plan, the charter row, the notes
+entry. **May not** change any assertion, timeout, screenshot, fixture, config or
+app code.
 
 ## Todos
 
@@ -46,8 +55,10 @@ config or app code.
       waiting for `window` (evidence in Measured). Standing rule 7 forbids running
       Playwright locally while Ethan is at the machine, so the red is not
       reproduced here; a timing race is not reliably reproducible on demand anyway.
-- [x] 2. Reorder the wait and the key press (Decision 1).
-- [ ] 3. `npx eslint e2e/keyboard.spec.ts`, `npm run format:check`, `npm run gate`.
+- [x] 2. Reorder the wait and the trigger at all eight sites (Decisions 1, 4);
+      re-grep shows every `window` and `close` wait registered first.
+- [x] 3. ESLint, Prettier and `tsc` on the six specs, `npm run format:check`,
+      `npm run gate`.
 - [ ] 4. CI: `E2E (macOS)` green on this branch (the proof), and on the next PRs
       that run the keyboard spec.
 - [ ] 5. Findings report in the PR body.
@@ -56,23 +67,23 @@ config or app code.
 
 ### writing-executable-plans.mdc (15 items)
 
-| Item                                          | Disposition                                                                                         |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Assertion weakening designed against          | Clause verbatim; no assertion, timeout or retry touched (Decision 3)                                |
-| List sampling designed against                | N/A — one step in one spec                                                                          |
-| Quantifier erosion designed against           | N/A — no "every" claim; other specs are a recorded finding, not claimed fixed                       |
-| Sanctioned escape hatch                       | N/A — no allowlist                                                                                  |
-| Bounded blast radius                          | Blast radius section                                                                                |
-| File-specific pitfall notes                   | Measured: Playwright sees only events emitted after `waitForEvent` is called                        |
-| Exact paths                                   | Blast radius                                                                                        |
-| Per-todo verification                         | Todos 3 and 4                                                                                       |
-| Snapshot policy inline                        | N/A — no snapshots touched                                                                          |
-| Preconditions for conditional UI              | The presentation must be open and editing before F5 (the spec's existing `data-slide-editing` wait) |
-| Structural floor under snapshots              | N/A — no snapshots                                                                                  |
-| IPC contract pinning                          | N/A — no channel changed                                                                            |
-| Manual verification steps                     | N/A — test-only; CI is the verification (Todo 4)                                                    |
-| Required findings report                      | Todo 5                                                                                              |
-| Data rewrites state their backup and rollback | N/A — no data                                                                                       |
+| Item                                          | Disposition                                                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Assertion weakening designed against          | Clause verbatim; no assertion, timeout or retry touched (Decision 3)                                                |
+| List sampling designed against                | No sampling: the grep lists every `waitForEvent` in `e2e/`; all eight `window` waits were changed and re-grepped    |
+| Quantifier erosion designed against           | "Every act-then-wait site" is defined by a grep of `waitForEvent` across `e2e/`, all eight sites named (Decision 4) |
+| Sanctioned escape hatch                       | N/A — no allowlist                                                                                                  |
+| Bounded blast radius                          | Blast radius section                                                                                                |
+| File-specific pitfall notes                   | Measured: Playwright sees only events emitted after `waitForEvent` is called                                        |
+| Exact paths                                   | Blast radius                                                                                                        |
+| Per-todo verification                         | Todos 3 and 4                                                                                                       |
+| Snapshot policy inline                        | N/A — no snapshots touched                                                                                          |
+| Preconditions for conditional UI              | The presentation must be open and editing before F5 (the spec's existing `data-slide-editing` wait)                 |
+| Structural floor under snapshots              | N/A — no snapshots                                                                                                  |
+| IPC contract pinning                          | N/A — no channel changed                                                                                            |
+| Manual verification steps                     | N/A — test-only; CI is the verification (Todo 4)                                                                    |
+| Required findings report                      | Todo 5                                                                                                              |
+| Data rewrites state their backup and rollback | N/A — no data                                                                                                       |
 
 ### testing-standards.mdc (10 items)
 

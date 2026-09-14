@@ -2624,9 +2624,11 @@ ignored — one lost race failed an unrelated PR.
 
 **What changed.** The wait now starts before the key press and is awaited after
 it — the order the same spec already used for waiting on the window's close.
-Nothing else in the spec moved.
+Nothing else in the spec moved. A grep for the same shape found seven more
+windows opened before their wait started — in the CSP, lifecycle and three
+screenshot specs — and they got the same reorder, so none of them can be the
+next PR's surprise failure.
 
 **Worth knowing.** Playwright only sees events emitted after `waitForEvent` is
 called. Any "do the thing, then wait for the event it causes" line is a race;
-the safe shape is `const p = waitForEvent(…); await action(); await p;`. Other
-specs were not audited for the same pattern in this change.
+the safe shape is `const p = waitForEvent(…); await action(); await p;`.
