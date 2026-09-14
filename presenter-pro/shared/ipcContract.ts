@@ -98,6 +98,8 @@ export const INVOKE_METHODS = {
 
 export const SEND_METHODS = {
   resolveWindowCloseRequest: 'window:closeRequestResolved',
+  /** Plan CMDS1 PR B: `{ enabled: Record<commandId, boolean> }` for the native menu. */
+  setMenuEnabled: 'menu:setEnabled',
 } as const;
 
 export const EVENT_METHODS = {
