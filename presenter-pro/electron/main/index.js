@@ -10,6 +10,7 @@ const {
 } = require('electron');
 const os = require('os');
 const { createCloseController } = require('./closeController');
+const { FIRST_RUN_PRESENTATION } = require('./firstRunSeed');
 const { createIpcRegistry } = require('./ipcRegistry');
 const { buildNativeMenuTemplate } = require('./nativeMenu');
 const fs = require('fs');
@@ -17,7 +18,6 @@ const path = require('path');
 const { Readable } = require('stream');
 const { getDb, closeDb } = require('../db/index');
 const { runMigrations } = require('../db/migrations');
-const { seed } = require('../db/seed');
 const songQueries = require('../db/queries/songs');
 const presentationQueries = require('../db/queries/presentations');
 const mediaQueries = require('../db/queries/media');
@@ -498,6 +498,39 @@ function getProfileData() {
     initials: initials || username.slice(0, 2).toUpperCase(),
     subtitle: 'On this device',
   };
+}
+
+// ─── Seed Data ──────────────────────────────────────────────────────────────
+
+function generateId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function seed(db) {
+  const initialized = db.prepare("SELECT value FROM settings WHERE key = 'initialized'").get();
+  if (initialized) return;
+
+  // Plan S1 (SONG-28 legal fix / SONG-4 / MAIN-B10). This used to insert
+  // copyrighted songs and copy their slides into the sample presentation; see
+  // firstRunSeed.ts for the full history. It seeds no `songs` rows at all —
+  // the renderer's ensureBuiltInSongsSeeded() already supplies the
+  // public-domain hymn library. The presentation insert and the
+  // `initialized` flag are one atomic transaction, so a crash mid-seed can
+  // never leave partial rows with no `initialized` flag on the next launch.
+  db.transaction(() => {
+    const sections = FIRST_RUN_PRESENTATION.sections.map((section) => ({
+      ...section,
+      id: generateId(),
+      slides: section.slides.map((slide) => ({ ...slide, id: generateId() })),
+    }));
+
+    presentationQueries.createPresentation(db, {
+      title: FIRST_RUN_PRESENTATION.title,
+      sections,
+    });
+
+    db.prepare("INSERT INTO settings (key, value) VALUES ('initialized', 'true')").run();
+  })();
 }
 
 // ─── Window Creation ─────────────────────────────────────────────────────────

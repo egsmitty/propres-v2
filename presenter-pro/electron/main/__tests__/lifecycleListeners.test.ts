@@ -165,14 +165,6 @@ describe('build wiring', () => {
       expect(viteConfig, `${entry} must be a rollup input`).toContain(entry);
     }
   });
-
-  it('emits db/seed as its own entry point', () => {
-    // seed.js (MAIN-B10) is required from index.js; without an explicit
-    // rollup input the packaged app crashes on launch with "Cannot find
-    // module './seed'" — same failure mode as closeController above.
-    const viteConfig = readFileSync(resolve(dirname, '../../../electron.vite.config.js'), 'utf8');
-    expect(viteConfig).toContain("'db/seed'");
-  });
 });
 
 describe('migration safety', () => {

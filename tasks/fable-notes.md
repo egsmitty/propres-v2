@@ -1825,35 +1825,208 @@ a follow-up that does both together and re-captures if anything moves.
 
 ---
 
+## ED1 — four small editor correctness fixes: broken lines, a negative jump, a missing zero, and RTL text (2026-09-13)
+
+`tasks/plan-ED1-editor-small-fixes.md`. Four independent, small `[S]` items
+from the whole-app audit's editor section (ED-6, ED-11, ED-18, ED-30), done
+together in one PR because each is a one- or two-line production fix, not
+because they touch shared code.
+
+**ED-6's fix isn't the audit's first suggestion, and checking that first
+mattered.** The audit's suggested fix for Clear Formatting joining selected
+lyric lines was "split `selection.toString()` on `\n`." Tried that against
+jsdom before writing a single test and it doesn't work: jsdom's `Selection`
+and `Range` do no layout, so neither `selection.toString()` nor
+`range.cloneContents().textContent` ever contains a `\n` at a block boundary —
+both returned `"Line oneLine two"` for a real two-`<br>`-line selection,
+confirmed with a throwaway script before touching `richTextEditor.js`. Since
+this app's own line encoding is `<br>` (`slideMarkup.js` turns `\n` into
+`<br />`, never a `<div>` per line), a fix built on `\n` splitting would have
+been untestable in this repo's own test environment and wrong for its own
+data shape. The audit's second-listed option — unwrap formatting elements
+inside the selected range while keeping `<br>` and block elements — doesn't
+depend on `\n` at all, and is what shipped: a small recursive fragment
+rebuilder that copies text nodes, keeps `<br>` as `<br>`, keeps block tags
+(`div`/`p`/`li`/`ol`/`ul`/`h1`-`h6`/`blockquote`) with their attributes
+stripped, and unwraps everything else. Verified against both line shapes
+(`<br>`-separated and `<div>`-per-line) before it went in the test file.
+
+**ED-11's `clampBoxPosition` isolates one bad interaction of `clamp`'s own
+documented behaviour.** `canvasGeometry.test.ts` already pinned "max wins when
+the bounds are inverted" for `clamp` itself — that was never wrong on its own.
+The bug was a caller, `Canvas.jsx`'s drag-move handler, passing inverted
+bounds (`0, nativeW - box.width`) whenever a box is wider than the slide,
+which made every drag jump the box to the same fixed negative position
+regardless of the pointer. `clampBoxPosition(value, size, extent)` orders the
+bounds itself — `[min(0, extent - size), max(0, extent - size)]` — so the box
+stays draggable (and bounded) either way. Only the drag-move branch changed;
+the four resize-branch `clamp` calls a few lines down clamp *size*, not
+position, and are a different bug shape the audit item doesn't name.
+
+**ED-18 found a second, un-deduped copy of the shadow helper.** Plan F1 (2026-09-09)
+extracted `renderShadow` out of `Canvas.jsx` into `canvasTextStyle.ts` — but
+`ScaledSlideText.jsx` had its own local `renderShadow(box, scale,
+fallbackShadow)`, never touched by F1 because F1's slice 1 was scoped to
+`Canvas.jsx`/`Toolbar.jsx` only. Both copies had the same `||` bug (an
+explicit `shadowOffsetY: 0` or `paddingTop: 0` was replaced by the default,
+because `mergeTextBox`'s `{ ...DEFAULT_TEXT_BOX, ...frame }` genuinely
+preserves an explicit `0` all the way through to render). Fixed both — the
+shared helper's call site and the duplicate — and added one new shared
+`resolveTextBoxPadding` helper rather than inlining the `??` swap twice, since
+`Canvas.jsx` (unscaled) and `ScaledSlideText.jsx` (scaled, with its own
+`Math.max(minPadding, … * scale)` floor) both resolve the same per-axis value
+before doing their own thing with it. `renderOutline`'s `outlineWidth || 0`
+was checked and left alone: its fallback already equals `0`, so there was
+nothing for `??` to fix there.
+
+**ED-30** added `dir="auto"` to `SlideTextEditor.jsx`'s `contentEditable` and
+to `ScaledSlideText.jsx`'s per-box container (`data-testid="scaled-slide-text-box"`
+added alongside it, since nothing selector-stable existed on that element
+before). Confirmed inert for left-to-right content with its own test case, not
+just asserted from the audit's claim.
+
+**24 new cases, gate green** (`type-check ✓ · lint ✓ · vitest 589/589 passed
+(0 skipped)`), `inlineStyleBudget.test.ts` unchanged (no `style={` block added
+or removed, only values inside existing ones), no screenshot baseline at risk
+(grepped `e2e/visual-editor.spec.ts` and `e2e/visual.spec.ts` for every
+padding/shadow-offset-zero fixture, an oversized fixture box, and any Clear
+Formatting interaction — none exist). One test-file flake noted, not caused by
+this change: `SongEditorModal.test.tsx`'s "does not ask when the raw edit is
+the only edit" timed out once under full-suite parallel load and passed
+clean in isolation and on every full-suite re-run after; that file imports
+nothing this plan touched.
+
+---
+
+## D1 — a save that did not happen is never reported as one (2026-09-13)
+
+Audit items SAVE-A2, A6 (the gate half), A7, A8, A9, A10, A11 and B4. None of
+them depends on Ethan's D6 save-model decision: whatever the model, a failed
+write must not look like a successful one.
+
+**Every one of these was the same shape: a result that was never looked at.**
+The song editor awaited `updateSong` and closed; the IPC layer reports failure
+as `{ success: false }` rather than throwing, so the `catch` beside it was dead
+and a failed song save took the edits with the closed modal. `appCommands`
+dropped `saveCurrentPresentation`'s result, so ⌘S failures were silent.
+`captureVersion` returns a boolean that five call sites ignored — after the
+dirty flag had already been cleared, so a failed restore point said "Saved".
+
+**The one deliberate test change.** `Editor.save.test.tsx` pinned the editor's
+own "Save Failed" alert. The alert now lives in `saveCurrentPresentation`, so
+every way of saving reports failures once; keeping the editor's alert as well
+would show the same failure twice. The case now asserts no second alert, and it
+fails on the old code.
+
+**Two places a stricter check would have broken passing tests for the wrong
+reason, and did not.** The Unsaved Changes gate tests and the song editor tests
+mock `captureVersion` and the song IPC without return values. `captureVersion`
+always returns a real boolean, so the gate checks `=== false`; the song editor
+checks the envelope, and its existing tests only ever asserted the calls and
+payloads, so they pass unchanged.
+
+**Left for its own plan:** the main-process half of SAVE-A7 (`.changes === 0`
+as an error) — the audit's verification pass showed it would make autosave's
+"Presentation Deleted" branch unreachable and turn those writes into the
+three-strike alert instead.
+
+---
+
+## S1 — the first-run sample ships only public-domain lyrics (2026-09-13)
+
+The audit's legal item (SONG-28, P1): `electron/main/index.js`'s `seed()`
+shipped every fresh install with copyrighted material. Two songs sat under the
+wrong CCLI number outright ("Amazing Grace" tagged with the CCLI for "Amazing
+Grace (My Chains Are Gone)", carrying that song's copyrighted chorus grafted
+onto Newton's title; "How Great Is Our God" tagged with Chris Tomlin's real
+number but no license), and the third ("Build My Life", Housefires) was
+copyrighted outright with no public-domain angle at all. All three landed both
+as `songs` rows and, copied by value, as the sample presentation's slides.
+
+**The fix removes a whole seeding path, not just its lyrics.** `shared/hymns.json`
+and `src/utils/builtInSongSeed.js` already exist and already seed the
+public-domain hymn library from the renderer, matched strictly by
+`built_in_key` — title/tag matching was tried once before and could silently
+overwrite or delete a user's own song (phase7 #14, fixed by A3). `seed()`'s own
+`songs` array was a second, independent seeding path that never talked to that
+one, which is exactly what produced SONG-4: a fresh install's unkeyed seed()
+"Amazing Grace" and the renderer's keyed "Amazing Grace" could never be
+reconciled by migration 3 (it only adopts rows tagged `"built-in"`; `seed()`
+tagged its rows `"hymn","classic"`). So the fix isn't "swap in different
+lyrics" — it's "`seed()` inserts zero `songs` rows, period." The sample
+presentation stands on its own, with slide text copied verbatim from
+`hymns.json`'s `amazing-grace` verses 1–3 (Newton, 1779, public domain, no
+CCLI field to even get wrong).
+
+**Testability required extracting the data out of `index.js`.** That file
+can't be loaded in a unit test (better-sqlite3, electron), so the seed content
+moved to a new electron-free module, `electron/main/firstRunSeed.ts`,
+exporting a plain `FIRST_RUN_PRESENTATION` constant that `index.js` requires
+exactly the way it already requires `./closeController` — same reason
+(CommonJS main process, relative `require` resolved against the built output
+directory) and the same one-line addition to `electron.vite.config.js`'s
+Rollup `main` input map. `seed(db)` is now a ~20-line function: build fresh
+slide/section ids, hand the rest to `presentationQueries.createPresentation`,
+inside `db.transaction(() => { ... })()` — closing MAIN-B10 (the insert and
+the `settings.initialized` write used to be two separate statements with no
+transaction between them, so a crash after the first and before the second
+would re-run the whole seed on the next launch and duplicate the presentation).
+
+**TDD path:** `firstRunSeed.ts` was first populated with the current
+copyrighted content, verbatim (including a throwaway `ccli` field carried onto
+each section, since the real bug data lived on the song row the section used
+to be copied from, and the new shape only has sections) so
+`firstRunSeed.test.ts` would be provably red against real current content — 2
+of 3 cases failed (5 banned phrases swept case-insensitively across every
+string in the tree; a walk of every object key for a truthy `ccli`), and the
+structural-floor case (≥1 section, ≥1 slide) passed throughout, as it should —
+that one was never the bug. Fixing the data made all 3 green.
+
+**Verified, not just asserted, that SONG-4 is fixed:** after the change,
+`grep -rn "How Great Is Our God\|Chris Tomlin\|Housefires\|4348399\|7070345\|My chains are gone" electron/main/firstRunSeed.ts electron/main/index.js`
+returns nothing — no independently-tagged hymn row can exist for migration 3
+to fail to reconcile, because no such row is ever created.
+
+**E2E:** every visual/keyboard/CSP spec that opens the sample presentation
+matches on its title only (`/Sunday Morning Service/`, unchanged), so none of
+those needed edits. `e2e/migrations.spec.ts` builds its own synthetic legacy
+database and explicitly pre-seeds `settings.initialized = true` so `seed()`
+never runs in that spec at all — untouched. `e2e/hymns.spec.ts` had a comment
+(not an assertion) documenting and relying on `seed()`'s old unkeyed "Amazing
+Grace" row existing; the test's actual logic was already written against row
+**count** and `built_in_key`, never title, specifically so it wouldn't care —
+only the comment needed correcting. Flagged for the owner: several
+`e2e/*-snapshots/*.png` baselines capture the sample presentation's rendered
+text or the song library's row count/list (at least `home-darwin.png`,
+`editor-darwin.png`, `output-darwin.png`, `editor-textbox-selected-darwin.png`,
+`editor-song-order-tray-darwin.png`, `editor-song-library-darwin.png`,
+`editor-presenting-darwin.png`, `home-recent-darwin.png`, `home-open-darwin.png`,
+`home-context-menu-darwin.png`, `song-editor-modal-darwin.png`,
+`stage-display-darwin.png`, and several `hover-song-card-*-darwin.png`) — these
+will very likely need a CI recapture now that the sample's text and the song
+library's starting contents changed; no PNG was touched by this PR.
+
+---
+
 ## DB2 — the database gets a lifecycle: seeded once, closed on quit, refused when too new (2026-09-13)
 
-Audit items MAIN-B10, B11, B12, B14, B15 — five small, unrelated-looking bugs
-that all trace back to the same thing: nothing in this codebase ever treated
-the SQLite file as having a *lifecycle*. It got opened once and otherwise
-left alone.
+Audit items MAIN-B11, B12, B14, B15 — small, unrelated-looking bugs that all
+trace back to the same thing: nothing in this codebase ever treated the SQLite
+file as having a *lifecycle*. It got opened once and otherwise left alone.
 
-**The seed was never atomic, and nobody had noticed because it never failed.**
-`seed(db)` ran three song inserts, one presentation insert, and the
-`initialized` flag as five independent statements. A crash between any two —
-disk full, `kill -9`, a power loss during first launch — left orphaned rows
-and an unset `initialized` flag, so the *next* launch would seed again on top
-of them. Extracted to `electron/db/seed.js` (out of `index.js`, which cannot
-be imported in Vitest because it calls Electron APIs at module scope) so it
-is unit-testable against real SQLite, then wrapped in one
-`db.transaction(...)` — same idiom already used by
-`queries/presentations.js`'s `deletePresentation`.
-
-**Proving the rollback needed real SQLite, and mocking the wrong thing cost a
-detour.** The plan's first draft mocked `queries/songs.createSong` to throw
-on its second call. It didn't work — `vi.mock`/`vi.spyOn` never intercepted
-`seed.js`'s `require('./queries/songs')`, and in hindsight nothing in
-`electron/` had ever used `vi.mock` on a local CommonJS module, which should
-have been the tell before writing the test rather than after it failed
-silently (the mock's own implementation was simply never called; `thrown`
-stayed `undefined`). The fix that actually worked patches `db.prepare` on the
-real `better-sqlite3` instance to fail the second `INSERT INTO songs` — which
-exercises real transaction rollback, not a mocked wrapper's promise that it
-would.
+**MAIN-B10 (the non-atomic seed) was dropped from this PR at merge time.**
+The plan extracted `seed(db)` verbatim into `electron/db/seed.js` and wrapped
+it in a transaction. Meanwhile S1 (#125) rewrote `seed()` in `index.js`:
+it no longer seeds songs at all, builds the sample presentation from
+public-domain `firstRunSeed.ts`, and already runs the insert and the
+`initialized` flag in one `db.transaction`. Keeping this PR's `seed.js` would
+have brought back the two copyrighted sample songs S1 removed — in a new file,
+so git would never have shown a conflict. The extraction, its three
+`seed.test.ts` cases and its `db/seed` Rollup input were removed at merge and
+main's `seed()` kept. Lesson kept from the attempt: `vi.mock` on a local
+CommonJS module does not intercept `require()` in `electron/`; patching
+`db.prepare` on a real `better-sqlite3` instance does, and proves real
+rollback.
 
 **A quit never closed the database.** No `will-quit` listener existed at
 all, so the WAL and its `-shm` sibling were simply abandoned at every quit
@@ -1895,6 +2068,6 @@ canonicalPath)` with `WHERE canonical_path = ?`, `.get()` not `.all()` +
 got the same treatment for consistency, though it wasn't the per-file
 hot path the audit named.
 
-20 new cases, 18 red on `main` before the fix (2 were deliberate
-non-regression sanity checks, not red cases — noted where they landed).
-Gate: `type-check ✓ · lint ✓ · vitest 612/612 passed (0 skipped)`.
+16 new cases after the MAIN-B10 removal, 15 red on `main` before the fix
+(the equal-version case is a deliberate non-regression sanity check).
+Gate re-run on the merged branch (see the PR).

@@ -2,6 +2,15 @@
 
 **Source:** audit items **MAIN-B10, MAIN-B11, MAIN-B12, MAIN-B14, MAIN-B15**.
 
+> **Superseded in part (2026-09-14, at merge with `main` @ `87b277e`).** MAIN-B10
+> was closed by S1 (#125), whose rewritten `seed()` in `index.js` already runs
+> in one `db.transaction` and seeds only public-domain content. Decision 1,
+> Decision 6, Todos 5–6 and the `db/seed` part of Todo 10 are **withdrawn**:
+> `electron/db/seed.js`, `seed.test.ts` and the `db/seed` Rollup input were
+> removed at merge, because the extracted file still carried the copyrighted
+> sample songs S1 removed. The text below is kept as written for the record;
+> see "Merge with S1" at the end.
+
 Written per `.cursor/rules/writing-executable-plans.mdc`. No prior plan touches
 these five; `plan-A1-versioned-migrations.md`, `plan-A4-real-sqlite-tests.md`
 and `plan-C1-lifecycle-robustness.md` establish the patterns reused here
@@ -335,3 +344,21 @@ unchanged both before and after.
   app startup loudly (as every other migration failure already does) instead
   of silently proceeding. The startup dialog is MAIN-B1's job, not this
   plan's.
+
+## Merge with S1 (2026-09-14)
+
+Merging `main` @ `87b277e` (S1, #125) conflicted in `electron/main/index.js`:
+this branch had deleted `seed()`; S1 had rewritten it. Resolution:
+
+- **Kept main's `seed()`** (S1's public-domain `firstRunSeed.ts` content,
+  already in one `db.transaction`, which closes MAIN-B10).
+- **Removed** `electron/db/seed.js`, `electron/db/__tests__/seed.test.ts`, the
+  `db/seed` Rollup input, `require('../db/seed')`, and the "emits db/seed"
+  case this plan added to `lifecycleListeners.test.ts`. Keeping `seed.js`
+  would have re-shipped the copyrighted sample songs in a new file with no
+  conflict to warn anyone — the reason #132 was held as a draft.
+- **Kept** MAIN-B11, B12, B14, B15 exactly as implemented.
+
+**Counts after the merge:** 16 new cases (20 minus `seed.test.ts`'s 3 and the
+`db/seed` check), **15 red** on `main` as measured; the equal-version case
+stays a sanity check. No other test changed.

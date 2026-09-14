@@ -53,8 +53,25 @@ export async function resolveUnsavedChanges({
       });
       return false;
     }
-    // Save is the commit, here as everywhere else.
-    await captureVersion(normalizePresentation(saveResult?.data ?? presentation));
+    if (saveResult?.data == null) {
+      // The row is gone (deleted from Home while open). Capturing the in-memory
+      // copy here wrote an orphan version for a presentation that no longer
+      // exists, and let the window close as "saved" (plan D1, audit SAVE-A6).
+      await alertDialog('This presentation no longer exists, so it could not be saved.', {
+        title: 'Save Failed',
+      });
+      return false;
+    }
+    // Save is the commit, here as everywhere else — and a commit whose restore
+    // point failed is not one (plan D1, audit SAVE-A9).
+    const captured = await captureVersion(normalizePresentation(saveResult.data));
+    if (captured === false) {
+      await alertDialog(
+        'Your presentation was saved, but a restore point could not be recorded. Try saving again before you leave.',
+        { title: 'Restore Point Not Saved' }
+      );
+      return false;
+    }
     setDirty(false);
     setRequiresInitialSave?.(false);
     return true;

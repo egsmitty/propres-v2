@@ -53,6 +53,10 @@ export default defineConfig({
           // same way the db modules below do, or the app crashes on launch
           // with "Cannot find module './closeController'".
           'main/closeController': resolve(__dirname, 'electron/main/closeController.ts'),
+          // Seed data for a fresh profile's first launch (plan S1). Same
+          // reason as closeController above: index.js's `require('./firstRunSeed')`
+          // is resolved relative to the built output at runtime.
+          'main/firstRunSeed': resolve(__dirname, 'electron/main/firstRunSeed.ts'),
           // IPC contract enforcement (plan B1): the registry is required from
           // index.js; the contract is imported by the registry AND by preload.
           'main/ipcRegistry': resolve(__dirname, 'electron/main/ipcRegistry.ts'),
@@ -62,9 +66,6 @@ export default defineConfig({
           'shared/ipcContract': resolve(__dirname, 'shared/ipcContract.ts'),
           'db/index': resolve(__dirname, 'electron/db/index.js'),
           'db/migrations': resolve(__dirname, 'electron/db/migrations.js'),
-          // Required by index.js via relative require (CommonJS main), so it
-          // needs its own entry — same reason as main/closeController.
-          'db/seed': resolve(__dirname, 'electron/db/seed.js'),
           // Required by migrations.js via relative require (CommonJS main), so
           // each needs its own entry — same reason as main/closeController.
           'db/migrationPlanner': resolve(__dirname, 'electron/db/migrationPlanner.ts'),
