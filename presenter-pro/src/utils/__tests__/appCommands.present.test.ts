@@ -46,15 +46,21 @@ import { runAppCommand } from '@/utils/appCommands';
 import { alertDialog } from '@/utils/dialog';
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow';
 import { sendBlack, sendLogo } from '@/utils/ipc';
+import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
 import { usePresenterStore } from '@/store/presenterStore';
 
+const APP_INITIAL = useAppStore.getState();
 const EDITOR_INITIAL = useEditorStore.getState();
 const PRESENTER_INITIAL = usePresenterStore.getState();
 const PRESENTATION = { id: 'p1', sections: [{ id: 's1', slides: [{ id: 'a' }] }] };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useAppStore.setState(APP_INITIAL, true);
+  // These commands describe the editor; since plan CMDS1 the registry refuses
+  // them on Home (audit CMD-B4), so the view is part of the seed state.
+  useAppStore.setState({ currentView: 'editor' });
   useEditorStore.setState(EDITOR_INITIAL, true);
   usePresenterStore.setState(PRESENTER_INITIAL, true);
   vi.mocked(alertDialog).mockResolvedValue(undefined);
