@@ -2499,6 +2499,33 @@ exists. "Paste and Match Style" on ⌘⇧V (CMD-M2) stays its own item.
 
 ---
 
+## DLG1 — Enter obeys whichever dialog button is focused (2026-09-14)
+
+**What was wrong.** `Dialog.jsx`'s `handleEnter` resolved the `primary` action
+on any Enter press, full stop — it never looked at `document.activeElement`.
+Tab to Cancel, press Enter, and the primary action ran anyway, including a
+destructive one (audit CMD-B8).
+
+**What changed.** The buttons' wrapping `<div>` got a ref and each `<button>`
+a `data-action-index`; `handleEnter` now checks whether focus is on one of
+those buttons and, if so, resolves that button's own action and returns
+before ever looking at primary. Chose explicit resolution over "let the
+browser's native Enter-activates-a-button behavior happen" because jsdom
+(this repo's test environment) doesn't synthesize a click from a button's
+Enter keydown, so a native-only fix would have been unprovable by a red-first
+jsdom test; explicit resolution plus `e.preventDefault()` is deterministic in
+both jsdom and the packaged app either way. `handleEscape` (plan L1, capture
+phase) is untouched, and CMD-B9 (a second dialog replacing the first;
+`dialogStore.js`) is out of scope — a separate plan.
+
+**Worth knowing.** 3 new cases, only 1 fails on the old code (focus-on-Cancel
+resolving `ok`); the other 2 already matched old behavior and exist to pin
+that Enter still fires primary when nothing/the primary button has focus —
+they're "keep working" cases, not bug proofs, and the plan says so rather than
+inflating the red count.
+
+---
+
 ## V1 — version history edge cases (2026-09-14)
 
 Three small, independent fixes, none touching stored data or the IPC seam.
