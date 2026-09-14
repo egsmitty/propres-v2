@@ -512,3 +512,33 @@ pass. Fix the root cause or record it as a suspected regression.
     either file's shape/extraction boundaries; `handleBack` and
     `handleTemplateAction` change their bodies, not the file's
     decomposition.
+
+## Review
+
+All 12 todos landed as planned, plus one amendment found during execution
+(T10): deleting the no-target fallback `<div>` (T4) dropped
+`OnboardingTutorial.jsx`'s real inline-style count from 5 to 4, so
+`inlineStyleBudget.test.ts`'s ceiling for that file was lowered to match —
+the ratchet's own stated intent, not a weakening. No other deviation from
+the plan.
+
+- HOME-12: `student-night` and `prayer-night` descriptions fixed; the other
+  5 templates were already accurate. All 7 templates' real section output is
+  now pinned by `presentationTemplates.test.ts`.
+- HOME-13: the tutorial's featured-example action now reuses an existing
+  "Sunday Morning Example" by title instead of creating another one; the
+  generic per-card template flow is untouched (still makes a new copy).
+- HOME-14: the `present` step no longer names the deleted standalone
+  presenter window.
+- HOME-15a/b: a missing tour target no longer dims the whole screen, and
+  Back from the `toolbar` step now returns to Home through the same
+  unsaved-changes-gated path used elsewhere in the app.
+
+Gate: `type-check ✓ · lint ✓ · vitest 647/647 passed (0 skipped)` (rebased
+onto latest `origin/main`). `npm run format:check`: exit 0. PR:
+https://github.com/egsmitty/propres-v2/pull/133 (not merged — awaiting
+review, per instructions).
+
+Out of scope, recorded as a Finding: `templateVisuals.js`'s card-pill labels
+have the same class of drift as HOME-12 but are a different file/field, not
+named by the task brief.
