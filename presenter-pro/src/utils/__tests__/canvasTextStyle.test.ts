@@ -6,6 +6,7 @@ import {
   renderOutline,
   renderShadow,
   renderTextDecoration,
+  resolveTextBoxPadding,
   resolveVerticalAlignment,
 } from '@/utils/canvasTextStyle';
 
@@ -27,6 +28,7 @@ const EXPECTED_EXPORTS = [
   'renderOutline',
   'renderShadow',
   'renderTextDecoration',
+  'resolveTextBoxPadding',
   'resolveVerticalAlignment',
 ];
 
@@ -103,6 +105,63 @@ describe('renderShadow', () => {
         shadowColor: '#000000',
       })
     ).toBe('4px 6px 12px #000000');
+  });
+
+  // ED-18 (fable-pass-2-audit.md, Part 3). `|| 10` / `|| 18` could never keep
+  // an explicit 0 — it would fall back to the default every time, since 0 is
+  // falsy. `??` keeps it.
+  it('keeps an explicit 0 offsetY instead of falling back to the default 10', () => {
+    expect(renderShadow({ shadowEnabled: true, shadowOffsetY: 0 })).toBe(
+      '0px 0px 18px rgba(0,0,0,0.35)'
+    );
+  });
+
+  it('keeps an explicit 0 offsetX (already correct before this fix — must stay green)', () => {
+    expect(renderShadow({ shadowEnabled: true, shadowOffsetX: 0 })).toBe(
+      '0px 10px 18px rgba(0,0,0,0.35)'
+    );
+  });
+
+  it('keeps an explicit 0 blur, which then clamps to the 2px floor — not the 18 fallback', () => {
+    expect(renderShadow({ shadowEnabled: true, shadowBlur: 0 })).toBe(
+      '0px 10px 2px rgba(0,0,0,0.35)'
+    );
+  });
+});
+
+describe('resolveTextBoxPadding', () => {
+  const fallback = { paddingTop: 22, paddingRight: 28, paddingBottom: 22, paddingLeft: 28 };
+
+  it('keeps an explicit 0 on every side instead of falling back to the default', () => {
+    expect(
+      resolveTextBoxPadding(
+        { paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 },
+        fallback
+      )
+    ).toEqual({ paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0 });
+  });
+
+  it('falls back to the default when a side is undefined or null', () => {
+    expect(
+      resolveTextBoxPadding(
+        { paddingTop: undefined, paddingRight: null, paddingBottom: undefined, paddingLeft: null },
+        fallback
+      )
+    ).toEqual(fallback);
+  });
+
+  it('resolves a box with no padding fields at all to the full fallback', () => {
+    expect(resolveTextBoxPadding({}, fallback)).toEqual(fallback);
+    expect(resolveTextBoxPadding(null, fallback)).toEqual(fallback);
+  });
+
+  it('resolves each side independently when some are explicit and some are missing', () => {
+    expect(resolveTextBoxPadding({ paddingTop: 0, paddingLeft: 40 }, fallback)).toEqual({
+      paddingTop: 0,
+      paddingRight: fallback.paddingRight,
+      paddingBottom: fallback.paddingBottom,
+      paddingLeft: 40,
+    });
   });
 });
 
