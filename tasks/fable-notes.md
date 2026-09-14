@@ -2008,6 +2008,67 @@ library's starting contents changed; no PNG was touched by this PR.
 
 ---
 
+## DB1 — one bad row no longer empties Home, and lists sort stably (2026-09-13)
+
+Four small, unrelated `electron/db` bugs from the whole-app audit
+(`tasks/fable-pass-2-audit.md`, local): MAIN-B2, MAIN-B13, MAIN-B16, SONG-16.
+All four are query-text or ordering-of-two-statements fixes — no migration,
+no rewritten row, D8's backup/rollback rule has nothing to attach to.
+
+**MAIN-B2.** `presentations.js`'s shared `parse` helper did
+`JSON.parse(row.sections || '[]')` with no try/catch, called from both
+`getPresentations`'s `.map(parse)` and `getPresentation`'s single call. One
+row with invalid `sections` JSON threw inside `.map`, so the *entire* Home
+list came back empty instead of showing the other rows — a single corrupt
+row, not a missing one, was the failure mode. Fixed once, in the shared
+helper: a parse failure now flags that row `{ sections: [], corrupt: true }`
+and `console.error`s the id; healthy rows are byte-for-byte unchanged (no
+`corrupt` key added to them).
+
+**MAIN-B13, the real trap in this PR.** The runner pruned old backups
+*before* writing the new one, so a failed `VACUUM INTO` (disk full,
+permissions) had already deleted backups it couldn't replace. The "obvious"
+fix — just swap the two lines — is wrong by itself. `pruneBackups`'s retain
+math (`keep - 1`) assumed it ran *before* the write, reserving one slot for
+the file about to be written. The real `BackupStore.list()`
+(`electron/db/migrations.js`, `fs.readdirSync`) reads the directory live, so
+once you write first, the new file is already inside `list()` — reserving a
+slot for it on top of that under-retains by one backup, silently, forever
+(keep=3 would actually keep 2). The unit test's fake didn't catch this
+because it returned a fixed backup list regardless of what `db.exec` did.
+Fixed both at once: the fake now tracks `VACUUM INTO` as actually appending
+to the list (and `remove` actually splicing it out, mirroring
+`fs.unlinkSync`), and `pruneBackups` now retains `keep` total with no
+reserved slot — correct only because it is called after the write. Worked
+the arithmetic by hand before writing code (see the plan's Pitfall notes);
+the pre-existing "prunes old backups so at most 3 remain" test needed zero
+assertion changes once both sides were fixed together, which is the check
+that the fix is actually right and not just differently wrong.
+
+**MAIN-B16.** `ORDER BY updated_at DESC` (presentations) and
+`ORDER BY created_at DESC` (media) sort only by a second-resolution
+`unixepoch()` column — same-second rows have unstable relative order between
+calls. Added `, id DESC`/`, id ASC` tie-breakers (every id here is
+`INTEGER PRIMARY KEY AUTOINCREMENT`); `getMediaFolders` got one too on the
+same reasoning even though no test forces it (two folders sharing both name
+and second is unlikely but the column is free).
+
+**SONG-16.** `ORDER BY title ASC` is SQLite's byte-order default —
+case-sensitive, so `"amazing love"` sorted after `"Zion"`. Changed to
+`ORDER BY title COLLATE NOCASE ASC, id ASC`. This is the one test edit in
+the PR: the existing case asserted the old byte-order output with a comment
+saying so (`// SQLite ASC is byte order`) — updated to assert the
+case-insensitive order and comment, which fails under the old code and
+passes under the new.
+
+**Findings:** no item was already fixed or wrong on `main`; all four applied
+as scoped. No suspected regression found. 8 new test cases plus the one
+intentional edit, all in the two existing real-SQLite test files
+(`realSqlite.queries.test.ts`, `migrationRunner.test.ts`) — no new test
+directory.
+
+---
+
 ## D3 — song edits can't vanish on quit or on a stale lyrics box (2026-09-14)
 
 **What was wrong.** The song editor keeps its edits in modal state, and every
