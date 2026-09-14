@@ -10,6 +10,8 @@ import { getSongPartColor, withColorAlpha } from '@/utils/sectionTypes';
 import { getPresentationAspectRatio, getPresentationDimensions } from '@/utils/presentationSizing';
 import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
 import { withEffectiveBackground } from '@/utils/backgrounds';
+import { presenterActionForKey } from '@/utils/presenterKeymap';
+import { shouldIgnoreGlobalShortcut } from '@/utils/shortcutGuard';
 
 const LIVE_SLIDE_OUTLINE_COLOR = 'var(--live-outline)';
 const PRESENTER_PANEL_TOP_HEIGHT_KEY = 'presenterpro.presenterPanelTopHeight';
@@ -63,8 +65,12 @@ export default function PresenterPanel({ onSetOpen }) {
   const dividerDragRef = useRef(null);
   const [topPanelHeight, setTopPanelHeight] = useState(getInitialTopPanelHeight);
   const [mediaLibrary, setMediaLibrary] = useState([]);
+  // The last position a live slide actually had, so deleting the live slide
+  // never sends slide 1 next (plan L4, audit LIVE-A4).
+  const lastLiveIdxRef = useRef(liveIdx);
   useEffect(() => {
     liveIdxRef.current = liveIdx;
+    if (liveIdx >= 0) lastLiveIdxRef.current = liveIdx;
   }, [liveIdx]);
   useEffect(() => {
     allSlidesRef.current = allSlides;
@@ -155,27 +161,36 @@ export default function PresenterPanel({ onSetOpen }) {
     });
   }, [isPresenting, liveSlideId]);
 
-  // Arrow key navigation when presenting
+  // Slide Show keys when presenting (plan L2): the PowerPoint set, so a
+  // clicker's PageDown / PageUp work, and nothing moves while typing in a field
+  // or while a dialog or settings sheet is showing. Black (B / .) is the
+  // Editor's; see editorKeyAction.
   const latestGoPrev = useLatest(goPrev);
   const latestGoNext = useLatest(goNext);
+  const latestGoFirst = useLatest(goFirst);
+  const latestGoLast = useLatest(goLast);
   useEffect(() => {
     if (!isPresenting) return;
     function handler(e) {
-      const tag = document.activeElement?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable)
-        return;
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        latestGoPrev.current();
-      }
-      if (e.key === 'ArrowRight' || e.key === ' ' || e.code === 'Space') {
+      if (shouldIgnoreGlobalShortcut()) return;
+      const action = presenterActionForKey(e);
+      if (action === 'next') {
         e.preventDefault();
         latestGoNext.current();
+      } else if (action === 'prev') {
+        e.preventDefault();
+        latestGoPrev.current();
+      } else if (action === 'first') {
+        e.preventDefault();
+        latestGoFirst.current();
+      } else if (action === 'last') {
+        e.preventDefault();
+        latestGoLast.current();
       }
     }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isPresenting, latestGoNext, latestGoPrev]);
+  }, [isPresenting, latestGoFirst, latestGoLast, latestGoNext, latestGoPrev]);
 
   async function goToSlide(slide) {
     if (!slide) return;
@@ -183,13 +198,28 @@ export default function PresenterPanel({ onSetOpen }) {
       setSelectedSlide(slide.sectionId, slide.id);
       return;
     }
-    await sendSlide(slide, null);
+    // Mark it live BEFORE the IPC round trip (plan L4, audit LIVE-A3 / A7): a
+    // second clicker press landing during the await must read the new
+    // position rather than send the same slide again, and the session sync
+    // must not refresh the previous slide over this one.
+    const nextIdx = allSlidesRef.current.findIndex((item) => item.id === slide.id);
+    if (nextIdx >= 0) {
+      liveIdxRef.current = nextIdx;
+      lastLiveIdxRef.current = nextIdx;
+    }
     usePresenterStore.getState().setLiveSlide(slide.sectionId, slide.id);
+    await sendSlide(slide, null);
   }
 
   function goPrev() {
     const idx = liveIdxRef.current;
     const slides = allSlidesRef.current;
+    if (idx === -1) {
+      // The live slide was deleted mid-service: step back from where it was.
+      const target = Math.min(lastLiveIdxRef.current, slides.length) - 1;
+      if (target >= 0) goToSlide(slides[target]);
+      return;
+    }
     if (idx <= 0) return;
     goToSlide(slides[idx - 1]);
   }
@@ -197,8 +227,27 @@ export default function PresenterPanel({ onSetOpen }) {
   function goNext() {
     const idx = liveIdxRef.current;
     const slides = allSlidesRef.current;
+    if (idx === -1) {
+      // The live slide was deleted: the slide that took its place is next —
+      // never slide 1 of the service (plan L4, audit LIVE-A4).
+      const target = lastLiveIdxRef.current;
+      if (target >= 0 && target < slides.length) goToSlide(slides[target]);
+      return;
+    }
     if (idx >= slides.length - 1) return;
     goToSlide(slides[idx + 1]);
+  }
+
+  function goFirst() {
+    const slides = allSlidesRef.current;
+    if (!slides.length || liveIdxRef.current === 0) return;
+    goToSlide(slides[0]);
+  }
+
+  function goLast() {
+    const slides = allSlidesRef.current;
+    if (!slides.length || liveIdxRef.current === slides.length - 1) return;
+    goToSlide(slides[slides.length - 1]);
   }
 
   async function handleStart() {

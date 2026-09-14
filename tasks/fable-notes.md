@@ -2096,6 +2096,382 @@ when it fails on the assertion.
 
 ---
 
+## L2 — four keyboard handlers, four different ideas of "the user is typing" (2026-09-13)
+
+Audit items LIVE-A5, LIVE-C1, LIVE-C2, CMD-B6, CMD-B10, LIVE-B12 and ED-2.
+
+**The bugs were all the same missing question.** The Editor, the presenter
+panel and Canvas each listen on `window`, and each decided for itself whether a
+key was meant for them. Two checked `INPUT`, `TEXTAREA` and contentEditable;
+none counted a `<select>`; none knew a dialog was open; Canvas checked nothing.
+So Backspace in the toolbar's font-size box deleted the selected text box, ↓ in a
+focused `<select>` moved the slide selection, and Space on a dialog button moved
+the projector. One module now answers it for all three.
+
+**Backspace was the worst one, and it was a vocabulary mismatch, not a typo.**
+In this editor Backspace deletes the selected slide; in PowerPoint's Slide Show
+it means *go back*. A volunteer who presses it mid-service expecting the
+previous slide deleted a slide instead — and autosave wrote the deletion. While
+presenting, the Editor now returns nothing for Backspace, Delete, ↑ or ↓, and
+the panel's keymap (copied key-for-key from PowerPoint, including the PageDown /
+PageUp a clicker sends and the `.` many clickers send for "blank") owns
+navigation.
+
+**The Editor's decision is now a pure function**, because the editor cannot be
+mounted in jsdom (Canvas needs measured geometry). Its test table pins every
+existing behaviour row by row, and marks the fixes, so the extraction is
+provably behaviour-preserving everywhere it was meant to be.
+
+**Found and not fixed:** Canvas's Delete/Backspace handler runs in the capture
+phase and calls `stopPropagation()`, so with a text box *selected* (not being
+edited) while presenting, Backspace deletes the box and never reaches the panel.
+That is editing the live deck rather than navigating it, and it belongs with the
+editor work; recorded rather than widened into this plan.
+
+---
+
+## DB2 — the database gets a lifecycle: seeded once, closed on quit, refused when too new (2026-09-13)
+
+Audit items MAIN-B11, B12, B14, B15 — small, unrelated-looking bugs that all
+trace back to the same thing: nothing in this codebase ever treated the SQLite
+file as having a *lifecycle*. It got opened once and otherwise left alone.
+
+**MAIN-B10 (the non-atomic seed) was dropped from this PR at merge time.**
+The plan extracted `seed(db)` verbatim into `electron/db/seed.js` and wrapped
+it in a transaction. Meanwhile S1 (#125) rewrote `seed()` in `index.js`:
+it no longer seeds songs at all, builds the sample presentation from
+public-domain `firstRunSeed.ts`, and already runs the insert and the
+`initialized` flag in one `db.transaction`. Keeping this PR's `seed.js` would
+have brought back the two copyrighted sample songs S1 removed — in a new file,
+so git would never have shown a conflict. The extraction, its three
+`seed.test.ts` cases and its `db/seed` Rollup input were removed at merge and
+main's `seed()` kept. Lesson kept from the attempt: `vi.mock` on a local
+CommonJS module does not intercept `require()` in `electron/`; patching
+`db.prepare` on a real `better-sqlite3` instance does, and proves real
+rollback.
+
+**A quit never closed the database.** No `will-quit` listener existed at
+all, so the WAL and its `-shm` sibling were simply abandoned at every quit
+instead of checkpointed. Added `getDbPath`/`resolveDbFileName`/`closeDb` to
+`electron/db/index.js` — `closeDb` guarded to run once, swallowing and
+logging any error, because a checkpoint failure must never hang or crash
+app quit. The same file also does `const { app } = require('electron')` at
+its top, which looked like it would make the whole module untestable
+outside Electron the way `index.js` is — but `require('electron')` under
+plain Node resolves to a path string, not the Electron module, so `app` is
+just `undefined` there, and nothing at module scope touches it. The pure
+functions are directly importable.
+
+**A database from a newer build was silently accepted.** The runner computed
+`pending` migrations and, if a database's recorded version was already
+higher than anything in the current `MIGRATIONS` list (say, a user opened a
+future build's profile with an old installer), `pending` came out empty —
+indistinguishable from "already up to date." Added a check, before any
+backup or migration, that throws `NewerSchemaVersionError` when the recorded
+version exceeds the highest known one. No UI, no catch anywhere — that dialog
+is MAIN-B1's job; this only makes the runner refuse instead of proceeding.
+
+**`npm run dev` and the packaged app were reading and writing the same SQLite
+file.** Every edit made while developing landed in the exact file the
+installed app uses. `getDb()` now resolves `presenterpro-dev.db` only under
+the electron-vite dev server (`ELECTRON_RENDERER_URL` set), `presenterpro.db`
+otherwise — the decision lives in a pure `getDbPath(userDataDir, usesDevServer)`
+so it's unit-tested directly rather than through Electron. The first version
+keyed it on `!app.isPackaged`, and CI's E2E caught it: preview and Playwright
+are unpackaged too, so the app wrote the -dev file while every E2E spec read
+`presenterpro.db` ("no such table: presentations"). The same trap is already
+written down for renderer loading in `electron/main/index.js`; it caught us
+anyway, and only a real end-to-end run could have. Consequence for Ethan: the first `npm run dev` after this
+lands starts with an empty library (freshly seeded); whatever was in dev
+before sits untouched at the old shared path, copyable once if wanted.
+
+**Media import scanned the whole table per imported file, needlessly — the
+index already existed.** `media:import` called `mediaQueries.getMedia(db)`
+(every row, `SELECT * ... ORDER BY created_at DESC`) inside its per-file
+loop, then `.find()` in JS. `idx_media_canonical_path` was already there
+(migration 1), so this was a pure query fix: `findMediaByCanonicalPath(db,
+canonicalPath)` with `WHERE canonical_path = ?`, `.get()` not `.all()` +
+`.find()` since the column is 0-or-1 per path. `media:pick`'s single lookup
+got the same treatment for consistency, though it wasn't the per-file
+hot path the audit named.
+
+16 new cases after the MAIN-B10 removal, 15 red on `main` before the fix
+(the equal-version case is a deliberate non-regression sanity check).
+Gate re-run on the merged branch (see the PR).
+
+---
+
+## H2 — the onboarding tour was leaving people stranded on a dark screen (2026-09-14)
+
+Audit items HOME-12, HOME-13, HOME-14, HOME-15 (`tasks/fable-pass-2-audit.md`,
+local). All four turned out to share one root cause worth naming: nothing in
+`OnboardingTutorial.jsx` distinguished "the highlighted step's target isn't on
+screen right now" from "there is no target for this step" — every one of the
+6 steps declares a selector, so the two cases are the same case, and the old
+code treated it as intentional (dim the whole screen, center the tooltip).
+That state was reachable in completely normal use: `handleBack`'s only
+Home-aware branch was `nextIndex === 0`, so Back from the toolbar step (which
+needs the editor) to the templates step (which needs Home) never switched the
+view — landing exactly on the undetectable-target case. The fix removes the
+fallback dim entirely (a null target now renders nothing behind the tooltip)
+and generalizes the Back check from "index 0" to "does the step I'm going
+back to live on Home," which also means Back now goes through the same
+`resolveUnsavedChanges` → `touchPresentation` → `setHomeTab` → `setCurrentView`
+sequence `TitleBar.jsx` uses, not a raw view switch that skipped the
+unsaved-changes gate.
+
+The two template descriptions that lied were `student-night` ("worship" —
+no song section exists in this template at all) and `prayer-night`
+("scripture," "reflection," "closing worship" — only `Gathering` and `Guided
+Prayer` exist). The other 5 templates were already accurate; both fixed
+descriptions were re-verified against real `buildPresentation()` output
+(fixture: the 4 real hymn titles from `shared/hymns.json`) rather than
+eyeballed. The field they live in, `template.description`, turned out to be
+rendered nowhere in the app today (`TemplateCard` only shows `.title`) — a
+second, separate field, `templateVisuals.js`'s `lines` (the pills actually
+shown on each card), has the same class of drift and was left alone: the
+task brief named `presentationTemplates.js`'s description specifically, and
+widening scope to a sibling file wasn't asked for.
+
+The tutorial's own template action (`handleTemplateAction`) created a fresh
+"Sunday Morning Example" every run with no dedupe — the generic
+`createPresentationFromTemplate` flow every `TemplateCard` click uses was
+left untouched on purpose (clicking a template card by hand should still
+make a new document, the same way opening a template in PowerPoint or
+Keynote does); only the tutorial's *automatic* action now looks up an
+existing presentation by title first and reopens it.
+
+7 new test cases, 3 of them red-to-green against real bugs (the missing-
+target dim, Back-from-toolbar, and the tutorial's create-on-every-run), plus
+2 forbidden-word regression checks (also red-to-green) and an exhaustiveness
+check over all 7 templates' section output. One ratchet moved as a direct,
+expected consequence of the fix rather than a drive-by: deleting the
+no-target fallback `<div>` dropped `OnboardingTutorial.jsx`'s real inline-
+style count from 5 to 4, so `inlineStyleBudget.test.ts`'s ceiling for that
+file was lowered to match — the ratchet's own stated purpose ("lower it when
+a slice lands"), not a weakening.
+
+---
+
+## MB1 — a library that won't open says so instead of leaving no window (2026-09-14)
+
+**What was wrong.** Everything the main process does at startup — open the
+database, migrate it, seed it, register IPC, build the menu, open the window —
+ran inside one `app.whenReady().then(...)` with no `.catch`. A corrupt or locked
+library, or a migration that failed (and correctly rolled back and threw), turned
+into an unhandled rejection: no window, no message, `window-all-closed` never
+fired, and PresenterPro sat in the dock doing nothing. To the person at the
+machine on a Sunday morning, the app simply did not open.
+
+**What changed.** The chain ends in `.catch(handleStartupFailure)`, which shows
+"PresenterPro Could Not Start" — the library's folder and the error — and exits
+with a failure code. The words live in a pure `startupFailure.ts`, tested
+exactly; `index.js` is pinned by source text, the same way
+`lifecycleListeners.test.ts` pins the quit wiring, because it cannot be imported
+in a unit test. A library written by a newer build gets plain words instead of a
+schema number, recognised by the error's name so this and #132 (which adds that
+error) can land in either order.
+
+**Worth knowing.** The exit is in a `finally`: if the dialog itself throws, a
+process that stays alive with no window is exactly the bug being fixed. And the
+new module needed a Rollup input — a missing one would have crashed the packaged
+app at launch with the very same "nothing opens" symptom, while the build
+reported success.
+
+---
+
+## ED2 — `&` no longer turns into `&amp;amp;` after every edit (2026-09-14)
+
+**What was wrong.** Type "Praise & Worship" into a slide, click away, click back:
+the canvas, the thumbnail and the projector read `Praise &amp; Worship`, and each
+further edit added another `amp;`. The editor saves its element's `innerHTML`,
+which spells the ampersand as `&amp;` and has no tags. `slideBodyToHtml` treats
+a body with no tags as raw text and escapes it — escaping the already-escaped
+ampersand. The seed/save loop did the rest. The stage display was worse still:
+`slideBodyToPlainText` stripped tags but never decoded anything, so it showed
+the entity from the first save on. For a worship app, "Praise & Worship" is not
+an edge case.
+
+**What changed.** A body without tags is decoded once and then escaped. Raw text
+("Rock & Roll", from seeds and imports) and editor HTML ("Praise &amp; Worship")
+now render the same, and a seed/save cycle stores exactly what it read. Plain
+text decodes once, after the tags are gone. Bodies with real markup take the
+same path as before.
+
+**Worth knowing.** The decode is a single pass on purpose: `&amp;amp;` becomes
+`&amp;`, not `&`. A slide whose text genuinely reads "&amp;" has to keep it, and
+running the decode to a fixed point would eat it. The same reason means rows the
+bug already damaged stop growing but keep their one extra `&amp;`; repairing
+stored text is the storage-format plan the audit keeps for [F]. And the decode
+happens after the tags are stripped, so a typed "<b>" can never be mistaken for
+one.
+
+---
+
+## SEC1 — no window can be tricked into opening or navigating somewhere else, and built-in media names can't escape their folder (2026-09-14)
+
+Two small, unrelated hardening items from the whole-app audit
+(`tasks/fable-pass-2-audit.md`, local): SEC-1 and SEC-3. Both P3 [S], neither
+fixing a proven exploit — this is defense in depth.
+
+**SEC-1.** The audit's original write-up described a data-loss scenario (a
+dropped file could navigate the window away and discard unsaved work) but its
+own re-verification pass found that wrong: Electron's `navigateOnDragDrop`
+defaults to `false` and the main window never sets it, so a drag onto dead
+space already does nothing. What is still true and still worth closing: zero
+`web-contents-created` / `setWindowOpenHandler` / `will-navigate` guards
+existed anywhere in `electron/`. Added one `app.on('web-contents-created', ...)`
+that denies every `window.open` and allow-lists `will-navigate` to exactly two
+things — same-origin as `ELECTRON_RENDERER_URL` when set (so `npm run dev`
+HMR is untouched), or a `file:` URL whose path is the built renderer's
+`index.html` (what the packaged app, `npm run preview`, and Playwright E2E all
+load). Reading all three windows' `loadURL`/`loadFile` call sites mattered
+here: output and stage-display route by URL hash (`#/output`,
+`#/stage-display`), so the allow-list ignores hash/query and compares only
+protocol+host (dev) or protocol+path (file).
+
+**SEC-3.** `resolveBuiltInMediaAssetPath` in `index.js` joined a
+renderer-supplied name straight onto `test-media/` with `path.join`, which
+*collapses* `..` segments instead of rejecting them — `../../../../etc/passwd`
+escaped the directory. The guard is `path.basename(name) !== name` as the
+audit specifies, plus an explicit check for a literal backslash: `path.basename`
+only splits on the *host* platform's separator, so running the suite on
+macOS/Linux CI, `path.basename('..\\evil.png')` (POSIX `path`) leaves the
+string unchanged and would silently let a Windows-style traversal string
+through a basename-only check. Made both separators explicit so the guard's
+behaviour does not depend on which OS runs the test.
+
+Both decisions are pure, Electron-free functions (`navigationPolicy.ts`,
+`mediaAssetSafety.ts`) — `index.js` cannot be imported in a unit test (loads
+`electron`, opens a database at import time), so, same as `closeController.ts`,
+the logic lives outside it and a new source-text wiring test
+(`navigationHardeningWiring.test.ts`, matching `lifecycleListeners.test.ts`'s
+pattern) pins that `index.js` is actually wired to it.
+
+**Findings:** neither item was already fixed on `main`. Both applied exactly
+as scoped; no suspected regression found. 39 new cases (17 + 14 in the two new
+pure-module test files, 8 in the new wiring test file), all 39 red on the old
+code — the wiring file's 8 failed on their assertions against current source
+text; the two pure-module files' 31 failed with "Cannot find module" (the
+sanctioned failure mode for a brand-new module's own tests, per the plan).
+Full existing `electron/main/__tests__/` suite (114/114) unaffected,
+`lifecycleListeners.test.ts` and `rendererLoading.test.ts` unedited. **Owed to
+you:** the navigation allow-list has not been exercised by a running window in
+this session (per instruction — the machine was in use) or by CI's E2E run.
+Confirm CI's E2E (loads `out/renderer/index.html` from disk, the `file:`
+branch) stays green, and that `npm run dev` still HMRs (the `rendererDevUrl`
+branch) — the two allow-list paths a unit test cannot reach.
+
+---
+
+## L3 — the output window, one congregation-visible failure at a time (2026-09-13)
+
+Audit items LIVE-A1, A2, A8 (partly), A13, A14, A15 and C4.
+
+**The two worst ones were each one wrong assumption.** Output Settings closed
+"whatever preview window is open" when you dismissed it — but main answers "is
+a window open" without knowing whether it is a preview or the live projector, so
+Cancel took the projector down mid-service. The sheet now remembers which
+windows it opened. And the output renderer cleared black on every update,
+although main already clears it (and says so) when a new slide goes live; the
+only update that reached the renderer's own clear on its own was the refresh
+sent for every edit to the live slide. Fixing a typo while blacked out put the
+slide back on the screen. The fix is deleting two lines.
+
+**A test that passed for the wrong reason, twice.** The first observer test
+asserted "the ResizeObserver observed something" and passed on the broken code:
+`ScaledSlideText` runs its own observer on the text layer. The second draft
+assumed blacking out remounts the stage's root `<div>` and asserted a new
+element — but React reuses the node across the two branches; what changes is
+that the ref is cleared and the effect cleaned up. The final test asserts the
+root element itself is observed, by identity, once and then again after black.
+Both corrections made the test stricter, and the red proof is still real: on the
+old code the root is observed zero times.
+
+**Main-process pieces moved somewhere testable.** The output window's options
+(now opening black, like the stage display already did) and a display-sleep
+blocker live in `electron/main/presentationWindows.ts`, free of any `electron`
+import. The blocker is idempotent because it is started by every live slide and
+stopped from every path that can end a session — `output:stop`, the window's
+`closed`, and shutdown.
+
+**Deferred on purpose:** auto-picking a display and what Stop should do on a
+one-display laptop wait on Ethan's decision #8; display hot-plug waits for L6's
+injectable `screen` seam; black restarting the background video is a separate
+renderer restructure.
+
+---
+
+## L4 — the "presenter session in main" rewrite wasn't needed (2026-09-13)
+
+Audit items LIVE-A6, A4, A3 and A7.
+
+**The audit's first draft routed all four of these through a rewrite** — move
+the presenter session into the main process, with an ordered command queue. Its
+own verification pass found each had a small fix in the existing code, and that
+is what this is. The rewrite stays deferred; nothing here needed it.
+
+**Leaving the deck was the dangerous one.** File ▸ Open, File ▸ Close, File ▸
+New and the Home button all switched away with a presentation still live. The
+Editor unmounted, taking the presenter keys with it, the projector froze on its
+last slide — and opening another deck synced *that* deck's slides into the live
+session, so the next Space sent its first slide to the congregation. Quitting
+already asked "Stop presenting?"; every other way of leaving now asks the same
+question through one helper.
+
+**Two index bugs, one cause each.** The panel's live index lagged a render
+behind the IPC round trip, so a double-tap on a clicker read the old index twice
+and re-sent the same slide. And when the live slide was deleted its index became
+-1, and "next" sent `slides[0]` — slide 1 of the whole service. The panel now
+marks a slide live before the round trip, and remembers where the live slide
+was: next shows the slide that took its place.
+
+**The race needed a check in main, not a queue.** A refresh that lands after an
+advance could repaint the previous slide over the new one. Main already knows
+which slide is live, so it now ignores a refresh for any other slide — a pure,
+tested predicate beside L3's window options.
+
+---
+
+## S2 — typing no longer disappears during a save or a reopen (2026-09-14)
+
+**What was wrong.** Two quiet ways to lose words, no error shown.
+
+1. **⌘S while typing.** `saveCurrentPresentation` read the document, awaited the
+   write, and then replaced the editor's copy with the saved row. Anything typed
+   while the write was on its way disappeared, and the title bar said "Saved".
+2. **Reopen within the autosave window.** Type, go back to Home, and reopen the
+   same presentation within a couple of seconds. The open read the database row
+   before autosave had written the change. Loading that older row flipped the
+   document to clean, which autosave's subscription reads as "saved or
+   reverted", so it cancelled the scheduled write. Up to ten seconds of typing
+   went with it.
+
+**What changed.**
+- **Save** syncs the editor only if the editor still holds the exact object it
+  sent. If something was typed in the meantime, the newer edit stays and the
+  document stays unsaved. The row and its restore point hold what was sent, and
+  autosave writes the newer edit, as it already planned to.
+- **Opening a presentation** first awaits a new `flushPendingAutosave()`. It waits
+  for any write already on its way, then writes a still-scheduled change with the
+  same guards the timer uses. A change that Discard or Revert cancelled has no
+  timer, so it is never brought back.
+
+**Worth knowing.**
+- **Where the flush lives matters.** The obvious place for it is the store
+  subscription, on a same-id `setPresentation`. That is exactly what the audit's
+  first draft proposed, and it would have been a bug: restoring a version does a
+  same-id `setPresentation` right after writing the restored snapshot, and a flush
+  there would write the pre-restore content back over it. So the flush happens
+  only where a read is about to happen.
+- **The first red run was wrong for two cases.** Setting `presentationId` and
+  `isDirty` in one `setState` looks like a document switch to autosave, which
+  schedules nothing. Those tests failed because nothing was scheduled, not
+  because of the bug. Opening the presentation clean and then editing it, the way
+  the editor really works, gave the honest red.
+
+---
+
 ## DLG1 — Enter obeys whichever dialog button is focused (2026-09-14)
 
 **What was wrong.** `Dialog.jsx`'s `handleEnter` resolved the `primary` action
