@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronRight, GripVertical, Plus, Trash2, X } from 'lucide-react';
 import { createSong, updateSong } from '@/utils/ipc';
 import { alertDialog, showDialog } from '@/utils/dialog';
+import { registerBlockingEditor } from '@/utils/blockingEditors';
+import { useLatest } from '@/hooks/useLatest';
 import { SONG_PART_TYPES, getSongPartColor, withColorAlpha } from '@/utils/sectionTypes';
 import {
   createSongSectionGroup,
@@ -608,11 +610,12 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     commitArrangement((current) => current.filter((_, entryIndex) => entryIndex !== index));
   }
 
+  /** Resolves true when the editor closed (plan D3: quit and close wait on it). */
   async function handleRequestClose() {
-    if (saving) return;
+    if (saving) return false;
     if (!isDirty) {
       onClose();
-      return;
+      return true;
     }
 
     const result = await showDialog({
@@ -626,13 +629,16 @@ export default function SongEditorModal({ song, onClose, onSave }) {
 
     if (result?.action === 'discard') {
       onClose();
-      return;
+      return true;
     }
 
     if (result?.action === 'save') {
       const saved = await handleSave({ closeAfterSave: false });
       if (saved) onClose();
+      return saved;
     }
+
+    return false;
   }
 
   async function handleSave({ closeAfterSave = true } = {}) {
@@ -719,6 +725,18 @@ export default function SongEditorModal({ song, onClose, onSave }) {
     }
   }
 
+  // Plan D3 (SAVE-A1): these edits live here, not in the editor store, so quit,
+  // Close, New and Open ask this editor first while it is open.
+  const blockingRef = useLatest({ isDirty, requestClose: handleRequestClose });
+  useEffect(
+    () =>
+      registerBlockingEditor('song-editor', {
+        isDirty: () => blockingRef.current.isDirty,
+        resolve: () => blockingRef.current.requestClose(),
+      }),
+    [blockingRef]
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="flex flex-col rounded-lg shadow-2xl overflow-hidden w-[88vw] h-[84vh] bg-bg-surface border border-border-default">
@@ -796,7 +814,13 @@ export default function SongEditorModal({ song, onClose, onSave }) {
                   setRawLyricsDirty(true);
                   structureTouchedSinceRawEditRef.current = false;
                 }}
-                onFocus={() => setRawLyricsFocused(true)}
+                onFocus={() => {
+                  // SONG-2: untouched raw lyrics show the song as it is now, not
+                  // as it was when the editor opened — otherwise one keystroke
+                  // and Save rebuild the song from stale text.
+                  if (!rawLyricsDirty) setLyrics(groupsToLyrics(groups));
+                  setRawLyricsFocused(true);
+                }}
                 onBlur={() => setRawLyricsFocused(false)}
                 placeholder="Paste or type song lyrics. Blank lines create a new slide inside the current section. A new section starts only when you label it as Verse, Chorus, Bridge, etc."
                 className="flex-1 px-2.5 py-2 rounded-sm text-xs resize-none bg-bg-app border border-border-default text-text-primary font-[monospace] min-h-[240px]"
