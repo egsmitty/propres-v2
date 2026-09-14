@@ -864,6 +864,17 @@ function registerIpcHandlers() {
     quitRequested = false;
     resetMainWindowCloseRequestState();
   });
+  ipc.on('menu:setEnabled', (_event, payload) => {
+    // Plan CMDS1 PR B. The renderer's command registry decides what is
+    // enabled; this greys the native items to match, by the id each carries
+    // (nativeMenu.ts). The renderer's own guard is the safety — a late or
+    // missing push can only leave an item looking enabled that does nothing.
+    const menu = Menu.getApplicationMenu();
+    for (const [id, on] of Object.entries(payload?.enabled || {})) {
+      const item = menu?.getMenuItemById(id);
+      if (item) item.enabled = Boolean(on);
+    }
+  });
   ipc.handle('window:minimize', () => {
     if (mainWindow) mainWindow.minimize();
   });
