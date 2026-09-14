@@ -89,7 +89,15 @@ export function startAutosave(deps: AutosaveDeps = defaultDeps()): () => void {
     lastWriteAt = deps.now();
     const key = presentationContentKey(presentation);
 
-    const result = await deps.updatePresentation(id, presentation);
+    // A rejected IPC call (for example an uncloneable value) is a failed write
+    // like any other, not an unhandled rejection that skips the failure count
+    // (plan D1, audit SAVE-A11).
+    let result: Envelope<unknown> | null;
+    try {
+      result = await deps.updatePresentation(id, presentation);
+    } catch (error) {
+      result = { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
     if (mine !== generation) return;
 
     if (!result?.success) {
@@ -123,6 +131,9 @@ export function startAutosave(deps: AutosaveDeps = defaultDeps()): () => void {
     }
 
     failures = 0;
+    // Re-arm the alert: a later run of failures must be reported too (plan D1,
+    // audit SAVE-A10).
+    alerted = false;
     lastWrittenKey = key;
   }
 

@@ -31,6 +31,7 @@ import {
   saveCurrentPresentationAs,
 } from '@/utils/presentationCommands';
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
+import { resolveBlockingEditors } from '@/utils/blockingEditors';
 import { confirmStopBeforeLeaving } from '@/utils/leaveWhilePresenting';
 import { alertDialog, confirmDialog } from '@/utils/dialog';
 
@@ -41,10 +42,14 @@ export async function runAppCommand(command) {
 
   switch (command) {
     case 'file:new':
+      // Plan D3: an open song editor holds its edits outside the editor store —
+      // asked first, so a declined song dialog never follows a stopped service.
+      if (!(await resolveBlockingEditors())) return false;
       // Never switch decks with a presentation live (plan L4, audit LIVE-A6).
       if (!(await confirmStopBeforeLeaving('start a new presentation'))) return false;
       return createNewPresentation();
     case 'file:open':
+      if (!(await resolveBlockingEditors())) return false;
       if (!(await confirmStopBeforeLeaving('open another presentation'))) return false;
       appState.setHomeTab('open');
       appState.setCurrentView('home');
@@ -60,6 +65,7 @@ export async function runAppCommand(command) {
       appState.setVersionHistoryOpen(true);
       return true;
     case 'file:close': {
+      if (!(await resolveBlockingEditors())) return false;
       if (!(await confirmStopBeforeLeaving('close this presentation'))) return false;
       const canClose = await resolveUnsavedChanges({
         presentation: editorState.presentation,
@@ -79,6 +85,14 @@ export async function runAppCommand(command) {
       return canClose;
     }
     case 'window:requestClose': {
+      // Guard 0 (plan D3): an open editor with unsaved work outside the editor
+      // store (the song editor). Asked first, so a declined song dialog never
+      // follows a presentation that has already been stopped.
+      if (!(await resolveBlockingEditors())) {
+        resolveWindowCloseRequest();
+        return false;
+      }
+
       // Guard 1: a live presentation. Quitting mid-service cuts the projector
       // to the desktop in front of the room, so confirm first and tear the
       // session down cleanly rather than yanking it.

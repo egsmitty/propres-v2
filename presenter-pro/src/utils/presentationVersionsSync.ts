@@ -108,7 +108,9 @@ export async function captureVersion(
   // guarantee on this write having happened; a silent failure here would let
   // the document be overwritten with no restore point and nothing said.
   const result = await deps.writeVersion({ presentationId: id, snapshot });
-  return result?.success !== false;
+  // Only an explicit success counts: a missing envelope is not a recorded
+  // restore point (plan D1, audit SAVE-B4).
+  return result?.success === true;
 }
 
 /** Give a presentation its first restore point, if it has none. */
@@ -182,7 +184,13 @@ export async function restoreVersion(
   const normalized = normalizePresentation(result.data);
   applyRestored(normalized, deps, true);
   // THE INVARIANT: the newest version must equal the document again.
-  await captureVersion(normalized, deps);
+  if (!(await captureVersion(normalized, deps))) {
+    // The restore happened; only its record did not (plan D1, audit SAVE-A9).
+    await deps.alertDialog(
+      'The version was restored, but Version History could not record it. Save to record it.',
+      { title: 'Restore Point Not Saved' }
+    );
+  }
   return true;
 }
 
@@ -248,7 +256,13 @@ export async function revertToLatestVersion(
   applyRestored(normalized, deps, navigate);
   // THE INVARIANT: the newest version must equal the document again. With
   // `capture: false` nothing was appended, so the target already is the newest.
-  if (capture) await captureVersion(normalized, deps);
+  if (capture && !(await captureVersion(normalized, deps))) {
+    // The revert happened; only its record did not (plan D1, audit SAVE-A9).
+    await deps.alertDialog(
+      'Your presentation was reverted, but Version History could not record it. Save to record it.',
+      { title: 'Restore Point Not Saved' }
+    );
+  }
   return true;
 }
 

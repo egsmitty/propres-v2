@@ -1472,6 +1472,290 @@ crops to the divider and never saw the preview.
 
 ---
 
+## R22 — the worktree commit trap was one line of our own shell (2026-09-13)
+
+First item executed from `tasks/fable-pass-2-audit.md` (local, untracked — the
+whole-app audit and its verification pass). It went first because every other
+item on that list is done from a worktree, and every worktree commit needed
+`--no-verify`.
+
+**The cause was never husky or commitlint.** `.husky/commit-msg` did
+`MSG_FILE="$PWD/$1"`. Git passes that argument relative from the main checkout
+and **absolute** from a linked worktree, so the worktree path was doubled:
+`/…/worktrees/repo22-hooks/Users/ethansmith/code/ProPresV2/.git/worktrees/…`.
+Both handoffs recorded the symptom and the workaround; neither had the cause.
+
+**Two pieces of folklore turned out to be facts about the setup:**
+
+- `HUSKY=0` did nothing because nothing reads it: `core.hooksPath` points
+  straight at `.husky/` plain scripts, with no husky runtime in between. Both
+  hooks now honour it explicitly, so the escape hatch the docs imply is real.
+- `core.hooksPath` is the **absolute** main-checkout path. Every worktree runs
+  the main checkout's copy of the hooks, so this fix reaches other worktrees
+  only once it is on `main` and the main checkout is on `main` — which is one
+  more reason for the rule that the main checkout stays on `main`.
+
+**The test runs the real hook**, the way git does, rather than grepping the
+script: absolute path, relative path, a rejected message, and `HUSKY=0`. Against
+the old hook three of four failed; against the fix all four pass. The hooks now
+call `node_modules/.bin` directly with a fallback to the main checkout's, instead
+of `npx`, which would otherwise quietly reach for the registry in a fresh
+worktree.
+
+---
+
+## DOC1 — the docs describe the repo as it is today (2026-09-13)
+
+Eight stale-docs items, all verified against code before writing, all fixed.
+
+**What was actually wrong, not just old.** `CLAUDE.md` and `AGENTS.md` both
+said Electron 29 + React 18 — this repo is on Electron 44 / React 19
+(`presenter-pro/package.json`), a gap this exact file already flagged once for
+the sidebar width ("Found and not fixed: CLAUDE.md says the presenter panel is
+300px. It is 320 default, 240 minimum.") but the stack line had drifted
+further and nobody had gone back for it. `AGENTS.md` also claimed existing
+`.js`/`.jsx` is "type-checked via `checkJs` + JSDoc" — `checkJs` is `false`
+project-wide (`presenter-pro/tsconfig.json:26`); the real mechanism is a
+per-file `// @ts-check` opt-in, described in that file's own comment but never
+carried into `AGENTS.md`.
+
+**The release instructions in `BRANCHING.md` could not have worked.**
+`npm version minor --workspace presenter-pro` needs a root `package.json`
+with npm workspaces; there is neither (`ls package.json` at repo root: no such
+file). REL-18 replaces it with a two-PR sequence: bump `presenter-pro/`'s own
+`package.json` + lockfile through a normal PR, merge it, then tag the merge
+commit and push the tag — `build-release.yml` triggers on `v*` either way, so
+nothing about packaging changes, only how the tag gets there.
+
+**`.nvmrc` and branch protection were checked live, not assumed.** `.nvmrc` is
+`22`, not the `20` `BRANCHING.md` claimed. `gh api
+repos/egsmitty/propres-v2/branches/main/protection --jq
+'.required_status_checks.contexts'` returned `["PR Gate","E2E (macOS)"]` —
+`E2E (macOS)` went required on 2026-09-08 per its own workflow comment, but
+`BRANCHING.md` and `README.md` still only named `PR Gate`.
+
+**The crash-recovery paragraph in `README.md` described a system that no
+longer runs.** `CLAUDE.md`'s own "Save model (plan A5)" section already
+says the A2 journal writer was retired when autosave shipped — the README
+just hadn't been updated to match its neighbor.
+
+**`test-media/` needed a real answer, not just "gitignored."**
+`git ls-files test-media` returns zero files and the directory does not exist
+in a fresh worktree, but `electron/main/index.js`'s
+`resolveBuiltInMediaAssetPath` does read from it at runtime and
+`package.json`'s `build.extraResources` does bundle it — so "used by the app"
+was true, "used by the E2E suite" was left unqualified, and the missing fact
+was that a fresh clone doesn't have it at all.
+
+**One reference deliberately not fixed.** `AI_OPERATING_MANUAL.md:152`
+("regressions belong in `tasks/todo.md` or on the PR") went stale the moment
+`tasks/todo.md` was renamed to `tasks/phase6-todo.md`, but that manual is
+explicit out-of-scope governance philosophy for this task. Recorded here and
+in the PR body rather than edited.
+
+**Root `HANDOFF.md` and `tasks/todo.md` were both 2026-09-06 fossils of the
+pre-move layout** (`~/Desktop/ClaudeAccess/ProPresV2` and
+`~/Desktop/ClaudeAccess/builder`). The handoff had no other links to it and
+was deleted outright; the todo list is real project history, so it was
+`git mv`'d to `tasks/phase6-todo.md` per the archive convention instead.
+
+**The PR template matched no recent PR.** The last several merged PRs (#115,
+#114, ...) all use `## Summary` / `## Proof` / `## Findings` / `## Records`;
+the template still asked for a "Self-Review Report" and a checkbox list
+nobody had filled in for a while. Replaced with the shape actually in use.
+
+**New standing rule (D8).** `writing-executable-plans.mdc` had no requirement
+that a data-rewriting plan name its backup and rollback path. Added a bullet
+to "Patterns that work" and a matching line to the reviewer checklist, naming
+`BACKUP_FILE_PATTERN` / `VACUUM INTO` in `migrationRunner.ts` so the next
+migration plan doesn't have to re-derive it.
+
+Full detail, every `file:line` quoted before it was changed, is in
+`tasks/plan-DOC1-stale-docs.md`.
+
+---
+
+## CI1 — every job has a timeout, every action is pinned, coverage is enforced (2026-09-13)
+
+Nine items from the audit's Part 8, all mechanical: CI-1, CI-4, CI-5, CI-6,
+CI-7, CI-8, CI-10, CI-11, and the gate half of SEC-6.
+
+**What:** `test:unit` now runs `vitest run --coverage --coverage.reporter=text-summary`,
+so the ratchet thresholds in `vitest.config.mjs` — dead since they were
+written, because nothing ever passed `--coverage` — finally run on every PR.
+They pass today with room to spare (26.93/24.8/24.59/27.87 measured against
+26.8/24.7/24.4/27.7), so no threshold change was needed. Every job in all
+three workflows got `timeout-minutes` (gate 10, build 15, pr-gate 5, e2e 25,
+package 30, release 10) and every `uses:` got pinned to a 40-char commit SHA
+with a `# vN` comment, both enforced by a new
+`electron/main/__tests__/workflows.test.ts` that reads the workflow YAML as
+plain text (no `yaml` dependency — the repo doesn't have one) and asserts
+both properties for every job and every `uses:` line it finds, with a
+non-empty-parse guard so a broken file walker can't pass vacuously. Red before
+the fix (3 of 4 checks failed against `main`'s workflows), green after. The
+PR-matrix `build` job's `macos-latest` entry is gone — `E2E (macOS)` already
+builds and runs the app on macOS on every PR, so it was pure duplication, not
+coverage. `build-release.yml`'s top-level `contents: write` moved down to
+just the `release` job; the top level is `contents: read` and the packaging
+job never touches it. Dependabot's header comment claimed "deliberately no
+`ignore` list" three lines above an `ignore:` block with 5 entries — fixed to
+describe the actual policy (specific, recorded holds, not blanket pins) —
+and both `updates` entries got `cooldown: { default-days: 3 }`.
+`playwright.config.ts` gained `failOnFlakyTests: !!process.env.CI` next to
+`retries`, which is unchanged. The gate job gained
+`npm audit --omit=dev --audit-level=high` after install; run locally first
+(same command, same flags) — 0 vulnerabilities today, so it ships as a real
+gate rather than a step nobody has verified goes green.
+
+**Why:** CI-4's premise was worth checking rather than trusting the audit
+outright — `package.json`'s `build.npmRebuild: false` and the total absence
+of a `postinstall` script confirm better-sqlite3 (`^13.0.3`, N-API) never
+gets natively rebuilt by *any* install in this project, full or
+`--ignore-scripts`. The old comments in `pr-checks.yml`, `e2e.yml`, and
+`build-release.yml` each guessed at a different wrong reason for the same
+non-event. The corrected comments say what the full installs are actually
+for: getting the real Electron binary onto the runner for a job that builds,
+packages, or launches the app, not compiling a native dependency that was
+never compiled to begin with.
+
+**Surprises:**
+- The three "full install" comments weren't copies of each other — pr-checks
+  and build-release both invoked a nonexistent "better-sqlite3 rebuild",
+  while e2e.yml specifically claimed the rebuild was "for Electron's ABI."
+  Same wrong idea, independently rephrased three times, which is its own
+  small argument for CI-4 as a category: an inaccurate comment doesn't just
+  sit still, it gets re-derived wrong at each new call site.
+- `softprops/action-gh-release@v3` is the one action in this repo pinned to
+  an *annotated* tag — `gh api .../git/ref/tags/v3` returned an object of
+  type `tag`, not `commit`, and needed a second `gh api .../git/tags/<sha>`
+  call to reach the actual commit SHA. The other four actions (all
+  `actions/*`) are lightweight tags and resolved in one call. Worth knowing
+  before assuming every tag resolves the same way.
+- The coverage thresholds passed on the first real `--coverage` run with
+  margin under 0.2 points on every axis (branches: 24.8% measured vs. 24.7%
+  threshold). That's not a coincidence — the ratchet comments in
+  `vitest.config.mjs` already track the suite's real numbers by hand across
+  several plans; they just never had `--coverage` actually running against
+  them to prove it. This PR is the first time the numbers in that file's
+  comments and the numbers CI enforces are the same measurement.
+
+Everything else — CI-12/13/14, and the non-mechanical CI-2/CI-9 decisions —
+is explicitly out of scope for this pass; see the audit for those.
+
+---
+
+## L0 — the presenting flow had no tests, so pin it before fixing it (2026-09-13)
+
+The whole-app audit (`tasks/fable-pass-2-audit.md`, local) found the worst bugs
+in the app in the presenting flow — a settings modal that closes the projector,
+an edit that un-blacks it, Backspace deleting slides mid-service — and found
+that the code deciding what goes on the projector had **zero** tests. Its own
+verification pass moved this plan ahead of every fix.
+
+**The design choice that matters: pin what is right, not what is wrong.** A
+characterization test that pinned a bug would have to be *edited* by the PR that
+fixes the bug, which is exactly the "the test changed alongside the code" shape
+that proves nothing. So the 28 cases here pin only behaviour that must survive
+every Wave 1 fix: start goes live on the selected slide (or the first), stop
+clears the session, a live slide carries its inherited background and the
+presentation's ratio, an edit refreshes the live slide by id, → / ← / Space
+move one slide with both ends bounded, typing in a field never moves the
+projector, and the Present menu only acts when it should. Each bug gets its own
+red test in its own fix PR. That means a deliberately *unpinned* case sits right
+next to a pinned one: "a deleted live slide is not refreshed" is pinned, "a live
+slide moved to another section is not refreshed" is not — LIVE-A4 changes it.
+
+**Two jsdom gaps, stubbed rather than asserted:** the panel scrolls the live
+thumbnail into view on every live change and jsdom has no `scrollIntoView`
+(all six keyboard cases failed on that before the stub), and starting a session
+calls `window.focus()`, which jsdom does not implement.
+
+---
+
+## T1 — tooling cleanup: no import cycle, one file walker, cached lint (2026-09-13)
+
+Six small audit items in one PR (REPO-30a, REPO-30b, REPO-33, REPO-35,
+REPO-36, WF-45/46) — see `tasks/plan-T1-tooling-cleanup.md`.
+
+**REPO-30a.** `sectionTypes.js` and `backgrounds.js` imported each other:
+`sectionTypes.js` wanted `SECTION_COLORS` from `backgrounds.js`;
+`backgrounds.js` wanted `isMediaSlide`/`normalizeSectionType` from
+`sectionTypes.js`. Fixed by giving `SECTION_COLORS` its own leaf module
+(`src/utils/sectionColors.js`, imports nothing) and having both original
+files import it from there — `backgrounds.js` re-exports it too, so nothing
+that already imported `SECTION_COLORS` from `backgrounds.js` would have had
+to change (in practice nothing did; it was only ever consumed from
+`sectionTypes.js`). New `src/__tests__/importCycles.test.ts` walks the whole
+internal `src` import graph (regex-parsed static `import`/`export ... from`
+specifiers, `@/` alias resolved per `vitest.config.mjs`) and fails on any
+cycle, not just this one. Red proof before the fix: it found exactly the one
+cycle, printed as `backgrounds.js -> sectionTypes.js -> backgrounds.js`.
+
+**REPO-30b.** `src/utils/slideParser.js` was dead — `grep -rn "slideParser"`
+across the whole repo (excluding node_modules/.git) hit only two `.cursor/
+rules/*.mdc` doc examples and a `tasks/todo.md` mention, no real import, no
+test file. Deleted.
+
+**REPO-33 — the one surprise this PR turned up.** The audit item's premise
+was that three named test files (`inlineStyleBudget.test.ts`,
+`keyboardReachability.test.ts`, `tailwindTokens.test.ts`) each hand-roll a
+recursive directory walker. Reading all three: the first two do, and are now
+both built on one `listSourceFiles()` helper in `src/__tests__/
+sourceFiles.ts`. **`tailwindTokens.test.ts` does not walk anything** — it
+only reads `src/styles/globals.css` once and diffs two regex-parsed maps
+against each other. There was nothing there to extract, so it was left
+untouched. (There is a fourth, unrelated walker at `src/styles/__tests__/
+tokens.test.ts` — plan E1's colour-token guard — that duplicates the same
+shape again; it wasn't one of the three named files and was left alone, but
+it's a candidate for the same treatment in a future pass.) The two real
+walkers had slightly different behavior (different extension sets, and
+`keyboardReachability`'s didn't filter iCloud-duplicate names or
+`node_modules`) — verified with `find` that no file under `src` currently
+trips those extra filters, so unifying them changed nothing observable: both
+files reported the same 6 passing cases before and after.
+
+**REPO-35.** `lint` and `type-check` now pass `--cache`/`--incremental` with
+cache files under `node_modules/.cache/` (already gitignored via the existing
+`presenter-pro/node_modules/` entry). Measured: lint 7.3s cold → ~1.0s warm;
+type-check ~2.4s (7.15s user) cold → ~1.5s warm on repeat. Verified a
+deliberate lint error (an unused non-underscore-prefixed const) and a
+deliberate type error (`number` into a `string`-typed const) are both still
+caught with the cache populated, then reverted both.
+
+**REPO-36.** Added `presenter-pro/.npmrc` with `engine-strict=true`. This
+landed as pure enforcement of a pin that already existed everywhere else:
+`package.json` already had `engines.node >= 22.12.0`, all three workflows
+already read Node from `.nvmrc` (22), and `electron/main/__tests__/
+toolchain.test.ts` (plan U1) already asserts `.nvmrc`/`engines.node`/
+`@types/node` agree on the major. `npm install --dry-run` under the active
+Node 22 shell exits 0.
+
+**WF-45/46.** `scripts/new-plan.mjs <id> <slug> [outputDir]` scaffolds a plan
+file with the anti-weakening clause verbatim and both Compliance Manifest
+tables pre-filled (14 writing-executable-plans rows, 10 testing-standards
+rows, item names copied from the two `.mdc` files) — refuses to overwrite,
+and never touches the real `tasks/` directory unless nothing else is given.
+Its test (`electron/main/__tests__/newPlanScript.test.ts`) runs the real
+script into a fresh OS tmpdir on every case. `scripts/baselines.sh <branch>`
+dispatches `e2e.yml` with `update_baselines=true`, watches the run, downloads
+the `visual-baselines` artifact, and copies only the PNGs that actually
+`cmp` different into the matching `presenter-pro/e2e/*-snapshots/` file — it
+resolves each downloaded file to its target by the path suffix starting at
+the nearest `*-snapshots` ancestor directory, which is robust to whichever
+root `actions/upload-artifact` normalizes the download to (verified by hand
+against a throwaway fixture tree mimicking both possible roots; the script
+itself was never run against the real workflow — that would dispatch a real
+CI run, which this plan explicitly avoided). If a downloaded file doesn't
+resolve to exactly one match, the script prints what it would have done and
+exits 1 without copying anything, rather than guessing.
+
+Gate: `type-check ✓ · lint ✓ · vitest 536/536 passed (0 skipped)`. One
+flake observed mid-run (`SongEditorModal.test.tsx` timed out under the full
+64-worker parallel gate load) — reran in isolation, 17/17 passed in 1.5s;
+not a regression, and that file is untouched by this PR.
+
+---
+
 ## L1 — the listener that ran first was the one that took the projector down (2026-09-13)
 
 Audit items MAIN-B4, CMD-B7 and LIVE-A11 (`tasks/fable-pass-2-audit.md`, local).
@@ -1500,6 +1784,315 @@ is SUSPECTED rather than proven — Playwright cannot see native accelerators �
 it removes the second path instead of trying to demonstrate the double fire. It
 still needs a check in a packaged build on both macOS and Windows; the exact
 click-path is in the plan.
+
+---
+
+## H1 — Home list opens once, and keyboard users can reach Pin/More (2026-09-13)
+
+The whole-app audit found a real double-click on a Home presentation row
+opening it three times, not once. The browser's own double-click dispatches
+`click`, `click`, `dblclick` in sequence — the row had a handler on each of
+those first two clicks *and* a separate `onDoubleClick`, so a double-click ran
+three concurrent `touchPresentation`/`getPresentation`/`ensureVersion` round
+trips against the same row. The fix is not a debounce (that still lets two
+genuinely separate clicks each open something) but a per-presentation-id
+in-flight guard on `handleOpen` itself, plus dropping `onDoubleClick`
+entirely — single click opens, the same as Google Docs. The guard is keyed by
+id rather than a single flag so opening two *different* rows back to back
+(e.g. arrow key then Enter) still works.
+
+Fixed alongside it: the row's Pin and More buttons only ever appeared on
+`hovered || selected || menuOpen` — a keyboard user who tabbed onto the row
+(it's natively focusable) got a spacer div instead of the actions. Added a
+fourth `focusWithin` boolean, set via the row's `onFocus`/`onBlur` (React's
+bubbling focus-in/focus-out, not native non-bubbling `focus`/`blur`, so one
+handler pair on the row root correctly tracks "focus is somewhere inside this
+row" without false-clearing when focus moves from the row to its own Pin
+button). Left alone, and recorded as a Finding: the row is `role="button"`
+containing two real `<button>`s, invalid nesting, but restructuring it would
+move the Home screenshot baselines and the task explicitly scoped that out.
+
+**Skipped, not fixed: HOME-24 (locale-aware dates, "Today, 9:14 AM").** The
+screenshot baselines mask a row's date cell via `homeMasks` in
+`e2e/fixtures/visual.ts`, but the mask regex (`DATE_TEXT`) only matches the
+literal `"Mon D, YYYY"` shape the app renders today. A relative/time form for
+rows updated "today" would render text the mask can't see, leaving a live,
+clock-dependent string unmasked in a pixel-diffed baseline on any day a
+captured row happened to be "today." Fixing that means widening `DATE_TEXT`
+too, which is baseline-safety infrastructure the task brief named as
+read-before-touching, not a drive-by edit for an unrelated P2 item — left for
+a follow-up that does both together and re-captures if anything moves.
+
+---
+
+## ED1 — four small editor correctness fixes: broken lines, a negative jump, a missing zero, and RTL text (2026-09-13)
+
+`tasks/plan-ED1-editor-small-fixes.md`. Four independent, small `[S]` items
+from the whole-app audit's editor section (ED-6, ED-11, ED-18, ED-30), done
+together in one PR because each is a one- or two-line production fix, not
+because they touch shared code.
+
+**ED-6's fix isn't the audit's first suggestion, and checking that first
+mattered.** The audit's suggested fix for Clear Formatting joining selected
+lyric lines was "split `selection.toString()` on `\n`." Tried that against
+jsdom before writing a single test and it doesn't work: jsdom's `Selection`
+and `Range` do no layout, so neither `selection.toString()` nor
+`range.cloneContents().textContent` ever contains a `\n` at a block boundary —
+both returned `"Line oneLine two"` for a real two-`<br>`-line selection,
+confirmed with a throwaway script before touching `richTextEditor.js`. Since
+this app's own line encoding is `<br>` (`slideMarkup.js` turns `\n` into
+`<br />`, never a `<div>` per line), a fix built on `\n` splitting would have
+been untestable in this repo's own test environment and wrong for its own
+data shape. The audit's second-listed option — unwrap formatting elements
+inside the selected range while keeping `<br>` and block elements — doesn't
+depend on `\n` at all, and is what shipped: a small recursive fragment
+rebuilder that copies text nodes, keeps `<br>` as `<br>`, keeps block tags
+(`div`/`p`/`li`/`ol`/`ul`/`h1`-`h6`/`blockquote`) with their attributes
+stripped, and unwraps everything else. Verified against both line shapes
+(`<br>`-separated and `<div>`-per-line) before it went in the test file.
+
+**ED-11's `clampBoxPosition` isolates one bad interaction of `clamp`'s own
+documented behaviour.** `canvasGeometry.test.ts` already pinned "max wins when
+the bounds are inverted" for `clamp` itself — that was never wrong on its own.
+The bug was a caller, `Canvas.jsx`'s drag-move handler, passing inverted
+bounds (`0, nativeW - box.width`) whenever a box is wider than the slide,
+which made every drag jump the box to the same fixed negative position
+regardless of the pointer. `clampBoxPosition(value, size, extent)` orders the
+bounds itself — `[min(0, extent - size), max(0, extent - size)]` — so the box
+stays draggable (and bounded) either way. Only the drag-move branch changed;
+the four resize-branch `clamp` calls a few lines down clamp *size*, not
+position, and are a different bug shape the audit item doesn't name.
+
+**ED-18 found a second, un-deduped copy of the shadow helper.** Plan F1 (2026-09-09)
+extracted `renderShadow` out of `Canvas.jsx` into `canvasTextStyle.ts` — but
+`ScaledSlideText.jsx` had its own local `renderShadow(box, scale,
+fallbackShadow)`, never touched by F1 because F1's slice 1 was scoped to
+`Canvas.jsx`/`Toolbar.jsx` only. Both copies had the same `||` bug (an
+explicit `shadowOffsetY: 0` or `paddingTop: 0` was replaced by the default,
+because `mergeTextBox`'s `{ ...DEFAULT_TEXT_BOX, ...frame }` genuinely
+preserves an explicit `0` all the way through to render). Fixed both — the
+shared helper's call site and the duplicate — and added one new shared
+`resolveTextBoxPadding` helper rather than inlining the `??` swap twice, since
+`Canvas.jsx` (unscaled) and `ScaledSlideText.jsx` (scaled, with its own
+`Math.max(minPadding, … * scale)` floor) both resolve the same per-axis value
+before doing their own thing with it. `renderOutline`'s `outlineWidth || 0`
+was checked and left alone: its fallback already equals `0`, so there was
+nothing for `??` to fix there.
+
+**ED-30** added `dir="auto"` to `SlideTextEditor.jsx`'s `contentEditable` and
+to `ScaledSlideText.jsx`'s per-box container (`data-testid="scaled-slide-text-box"`
+added alongside it, since nothing selector-stable existed on that element
+before). Confirmed inert for left-to-right content with its own test case, not
+just asserted from the audit's claim.
+
+**24 new cases, gate green** (`type-check ✓ · lint ✓ · vitest 589/589 passed
+(0 skipped)`), `inlineStyleBudget.test.ts` unchanged (no `style={` block added
+or removed, only values inside existing ones), no screenshot baseline at risk
+(grepped `e2e/visual-editor.spec.ts` and `e2e/visual.spec.ts` for every
+padding/shadow-offset-zero fixture, an oversized fixture box, and any Clear
+Formatting interaction — none exist). One test-file flake noted, not caused by
+this change: `SongEditorModal.test.tsx`'s "does not ask when the raw edit is
+the only edit" timed out once under full-suite parallel load and passed
+clean in isolation and on every full-suite re-run after; that file imports
+nothing this plan touched.
+
+---
+
+## D1 — a save that did not happen is never reported as one (2026-09-13)
+
+Audit items SAVE-A2, A6 (the gate half), A7, A8, A9, A10, A11 and B4. None of
+them depends on Ethan's D6 save-model decision: whatever the model, a failed
+write must not look like a successful one.
+
+**Every one of these was the same shape: a result that was never looked at.**
+The song editor awaited `updateSong` and closed; the IPC layer reports failure
+as `{ success: false }` rather than throwing, so the `catch` beside it was dead
+and a failed song save took the edits with the closed modal. `appCommands`
+dropped `saveCurrentPresentation`'s result, so ⌘S failures were silent.
+`captureVersion` returns a boolean that five call sites ignored — after the
+dirty flag had already been cleared, so a failed restore point said "Saved".
+
+**The one deliberate test change.** `Editor.save.test.tsx` pinned the editor's
+own "Save Failed" alert. The alert now lives in `saveCurrentPresentation`, so
+every way of saving reports failures once; keeping the editor's alert as well
+would show the same failure twice. The case now asserts no second alert, and it
+fails on the old code.
+
+**Two places a stricter check would have broken passing tests for the wrong
+reason, and did not.** The Unsaved Changes gate tests and the song editor tests
+mock `captureVersion` and the song IPC without return values. `captureVersion`
+always returns a real boolean, so the gate checks `=== false`; the song editor
+checks the envelope, and its existing tests only ever asserted the calls and
+payloads, so they pass unchanged.
+
+**Left for its own plan:** the main-process half of SAVE-A7 (`.changes === 0`
+as an error) — the audit's verification pass showed it would make autosave's
+"Presentation Deleted" branch unreachable and turn those writes into the
+three-strike alert instead.
+
+---
+
+## S1 — the first-run sample ships only public-domain lyrics (2026-09-13)
+
+The audit's legal item (SONG-28, P1): `electron/main/index.js`'s `seed()`
+shipped every fresh install with copyrighted material. Two songs sat under the
+wrong CCLI number outright ("Amazing Grace" tagged with the CCLI for "Amazing
+Grace (My Chains Are Gone)", carrying that song's copyrighted chorus grafted
+onto Newton's title; "How Great Is Our God" tagged with Chris Tomlin's real
+number but no license), and the third ("Build My Life", Housefires) was
+copyrighted outright with no public-domain angle at all. All three landed both
+as `songs` rows and, copied by value, as the sample presentation's slides.
+
+**The fix removes a whole seeding path, not just its lyrics.** `shared/hymns.json`
+and `src/utils/builtInSongSeed.js` already exist and already seed the
+public-domain hymn library from the renderer, matched strictly by
+`built_in_key` — title/tag matching was tried once before and could silently
+overwrite or delete a user's own song (phase7 #14, fixed by A3). `seed()`'s own
+`songs` array was a second, independent seeding path that never talked to that
+one, which is exactly what produced SONG-4: a fresh install's unkeyed seed()
+"Amazing Grace" and the renderer's keyed "Amazing Grace" could never be
+reconciled by migration 3 (it only adopts rows tagged `"built-in"`; `seed()`
+tagged its rows `"hymn","classic"`). So the fix isn't "swap in different
+lyrics" — it's "`seed()` inserts zero `songs` rows, period." The sample
+presentation stands on its own, with slide text copied verbatim from
+`hymns.json`'s `amazing-grace` verses 1–3 (Newton, 1779, public domain, no
+CCLI field to even get wrong).
+
+**Testability required extracting the data out of `index.js`.** That file
+can't be loaded in a unit test (better-sqlite3, electron), so the seed content
+moved to a new electron-free module, `electron/main/firstRunSeed.ts`,
+exporting a plain `FIRST_RUN_PRESENTATION` constant that `index.js` requires
+exactly the way it already requires `./closeController` — same reason
+(CommonJS main process, relative `require` resolved against the built output
+directory) and the same one-line addition to `electron.vite.config.js`'s
+Rollup `main` input map. `seed(db)` is now a ~20-line function: build fresh
+slide/section ids, hand the rest to `presentationQueries.createPresentation`,
+inside `db.transaction(() => { ... })()` — closing MAIN-B10 (the insert and
+the `settings.initialized` write used to be two separate statements with no
+transaction between them, so a crash after the first and before the second
+would re-run the whole seed on the next launch and duplicate the presentation).
+
+**TDD path:** `firstRunSeed.ts` was first populated with the current
+copyrighted content, verbatim (including a throwaway `ccli` field carried onto
+each section, since the real bug data lived on the song row the section used
+to be copied from, and the new shape only has sections) so
+`firstRunSeed.test.ts` would be provably red against real current content — 2
+of 3 cases failed (5 banned phrases swept case-insensitively across every
+string in the tree; a walk of every object key for a truthy `ccli`), and the
+structural-floor case (≥1 section, ≥1 slide) passed throughout, as it should —
+that one was never the bug. Fixing the data made all 3 green.
+
+**Verified, not just asserted, that SONG-4 is fixed:** after the change,
+`grep -rn "How Great Is Our God\|Chris Tomlin\|Housefires\|4348399\|7070345\|My chains are gone" electron/main/firstRunSeed.ts electron/main/index.js`
+returns nothing — no independently-tagged hymn row can exist for migration 3
+to fail to reconcile, because no such row is ever created.
+
+**E2E:** every visual/keyboard/CSP spec that opens the sample presentation
+matches on its title only (`/Sunday Morning Service/`, unchanged), so none of
+those needed edits. `e2e/migrations.spec.ts` builds its own synthetic legacy
+database and explicitly pre-seeds `settings.initialized = true` so `seed()`
+never runs in that spec at all — untouched. `e2e/hymns.spec.ts` had a comment
+(not an assertion) documenting and relying on `seed()`'s old unkeyed "Amazing
+Grace" row existing; the test's actual logic was already written against row
+**count** and `built_in_key`, never title, specifically so it wouldn't care —
+only the comment needed correcting. Flagged for the owner: several
+`e2e/*-snapshots/*.png` baselines capture the sample presentation's rendered
+text or the song library's row count/list (at least `home-darwin.png`,
+`editor-darwin.png`, `output-darwin.png`, `editor-textbox-selected-darwin.png`,
+`editor-song-order-tray-darwin.png`, `editor-song-library-darwin.png`,
+`editor-presenting-darwin.png`, `home-recent-darwin.png`, `home-open-darwin.png`,
+`home-context-menu-darwin.png`, `song-editor-modal-darwin.png`,
+`stage-display-darwin.png`, and several `hover-song-card-*-darwin.png`) — these
+will very likely need a CI recapture now that the sample's text and the song
+library's starting contents changed; no PNG was touched by this PR.
+
+---
+
+## DB1 — one bad row no longer empties Home, and lists sort stably (2026-09-13)
+
+Four small, unrelated `electron/db` bugs from the whole-app audit
+(`tasks/fable-pass-2-audit.md`, local): MAIN-B2, MAIN-B13, MAIN-B16, SONG-16.
+All four are query-text or ordering-of-two-statements fixes — no migration,
+no rewritten row, D8's backup/rollback rule has nothing to attach to.
+
+**MAIN-B2.** `presentations.js`'s shared `parse` helper did
+`JSON.parse(row.sections || '[]')` with no try/catch, called from both
+`getPresentations`'s `.map(parse)` and `getPresentation`'s single call. One
+row with invalid `sections` JSON threw inside `.map`, so the *entire* Home
+list came back empty instead of showing the other rows — a single corrupt
+row, not a missing one, was the failure mode. Fixed once, in the shared
+helper: a parse failure now flags that row `{ sections: [], corrupt: true }`
+and `console.error`s the id; healthy rows are byte-for-byte unchanged (no
+`corrupt` key added to them).
+
+**MAIN-B13, the real trap in this PR.** The runner pruned old backups
+*before* writing the new one, so a failed `VACUUM INTO` (disk full,
+permissions) had already deleted backups it couldn't replace. The "obvious"
+fix — just swap the two lines — is wrong by itself. `pruneBackups`'s retain
+math (`keep - 1`) assumed it ran *before* the write, reserving one slot for
+the file about to be written. The real `BackupStore.list()`
+(`electron/db/migrations.js`, `fs.readdirSync`) reads the directory live, so
+once you write first, the new file is already inside `list()` — reserving a
+slot for it on top of that under-retains by one backup, silently, forever
+(keep=3 would actually keep 2). The unit test's fake didn't catch this
+because it returned a fixed backup list regardless of what `db.exec` did.
+Fixed both at once: the fake now tracks `VACUUM INTO` as actually appending
+to the list (and `remove` actually splicing it out, mirroring
+`fs.unlinkSync`), and `pruneBackups` now retains `keep` total with no
+reserved slot — correct only because it is called after the write. Worked
+the arithmetic by hand before writing code (see the plan's Pitfall notes);
+the pre-existing "prunes old backups so at most 3 remain" test needed zero
+assertion changes once both sides were fixed together, which is the check
+that the fix is actually right and not just differently wrong.
+
+**MAIN-B16.** `ORDER BY updated_at DESC` (presentations) and
+`ORDER BY created_at DESC` (media) sort only by a second-resolution
+`unixepoch()` column — same-second rows have unstable relative order between
+calls. Added `, id DESC`/`, id ASC` tie-breakers (every id here is
+`INTEGER PRIMARY KEY AUTOINCREMENT`); `getMediaFolders` got one too on the
+same reasoning even though no test forces it (two folders sharing both name
+and second is unlikely but the column is free).
+
+**SONG-16.** `ORDER BY title ASC` is SQLite's byte-order default —
+case-sensitive, so `"amazing love"` sorted after `"Zion"`. Changed to
+`ORDER BY title COLLATE NOCASE ASC, id ASC`. This is the one test edit in
+the PR: the existing case asserted the old byte-order output with a comment
+saying so (`// SQLite ASC is byte order`) — updated to assert the
+case-insensitive order and comment, which fails under the old code and
+passes under the new.
+
+**Findings:** no item was already fixed or wrong on `main`; all four applied
+as scoped. No suspected regression found. 8 new test cases plus the one
+intentional edit, all in the two existing real-SQLite test files
+(`realSqlite.queries.test.ts`, `migrationRunner.test.ts`) — no new test
+directory.
+
+---
+
+## D3 — song edits can't vanish on quit or on a stale lyrics box (2026-09-14)
+
+**What was wrong.** The song editor keeps its edits in modal state, and every
+way out of the app (quit, File ▸ Close, New, Open) consulted only the editor
+store, so an edited song was dropped without a word. Separately, focusing Raw
+Lyrics showed the text from when the editor opened: edit a slide on the right,
+click into Raw Lyrics, type one character, Save — the song was rebuilt from the
+stale text. Plan G3's "Two versions of this song" question did not catch it,
+because the keystroke resets "structure touched since the raw edit".
+
+**What changed.** A small `blockingEditors` registry: an editor whose work lives
+outside the store registers `{ isDirty, resolve }` while mounted, and the four
+exit commands ask every dirty one first. The song modal resolves through its
+existing Unsaved Changes dialog, which now reports whether it actually closed.
+On quit the registry is asked **before** the Still Presenting guard — otherwise
+a service could be stopped and the quit then cancelled by the song dialog. Raw
+Lyrics now refreshes from the current sections on focus, until the user types
+in it.
+
+**Worth knowing.** The first red run of the SONG-2 cases failed for the wrong
+reason: the slide text appears in two textareas (the slide editor and the
+section's slide list), so the selector threw. The selector was scoped and the
+pair re-proved red by reverting only the one-line fix — a failure is only proof
+when it fails on the assertion.
 
 ---
 
@@ -1534,6 +2127,77 @@ phase and calls `stopPropagation()`, so with a text box *selected* (not being
 edited) while presenting, Backspace deletes the box and never reaches the panel.
 That is editing the live deck rather than navigating it, and it belongs with the
 editor work; recorded rather than widened into this plan.
+
+---
+
+## DB2 — the database gets a lifecycle: seeded once, closed on quit, refused when too new (2026-09-13)
+
+Audit items MAIN-B11, B12, B14, B15 — small, unrelated-looking bugs that all
+trace back to the same thing: nothing in this codebase ever treated the SQLite
+file as having a *lifecycle*. It got opened once and otherwise left alone.
+
+**MAIN-B10 (the non-atomic seed) was dropped from this PR at merge time.**
+The plan extracted `seed(db)` verbatim into `electron/db/seed.js` and wrapped
+it in a transaction. Meanwhile S1 (#125) rewrote `seed()` in `index.js`:
+it no longer seeds songs at all, builds the sample presentation from
+public-domain `firstRunSeed.ts`, and already runs the insert and the
+`initialized` flag in one `db.transaction`. Keeping this PR's `seed.js` would
+have brought back the two copyrighted sample songs S1 removed — in a new file,
+so git would never have shown a conflict. The extraction, its three
+`seed.test.ts` cases and its `db/seed` Rollup input were removed at merge and
+main's `seed()` kept. Lesson kept from the attempt: `vi.mock` on a local
+CommonJS module does not intercept `require()` in `electron/`; patching
+`db.prepare` on a real `better-sqlite3` instance does, and proves real
+rollback.
+
+**A quit never closed the database.** No `will-quit` listener existed at
+all, so the WAL and its `-shm` sibling were simply abandoned at every quit
+instead of checkpointed. Added `getDbPath`/`resolveDbFileName`/`closeDb` to
+`electron/db/index.js` — `closeDb` guarded to run once, swallowing and
+logging any error, because a checkpoint failure must never hang or crash
+app quit. The same file also does `const { app } = require('electron')` at
+its top, which looked like it would make the whole module untestable
+outside Electron the way `index.js` is — but `require('electron')` under
+plain Node resolves to a path string, not the Electron module, so `app` is
+just `undefined` there, and nothing at module scope touches it. The pure
+functions are directly importable.
+
+**A database from a newer build was silently accepted.** The runner computed
+`pending` migrations and, if a database's recorded version was already
+higher than anything in the current `MIGRATIONS` list (say, a user opened a
+future build's profile with an old installer), `pending` came out empty —
+indistinguishable from "already up to date." Added a check, before any
+backup or migration, that throws `NewerSchemaVersionError` when the recorded
+version exceeds the highest known one. No UI, no catch anywhere — that dialog
+is MAIN-B1's job; this only makes the runner refuse instead of proceeding.
+
+**`npm run dev` and the packaged app were reading and writing the same SQLite
+file.** Every edit made while developing landed in the exact file the
+installed app uses. `getDb()` now resolves `presenterpro-dev.db` only under
+the electron-vite dev server (`ELECTRON_RENDERER_URL` set), `presenterpro.db`
+otherwise — the decision lives in a pure `getDbPath(userDataDir, usesDevServer)`
+so it's unit-tested directly rather than through Electron. The first version
+keyed it on `!app.isPackaged`, and CI's E2E caught it: preview and Playwright
+are unpackaged too, so the app wrote the -dev file while every E2E spec read
+`presenterpro.db` ("no such table: presentations"). The same trap is already
+written down for renderer loading in `electron/main/index.js`; it caught us
+anyway, and only a real end-to-end run could have. Consequence for Ethan: the first `npm run dev` after this
+lands starts with an empty library (freshly seeded); whatever was in dev
+before sits untouched at the old shared path, copyable once if wanted.
+
+**Media import scanned the whole table per imported file, needlessly — the
+index already existed.** `media:import` called `mediaQueries.getMedia(db)`
+(every row, `SELECT * ... ORDER BY created_at DESC`) inside its per-file
+loop, then `.find()` in JS. `idx_media_canonical_path` was already there
+(migration 1), so this was a pure query fix: `findMediaByCanonicalPath(db,
+canonicalPath)` with `WHERE canonical_path = ?`, `.get()` not `.all()` +
+`.find()` since the column is 0-or-1 per path. `media:pick`'s single lookup
+got the same treatment for consistency, though it wasn't the per-file
+hot path the audit named.
+
+16 new cases after the MAIN-B10 removal, 15 red on `main` before the fix
+(the equal-version case is a deliberate non-regression sanity check).
+Gate re-run on the merged branch (see the PR).
 
 ---
 

@@ -215,17 +215,39 @@ export async function saveCurrentPresentation() {
   if (!presentation) return null;
 
   const result = await updatePresentation(presentation.id, presentation);
-  if (result?.success && result.data) {
-    // Deliberately NOT loadPresentationIntoEditor: that resets the selection to
-    // the first slide and clears undo history, which is fine when opening a
-    // document and wrong when saving the one you are working in.
-    state.syncSavedPresentation(result.data);
-    // Save is the commit: it is what moves the restore point forward. The
-    // snapshot is taken from the same normalized value the store now holds.
-    await captureVersion(useEditorStore.getState().presentation);
-  } else if (result?.success) {
-    state.setDirty(false);
-    state.setRequiresInitialSave(false);
+
+  // Every way of saving comes through here — File ▸ Save and ⌘S included, whose
+  // callers drop the result — so failures are reported HERE, once (plan D1,
+  // audit SAVE-A8). Nothing below may leave "Saved" on screen for work that is
+  // not committed.
+  if (!result?.success) {
+    const error = result?.error || 'Failed to save your presentation.';
+    await alertDialog(error, { title: 'Save Failed' });
+    return { ...result, success: false, error };
+  }
+  if (result.data == null) {
+    // The row is gone — deleted from Home while it was open here. This branch
+    // used to mark the document saved (audit SAVE-A7).
+    const error = 'This presentation no longer exists, so it could not be saved.';
+    await alertDialog(error, { title: 'Save Failed' });
+    return { success: false, error };
+  }
+
+  // Deliberately NOT loadPresentationIntoEditor: that resets the selection to
+  // the first slide and clears undo history, which is fine when opening a
+  // document and wrong when saving the one you are working in.
+  state.syncSavedPresentation(result.data);
+  // Save is the commit: it is what moves the restore point forward. The
+  // snapshot is taken from the same normalized value the store now holds.
+  const captured = await captureVersion(useEditorStore.getState().presentation);
+  if (!captured) {
+    // The row is written, but without its restore point the document is not
+    // committed, and "Saved" would be undone by the next open (audit SAVE-A9).
+    useEditorStore.getState().setDirty(true);
+    const error =
+      'Your presentation was saved, but a restore point could not be recorded, so it still shows unsaved changes. Try saving again.';
+    await alertDialog(error, { title: 'Restore Point Not Saved' });
+    return { success: false, error };
   }
   return result;
 }
@@ -552,7 +574,17 @@ export async function renamePresentationById(id, currentTitle) {
   // Renaming from Home writes the row without touching the editor store. With
   // no version captured, the row would diverge from its newest restore point
   // and the presentation would open dirty forever (plan A5, fact 10).
-  if (result?.success && result.data) await captureVersion(normalizePresentation(result.data));
+  if (result?.success && result.data) {
+    const captured = await captureVersion(normalizePresentation(result.data));
+    if (!captured) {
+      // The name is saved but its restore point is not, so the presentation
+      // would open with unsaved changes; say so (plan D1, audit SAVE-A9).
+      await alertDialog(
+        'The presentation was renamed, but a restore point could not be recorded. Open it and save to record one.',
+        { title: 'Restore Point Not Saved' }
+      );
+    }
+  }
   return result;
 }
 

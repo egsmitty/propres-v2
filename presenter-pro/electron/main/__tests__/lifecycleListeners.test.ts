@@ -43,6 +43,10 @@ const REQUIRED_APP_LISTENERS: ReadonlyArray<{ event: string; why: string }> = [
     event: 'child-process-gone',
     why: 'a GPU or utility process crash is otherwise invisible; it must at least be logged with its reason (plan C1)',
   },
+  {
+    event: 'will-quit',
+    why: 'checkpoints WAL and closes the DB handle so a quit never leaves -wal/-shm files behind (MAIN-B11)',
+  },
 ];
 
 const REQUIRED_WEBCONTENTS_LISTENERS: ReadonlyArray<{ event: string; why: string }> = [
@@ -86,6 +90,36 @@ describe('single instance (plan C1)', () => {
     // The denied branch must quit — never fall through to whenReady.
     expect(MAIN_SOURCE).toMatch(/if \(!gotSingleInstanceLock\) \{\s*app\.quit\(\);/);
   });
+});
+
+describe('database quit handling (MAIN-B11)', () => {
+  it('calls closeDb() from inside the will-quit handler', () => {
+    expect(MAIN_SOURCE).toMatch(/app\.on\('will-quit',[\s\S]{0,120}closeDb\(\)/);
+  });
+});
+
+describe('media import canonical-path lookup (MAIN-B15)', () => {
+  /** The two handlers that used to scan the whole media table per lookup. */
+  const HANDLERS: ReadonlyArray<{ channel: string }> = [
+    { channel: "ipc.handle('media:import'" },
+    { channel: "ipc.handle('media:pick'" },
+  ];
+
+  function handlerBody(channel: string): string {
+    const start = MAIN_SOURCE.indexOf(channel);
+    expect(start, `${channel} not found in index.js`).toBeGreaterThanOrEqual(0);
+    const nextHandler = MAIN_SOURCE.indexOf('ipc.handle(', start + channel.length);
+    return MAIN_SOURCE.slice(start, nextHandler === -1 ? undefined : nextHandler);
+  }
+
+  it.each(HANDLERS)(
+    '$channel uses the indexed canonical-path lookup, not a full-table scan',
+    ({ channel }) => {
+      const body = handlerBody(channel);
+      expect(body).not.toMatch(/\.getMedia\(db\)\s*\.find\(/);
+      expect(body).toContain('mediaQueries.findMediaByCanonicalPath(');
+    }
+  );
 });
 
 describe('preview window robustness (plan C1)', () => {

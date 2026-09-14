@@ -37,7 +37,7 @@ Follow a strict step-by-step process for any code change or suggestion:
 PresenterPro is a **local-first Electron desktop app** for worship
 presentations — a simpler, PowerPoint-style alternative to ProPresenter.
 
-- **Renderer:** React 18 + Zustand + Tailwind, built by `electron-vite`.
+- **Renderer:** React 19 + Zustand + Tailwind, built by `electron-vite`.
 - **Main process:** `electron/main/` — window management, native menus,
   `better-sqlite3` persistence, multi-display output assignment.
 - **The IPC seam is the highest-risk surface in this codebase.** Payloads
@@ -47,9 +47,13 @@ presentations — a simpler, PowerPoint-style alternative to ProPresenter.
 
 ### Language policy
 
-- Existing `.js` / `.jsx` files are type-checked via `checkJs` + JSDoc. Add
-  JSDoc types at module boundaries (store actions, IPC handlers, exported utils)
-  when you touch a file — not everywhere at once.
+- Existing `.js` / `.jsx` files are **not** type-checked by default (`checkJs`
+  is deliberately `false` in `presenter-pro/tsconfig.json` — turning it on
+  across the existing untyped JSX would fail the gate on day one). A file opts
+  in, file-by-file, by adding `// @ts-check` at the top when you touch it;
+  once opted in it can never silently regress. Add JSDoc types at module
+  boundaries (store actions, IPC handlers, exported utils) as part of opting a
+  file in — the IPC seam is the first target.
 - **Every new file is written in TypeScript** (`.ts` / `.tsx`). Vite compiles it
   alongside existing JSX with no extra configuration.
 - Never rename an existing file to `.ts` as a side effect of an unrelated

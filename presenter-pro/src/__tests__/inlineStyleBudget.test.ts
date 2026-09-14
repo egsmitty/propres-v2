@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { listSourceFiles } from './sourceFiles';
 
 // Plan E4. A ratchet on inline `style={{ … }}` objects in JSX, per file.
 //
@@ -42,14 +43,7 @@ const BUDGET: Record<string, number> = {
 };
 
 function componentFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const name of readdirSync(dir)) {
-    if (name === '__tests__' || name === 'node_modules' || / \d(\.|$)/.test(name)) continue;
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) out.push(...componentFiles(full));
-    else if (/\.(jsx|tsx)$/.test(name) && !/\.test\./.test(name)) out.push(full);
-  }
-  return out;
+  return listSourceFiles(dir, { extensions: ['.jsx', '.tsx'] });
 }
 
 function countInlineStyles(file: string): number {
