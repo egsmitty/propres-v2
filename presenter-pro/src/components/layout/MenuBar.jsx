@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore } from '@/store/editorStore';
 import { usePresenterStore } from '@/store/presenterStore';
 import { useAppStore } from '@/store/appStore';
+import { useLatest } from '@/hooks/useLatest';
 import { runAppCommand } from '@/utils/appCommands';
 import { formatShortcutLabel, getPlatform } from '@/utils/platformShortcuts';
 
@@ -103,6 +104,7 @@ function MenuItem({ item, onAction, onClose }) {
 
 export default function MenuBar() {
   const [openMenu, setOpenMenu] = useState(null);
+  const openMenuRef = useLatest(openMenu);
   const menuRef = useRef(null);
   const platform = getPlatform();
 
@@ -119,16 +121,21 @@ export default function MenuBar() {
         setOpenMenu(null);
       }
     }
+    // Capture phase, and consumed ONLY when a menu is actually open: closing a
+    // menu must not also stop a live presentation, but an Escape with no menu
+    // open still belongs to the Editor (plan L1).
     function handleEscape(e) {
-      if (e.key === 'Escape') setOpenMenu(null);
+      if (e.key !== 'Escape' || openMenuRef.current === null) return;
+      e.preventDefault();
+      setOpenMenu(null);
     }
     document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleEscape);
+    window.addEventListener('keydown', handleEscape, true);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('keydown', handleEscape, true);
     };
-  }, []);
+  }, [openMenuRef]);
 
   async function handleAction(action) {
     await runAppCommand(action);
