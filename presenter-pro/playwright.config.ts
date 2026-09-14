@@ -27,6 +27,10 @@ export default defineConfig({
   // only so a transient runner hiccup does not mask a real signal — the retry
   // is visible in the report either way.
   retries: process.env.CI ? 1 : 0,
+  // A test that fails then passes on retry is still a flake — don't let the
+  // retry above quietly launder it into a green run. CI-only, same reasoning
+  // as `retries`.
+  failOnFlakyTests: !!process.env.CI,
   // Must exceed the fixture's 60s first-window allowance plus the spec itself.
   timeout: 90_000,
   expect: {

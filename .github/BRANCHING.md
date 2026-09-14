@@ -66,7 +66,8 @@ git checkout -b feature/your-feature
 
 ### 2. Work the plan
 
-Write the plan to `tasks/todo.md` first and confirm it (see `CLAUDE.md`). Run
+Write the plan to `tasks/plan-<id>-<name>.md` first and confirm it (see
+`CLAUDE.md`). Run
 the gate before you consider anything done:
 
 ```bash
@@ -94,7 +95,7 @@ Squash-merge into `main`. The branch is deleted on merge.
 Configured rules:
 
 - ✅ Require a pull request before merging
-- ✅ Require status check `PR Gate` to pass
+- ✅ Require status checks `PR Gate` and `E2E (macOS)` to pass
 - ✅ Require branches to be up to date before merging
 - ✅ Block force pushes
 - ✅ Block deletions
@@ -118,12 +119,23 @@ Configured rules:
 
 ## Releases
 
-Releases are cut from tags, and the tag is what triggers packaging:
+Releases are cut from tags, and the tag is what triggers packaging. There is no
+root `package.json` (no npm workspaces), so the version bump happens inside
+`presenter-pro/` through its own PR, and the tag is pushed separately once that
+PR merges:
 
 ```bash
 # from an up-to-date main, with a green gate
-npm version minor --workspace presenter-pro   # or patch / major
-git push origin main --follow-tags
+cd presenter-pro
+npm version minor --no-git-tag-version   # or patch / major
+git add package.json package-lock.json
+git commit -m "chore(release): bump to vX.Y.Z"
+git push -u origin chore/release-vX.Y.Z
+gh pr create --fill
+# after PR Gate + E2E (macOS) pass and this PR merges into main:
+git checkout main && git pull
+git tag vX.Y.Z <merge-sha>
+git push origin vX.Y.Z
 ```
 
 Pushing a `v*` tag runs `.github/workflows/build-release.yml`, which:
@@ -142,9 +154,17 @@ git checkout main && git pull
 git checkout -b hotfix/critical-bug
 # fix + test, then:
 gh pr create --fill
-# after PR Gate passes and you merge:
-npm version patch --workspace presenter-pro
-git push origin main --follow-tags
+# after PR Gate + E2E (macOS) pass and this fix merges:
+cd presenter-pro
+npm version patch --no-git-tag-version
+git add package.json package-lock.json
+git commit -m "chore(release): bump to vX.Y.Z"
+git push -u origin chore/release-vX.Y.Z
+gh pr create --fill
+# after that version-bump PR merges into main:
+git checkout main && git pull
+git tag vX.Y.Z <merge-sha>
+git push origin vX.Y.Z
 ```
 
 Even for a hotfix, go through the PR. The gate takes a few minutes; shipping a
@@ -162,7 +182,7 @@ git checkout feature/my-work
 ```
 
 **"CI fails but it works locally."**
-Check Node version first (`.nvmrc` pins 20). The `gate` job installs with
+Check Node version first (`.nvmrc` pins 22). The `gate` job installs with
 `--ignore-scripts`, so anything depending on a native `better-sqlite3` rebuild
 belongs in an E2E test, not a unit test.
 

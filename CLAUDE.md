@@ -19,7 +19,7 @@ When this file and a rule file disagree, **the rule file wins**.
 ## Workflow (summary — the manual is authoritative)
 
 1. **Think first, then plan.** Read the relevant code and write a plan to
-   `tasks/todo.md` before doing anything else. The plan must follow
+   `tasks/plan-<id>-<name>.md` before doing anything else. The plan must follow
    `writing-executable-plans.mdc` and end with a complete Compliance Manifest.
 2. **Use a checklist.** The plan is a list of items that can be checked off.
 3. **Check in before starting.** Confirm the plan with Ethan before any work.
@@ -29,7 +29,7 @@ When this file and a rule file disagree, **the rule file wins**.
 6. **Keep changes small and simple.** Every change touches as little code as
    necessary. Simplicity above all.
 7. **Add a review section.** When all items are complete, append `## Review` to
-   `tasks/todo.md` summarizing what changed and any notes.
+   that plan file summarizing what changed and any notes.
 8. **Run the gate.** `npm run gate` from `presenter-pro/` before calling anything
    done, and verify user-facing changes in a running window.
 
@@ -42,8 +42,8 @@ Completed plans are archived in `tasks/` as `<phase-or-session>-<name>.md`.
 Local-first Electron desktop app for worship presentations — a simpler,
 PowerPoint-style alternative to ProPresenter.
 
-**Stack:** Electron 29 + React 18 + Zustand + Tailwind, built by `electron-vite`;
-`better-sqlite3` for persistence.
+**Stack:** Electron 44 + React 19 + Zustand 5 + Tailwind 4, built by
+`electron-vite`; `better-sqlite3` for persistence.
 
 ## What's Built
 
@@ -60,8 +60,9 @@ PowerPoint-style alternative to ProPresenter.
   - filmstrip section and slide context menus expanded
   - presenter/editor black and logo state sync improved
   - song section labels expanded to 9 types with color badges and custom labels
-  - presenter panel moved to an in-editor right sidebar (300px, collapsible);
-    the separate presenter-window code was deleted in plan S1
+  - presenter panel moved to an in-editor right sidebar (320px default, 240px
+    minimum, collapsible); the separate presenter-window code was deleted in
+    plan S1
   - slide rendering scales from presentation-native dimensions
   - newline preservation normalized across canvas, filmstrip, presenter
     previews, and output rendering
@@ -91,10 +92,13 @@ PowerPoint-style alternative to ProPresenter.
 ## In Progress
 
 **The Fable pass** (`tasks/fable-pass-plan.md`, status table at the bottom;
-narrative in `tasks/fable-notes.md`). Phase 6's engineering system is done and
-every charter workstream has landed except workstream F (structure), which stays
-blocked until the six large files have characterization tests under them.
-Start a fresh session from `tasks/HANDOFF-2026-09-09.md`.
+narrative in `tasks/fable-notes.md`). Phase 6's engineering system is done.
+F1 (pure-helper characterization) and G1–G3 (UX review fixes) have landed,
+which clears workstream F's (structure) gate — F1 was the gate — so it is now
+unblocked; the actual decomposition of the large files is still ahead.
+Start a fresh session from the newest `tasks/HANDOFF-*.md` on disk (these are
+local, untracked handoffs kept outside git by design), falling back to the
+tracked `tasks/HANDOFF-2026-09-09.md` if none exist.
 
 ## What's Pending
 
