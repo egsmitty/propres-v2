@@ -20,7 +20,7 @@ const BUDGET: Record<string, number> = {
   'components/presenter/PresenterPanel.jsx': 23,
   'components/editor/Canvas.jsx': 19,
   'components/editor/Filmstrip.jsx': 17,
-  'components/presenter/OutputRenderer.jsx': 13,
+  'components/presenter/OutputRenderer.jsx': 11,
   'components/library/SongEditorModal.jsx': 10,
   'pages/Home.jsx': 9,
   // Plan ED36: every value is computed from the slide (position, size, the
@@ -34,7 +34,6 @@ const BUDGET: Record<string, number> = {
   'components/shared/OnboardingTutorial.jsx': 4,
   'components/editor/OutputSettingsModal.jsx': 3,
   'components/layout/TitleBar.jsx': 3,
-  'components/presenter/OutputSlideText.jsx': 3,
   'components/editor/FilmstripSlide.jsx': 2,
   'components/editor/SlideTextEditor.jsx': 2,
   'components/presenter/StageDisplayRenderer.jsx': 2,

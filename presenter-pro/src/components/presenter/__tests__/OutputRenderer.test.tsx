@@ -32,6 +32,10 @@ vi.mock('@/utils/backgrounds', () => ({
   getMediaAssetUrl: (media: { file_path?: string } | null) =>
     media?.file_path ? `asset://${media.file_path}` : '',
   isVideoMedia: (media: { type?: string } | null) => media?.type === 'video',
+  // Plan ED36 slice 2: SlideRender imports this too. The projector passes its
+  // media already resolved, so this is never called here — a mock extension,
+  // not a behaviour change.
+  getEffectiveBackgroundId: () => null,
 }));
 
 import OutputRenderer from '@/components/presenter/OutputRenderer';
@@ -106,6 +110,39 @@ describe('OutputRenderer', () => {
       const img = container.querySelector('img');
       expect(img?.getAttribute('src')).toBe('asset:///library/background.png');
     });
+  });
+
+  it('a video background keeps its element across slides in one section (playback continuity)', async () => {
+    // Plan ED36 slice 2. The renderer changed; the continuity rule did not:
+    // OutputRenderer pins the background object by id, so the <video> node
+    // must be the SAME DOM node after the next slide with the same background.
+    vi.mocked(getMedia).mockResolvedValue({
+      success: true,
+      data: [...LIBRARY, { id: 11, type: 'video', file_path: '/library/loop.mp4' }],
+    });
+    const { container } = render(<OutputRenderer />);
+    await waitFor(() => expect(getMedia).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await subscriptions.update!({
+        slide: { id: 's1', type: 'text', body: 'Verse 1', effectiveBackgroundId: 11 },
+        background: null,
+      });
+    });
+    const first = await waitFor(() => {
+      const video = container.querySelector('video');
+      expect(video?.getAttribute('src')).toBe('asset:///library/loop.mp4');
+      return video;
+    });
+
+    await act(async () => {
+      await subscriptions.update!({
+        slide: { id: 's2', type: 'text', body: 'Verse 2', effectiveBackgroundId: 11 },
+        background: null,
+      });
+    });
+    expect(container.textContent).toContain('Verse 2');
+    expect(container.querySelector('video')).toBe(first);
   });
 
   it('shows the countdown remaining time when active and 00:00 when it stops', async () => {
