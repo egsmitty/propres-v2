@@ -13,8 +13,10 @@ const os = require('os');
 const { createCloseController } = require('./closeController');
 const { FIRST_RUN_PRESENTATION } = require('./firstRunSeed');
 const { createIpcRegistry } = require('./ipcRegistry');
+const { isSafeBuiltInMediaAssetName } = require('./mediaAssetSafety');
 const { buildNativeMenuTemplate } = require('./nativeMenu');
 const { createDisplaySleepBlocker, outputWindowOptions } = require('./presentationWindows');
+const { isAllowedNavigation } = require('./navigationPolicy');
 const { describeStartupFailure } = require('./startupFailure');
 const fs = require('fs');
 const path = require('path');
@@ -299,7 +301,10 @@ function resolveRuntimeAssetPath(...segments) {
 }
 
 function resolveBuiltInMediaAssetPath(assetName) {
-  if (!assetName) return null;
+  // SEC-3: `path.join` below collapses `..` segments instead of rejecting
+  // them, so an unguarded assetName (renderer-supplied, over
+  // system:resolveBuiltInMedia) could escape test-media/ via traversal.
+  if (!isSafeBuiltInMediaAssetName(assetName)) return null;
 
   const candidates = [
     path.join('test-media', assetName),
@@ -1429,6 +1434,29 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+});
+
+// SEC-1: hardening, not a fix for a proven exploit (see navigationPolicy.ts).
+// Every webContents this app creates — main, output, stage-display, any
+// future one — gets the same deny-by-default treatment: `window.open` is
+// always denied, and a top-level navigation is allowed only to the
+// electron-vite dev server (npm run dev / HMR) or this app's own built
+// index.html. The allow/deny decision itself is the pure, unit-tested
+// isAllowedNavigation (electron/main/__tests__/navigationPolicy.test.ts);
+// this listener only wires it up.
+app.on('web-contents-created', (_event, contents) => {
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
+  contents.on('will-navigate', (event, url) => {
+    if (
+      !isAllowedNavigation(url, {
+        rendererDevUrl: RENDERER_DEV_URL,
+        appIndexPath: path.join(__dirname, '../../out/renderer/index.html'),
+      })
+    ) {
+      event.preventDefault();
+    }
+  });
 });
 
 // MAIN-B11: checkpoint the WAL and close the handle so a quit never leaves

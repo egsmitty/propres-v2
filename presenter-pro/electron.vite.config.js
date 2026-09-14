@@ -66,6 +66,12 @@ export default defineConfig({
           // Output window options + the display sleep blocker (plan L3), also
           // required from index.js.
           'main/presentationWindows': resolve(__dirname, 'electron/main/presentationWindows.ts'),
+          // Plan SEC1 (audit SEC-1/SEC-3): the navigation allow-list and
+          // built-in-media traversal guard, both required from index.js —
+          // same reason as closeController: without an entry the app crashes
+          // on launch with "Cannot find module".
+          'main/navigationPolicy': resolve(__dirname, 'electron/main/navigationPolicy.ts'),
+          'main/mediaAssetSafety': resolve(__dirname, 'electron/main/mediaAssetSafety.ts'),
           'shared/ipcContract': resolve(__dirname, 'shared/ipcContract.ts'),
           // Required by index.js via relative require (CommonJS main), so it
           // needs its own entry — same reason as main/closeController (MAIN-B1).
