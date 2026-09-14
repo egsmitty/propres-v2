@@ -1932,6 +1932,82 @@ three-strike alert instead.
 
 ---
 
+## S1 — the first-run sample ships only public-domain lyrics (2026-09-13)
+
+The audit's legal item (SONG-28, P1): `electron/main/index.js`'s `seed()`
+shipped every fresh install with copyrighted material. Two songs sat under the
+wrong CCLI number outright ("Amazing Grace" tagged with the CCLI for "Amazing
+Grace (My Chains Are Gone)", carrying that song's copyrighted chorus grafted
+onto Newton's title; "How Great Is Our God" tagged with Chris Tomlin's real
+number but no license), and the third ("Build My Life", Housefires) was
+copyrighted outright with no public-domain angle at all. All three landed both
+as `songs` rows and, copied by value, as the sample presentation's slides.
+
+**The fix removes a whole seeding path, not just its lyrics.** `shared/hymns.json`
+and `src/utils/builtInSongSeed.js` already exist and already seed the
+public-domain hymn library from the renderer, matched strictly by
+`built_in_key` — title/tag matching was tried once before and could silently
+overwrite or delete a user's own song (phase7 #14, fixed by A3). `seed()`'s own
+`songs` array was a second, independent seeding path that never talked to that
+one, which is exactly what produced SONG-4: a fresh install's unkeyed seed()
+"Amazing Grace" and the renderer's keyed "Amazing Grace" could never be
+reconciled by migration 3 (it only adopts rows tagged `"built-in"`; `seed()`
+tagged its rows `"hymn","classic"`). So the fix isn't "swap in different
+lyrics" — it's "`seed()` inserts zero `songs` rows, period." The sample
+presentation stands on its own, with slide text copied verbatim from
+`hymns.json`'s `amazing-grace` verses 1–3 (Newton, 1779, public domain, no
+CCLI field to even get wrong).
+
+**Testability required extracting the data out of `index.js`.** That file
+can't be loaded in a unit test (better-sqlite3, electron), so the seed content
+moved to a new electron-free module, `electron/main/firstRunSeed.ts`,
+exporting a plain `FIRST_RUN_PRESENTATION` constant that `index.js` requires
+exactly the way it already requires `./closeController` — same reason
+(CommonJS main process, relative `require` resolved against the built output
+directory) and the same one-line addition to `electron.vite.config.js`'s
+Rollup `main` input map. `seed(db)` is now a ~20-line function: build fresh
+slide/section ids, hand the rest to `presentationQueries.createPresentation`,
+inside `db.transaction(() => { ... })()` — closing MAIN-B10 (the insert and
+the `settings.initialized` write used to be two separate statements with no
+transaction between them, so a crash after the first and before the second
+would re-run the whole seed on the next launch and duplicate the presentation).
+
+**TDD path:** `firstRunSeed.ts` was first populated with the current
+copyrighted content, verbatim (including a throwaway `ccli` field carried onto
+each section, since the real bug data lived on the song row the section used
+to be copied from, and the new shape only has sections) so
+`firstRunSeed.test.ts` would be provably red against real current content — 2
+of 3 cases failed (5 banned phrases swept case-insensitively across every
+string in the tree; a walk of every object key for a truthy `ccli`), and the
+structural-floor case (≥1 section, ≥1 slide) passed throughout, as it should —
+that one was never the bug. Fixing the data made all 3 green.
+
+**Verified, not just asserted, that SONG-4 is fixed:** after the change,
+`grep -rn "How Great Is Our God\|Chris Tomlin\|Housefires\|4348399\|7070345\|My chains are gone" electron/main/firstRunSeed.ts electron/main/index.js`
+returns nothing — no independently-tagged hymn row can exist for migration 3
+to fail to reconcile, because no such row is ever created.
+
+**E2E:** every visual/keyboard/CSP spec that opens the sample presentation
+matches on its title only (`/Sunday Morning Service/`, unchanged), so none of
+those needed edits. `e2e/migrations.spec.ts` builds its own synthetic legacy
+database and explicitly pre-seeds `settings.initialized = true` so `seed()`
+never runs in that spec at all — untouched. `e2e/hymns.spec.ts` had a comment
+(not an assertion) documenting and relying on `seed()`'s old unkeyed "Amazing
+Grace" row existing; the test's actual logic was already written against row
+**count** and `built_in_key`, never title, specifically so it wouldn't care —
+only the comment needed correcting. Flagged for the owner: several
+`e2e/*-snapshots/*.png` baselines capture the sample presentation's rendered
+text or the song library's row count/list (at least `home-darwin.png`,
+`editor-darwin.png`, `output-darwin.png`, `editor-textbox-selected-darwin.png`,
+`editor-song-order-tray-darwin.png`, `editor-song-library-darwin.png`,
+`editor-presenting-darwin.png`, `home-recent-darwin.png`, `home-open-darwin.png`,
+`home-context-menu-darwin.png`, `song-editor-modal-darwin.png`,
+`stage-display-darwin.png`, and several `hover-song-card-*-darwin.png`) — these
+will very likely need a CI recapture now that the sample's text and the song
+library's starting contents changed; no PNG was touched by this PR.
+
+---
+
 ## MB1 — a library that won't open says so instead of leaving no window (2026-09-14)
 
 **What was wrong.** Everything the main process does at startup — open the
