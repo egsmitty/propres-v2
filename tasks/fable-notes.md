@@ -1470,6 +1470,111 @@ window, the stage display, the tutorial, the song editor modal, output settings,
 and all 29 clipped hover captures — including `hover-presenter-divider`, which
 crops to the divider and never saw the preview.
 
+---
+
+## R22 — the worktree commit trap was one line of our own shell (2026-09-13)
+
+First item executed from `tasks/fable-pass-2-audit.md` (local, untracked — the
+whole-app audit and its verification pass). It went first because every other
+item on that list is done from a worktree, and every worktree commit needed
+`--no-verify`.
+
+**The cause was never husky or commitlint.** `.husky/commit-msg` did
+`MSG_FILE="$PWD/$1"`. Git passes that argument relative from the main checkout
+and **absolute** from a linked worktree, so the worktree path was doubled:
+`/…/worktrees/repo22-hooks/Users/ethansmith/code/ProPresV2/.git/worktrees/…`.
+Both handoffs recorded the symptom and the workaround; neither had the cause.
+
+**Two pieces of folklore turned out to be facts about the setup:**
+
+- `HUSKY=0` did nothing because nothing reads it: `core.hooksPath` points
+  straight at `.husky/` plain scripts, with no husky runtime in between. Both
+  hooks now honour it explicitly, so the escape hatch the docs imply is real.
+- `core.hooksPath` is the **absolute** main-checkout path. Every worktree runs
+  the main checkout's copy of the hooks, so this fix reaches other worktrees
+  only once it is on `main` and the main checkout is on `main` — which is one
+  more reason for the rule that the main checkout stays on `main`.
+
+**The test runs the real hook**, the way git does, rather than grepping the
+script: absolute path, relative path, a rejected message, and `HUSKY=0`. Against
+the old hook three of four failed; against the fix all four pass. The hooks now
+call `node_modules/.bin` directly with a fallback to the main checkout's, instead
+of `npx`, which would otherwise quietly reach for the registry in a fresh
+worktree.
+
+---
+
+## DOC1 — the docs describe the repo as it is today (2026-09-13)
+
+Eight stale-docs items, all verified against code before writing, all fixed.
+
+**What was actually wrong, not just old.** `CLAUDE.md` and `AGENTS.md` both
+said Electron 29 + React 18 — this repo is on Electron 44 / React 19
+(`presenter-pro/package.json`), a gap this exact file already flagged once for
+the sidebar width ("Found and not fixed: CLAUDE.md says the presenter panel is
+300px. It is 320 default, 240 minimum.") but the stack line had drifted
+further and nobody had gone back for it. `AGENTS.md` also claimed existing
+`.js`/`.jsx` is "type-checked via `checkJs` + JSDoc" — `checkJs` is `false`
+project-wide (`presenter-pro/tsconfig.json:26`); the real mechanism is a
+per-file `// @ts-check` opt-in, described in that file's own comment but never
+carried into `AGENTS.md`.
+
+**The release instructions in `BRANCHING.md` could not have worked.**
+`npm version minor --workspace presenter-pro` needs a root `package.json`
+with npm workspaces; there is neither (`ls package.json` at repo root: no such
+file). REL-18 replaces it with a two-PR sequence: bump `presenter-pro/`'s own
+`package.json` + lockfile through a normal PR, merge it, then tag the merge
+commit and push the tag — `build-release.yml` triggers on `v*` either way, so
+nothing about packaging changes, only how the tag gets there.
+
+**`.nvmrc` and branch protection were checked live, not assumed.** `.nvmrc` is
+`22`, not the `20` `BRANCHING.md` claimed. `gh api
+repos/egsmitty/propres-v2/branches/main/protection --jq
+'.required_status_checks.contexts'` returned `["PR Gate","E2E (macOS)"]` —
+`E2E (macOS)` went required on 2026-09-08 per its own workflow comment, but
+`BRANCHING.md` and `README.md` still only named `PR Gate`.
+
+**The crash-recovery paragraph in `README.md` described a system that no
+longer runs.** `CLAUDE.md`'s own "Save model (plan A5)" section already
+says the A2 journal writer was retired when autosave shipped — the README
+just hadn't been updated to match its neighbor.
+
+**`test-media/` needed a real answer, not just "gitignored."**
+`git ls-files test-media` returns zero files and the directory does not exist
+in a fresh worktree, but `electron/main/index.js`'s
+`resolveBuiltInMediaAssetPath` does read from it at runtime and
+`package.json`'s `build.extraResources` does bundle it — so "used by the app"
+was true, "used by the E2E suite" was left unqualified, and the missing fact
+was that a fresh clone doesn't have it at all.
+
+**One reference deliberately not fixed.** `AI_OPERATING_MANUAL.md:152`
+("regressions belong in `tasks/todo.md` or on the PR") went stale the moment
+`tasks/todo.md` was renamed to `tasks/phase6-todo.md`, but that manual is
+explicit out-of-scope governance philosophy for this task. Recorded here and
+in the PR body rather than edited.
+
+**Root `HANDOFF.md` and `tasks/todo.md` were both 2026-09-06 fossils of the
+pre-move layout** (`~/Desktop/ClaudeAccess/ProPresV2` and
+`~/Desktop/ClaudeAccess/builder`). The handoff had no other links to it and
+was deleted outright; the todo list is real project history, so it was
+`git mv`'d to `tasks/phase6-todo.md` per the archive convention instead.
+
+**The PR template matched no recent PR.** The last several merged PRs (#115,
+#114, ...) all use `## Summary` / `## Proof` / `## Findings` / `## Records`;
+the template still asked for a "Self-Review Report" and a checkbox list
+nobody had filled in for a while. Replaced with the shape actually in use.
+
+**New standing rule (D8).** `writing-executable-plans.mdc` had no requirement
+that a data-rewriting plan name its backup and rollback path. Added a bullet
+to "Patterns that work" and a matching line to the reviewer checklist, naming
+`BACKUP_FILE_PATTERN` / `VACUUM INTO` in `migrationRunner.ts` so the next
+migration plan doesn't have to re-derive it.
+
+Full detail, every `file:line` quoted before it was changed, is in
+`tasks/plan-DOC1-stale-docs.md`.
+
+---
+
 ## CI1 — every job has a timeout, every action is pinned, coverage is enforced (2026-09-13)
 
 Nine items from the audit's Part 8, all mechanical: CI-1, CI-4, CI-5, CI-6,

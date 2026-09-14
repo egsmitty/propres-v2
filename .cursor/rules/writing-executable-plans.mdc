@@ -76,6 +76,11 @@ mechanical, itemized manifest that a reviewer ticks line-by-line.
 - **IPC contract pinning.** If the plan touches any `ipcMain` / `ipcRenderer`
   channel, it must name the channel and require a test asserting the exact
   payload shape on both sides. This seam is this app's highest-risk surface.
+- **Data rewrites state their backup and rollback.** Any plan whose migration
+  or code rewrites existing rows or stored snapshots must name the
+  pre-migration `VACUUM INTO` backup it relies on (`BACKUP_FILE_PATTERN` in
+  `presenter-pro/electron/db/migrationRunner.ts` — verify the name against that
+  file, it is not guaranteed stable) and state how to roll back.
 - **Manual verification steps.** This is a desktop app. If the change is
   user-facing, the plan's final todo lists the exact click-path to verify in a
   running window (`npm run dev`), including which display configuration to test
@@ -132,4 +137,6 @@ pass plus an architect-run completion gate (Operating Manual Non-Negotiable #2).
 - Confirm no out-of-scope source files changed (`git diff --stat` against the
   plan's file list); flag any, even if justified, in the review summary.
 - Confirm every touched IPC channel has a payload-shape test on both sides.
+- If the plan rewrites existing rows or stored snapshots, confirm it names the
+  `VACUUM INTO` backup it relies on and states a rollback path.
 - Re-run the plan's gate command yourself; never accept a reported result.
