@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_TEXT_COLOR, PLACEHOLDER_TEXT_COLOR } from '@/utils/colorPalettes';
 import { getPresentationScale } from '@/utils/presentationSizing';
-import { DEFAULT_TEXT_STYLE, getSlideTextBoxes, resolvePlaceholderText } from '@/utils/textBoxes';
+import {
+  DEFAULT_TEXT_BOX,
+  DEFAULT_TEXT_STYLE,
+  getSlideTextBoxes,
+  resolvePlaceholderText,
+} from '@/utils/textBoxes';
+import { resolveTextBoxPadding } from '@/utils/canvasTextStyle';
 import { slideBodyToHtml } from '@/utils/slideMarkup';
 
 function resolveVerticalAlignment(box) {
@@ -21,7 +27,9 @@ function renderOutline(box, scale) {
 
 function renderShadow(box, scale, fallbackShadow) {
   if (box.shadowEnabled) {
-    return `${(box.shadowOffsetX || 0) * scale}px ${(box.shadowOffsetY || 10) * scale}px ${Math.max(4, (box.shadowBlur || 18) * scale)}px ${box.shadowColor || 'rgba(0,0,0,0.35)'}`;
+    // `??`, not `||`: an explicit 0 offset or blur is a real value a user
+    // chose and must survive scaling, not be replaced by the default (ED-18).
+    return `${(box.shadowOffsetX ?? 0) * scale}px ${(box.shadowOffsetY ?? 10) * scale}px ${Math.max(4, (box.shadowBlur ?? 18) * scale)}px ${box.shadowColor || 'rgba(0,0,0,0.35)'}`;
   }
   return fallbackShadow;
 }
@@ -120,10 +128,11 @@ export default function ScaledSlideText({
         const fontSize = (box?.textStyle?.size || DEFAULT_TEXT_STYLE.size) * scale;
         const body = renderBody(box, empty, showPlaceholder);
         const renderedHtml = body.placeholder ? body.html : scaleInlineHtml(body.html, scale);
-        const paddingX = Math.max(minPaddingX, (box.paddingLeft || 28) * scale);
-        const paddingRight = Math.max(minPaddingX, (box.paddingRight || 28) * scale);
-        const paddingY = Math.max(minPaddingY, (box.paddingTop || 22) * scale);
-        const paddingBottom = Math.max(minPaddingY, (box.paddingBottom || 22) * scale);
+        const resolvedPadding = resolveTextBoxPadding(box, DEFAULT_TEXT_BOX);
+        const paddingX = Math.max(minPaddingX, resolvedPadding.paddingLeft * scale);
+        const paddingRight = Math.max(minPaddingX, resolvedPadding.paddingRight * scale);
+        const paddingY = Math.max(minPaddingY, resolvedPadding.paddingTop * scale);
+        const paddingBottom = Math.max(minPaddingY, resolvedPadding.paddingBottom * scale);
         const textDirection = box.textDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb';
         const writingMode = textDirection === 'vertical-rl' ? 'vertical-rl' : 'horizontal-tb';
         const transform = box.rotation ? `rotate(${box.rotation}deg)` : 'none';
@@ -132,6 +141,8 @@ export default function ScaledSlideText({
         return (
           <div
             key={box.id}
+            data-testid="scaled-slide-text-box"
+            dir="auto"
             style={{
               position: 'absolute',
               left: box.x * scale,

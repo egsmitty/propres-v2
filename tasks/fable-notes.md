@@ -1669,3 +1669,76 @@ slide moved to another section is not refreshed" is not — LIVE-A4 changes it.
 thumbnail into view on every live change and jsdom has no `scrollIntoView`
 (all six keyboard cases failed on that before the stub), and starting a session
 calls `window.focus()`, which jsdom does not implement.
+
+---
+
+## ED1 — four small editor correctness fixes: broken lines, a negative jump, a missing zero, and RTL text (2026-09-13)
+
+`tasks/plan-ED1-editor-small-fixes.md`. Four independent, small `[S]` items
+from the whole-app audit's editor section (ED-6, ED-11, ED-18, ED-30), done
+together in one PR because each is a one- or two-line production fix, not
+because they touch shared code.
+
+**ED-6's fix isn't the audit's first suggestion, and checking that first
+mattered.** The audit's suggested fix for Clear Formatting joining selected
+lyric lines was "split `selection.toString()` on `\n`." Tried that against
+jsdom before writing a single test and it doesn't work: jsdom's `Selection`
+and `Range` do no layout, so neither `selection.toString()` nor
+`range.cloneContents().textContent` ever contains a `\n` at a block boundary —
+both returned `"Line oneLine two"` for a real two-`<br>`-line selection,
+confirmed with a throwaway script before touching `richTextEditor.js`. Since
+this app's own line encoding is `<br>` (`slideMarkup.js` turns `\n` into
+`<br />`, never a `<div>` per line), a fix built on `\n` splitting would have
+been untestable in this repo's own test environment and wrong for its own
+data shape. The audit's second-listed option — unwrap formatting elements
+inside the selected range while keeping `<br>` and block elements — doesn't
+depend on `\n` at all, and is what shipped: a small recursive fragment
+rebuilder that copies text nodes, keeps `<br>` as `<br>`, keeps block tags
+(`div`/`p`/`li`/`ol`/`ul`/`h1`-`h6`/`blockquote`) with their attributes
+stripped, and unwraps everything else. Verified against both line shapes
+(`<br>`-separated and `<div>`-per-line) before it went in the test file.
+
+**ED-11's `clampBoxPosition` isolates one bad interaction of `clamp`'s own
+documented behaviour.** `canvasGeometry.test.ts` already pinned "max wins when
+the bounds are inverted" for `clamp` itself — that was never wrong on its own.
+The bug was a caller, `Canvas.jsx`'s drag-move handler, passing inverted
+bounds (`0, nativeW - box.width`) whenever a box is wider than the slide,
+which made every drag jump the box to the same fixed negative position
+regardless of the pointer. `clampBoxPosition(value, size, extent)` orders the
+bounds itself — `[min(0, extent - size), max(0, extent - size)]` — so the box
+stays draggable (and bounded) either way. Only the drag-move branch changed;
+the four resize-branch `clamp` calls a few lines down clamp *size*, not
+position, and are a different bug shape the audit item doesn't name.
+
+**ED-18 found a second, un-deduped copy of the shadow helper.** Plan F1 (2026-09-09)
+extracted `renderShadow` out of `Canvas.jsx` into `canvasTextStyle.ts` — but
+`ScaledSlideText.jsx` had its own local `renderShadow(box, scale,
+fallbackShadow)`, never touched by F1 because F1's slice 1 was scoped to
+`Canvas.jsx`/`Toolbar.jsx` only. Both copies had the same `||` bug (an
+explicit `shadowOffsetY: 0` or `paddingTop: 0` was replaced by the default,
+because `mergeTextBox`'s `{ ...DEFAULT_TEXT_BOX, ...frame }` genuinely
+preserves an explicit `0` all the way through to render). Fixed both — the
+shared helper's call site and the duplicate — and added one new shared
+`resolveTextBoxPadding` helper rather than inlining the `??` swap twice, since
+`Canvas.jsx` (unscaled) and `ScaledSlideText.jsx` (scaled, with its own
+`Math.max(minPadding, … * scale)` floor) both resolve the same per-axis value
+before doing their own thing with it. `renderOutline`'s `outlineWidth || 0`
+was checked and left alone: its fallback already equals `0`, so there was
+nothing for `??` to fix there.
+
+**ED-30** added `dir="auto"` to `SlideTextEditor.jsx`'s `contentEditable` and
+to `ScaledSlideText.jsx`'s per-box container (`data-testid="scaled-slide-text-box"`
+added alongside it, since nothing selector-stable existed on that element
+before). Confirmed inert for left-to-right content with its own test case, not
+just asserted from the audit's claim.
+
+**24 new cases, gate green** (`type-check ✓ · lint ✓ · vitest 589/589 passed
+(0 skipped)`), `inlineStyleBudget.test.ts` unchanged (no `style={` block added
+or removed, only values inside existing ones), no screenshot baseline at risk
+(grepped `e2e/visual-editor.spec.ts` and `e2e/visual.spec.ts` for every
+padding/shadow-offset-zero fixture, an oversized fixture box, and any Clear
+Formatting interaction — none exist). One test-file flake noted, not caused by
+this change: `SongEditorModal.test.tsx`'s "does not ask when the raw edit is
+the only edit" timed out once under full-suite parallel load and passed
+clean in isolation and on every full-suite re-run after; that file imports
+nothing this plan touched.

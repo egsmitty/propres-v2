@@ -39,6 +39,7 @@ import {
   MIN_TEXT_BOX_HEIGHT,
   MIN_TEXT_BOX_WIDTH,
   clamp,
+  clampBoxPosition,
   getResizeHandleCode,
   getRotationFromPointer,
   handleCursor,
@@ -53,6 +54,7 @@ import {
   renderOutline,
   renderShadow,
   renderTextDecoration,
+  resolveTextBoxPadding,
   resolveVerticalAlignment,
 } from '@/utils/canvasTextStyle';
 import { getSelectedSlide } from '@/utils/selectedSlide';
@@ -389,14 +391,14 @@ export default function Canvas() {
       if (state.type === 'move') {
         const moved = state.boxes.map((box) => ({
           ...box,
-          x: clamp(box.x + pointerX, 0, nativeW - box.width),
-          y: clamp(box.y + pointerY, 0, nativeH - box.height),
+          x: clampBoxPosition(box.x + pointerX, box.width, nativeW),
+          y: clampBoxPosition(box.y + pointerY, box.height, nativeH),
         }));
         const snapped = snapGroupToGuides(moved, state.otherBoxes, nativeW, nativeH);
         const next = moved.map((box) => ({
           ...box,
-          x: clamp(box.x + snapped.dx, 0, nativeW - box.width),
-          y: clamp(box.y + snapped.dy, 0, nativeH - box.height),
+          x: clampBoxPosition(box.x + snapped.dx, box.width, nativeW),
+          y: clampBoxPosition(box.y + snapped.dy, box.height, nativeH),
         }));
         setDraftBoxes(
           renderedBoxes.map((box) => next.find((candidate) => candidate.id === box.id) || box)
@@ -929,6 +931,7 @@ export default function Canvas() {
     const style = box.textStyle || {};
     const placeholder = !box.body;
     const showSingleSelectionChrome = selected && selectedTextBoxIds.length === 1;
+    const padding = resolveTextBoxPadding(box, DEFAULT_TEXT_BOX);
 
     return (
       <div
@@ -960,10 +963,10 @@ export default function Canvas() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: resolveVerticalAlignment(style),
-            paddingTop: box.paddingTop || DEFAULT_TEXT_BOX.paddingTop,
-            paddingRight: box.paddingRight || DEFAULT_TEXT_BOX.paddingRight,
-            paddingBottom: box.paddingBottom || DEFAULT_TEXT_BOX.paddingBottom,
-            paddingLeft: box.paddingLeft || DEFAULT_TEXT_BOX.paddingLeft,
+            paddingTop: padding.paddingTop,
+            paddingRight: padding.paddingRight,
+            paddingBottom: padding.paddingBottom,
+            paddingLeft: padding.paddingLeft,
             textAlign: style.align || 'center',
             color: placeholder ? PLACEHOLDER_TEXT_COLOR : style.color || DEFAULT_TEXT_COLOR,
             fontSize: style.size || DEFAULT_TEXT_STYLE.size,
