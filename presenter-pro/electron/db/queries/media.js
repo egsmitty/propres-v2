@@ -1,9 +1,15 @@
 function getMedia(db) {
-  return db.prepare('SELECT * FROM media ORDER BY created_at DESC').all();
+  // Second-resolution created_at ties need a tie-breaker or order flips
+  // between calls (MAIN-B16).
+  return db.prepare('SELECT * FROM media ORDER BY created_at DESC, id DESC').all();
 }
 
 function getMediaFolders(db) {
-  return db.prepare('SELECT * FROM media_folders ORDER BY lower(name) ASC, created_at ASC').all();
+  // id ASC is a free extra tie-breaker for the rare case two folders share
+  // both name and created_at second (MAIN-B16).
+  return db
+    .prepare('SELECT * FROM media_folders ORDER BY lower(name) ASC, created_at ASC, id ASC')
+    .all();
 }
 
 function createMediaFolder(db, { name }) {

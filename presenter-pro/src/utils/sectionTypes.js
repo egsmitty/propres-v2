@@ -1,4 +1,4 @@
-import { SECTION_COLORS } from '@/utils/backgrounds';
+import { SECTION_COLORS } from '@/utils/sectionColors';
 
 // ── Song slide section types ──────────────────────────────────────────────────
 

@@ -72,16 +72,25 @@ function timestampOf(file: string): string {
 }
 
 /**
- * Delete the oldest backups so that after the new one is written at most
- * `keep` remain. Removes oldest-first.
+ * Delete the oldest backups so that at most `keep` remain. Removes
+ * oldest-first.
+ *
+ * MUST be called AFTER the new backup has been written (MAIN-B13): the real
+ * `BackupStore.list()` (`electron/db/migrations.js`) reads the backup
+ * directory live via `fs.readdirSync`, so by the time this runs the
+ * just-written file is already present in `list()` and needs no reserved
+ * slot — `keep` is the total to retain, full stop. Pruning BEFORE the write
+ * (the old order) meant a failed write — disk full, permissions — had
+ * already deleted older backups it could not replace, leaving fewer backups
+ * than before the run at exactly the moment a migration was about to run.
  */
 function pruneBackups(store: BackupStore, keep: number): void {
-  const retainExisting = Math.max(0, keep - 1);
+  const retain = Math.max(0, keep);
   const existing = store
     .list()
     .filter((file) => timestampOf(file) !== '')
     .sort((a, b) => timestampOf(b).localeCompare(timestampOf(a))); // newest first
-  const stale = existing.slice(retainExisting).reverse(); // oldest first
+  const stale = existing.slice(retain).reverse(); // oldest first
   for (const file of stale) store.remove(file);
 }
 
@@ -94,10 +103,12 @@ function pruneBackups(store: BackupStore, keep: number): void {
  *     sqlite_master); otherwise none. Nothing is written yet.
  *  3. Compute pending. Nothing pending → return with ZERO writes: no table
  *     creation, no backup.
- *  4. Prune old backups, then back up the still-untouched database
- *     (`VACUUM INTO`, consistent under WAL because it reads through a normal
- *     transaction — unlike copying the file). The backup is therefore exactly
- *     what the user had, with no trace of this system in it.
+ *  4. Back up the still-untouched database first (`VACUUM INTO`, consistent
+ *     under WAL because it reads through a normal transaction — unlike
+ *     copying the file), THEN prune old backups. The backup is therefore
+ *     exactly what the user had, with no trace of this system in it — and a
+ *     failed backup write (disk full, permissions) never costs an older
+ *     backup that was pruned to make room for it (MAIN-B13).
  *  5. Ensure `schema_migrations` exists.
  *  6. For each pending migration, in one transaction: run `up`, then record
  *     the version. A throw rolls that transaction back, records nothing for
@@ -138,8 +149,8 @@ export function runMigrations(
 
   const timestamp = now();
   const backupPath = `${options.backupDir}/presenterpro.backup-v${currentVersion(appliedVersions)}-${fileSafeTimestamp(timestamp)}.db`;
-  pruneBackups(options.backups, keep);
   db.exec(`VACUUM INTO ${sqlString(backupPath)}`);
+  pruneBackups(options.backups, keep);
 
   db.exec(ENSURE_TABLE_SQL);
 

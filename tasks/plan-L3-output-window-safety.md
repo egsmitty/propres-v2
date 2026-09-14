@@ -71,10 +71,16 @@ charter row, the notes entry. **May not** change `OutputRenderer.test.tsx`,
   up, so the correct assertion is that the same root is observed **again**
   (count 1 → 2). On the old code it is observed 0 times.
 - [x] 2. Implement Decisions 1–6 (anchored, exact-once replacements).
-- [ ] 3. The three new files green; `OutputRenderer.test.tsx`,
+- [x] 3. The three new files green; `OutputRenderer.test.tsx`,
   `settingsModalsEscape.test.tsx`, `escapeConsumed.test.tsx`,
-  `inlineStyleBudget.test.ts` unchanged and green.
-- [ ] 4. `npm run gate` (coverage-enforced) + `npm run format:check`.
+  `inlineStyleBudget.test.ts` unchanged and green. Re-run after merging `main`
+  @ `bc74550` (L2 squashed, D1/D3/DB1/H1/ED1/S1 landed): the L0–L3 key, Escape,
+  output and lifecycle suites → 180 / 180 across 17 files.
+- [x] 4. `npm run gate` (coverage-enforced) + `npm run format:check` on the merged
+  branch → `vitest 765/765 passed`, format ✓. The merge conflicted only where
+  `main` added lines next to L3's (`main/firstRunSeed` beside
+  `main/presentationWindows` in `electron.vite.config.js`; the `firstRunSeed`
+  require beside the `presentationWindows` require in `index.js`) — both kept.
 - [ ] 5. Manual verification — **packaged or dev build, two displays** (owed to
   Ethan, standing rule 7): (a) present, open Output Settings, Cancel / Save /
   Esc → the projector stays up and the editor stays LIVE; (b) the preview

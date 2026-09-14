@@ -54,7 +54,45 @@ export function renderOutline(box: TextBoxStyle): string {
 
 export function renderShadow(box: TextBoxStyle): string {
   if (!box.shadowEnabled) return 'none';
-  return `${box.shadowOffsetX || 0}px ${box.shadowOffsetY || 10}px ${Math.max(2, box.shadowBlur || 18)}px ${box.shadowColor || 'rgba(0,0,0,0.35)'}`;
+  // `??`, not `||`: an explicit 0 offset or blur is a real value a user chose
+  // and must survive, not be silently replaced by the default (ED-18).
+  // shadowColor stays on `||` — an explicit '' is not a meaningful CSS value
+  // to keep, unlike a numeric 0.
+  return `${box.shadowOffsetX ?? 0}px ${box.shadowOffsetY ?? 10}px ${Math.max(2, box.shadowBlur ?? 18)}px ${box.shadowColor || 'rgba(0,0,0,0.35)'}`;
+}
+
+/** The four resolved padding values, in pixels, native-scale. */
+export interface TextBoxPadding {
+  paddingTop: number;
+  paddingRight: number;
+  paddingBottom: number;
+  paddingLeft: number;
+}
+
+/** A box's own (possibly absent, possibly explicitly 0) padding fields. */
+export interface TextBoxPaddingSource {
+  paddingTop?: number | null;
+  paddingRight?: number | null;
+  paddingBottom?: number | null;
+  paddingLeft?: number | null;
+}
+
+/**
+ * Resolves each padding side independently against `fallback`. An explicit 0
+ * is a real value a user chose and is kept; only `undefined`/`null` falls
+ * back to the default (ED-18) — `box.paddingTop || fallback.paddingTop` could
+ * never keep an explicit 0.
+ */
+export function resolveTextBoxPadding(
+  box: TextBoxPaddingSource | null | undefined,
+  fallback: TextBoxPadding
+): TextBoxPadding {
+  return {
+    paddingTop: box?.paddingTop ?? fallback.paddingTop,
+    paddingRight: box?.paddingRight ?? fallback.paddingRight,
+    paddingBottom: box?.paddingBottom ?? fallback.paddingBottom,
+    paddingLeft: box?.paddingLeft ?? fallback.paddingLeft,
+  };
 }
 
 export function renderTextDecoration(style: TextBoxStyle | null | undefined): string {

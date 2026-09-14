@@ -42,11 +42,14 @@ describe('saveFromEditor', () => {
     expect(updatePresentation).toHaveBeenCalledTimes(0);
   });
 
-  it('still shows the Save Failed alert it showed before (characterization)', async () => {
+  it('does not alert a second time, because saveCurrentPresentation reports failures itself', async () => {
+    // BEHAVIOUR CHANGE (plan D1, audit SAVE-A8). This used to pin the editor's
+    // own "Save Failed" alert. The alert now lives in saveCurrentPresentation, so
+    // File ▸ Save and ⌘S report failures too; alerting here as well would show
+    // the same failure twice. Fails on the old code (one alert), passes on the new.
     vi.mocked(saveCurrentPresentation).mockResolvedValue({ success: false, error: 'db locked' });
     await saveFromEditor({ presentation: { id: 7 }, isDirty: true, requiresInitialSave: false });
 
-    expect(alertDialog).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(alertDialog).mock.calls[0]![0]).toBe('db locked');
+    expect(alertDialog).toHaveBeenCalledTimes(0);
   });
 });

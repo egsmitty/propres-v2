@@ -1,5 +1,10 @@
 function getSongs(db) {
-  return db.prepare('SELECT * FROM songs ORDER BY title ASC').all().map(parse);
+  // COLLATE NOCASE: plain byte-order ASC put "amazing love" after "Zion"
+  // (SONG-16). id ASC keeps case-insensitive-equal titles in creation order.
+  return db
+    .prepare('SELECT * FROM songs ORDER BY title COLLATE NOCASE ASC, id ASC')
+    .all()
+    .map(parse);
 }
 
 function getSong(db, id) {

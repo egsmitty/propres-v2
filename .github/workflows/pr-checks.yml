@@ -31,21 +31,25 @@ jobs:
     name: Gate (type-check, lint, test)
     if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: presenter-pro/package-lock.json
 
-      # --ignore-scripts skips the electron-rebuild postinstall, which compiles
-      # better-sqlite3 natively. Unit tests never load better-sqlite3 (see
-      # .cursor/rules/testing-standards.mdc "Mechanics"), so rebuilding it here
-      # would cost minutes for nothing. The build job below does a full install.
+      # --ignore-scripts skips Electron's own postinstall binary download —
+      # the unit/lint/type-check steps below never launch Electron. There is
+      # no native-module rebuild to skip: better-sqlite3 ships N-API prebuilds
+      # (package.json's `build.npmRebuild` is `false`, and there is no
+      # postinstall script), so neither this install nor the full installs
+      # below ever compile it. The build job below installs in full because it
+      # needs the Electron binary itself to run `electron-vite build`.
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
@@ -59,29 +63,39 @@ jobs:
       - name: Prettier check
         run: npm run format:check
 
+      # Fails the job on any high/critical advisory in production dependencies.
+      # Dev-only deps are excluded (never shipped); this is a fast, offline-ish
+      # check, not a substitute for the release pipeline's own scrutiny.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
   build:
     name: Build (${{ matrix.os }})
     if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        # PresenterPro ships on both platforms and has had platform-specific
-        # breakage before, so both are smoke-built on every PR.
-        os: [macos-latest, windows-latest]
+        # Windows-only: this job is a smoke build (no native rebuild, no
+        # packaging — see the install comment below). E2E already builds and
+        # runs the app on macOS on every PR, so a macOS entry here would only
+        # duplicate that build, not add coverage.
+        os: [windows-latest]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: presenter-pro/package-lock.json
 
-      # Full install here: the native better-sqlite3 rebuild is exactly what we
-      # want to smoke-test on each platform.
+      # Full install here: this job needs the real Electron binary to run
+      # `electron-vite build` as a platform smoke test. There is still no
+      # native-module rebuild involved (see the gate job's install comment).
       - name: Install dependencies
         run: npm ci
 
@@ -95,6 +109,7 @@ jobs:
     needs: [gate, build]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # This job checks out nothing, so the workflow-level
     # `working-directory: presenter-pro` would point at a directory that does
     # not exist and bash would fail to start. Run from the workspace root.

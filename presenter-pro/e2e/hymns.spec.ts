@@ -45,9 +45,12 @@ test.describe('built-in hymns', () => {
       await closeApp(first, { keepUserData: true });
     }
 
-    // Note: a fresh profile also contains the main process's SAMPLE song titled
-    // "Amazing Grace" (electron/main/index.js seed(), unkeyed). Duplicates are
-    // therefore detected by total row count and by key, never by title.
+    // Note: earlier builds also seeded a main-process SAMPLE song titled
+    // "Amazing Grace" (electron/main/index.js seed(), unkeyed). As of plan S1
+    // (SONG-28/SONG-4), seed() inserts no `songs` rows at all — the sample
+    // presentation's text is inline, not copied from a song row — so no such
+    // row exists any more. Duplicates are still detected by total row count
+    // and by key, never by title, since that remains the correct invariant.
     const countSongs = () => query<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM songs')[0]!.n;
     const songsBefore = countSongs();
 
