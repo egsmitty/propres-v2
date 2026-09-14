@@ -2683,3 +2683,31 @@ copyrighted) and had passed every run since, because CI allows
 `maxDiffPixelRatio: 0.01` and a changed song list in small text stays under 1 %
 of the frame. The corrected baseline is committed with this slice; the
 tolerance itself is a CI item, not this plan's.
+
+---
+
+## ED36 slice 2 — the projector draws through the one renderer (2026-09-14)
+
+**What changed.** The output window no longer has its own text layer. It draws
+its slide through the same `SlideRender` every preview uses, so the wall and
+the thumbnails cannot disagree. Two things the projector owns stay its own:
+it resolves the background from the live payload against its own copy of the
+library and pins the object by id — that is what keeps a video background
+playing across the slides of one section — so it hands the renderer the item
+already resolved, and its `<video>`/`<img>` element (with its "Missing media
+file" notice) is drawn by the projector's own component through the
+renderer's `renderBackground` hook. A unit test now asserts the `<video>` DOM
+node is the same node after the next slide with the same background; a media
+slide whose file is gone draws nothing on the wall, as before.
+
+**Proof.** The fidelity E2E now includes the projector: the same seeded slide,
+measured in the editor's thumbnail, the presenter's live preview and grid,
+and the output window, must have identical computed styles, identical wrapped
+line counts and the same native geometry within a pixel. Expected pixel
+change on the wall: none for the seeded content (no user shadow, no media);
+the recapture run says whether that held.
+
+**Worth knowing.** The projector's slide payload has no presentation: the
+presenter flow stamps the aspect fields and the effective background id onto
+the slide, which is why the renderer is given `presentation={slide}`. The
+old text layer, kept for one slice as `OutputSlideText.jsx`, is deleted.

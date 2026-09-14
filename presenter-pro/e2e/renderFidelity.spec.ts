@@ -30,7 +30,8 @@ import type { Page } from '@playwright/test';
 /** Native-space geometry may differ by sub-pixel rounding only. */
 const GEOMETRY_TOLERANCE_PX = 1;
 
-/** The sites compared in this slice; the reference is the first. */
+/** The editor-window sites compared; the reference is the first. The projector
+ *  (`output`, in its own window) is added in the test body — slice 2. */
 const SITES = ['thumbnail', 'presenter-live', 'presenter-grid'] as const;
 
 interface BoxFacts {
@@ -135,13 +136,24 @@ test.describe('render fidelity', () => {
   test('the same slide has the same boxes, styles and line count at every site', async ({
     launched,
   }) => {
-    const { window: page } = launched;
+    const { app, window: page } = launched;
     await openSeededPresentation(page);
 
     const measured = new Map<string, SiteFacts>();
     for (const site of SITES) {
       measured.set(site, await measureSite(page, site));
     }
+
+    // Slice 2: the projector. Listen for the window BEFORE pressing F5 (plan
+    // E2E1), then wait for the live banner — the presenting flag flips only
+    // after the output window's ready handshake.
+    const opened = app.waitForEvent('window', { timeout: 15_000 });
+    await page.keyboard.press('F5');
+    const output = await opened;
+    await output.waitForLoadState('domcontentloaded');
+    await expect(page.getByText(/^Presenting/)).toBeVisible({ timeout: 15_000 });
+    measured.set('output', await measureSite(output, 'output'));
+
     const reference = measured.get(SITES[0])!;
 
     // Structural floor: the seeded first slide has one box with four lines of
@@ -151,7 +163,9 @@ test.describe('render fidelity', () => {
     expect(reference.boxes).toHaveLength(1);
     expect(reference.boxes[0]!.lines).toBeGreaterThanOrEqual(2);
 
-    for (const site of SITES.slice(1)) {
+    const others = [...SITES.slice(1), 'output'];
+    expect(others).toHaveLength(3);
+    for (const site of others) {
       const facts = measured.get(site)!;
       expect(facts.scale, site).toBeGreaterThan(0);
       // Exact: the same number of boxes, in the same order, with identical
