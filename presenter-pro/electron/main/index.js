@@ -15,7 +15,11 @@ const { FIRST_RUN_PRESENTATION } = require('./firstRunSeed');
 const { createIpcRegistry } = require('./ipcRegistry');
 const { isSafeBuiltInMediaAssetName } = require('./mediaAssetSafety');
 const { buildNativeMenuTemplate } = require('./nativeMenu');
-const { createDisplaySleepBlocker, outputWindowOptions } = require('./presentationWindows');
+const {
+  createDisplaySleepBlocker,
+  outputWindowOptions,
+  shouldApplyRefresh,
+} = require('./presentationWindows');
 const { isAllowedNavigation } = require('./navigationPolicy');
 const { describeStartupFailure } = require('./startupFailure');
 const fs = require('fs');
@@ -1246,6 +1250,8 @@ function registerIpcHandlers() {
     return { success: true };
   });
   ipc.handle('output:refreshSlide', (_, { slide, background }) => {
+    // A refresh repaints only the slide that is live (plan L4, audit LIVE-A3).
+    if (!shouldApplyRefresh(currentStageSlide, slide)) return { success: true };
     currentStageSlide = slide || null;
     currentStageBackground = background || null;
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background });

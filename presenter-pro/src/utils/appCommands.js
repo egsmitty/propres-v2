@@ -32,6 +32,7 @@ import {
 } from '@/utils/presentationCommands';
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
 import { resolveBlockingEditors } from '@/utils/blockingEditors';
+import { confirmStopBeforeLeaving } from '@/utils/leaveWhilePresenting';
 import { alertDialog, confirmDialog } from '@/utils/dialog';
 
 export async function runAppCommand(command) {
@@ -41,11 +42,15 @@ export async function runAppCommand(command) {
 
   switch (command) {
     case 'file:new':
-      // Plan D3: an open song editor holds its edits outside the editor store.
+      // Plan D3: an open song editor holds its edits outside the editor store —
+      // asked first, so a declined song dialog never follows a stopped service.
       if (!(await resolveBlockingEditors())) return false;
+      // Never switch decks with a presentation live (plan L4, audit LIVE-A6).
+      if (!(await confirmStopBeforeLeaving('start a new presentation'))) return false;
       return createNewPresentation();
     case 'file:open':
       if (!(await resolveBlockingEditors())) return false;
+      if (!(await confirmStopBeforeLeaving('open another presentation'))) return false;
       appState.setHomeTab('open');
       appState.setCurrentView('home');
       return true;
@@ -61,6 +66,7 @@ export async function runAppCommand(command) {
       return true;
     case 'file:close': {
       if (!(await resolveBlockingEditors())) return false;
+      if (!(await confirmStopBeforeLeaving('close this presentation'))) return false;
       const canClose = await resolveUnsavedChanges({
         presentation: editorState.presentation,
         isDirty: editorState.isDirty,

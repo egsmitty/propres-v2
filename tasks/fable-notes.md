@@ -2402,6 +2402,37 @@ renderer restructure.
 
 ---
 
+## L4 — the "presenter session in main" rewrite wasn't needed (2026-09-13)
+
+Audit items LIVE-A6, A4, A3 and A7.
+
+**The audit's first draft routed all four of these through a rewrite** — move
+the presenter session into the main process, with an ordered command queue. Its
+own verification pass found each had a small fix in the existing code, and that
+is what this is. The rewrite stays deferred; nothing here needed it.
+
+**Leaving the deck was the dangerous one.** File ▸ Open, File ▸ Close, File ▸
+New and the Home button all switched away with a presentation still live. The
+Editor unmounted, taking the presenter keys with it, the projector froze on its
+last slide — and opening another deck synced *that* deck's slides into the live
+session, so the next Space sent its first slide to the congregation. Quitting
+already asked "Stop presenting?"; every other way of leaving now asks the same
+question through one helper.
+
+**Two index bugs, one cause each.** The panel's live index lagged a render
+behind the IPC round trip, so a double-tap on a clicker read the old index twice
+and re-sent the same slide. And when the live slide was deleted its index became
+-1, and "next" sent `slides[0]` — slide 1 of the whole service. The panel now
+marks a slide live before the round trip, and remembers where the live slide
+was: next shows the slide that took its place.
+
+**The race needed a check in main, not a queue.** A refresh that lands after an
+advance could repaint the previous slide over the new one. Main already knows
+which slide is live, so it now ignores a refresh for any other slide — a pure,
+tested predicate beside L3's window options.
+
+---
+
 ## V1 — version history edge cases (2026-09-14)
 
 Three small, independent fixes, none touching stored data or the IPC seam.
