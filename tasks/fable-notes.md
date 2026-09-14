@@ -2280,6 +2280,90 @@ reported success.
 
 ---
 
+## ED2 — `&` no longer turns into `&amp;amp;` after every edit (2026-09-14)
+
+**What was wrong.** Type "Praise & Worship" into a slide, click away, click back:
+the canvas, the thumbnail and the projector read `Praise &amp; Worship`, and each
+further edit added another `amp;`. The editor saves its element's `innerHTML`,
+which spells the ampersand as `&amp;` and has no tags. `slideBodyToHtml` treats
+a body with no tags as raw text and escapes it — escaping the already-escaped
+ampersand. The seed/save loop did the rest. The stage display was worse still:
+`slideBodyToPlainText` stripped tags but never decoded anything, so it showed
+the entity from the first save on. For a worship app, "Praise & Worship" is not
+an edge case.
+
+**What changed.** A body without tags is decoded once and then escaped. Raw text
+("Rock & Roll", from seeds and imports) and editor HTML ("Praise &amp; Worship")
+now render the same, and a seed/save cycle stores exactly what it read. Plain
+text decodes once, after the tags are gone. Bodies with real markup take the
+same path as before.
+
+**Worth knowing.** The decode is a single pass on purpose: `&amp;amp;` becomes
+`&amp;`, not `&`. A slide whose text genuinely reads "&amp;" has to keep it, and
+running the decode to a fixed point would eat it. The same reason means rows the
+bug already damaged stop growing but keep their one extra `&amp;`; repairing
+stored text is the storage-format plan the audit keeps for [F]. And the decode
+happens after the tags are stripped, so a typed "<b>" can never be mistaken for
+one.
+
+---
+
+## SEC1 — no window can be tricked into opening or navigating somewhere else, and built-in media names can't escape their folder (2026-09-14)
+
+Two small, unrelated hardening items from the whole-app audit
+(`tasks/fable-pass-2-audit.md`, local): SEC-1 and SEC-3. Both P3 [S], neither
+fixing a proven exploit — this is defense in depth.
+
+**SEC-1.** The audit's original write-up described a data-loss scenario (a
+dropped file could navigate the window away and discard unsaved work) but its
+own re-verification pass found that wrong: Electron's `navigateOnDragDrop`
+defaults to `false` and the main window never sets it, so a drag onto dead
+space already does nothing. What is still true and still worth closing: zero
+`web-contents-created` / `setWindowOpenHandler` / `will-navigate` guards
+existed anywhere in `electron/`. Added one `app.on('web-contents-created', ...)`
+that denies every `window.open` and allow-lists `will-navigate` to exactly two
+things — same-origin as `ELECTRON_RENDERER_URL` when set (so `npm run dev`
+HMR is untouched), or a `file:` URL whose path is the built renderer's
+`index.html` (what the packaged app, `npm run preview`, and Playwright E2E all
+load). Reading all three windows' `loadURL`/`loadFile` call sites mattered
+here: output and stage-display route by URL hash (`#/output`,
+`#/stage-display`), so the allow-list ignores hash/query and compares only
+protocol+host (dev) or protocol+path (file).
+
+**SEC-3.** `resolveBuiltInMediaAssetPath` in `index.js` joined a
+renderer-supplied name straight onto `test-media/` with `path.join`, which
+*collapses* `..` segments instead of rejecting them — `../../../../etc/passwd`
+escaped the directory. The guard is `path.basename(name) !== name` as the
+audit specifies, plus an explicit check for a literal backslash: `path.basename`
+only splits on the *host* platform's separator, so running the suite on
+macOS/Linux CI, `path.basename('..\\evil.png')` (POSIX `path`) leaves the
+string unchanged and would silently let a Windows-style traversal string
+through a basename-only check. Made both separators explicit so the guard's
+behaviour does not depend on which OS runs the test.
+
+Both decisions are pure, Electron-free functions (`navigationPolicy.ts`,
+`mediaAssetSafety.ts`) — `index.js` cannot be imported in a unit test (loads
+`electron`, opens a database at import time), so, same as `closeController.ts`,
+the logic lives outside it and a new source-text wiring test
+(`navigationHardeningWiring.test.ts`, matching `lifecycleListeners.test.ts`'s
+pattern) pins that `index.js` is actually wired to it.
+
+**Findings:** neither item was already fixed on `main`. Both applied exactly
+as scoped; no suspected regression found. 39 new cases (17 + 14 in the two new
+pure-module test files, 8 in the new wiring test file), all 39 red on the old
+code — the wiring file's 8 failed on their assertions against current source
+text; the two pure-module files' 31 failed with "Cannot find module" (the
+sanctioned failure mode for a brand-new module's own tests, per the plan).
+Full existing `electron/main/__tests__/` suite (114/114) unaffected,
+`lifecycleListeners.test.ts` and `rendererLoading.test.ts` unedited. **Owed to
+you:** the navigation allow-list has not been exercised by a running window in
+this session (per instruction — the machine was in use) or by CI's E2E run.
+Confirm CI's E2E (loads `out/renderer/index.html` from disk, the `file:`
+branch) stays green, and that `npm run dev` still HMRs (the `rendererDevUrl`
+branch) — the two allow-list paths a unit test cannot reach.
+
+---
+
 ## L3 — the output window, one congregation-visible failure at a time (2026-09-13)
 
 Audit items LIVE-A1, A2, A8 (partly), A13, A14, A15 and C4.
