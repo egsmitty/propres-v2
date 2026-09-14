@@ -23,6 +23,9 @@ const BUDGET: Record<string, number> = {
   'components/presenter/OutputRenderer.jsx': 13,
   'components/library/SongEditorModal.jsx': 10,
   'pages/Home.jsx': 9,
+  // Plan ED36: every value is computed from the slide (position, size, the
+  // stage transform) — dynamic by definition.
+  'components/shared/SlideRender.jsx': 8,
   'components/editor/PresentationSettingsModal.jsx': 7,
   'components/library/MediaLibraryPanel.jsx': 7,
   'components/shared/Dialog.jsx': 7,
@@ -31,12 +34,11 @@ const BUDGET: Record<string, number> = {
   'components/shared/OnboardingTutorial.jsx': 4,
   'components/editor/OutputSettingsModal.jsx': 3,
   'components/layout/TitleBar.jsx': 3,
-  'components/shared/ScaledSlideText.jsx': 3,
+  'components/presenter/OutputSlideText.jsx': 3,
   'components/editor/FilmstripSlide.jsx': 2,
   'components/editor/SlideTextEditor.jsx': 2,
   'components/presenter/StageDisplayRenderer.jsx': 2,
   'components/shared/ContextMenu.jsx': 2,
-  'components/shared/SlidePreviewSurface.jsx': 2,
   'components/editor/SectionHeader.jsx': 1,
   'components/library/SongCard.jsx': 1,
   'pages/Editor.jsx': 1,

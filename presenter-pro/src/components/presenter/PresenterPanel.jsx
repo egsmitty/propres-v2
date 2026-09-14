@@ -8,7 +8,7 @@ import { startSidebarPresentationSession, stopPresentationSession } from '@/util
 import { getMedia, sendBlack, sendLogo, sendSlide } from '@/utils/ipc';
 import { getSongPartColor, withColorAlpha } from '@/utils/sectionTypes';
 import { getPresentationAspectRatio, getPresentationDimensions } from '@/utils/presentationSizing';
-import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
+import SlideRender from '@/components/shared/SlideRender';
 import { withEffectiveBackground } from '@/utils/backgrounds';
 import { presenterActionForKey } from '@/utils/presenterKeymap';
 import { shouldIgnoreGlobalShortcut } from '@/utils/shortcutGuard';
@@ -407,16 +407,13 @@ export default function PresenterPanel({ onSetOpen }) {
                   <span style={{ color: 'var(--accent)', fontSize: 10 }}>LOGO</span>
                 ) : (
                   <div className="relative w-full h-full">
-                    <SlidePreviewSurface
+                    <SlideRender
                       presentation={presentation}
                       slide={previewSlideWithBackground}
                       sectionId={previewSectionId}
                       mediaLibrary={mediaLibrary}
-                      empty="—"
-                      shadow="none"
-                      minPaddingX={8}
-                      minPaddingY={8}
-                      showPlaceholder={false}
+                      placeholder={false}
+                      site="presenter-live"
                     />
                   </div>
                 )}
@@ -573,15 +570,12 @@ export default function PresenterPanel({ onSetOpen }) {
                           </>
                         ) : null}
                         <div className="absolute inset-0">
-                          <SlidePreviewSurface
+                          <SlideRender
                             presentation={presentation}
                             slide={enriched}
                             sectionId={section.id}
                             mediaLibrary={mediaLibrary}
-                            empty="—"
-                            shadow="none"
-                            minPaddingX={7}
-                            minPaddingY={5}
+                            site="presenter-grid"
                           />
                         </div>
                       </button>
