@@ -2093,3 +2093,37 @@ reason: the slide text appears in two textareas (the slide editor and the
 section's slide list), so the selector threw. The selector was scoped and the
 pair re-proved red by reverting only the one-line fix — a failure is only proof
 when it fails on the assertion.
+
+---
+
+## L2 — four keyboard handlers, four different ideas of "the user is typing" (2026-09-13)
+
+Audit items LIVE-A5, LIVE-C1, LIVE-C2, CMD-B6, CMD-B10, LIVE-B12 and ED-2.
+
+**The bugs were all the same missing question.** The Editor, the presenter
+panel and Canvas each listen on `window`, and each decided for itself whether a
+key was meant for them. Two checked `INPUT`, `TEXTAREA` and contentEditable;
+none counted a `<select>`; none knew a dialog was open; Canvas checked nothing.
+So Backspace in the toolbar's font-size box deleted the selected text box, ↓ in a
+focused `<select>` moved the slide selection, and Space on a dialog button moved
+the projector. One module now answers it for all three.
+
+**Backspace was the worst one, and it was a vocabulary mismatch, not a typo.**
+In this editor Backspace deletes the selected slide; in PowerPoint's Slide Show
+it means *go back*. A volunteer who presses it mid-service expecting the
+previous slide deleted a slide instead — and autosave wrote the deletion. While
+presenting, the Editor now returns nothing for Backspace, Delete, ↑ or ↓, and
+the panel's keymap (copied key-for-key from PowerPoint, including the PageDown /
+PageUp a clicker sends and the `.` many clickers send for "blank") owns
+navigation.
+
+**The Editor's decision is now a pure function**, because the editor cannot be
+mounted in jsdom (Canvas needs measured geometry). Its test table pins every
+existing behaviour row by row, and marks the fixes, so the extraction is
+provably behaviour-preserving everywhere it was meant to be.
+
+**Found and not fixed:** Canvas's Delete/Backspace handler runs in the capture
+phase and calls `stopPropagation()`, so with a text box *selected* (not being
+edited) while presenting, Backspace deletes the box and never reaches the panel.
+That is editing the live deck rather than navigating it, and it belongs with the
+editor work; recorded rather than widened into this plan.
