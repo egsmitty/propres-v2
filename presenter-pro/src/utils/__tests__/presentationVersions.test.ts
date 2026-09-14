@@ -100,6 +100,85 @@ describe('hasDiverged', () => {
   });
 });
 
+describe('presentationContentKey key-order canonicalization (SAVE-B12)', () => {
+  // The content object is rebuilt field-by-field from CONTENT_FIELDS, so its
+  // OWN top-level key order never varies. The bug lives one level down: the
+  // `sections` array is copied through as-is, so a section or slide object
+  // whose keys were inserted in a different order produced a different
+  // JSON.stringify() string for an otherwise identical document.
+  it('produces the same key for two deep-equal documents whose nested objects have different key insertion order', () => {
+    const a = presentation({
+      sections: [
+        {
+          id: 'sec-1',
+          type: 'announcement',
+          title: 'Slides',
+          slides: [
+            { id: 'slide-1', type: 'text', body: 'Welcome' },
+            { id: 'slide-2', type: 'text', body: 'Second' },
+          ],
+        },
+      ],
+    });
+    const b = presentation({
+      sections: [
+        {
+          // Every key present, same values, reverse insertion order.
+          slides: [
+            { body: 'Welcome', type: 'text', id: 'slide-1' },
+            { body: 'Second', type: 'text', id: 'slide-2' },
+          ],
+          title: 'Slides',
+          type: 'announcement',
+          id: 'sec-1',
+        },
+      ],
+    });
+    expect(presentationContentKey(a)).toBe(presentationContentKey(b));
+  });
+
+  it('still differs when the documents truly differ, key order aside', () => {
+    const a = presentation({
+      sections: [{ id: 'sec-1', type: 'announcement', title: 'Slides', slides: [] }],
+    });
+    const b = presentation({
+      // Reversed key order AND a real content difference (title).
+      sections: [{ slides: [], title: 'Different', type: 'announcement', id: 'sec-1' }],
+    });
+    expect(presentationContentKey(a)).not.toBe(presentationContentKey(b));
+  });
+
+  it('preserves array element order — reordering slides is a real difference, not noise', () => {
+    const forward = presentation({
+      sections: [
+        {
+          id: 'sec-1',
+          type: 'announcement',
+          title: 'Slides',
+          slides: [
+            { id: 'slide-1', type: 'text', body: 'First' },
+            { id: 'slide-2', type: 'text', body: 'Second' },
+          ],
+        },
+      ],
+    });
+    const reversed = presentation({
+      sections: [
+        {
+          id: 'sec-1',
+          type: 'announcement',
+          title: 'Slides',
+          slides: [
+            { id: 'slide-2', type: 'text', body: 'Second' },
+            { id: 'slide-1', type: 'text', body: 'First' },
+          ],
+        },
+      ],
+    });
+    expect(presentationContentKey(forward)).not.toBe(presentationContentKey(reversed));
+  });
+});
+
 describe('content key determinism', () => {
   // normalizeTextBox mints uuid() for an id-less box at index > 0 and
   // legacyTextBoxId mints one for an id-less slide (textBoxes.js:120,147), so a

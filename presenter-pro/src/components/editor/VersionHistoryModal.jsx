@@ -4,7 +4,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { listVersionSummaries } from '@/utils/ipc';
 import { confirmDialog } from '@/utils/dialog';
 import { restoreVersion } from '@/utils/presentationVersionsSync';
-import { formatVersionTimestamp } from '@/utils/versionLabels';
+import { formatVersionLabels, formatVersionTimestamp } from '@/utils/versionLabels';
 
 /**
  * Version History (plan A6).
@@ -75,6 +75,11 @@ export default function VersionHistoryModal() {
     ? null
     : ((versions || []).find((v) => v.slide_count === liveSlideCount)?.id ?? null);
 
+  // Computed over the WHOLE list so two rows that would otherwise read
+  // identically (routine under autosave — plan V1, audit SAVE-C6) are
+  // distinguishable from each other, not just individually well-formatted.
+  const versionLabels = formatVersionLabels(versions || [], loadedAt);
+
   async function handleRestore(version) {
     const ok = await confirmDialog(
       `Restore the version from ${formatVersionTimestamp(version.saved_at, loadedAt)}? ` +
@@ -118,7 +123,7 @@ export default function VersionHistoryModal() {
         )}
 
         <ul className="overflow-y-auto flex-1 -mx-1">
-          {(versions || []).map((version) => {
+          {(versions || []).map((version, index) => {
             const isCurrent = version.id === currentId;
             return (
               <li
@@ -128,7 +133,7 @@ export default function VersionHistoryModal() {
               >
                 <div className="min-w-0">
                   <p className="text-[13px] text-text-primary">
-                    {formatVersionTimestamp(version.saved_at, loadedAt)}
+                    {versionLabels[index]}
                     {isCurrent && <span className="ml-2 text-[11px] text-accent">Current</span>}
                   </p>
                   <p className="text-[11px] text-text-secondary">

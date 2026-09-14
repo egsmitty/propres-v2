@@ -2523,3 +2523,89 @@ resolving `ok`); the other 2 already matched old behavior and exist to pin
 that Enter still fires primary when nothing/the primary button has focus —
 they're "keep working" cases, not bug proofs, and the plan says so rather than
 inflating the red count.
+
+---
+
+## V1 — version history edge cases (2026-09-14)
+
+Three small, independent fixes, none touching stored data or the IPC seam.
+
+**SAVE-B12 (content key vs. key order).** `presentationContentKey` rebuilds
+its top-level `content` object field-by-field from `CONTENT_FIELDS`, so that
+object's OWN key order never varies — the actual bug is one level down.
+`content.sections` is the input's `sections` array passed through as-is, and
+each section/slide object inside it keeps whatever key order it arrived
+with. A row freshly read from SQLite and an in-memory object literal for the
+same content can easily disagree on insertion order without disagreeing on
+anything that matters, and `JSON.stringify` is order-sensitive, so the two
+produced different keys. Fixed with a small recursive `canonicalize()` that
+sorts object keys before stringifying and leaves array element order alone
+— reordering slides is a real edit, not formatting noise, so only *object*
+keys get sorted, never array elements. `hasDiverged` and autosave's dirty
+check both call `presentationContentKey` already, so they inherit the fix
+with no code of their own changing.
+
+**SAVE-B13 (stale click-time state after the dialog).** `resolveUnsavedChanges`
+takes `presentation` / `isDirty` / `requiresInitialSave` as parameters, and
+every real caller (`appCommands.js`, `TitleBar.jsx`) captures them from
+`useEditorStore.getState()` right before calling it — then the function
+`await`s a dialog the user might sit on for a while. Nothing re-read the
+store afterward, so a concurrent autosave commit, or the presentation being
+saved/deleted elsewhere, was invisible to the Save/Discard branches that ran
+after the dialog resolved. Fixed by re-reading `useEditorStore.getState()`
+once the dialog resolves — but ONLY trusting it when
+`current.presentation?.id === presentation.id`, i.e. the store is still
+tracking the same document. Without that guard, the existing unit tests
+(which mock the four parameters directly and never touch the real
+`useEditorStore` at all — a legitimate way to call this function, since it
+takes plain parameters, not a hook) broke: the store's default `presentation:
+null` / `requiresInitialSave: false` would silently override whatever the
+test asked for. The guard makes both cases correct: a caller whose store IS
+wired to the same document gets the live values; a caller that isn't (or
+whose document changed) gets exactly what it passed in, unchanged from
+today. Function signature and both real call sites are untouched.
+
+**SAVE-C6 (ambiguous labels), partial as scoped.** Two independent gaps.
+First, `formatVersionTimestamp`'s `days < 7` branch (2-6 days ago) rendered
+a bare date with no time — Today/Yesterday already had a time, so this was
+an inconsistency, not a deliberate simpler mode; fixed by appending the time
+there too. Second, and the more interesting one: even WITH a time on every
+bucket, nothing ever looked at more than one row at once, so two versions
+saved in the same minute — routine under autosave, which can write a
+version every few minutes of active editing — rendered identically with no
+way to tell them apart in the list. That needed a genuinely new function,
+`formatVersionLabels(versions, now)`, which is not something a single-row
+`formatVersionTimestamp` call can produce no matter how it's tuned; it has
+to see the whole list to know which labels collide. That created a real
+TDD tension: a red test against a function that doesn't exist yet fails on
+a `TypeError` before any `expect()` runs, which the task's rules explicitly
+rule out as "not a red" (a selector/import error, not a real assertion
+failure). Resolved by landing a trivial stub first — `versions.map(formatVersionTimestamp)`,
+no de-duplication, functionally identical to "no fix yet" — so the
+collision tests could fail on their actual assertions (two same-minute rows
+producing the same string) against that stub, then replacing the stub with
+the real count-and-append-seconds logic. Recorded here as a reusable
+pattern: when a red test is *for a new function*, scaffold the function's
+skinniest possible passthrough body first so the test's failure mode stays
+meaningful.
+
+`formatVersionLabels` only reaches the screen because
+`VersionHistoryModal.jsx` was rewired to call it once over the whole
+`versions` array and index into the result, instead of calling
+`formatVersionTimestamp` per row with no sibling context. That file isn't
+named in SAVE-C6's "Measured" line (only `versionLabels.ts` is), but the
+fix is inert without it, so it's in scope as wiring, not as a second bug.
+
+**Explicitly not done, per the audit item's own "partial" scope note**: a
+"Before restore" version kind, or any new stored field to support it — both
+need a schema/data change the audit itself defers to a later item, not a
+pure display fix.
+
+**No E2E risk.** `e2e/versionHistory.spec.ts` has no `toHaveScreenshot()`
+call and its one text assertion (`getByText('Current')`) doesn't depend on
+the timestamp label; grepped `e2e/*.spec.ts` for `version-history` /
+`VersionHistoryModal` / `toHaveScreenshot` together to confirm no baseline
+captures a version label. 10 new unit cases (5 fail on the pre-fix code),
+one existing `versionLabels.test.ts` case deliberately behavior-changed
+(it asserted the SAVE-C6 bug itself — "without a time" — now asserts the
+fix; stated in the file). Gate: 647/647.

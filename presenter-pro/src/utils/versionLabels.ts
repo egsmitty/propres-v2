@@ -7,6 +7,11 @@
  */
 
 const TIME = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+const TIME_WITH_SECONDS = new Intl.DateTimeFormat(undefined, {
+  hour: 'numeric',
+  minute: '2-digit',
+  second: '2-digit',
+});
 const WEEKDAY = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
   day: 'numeric',
@@ -36,10 +41,12 @@ function daysAgo(now: number, thenMs: number): number {
 }
 
 /**
- * `Today 9:14 AM` · `Yesterday 4:02 PM` · `Sun 7 Sep` · `7 Sep 2025`
+ * `Today 9:14 AM` · `Yesterday 4:02 PM` · `Sun 7 Sep, 4:02 PM` · `7 Sep 2025`
  *
- * Times only for today and yesterday — beyond that the exact minute is noise,
- * and the day is what someone is actually looking for.
+ * Every bucket except the oldest (a year or more back, where the exact time
+ * is genuinely noise) carries a time, because the day alone is not enough to
+ * tell two versions apart — under autosave, several can land on the same day
+ * (plan V1, audit SAVE-C6; days 2-6 used to drop the time entirely).
  */
 export function formatVersionTimestamp(savedAtSeconds: number, now: number): string {
   const ms = savedAtSeconds * 1000;
@@ -48,6 +55,31 @@ export function formatVersionTimestamp(savedAtSeconds: number, now: number): str
 
   if (days <= 0) return `Today ${TIME.format(date)}`;
   if (days === 1) return `Yesterday ${TIME.format(date)}`;
-  if (days < 7) return WEEKDAY.format(date);
+  if (days < 7) return `${WEEKDAY.format(date)}, ${TIME.format(date)}`;
   return FULL.format(date);
+}
+
+/**
+ * Labels for a WHOLE list of versions at once (plan V1, audit SAVE-C6).
+ * `formatVersionTimestamp` alone renders at minute precision (or, for the
+ * oldest bucket, day precision only), so several restore points captured
+ * close together — routine under autosave — can render as indistinguishable
+ * duplicates: fifty rows all reading "Today 9:14 AM". Any label that collides
+ * with another one in THIS list gets its exact time (with seconds) appended
+ * so the two rows are never identical on screen; a label with no collision is
+ * left untouched.
+ */
+export function formatVersionLabels(
+  versions: ReadonlyArray<{ saved_at: number }>,
+  now: number
+): string[] {
+  const base = versions.map((v) => formatVersionTimestamp(v.saved_at, now));
+  const counts = new Map<string, number>();
+  for (const label of base) counts.set(label, (counts.get(label) ?? 0) + 1);
+
+  return versions.map((v, i) => {
+    const label = base[i]!;
+    if ((counts.get(label) ?? 0) <= 1) return label;
+    return `${label} (${TIME_WITH_SECONDS.format(new Date(v.saved_at * 1000))})`;
+  });
 }

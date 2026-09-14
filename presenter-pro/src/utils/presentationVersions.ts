@@ -57,7 +57,31 @@ function read(source: Fields, field: (typeof CONTENT_FIELDS)[number]): unknown {
 }
 
 /**
- * Stable JSON of the content fields, in `CONTENT_FIELDS` order.
+ * Recursively sort object keys so that two deep-equal values always produce
+ * the same `JSON.stringify()` output regardless of insertion order. Arrays
+ * keep their own order and their elements are canonicalized in place —
+ * reordering an array is a real content difference (slide order), not noise
+ * (plan V1, audit SAVE-B12).
+ */
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(source).sort()) {
+      sorted[key] = canonicalize(source[key]);
+    }
+    return sorted;
+  }
+  return value;
+}
+
+/**
+ * Stable JSON of the content fields, in `CONTENT_FIELDS` order, with every
+ * nested object's keys sorted so that two deep-equal documents whose nested
+ * objects happened to be built with different key insertion order (e.g. one
+ * came from a DB round trip, the other from a fresh `{ id, type, ... }`
+ * literal) still produce the same key (plan V1, audit SAVE-B12).
  *
  * Only valid on a `normalizePresentation`-normalized presentation, and it must
  * be computed on BOTH sides of every comparison — a DB row and its in-memory
@@ -69,7 +93,7 @@ export function presentationContentKey(presentation: unknown): string {
   for (const field of CONTENT_FIELDS) {
     content[field] = read(source, field);
   }
-  return JSON.stringify(content);
+  return JSON.stringify(canonicalize(content));
 }
 
 /**
