@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   runMigrations,
+  NewerSchemaVersionError,
   type MigrationDb,
   type BackupStore,
   type PreparedStatement,
@@ -28,18 +29,43 @@ function normalize(sql: string): string {
   return sql.replace(/\s+/g, ' ').trim();
 }
 
+const VACUUM_INTO_PATTERN = /^VACUUM INTO '(.+)'$/;
+
 /**
  * @param applied versions already recorded. The tracking table is reported as
  *   present when this is non-empty (a fresh or legacy database has neither).
+ * @param existingBackups backup files present before the run.
+ * @param options.failBackup makes the `VACUUM INTO` statement throw, as a
+ *   real disk-full/permission failure would — everything else still runs.
  */
-function createFake(applied: number[], existingBackups: string[] = []): Fake {
+function createFake(
+  applied: number[],
+  existingBackups: string[] = [],
+  options: { failBackup?: boolean } = {}
+): Fake {
   const log: string[] = [];
   const removed: string[] = [];
   const trackingTableExists = applied.length > 0;
+  // Mirrors the real BackupStore (electron/db/migrations.js), whose list()
+  // is `fs.readdirSync` — it reflects the directory live, including a
+  // backup this same run just wrote. A fake that returns a fixed array
+  // regardless of what `exec` does would hide an off-by-one in the prune
+  // arithmetic (MAIN-B13) once backup-then-prune is the order.
+  const backupFiles = existingBackups.slice();
 
   const db: MigrationDb = {
     exec(sql) {
-      log.push(`exec:${normalize(sql)}`);
+      const normalized = normalize(sql);
+      const vacuumMatch = VACUUM_INTO_PATTERN.exec(normalized);
+      if (vacuumMatch) {
+        if (options.failBackup) {
+          throw new Error('disk full');
+        }
+        log.push(`exec:${normalized}`);
+        backupFiles.push(vacuumMatch[1]!);
+        return;
+      }
+      log.push(`exec:${normalized}`);
     },
     prepare(sql): PreparedStatement {
       const text = normalize(sql);
@@ -75,9 +101,11 @@ function createFake(applied: number[], existingBackups: string[] = []): Fake {
 
   const backups = {
     removed,
-    list: () => existingBackups.slice(),
+    list: () => backupFiles.slice(),
     remove: (file: string) => {
       removed.push(file);
+      const index = backupFiles.indexOf(file);
+      if (index >= 0) backupFiles.splice(index, 1);
       log.push(`remove:${file}`);
     },
   };
@@ -217,6 +245,30 @@ describe('runMigrations', () => {
     expect(fake.log).not.toContain('up:3');
   });
 
+  it('does not prune existing backups when the backup write fails, and the error still propagates (MAIN-B13)', () => {
+    // Four existing backups exceeds the default keep=3, so this must actually
+    // prune something if prune ever runs — a 2-backup fixture would pass
+    // vacuously (nothing to prune either way) and prove nothing.
+    const existing = [
+      `${BACKUP_DIR}/presenterpro.backup-v1-20260101T000000Z.db`,
+      `${BACKUP_DIR}/presenterpro.backup-v1-20260201T000000Z.db`,
+      `${BACKUP_DIR}/presenterpro.backup-v1-20260301T000000Z.db`,
+      `${BACKUP_DIR}/presenterpro.backup-v1-20260401T000000Z.db`,
+    ];
+    const fake = createFake([1], existing, { failBackup: true });
+    let thrown: unknown;
+    try {
+      run(fake, [migration(1, fake.log), migration(2, fake.log)]);
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe('disk full');
+    // The two pre-existing backups must still be there — pruning must not
+    // run ahead of a backup write that never succeeded.
+    expect(fake.backups.removed).toEqual([]);
+  });
+
   it('prunes old backups so at most 3 remain after the new one is written', () => {
     const existing = [
       `${BACKUP_DIR}/presenterpro.backup-v1-20260101T000000Z.db`,
@@ -232,5 +284,28 @@ describe('runMigrations', () => {
       `${BACKUP_DIR}/presenterpro.backup-v1-20260101T000000Z.db`,
       `${BACKUP_DIR}/presenterpro.backup-v1-20260201T000000Z.db`,
     ]);
+  });
+
+  // MAIN-B12: a database written by a newer build (a recorded version above
+  // anything this build's migration list knows) must be refused, not silently
+  // accepted as "nothing pending".
+  it('refuses a database newer than any known migration, before any backup or migration runs', () => {
+    const fake = createFake([1, 2, 3, 4, 5, 6]);
+    let thrown: unknown;
+    try {
+      run(fake, [migration(1, fake.log), migration(2, fake.log)]);
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(NewerSchemaVersionError);
+    expect((thrown as Error).message).toContain('created by a newer version of PresenterPro');
+    // Exhaustive: nothing was written — no backup, no DDL, no migration ran.
+    expect(fake.log).toEqual([]);
+  });
+
+  it('does not refuse when the recorded version exactly equals the highest known migration', () => {
+    const fake = createFake([1, 2]);
+    const result = run(fake, [migration(1, fake.log), migration(2, fake.log)]);
+    expect(result).toEqual({ applied: [], backupPath: null });
   });
 });

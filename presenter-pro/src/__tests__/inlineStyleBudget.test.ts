@@ -28,7 +28,7 @@ const BUDGET: Record<string, number> = {
   'components/shared/Dialog.jsx': 7,
   'components/layout/MenuBar.jsx': 5,
   'components/shared/ErrorBoundary.jsx': 5,
-  'components/shared/OnboardingTutorial.jsx': 5,
+  'components/shared/OnboardingTutorial.jsx': 4,
   'components/editor/OutputSettingsModal.jsx': 3,
   'components/layout/TitleBar.jsx': 3,
   'components/shared/ScaledSlideText.jsx': 3,
