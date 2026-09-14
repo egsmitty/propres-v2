@@ -15,6 +15,7 @@ const { FIRST_RUN_PRESENTATION } = require('./firstRunSeed');
 const { createIpcRegistry } = require('./ipcRegistry');
 const { buildNativeMenuTemplate } = require('./nativeMenu');
 const { createDisplaySleepBlocker, outputWindowOptions } = require('./presentationWindows');
+const { describeStartupFailure } = require('./startupFailure');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
@@ -539,6 +540,28 @@ function seed(db) {
 
     db.prepare("INSERT INTO settings (key, value) VALUES ('initialized', 'true')").run();
   })();
+}
+
+// ─── Startup Failure ─────────────────────────────────────────────────────────
+
+// MAIN-B1: a database that could not be opened or migrated rejected the
+// whenReady chain with nothing listening — no window, no message, and the
+// process idled in the dock. Say what happened and where the library is, then
+// exit. `finally`: the process must exit even if the dialog itself throws.
+function handleStartupFailure(error) {
+  console.error('[main] startup failed:', error);
+  let userDataPath = '';
+  try {
+    userDataPath = app.getPath('userData');
+  } catch (pathError) {
+    console.error('[main] could not resolve the userData folder:', pathError);
+  }
+  const { title, message } = describeStartupFailure(error, { userDataPath });
+  try {
+    dialog.showErrorBox(title, message);
+  } finally {
+    app.exit(1);
+  }
 }
 
 // ─── Window Creation ─────────────────────────────────────────────────────────
@@ -1362,20 +1385,23 @@ if (!gotSingleInstanceLock) {
     console.error('[main] child process gone:', details?.type, details?.reason);
   });
 
-  app.whenReady().then(() => {
-    const dockIconPath = resolveRuntimeAssetPath('public', 'icons', 'app-icon.png');
-    if (process.platform === 'darwin' && dockIconPath && app.dock?.setIcon) {
-      app.dock.setIcon(dockIconPath);
-    }
-    registerMediaProtocol();
-    const db = getDb();
-    runMigrations(db);
-    syncMediaCanonicalPaths(db);
-    seed(db);
-    registerIpcHandlers();
-    buildNativeMenu();
-    createMainWindow();
-  });
+  app
+    .whenReady()
+    .then(() => {
+      const dockIconPath = resolveRuntimeAssetPath('public', 'icons', 'app-icon.png');
+      if (process.platform === 'darwin' && dockIconPath && app.dock?.setIcon) {
+        app.dock.setIcon(dockIconPath);
+      }
+      registerMediaProtocol();
+      const db = getDb();
+      runMigrations(db);
+      syncMediaCanonicalPaths(db);
+      seed(db);
+      registerIpcHandlers();
+      buildNativeMenu();
+      createMainWindow();
+    })
+    .catch(handleStartupFailure);
 }
 
 // Without this listener the window `close` handler's preventDefault() silently
