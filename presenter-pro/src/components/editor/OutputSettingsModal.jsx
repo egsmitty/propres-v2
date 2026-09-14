@@ -141,8 +141,9 @@ export default function OutputSettingsModal() {
       e.preventDefault();
       void latestHandleClose.current();
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    // Capture phase: consumed before the Editor's stop-presenting listener (L1).
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [latestHandleClose]);
 
   async function handleSave() {
