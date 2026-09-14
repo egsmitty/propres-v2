@@ -5,6 +5,7 @@ import { act, render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('@/utils/appCommands', () => ({ runAppCommand: vi.fn() }));
 
+import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
 import MenuBar from '@/components/layout/MenuBar';
 
@@ -31,8 +32,15 @@ function revertItem(): HTMLButtonElement {
   return screen.getByRole('button', { name: /Revert to Last Save/ }) as HTMLButtonElement;
 }
 
+const APP_INITIAL = useAppStore.getState();
+
 beforeEach(() => {
   useEditorStore.setState(INITIAL_STATE, true);
+  useAppStore.setState(APP_INITIAL, true);
+  // Every case here describes the editor's menu bar. Since plan CMDS1 the
+  // menu reads the command registry, whose editor-only rules also require
+  // the editor view (audit CMD-B4), so the view is part of the seed state.
+  useAppStore.setState({ currentView: 'editor' });
   vi.clearAllMocks();
 });
 
@@ -96,5 +104,97 @@ describe('File ▸ Revert to Last Save', () => {
     // A store write outside act() does not flush the re-render in React 19.
     act(() => useEditorStore.setState({ requiresInitialSave: false }));
     expect(revertItem()).toBeEnabled();
+  });
+});
+
+// Plan CMDS1, Todo 5: the whole menu bar, pinned BEFORE it is generated from
+// the command registry. Every menu, every row, in order, with its shortcut
+// text; a divider is '---'. Written against the hand-listed MENUS and kept
+// green by the registry — except the one deliberate change named in Todo 6.
+describe('every menu, every row, in order (plan CMDS1 pin)', () => {
+  type Row = '---' | [label: string, shortcut: string];
+
+  function openMenu(name: string): Row[] {
+    fireEvent.click(screen.getByRole('button', { name }));
+    const dropdown = document.querySelector('.absolute.top-full');
+    if (!dropdown) throw new Error(`the ${name} menu did not open`);
+    const rows = Array.from(dropdown.children).map((child): Row => {
+      if (child.tagName !== 'BUTTON') return '---';
+      const spans = child.querySelectorAll('span');
+      return [spans[0]?.textContent ?? '', spans[1]?.textContent ?? ''];
+    });
+    fireEvent.click(screen.getByRole('button', { name }));
+    return rows;
+  }
+
+  it('for a clean, saved, open presentation', () => {
+    useEditorStore.setState({ presentation: PRESENTATION, isDirty: false });
+    render(<MenuBar />);
+    const menus = ['File', 'Insert', 'Edit', 'View', 'Present', 'Help'].map((name) => [
+      name,
+      openMenu(name),
+    ]);
+    expect(menus).toEqual([
+      [
+        'File',
+        [
+          ['New Presentation', 'Ctrl+N'],
+          ['Open…', 'Ctrl+O'],
+          ['Save', 'Ctrl+S'],
+          ['Save As…', 'Ctrl+Shift+S'],
+          ['Revert to Last Save', ''],
+          ['Version History…', ''],
+          '---',
+          // The one deliberate change (plan CMDS1 Todo 6): Close now shows
+          // the ⌘W / Ctrl+W the native menu always had.
+          ['Close', 'Ctrl+W'],
+        ],
+      ],
+      [
+        'Insert',
+        [
+          ['New Slide', 'Ctrl+M'],
+          '---',
+          ['Song', ''],
+          ['Media', ''],
+          ['Announcement', ''],
+          ['Sermon', ''],
+        ],
+      ],
+      [
+        'Edit',
+        [
+          ['Presentation Settings…', ''],
+          ['Output Settings…', ''],
+        ],
+      ],
+      [
+        'View',
+        [
+          ['Hide Service Order', ''],
+          ['Song Library', ''],
+          ['Media Library', ''],
+          ['Show Presenter Panel', ''],
+        ],
+      ],
+      [
+        'Present',
+        [
+          ['Start Presenting', 'F5'],
+          ['Stop Presenting', 'Esc'],
+          '---',
+          ['Black Screen', 'B'],
+          ['Logo Screen', 'L'],
+        ],
+      ],
+      [
+        'Help',
+        [
+          ['Show Tutorial', ''],
+          ['Keyboard Shortcuts', '?'],
+          ['About PresenterPro', ''],
+        ],
+      ],
+    ]);
   });
 });
