@@ -13,7 +13,11 @@ const os = require('os');
 const { createCloseController } = require('./closeController');
 const { createIpcRegistry } = require('./ipcRegistry');
 const { buildNativeMenuTemplate } = require('./nativeMenu');
-const { createDisplaySleepBlocker, outputWindowOptions } = require('./presentationWindows');
+const {
+  createDisplaySleepBlocker,
+  outputWindowOptions,
+  shouldApplyRefresh,
+} = require('./presentationWindows');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
@@ -1324,6 +1328,8 @@ function registerIpcHandlers() {
     return { success: true };
   });
   ipc.handle('output:refreshSlide', (_, { slide, background }) => {
+    // A refresh repaints only the slide that is live (plan L4, audit LIVE-A3).
+    if (!shouldApplyRefresh(currentStageSlide, slide)) return { success: true };
     currentStageSlide = slide || null;
     currentStageBackground = background || null;
     if (outputWindow) outputWindow.webContents.send('output:update', { slide, background });

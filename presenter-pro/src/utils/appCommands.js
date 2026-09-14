@@ -31,6 +31,7 @@ import {
   saveCurrentPresentationAs,
 } from '@/utils/presentationCommands';
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
+import { confirmStopBeforeLeaving } from '@/utils/leaveWhilePresenting';
 import { alertDialog, confirmDialog } from '@/utils/dialog';
 
 export async function runAppCommand(command) {
@@ -40,8 +41,11 @@ export async function runAppCommand(command) {
 
   switch (command) {
     case 'file:new':
+      // Never switch decks with a presentation live (plan L4, audit LIVE-A6).
+      if (!(await confirmStopBeforeLeaving('start a new presentation'))) return false;
       return createNewPresentation();
     case 'file:open':
+      if (!(await confirmStopBeforeLeaving('open another presentation'))) return false;
       appState.setHomeTab('open');
       appState.setCurrentView('home');
       return true;
@@ -56,6 +60,7 @@ export async function runAppCommand(command) {
       appState.setVersionHistoryOpen(true);
       return true;
     case 'file:close': {
+      if (!(await confirmStopBeforeLeaving('close this presentation'))) return false;
       const canClose = await resolveUnsavedChanges({
         presentation: editorState.presentation,
         isDirty: editorState.isDirty,
