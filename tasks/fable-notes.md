@@ -2759,6 +2759,30 @@ only route into the bug. `platformShortcuts.js` has no test of its own.
 
 ---
 
+## CMDS1 PR B — the native menu greys to match (2026-09-14)
+
+**What was wrong.** The native menu is built once by the main process and
+knew nothing about the app's state, so every item was always enabled: Save
+with nothing open, Version History mid-service, Start Presenting while live.
+PR A made those commands refuse to run; the menu still looked willing.
+
+**What changed.** The renderer pushes the registry's enabled map to the main
+process over a new `menu:setEnabled` channel — once on start, then whenever
+it changes — and main greys each native item by the id it carries. Nineteen
+commands are synced; Undo and Redo are not, because their rule depends on
+which field has focus, which the OS menu cannot see. Only the main window
+pushes: the output and stage windows hold their own stores and would grey the
+whole menu.
+
+**Worth knowing.** The guard in `runAppCommand` is the safety and the push is
+the grey pixels — a late or lost push can only leave an item looking enabled
+that does nothing. The channel is pinned on both sides: the wrapper's exact
+payload, and main's listener by source text; the contract's three guard tests
+(exactly one wrapper per method, exactly the contract channels registered,
+`assertComplete` at launch) pass unchanged.
+
+---
+
 ## ED36 slice 3 — the canvas draws what the wall draws (2026-09-14)
 
 **What changed.** The editor canvas — the one place that already laid a slide

@@ -13,6 +13,7 @@ import DialogHost from '@/components/shared/Dialog';
 import { offerRecoveryOnStartup } from '@/utils/recoveryJournalSync';
 import { startAutosave } from '@/utils/autosaveSync';
 import { runAppCommand } from '@/utils/appCommands';
+import { startNativeMenuSync } from '@/utils/nativeMenuSync';
 import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
 import { getSettings, onAppCommand, setSetting } from '@/utils/ipc';
 
@@ -32,6 +33,12 @@ export default function App() {
     return onAppCommand((command) => {
       runAppCommand(command);
     });
+  }, []);
+
+  // Plan CMDS1 PR B: the native menu greys to match the command registry.
+  // The sync is a no-op in the output and stage windows (it checks the hash).
+  React.useEffect(() => {
+    return startNativeMenuSync();
   }, []);
 
   // Drain any journal left by a pre-autosave build (plan A5 slice 3). Nothing

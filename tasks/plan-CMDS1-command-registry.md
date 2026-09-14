@@ -230,8 +230,9 @@ assertion changes.
 `src/utils/ipc.ts` (one wrapper), `electron/main/index.js` (one `ipc.on`
 handler next to `:861`), `electron/main/__tests__/menuEnabledWiring.test.ts`
 (new, source-text), `src/utils/__tests__/ipc.menuEnabled.test.ts` (new),
-`src/App.jsx` (one effect), `src/__tests__/App.menuEnabled.test.tsx` (new),
-`src/utils/commandRegistry.ts` (`nativeMenuEnabled`), records.
+`src/utils/nativeMenuSync.ts` (new) and `src/utils/__tests__/nativeMenuSync.test.ts`
+(new), `src/App.jsx` (one effect calling `startNativeMenuSync`),
+`src/utils/commandRegistry.ts` (`nativeMenuEnabled`, already present), records.
 
 **May not change:** `editorKeyAction.ts`, `presenterKeymap.ts`,
 `shortcutGuard.ts`, `escapeKey.ts` and their tests (plan L2 — they DESCRIBE the
@@ -345,7 +346,7 @@ spec. A red in the may-not-change set is a suspected regression to record.
 
 ### PR B — enabled over IPC
 
-- [ ] 11. **Contract (red).** `src/utils/__tests__/ipc.menuEnabled.test.ts`:
+- [x] 11. **Contract (red).** `src/utils/__tests__/ipc.menuEnabled.test.ts`:
       with `window.electronAPI.setMenuEnabled` mocked, `setMenuEnabled({ enabled: { 'file:save': false } })`
       calls it once with **exactly** that object. Red against a stub wrapper
       (`export function setMenuEnabled() {}` that sends nothing), not a missing
@@ -353,12 +354,19 @@ spec. A red in the may-not-change set is a suspected regression to record.
       would not be counted by `ipcChannels.test.ts:71`. **Todos 11 and 12 land
       as one commit**: between the contract entry and main's handler,
       `ipcChannels.test.ts:47-49` is red and `assertComplete()` throws at launch.
-- [ ] 12. **Main wiring (red, source-text).** `electron/main/__tests__/menuEnabledWiring.test.ts`
+- [x] 12. **Main wiring (red, source-text).** `electron/main/__tests__/menuEnabledWiring.test.ts`
       asserts `index.js` registers `ipc.on('menu:setEnabled', …)` and that the
       handler body references `getMenuItemById` and `.enabled =`. Then the
       handler: for each `[id, on]` of `payload.enabled`, `const item = Menu.getApplicationMenu()?.getMenuItemById(id); if (item) item.enabled = Boolean(on);`.
       Verify: `npx vitest run electron/main/__tests__`.
-- [ ] 13. **Renderer push (red).** `src/__tests__/App.menuEnabled.test.tsx`
+- [x] 13. **Renderer push (red).** _As built: the push lives in
+      `src/utils/nativeMenuSync.ts` — `startNativeMenuSync()` reads the three
+      stores, pushes once, then on every change of the map, and is a no-op when
+      `window.location.hash` names the output or stage window — tested directly
+      in `src/utils/__tests__/nativeMenuSync.test.ts` (no `App` render, no
+      import-order trick); `menuEnabledWiring.test.ts` pins that `App.jsx` calls
+      it from one effect. Reds: 6 failed on assertions against stubs. The text
+      below is the original design._ `src/__tests__/App.menuEnabled.test.tsx`
       (jsdom; `src/utils/ipc` mocked): on mount the push is sent once with the
       exact map for the initial state (every `syncEnabled` id present, length
       asserted); opening a presentation in the editor store sends again with
@@ -372,7 +380,7 @@ spec. A red in the may-not-change set is a suspected regression to record.
       push from them would grey the main window's whole native menu,
       last-writer-wins. Then `nativeMenuEnabled(state)` in the registry and the
       effect in `App.jsx`.
-- [ ] 14. Gate, format, PR, records. `## Review` appended to this plan.
+- [x] 14. Gate, format, PR, records. `## Review` appended to this plan.
 
 ### Both PRs
 
@@ -421,3 +429,24 @@ spec. A red in the may-not-change set is a suspected regression to record.
 | 8   | Vitest / jsdom mechanics         | Stores reset in `beforeEach` (Todos 4, 5, 13); `src/utils/ipc` mocked; `document.execCommand` stubbed in Todo 4 (jsdom has none); source-text tests for `index.js`                                                                           |
 | 9   | Test placement                   | `src/utils/__tests__/`, `src/components/layout/__tests__/`, `src/components/shared/__tests__/`, `src/__tests__/`, `electron/main/__tests__/`                                                                                                 |
 | 10  | Characterization before refactor | Todo 5 pins MenuBar before Todo 6; Todo 9 pins ids as additions; `nativeMenu.test.ts`'s existing cases and `MenuBar.test.tsx`'s 8 cases pass unchanged                                                                                       |
+
+## Review
+
+**PR A** (#146) — the registry; the in-app menu, sheet and tooltips generated
+from it; the guard in `runAppCommand`; the seven dead cases removed; ids on
+the native template. Gate 1022/1022. One baseline moved
+(`shortcuts-overlay`); the pre-authorised hover clip did not. Two seed-state
+test edits and one pinned row change, all named in their commits.
+
+**PR B** — `menu:setEnabled` in the contract, the wrapper, main's listener,
+and `nativeMenuSync.ts` pushing the registry's map once and on change (19
+synced commands; undo/redo excluded as focus-dependent). The output and stage
+windows push nothing — asserted directly, not through `App`. The contract's
+guard tests (`ipcChannels`, `ipcRegistry`) pass unchanged; the contract's
+own count characterization moved from 1 to 2 send methods, a deliberate edit
+named in the commit.
+
+**Left as findings:** the two key paths and CMD-B11; whether ⌘-accelerators
+are consumed before the renderer; `editorKeyAction`'s `modalOpen` versus the
+registry's state; no test for `platformShortcuts.js`. CMD-F1 (native-only
+menu on macOS) and CMD-M12 remain Ethan's decisions.
