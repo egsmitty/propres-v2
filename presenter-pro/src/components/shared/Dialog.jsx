@@ -19,6 +19,7 @@ function Dialog({ dialog }) {
   });
 
   const firstInputRef = useRef(null);
+  const actionsRef = useRef(null);
 
   useEffect(() => {
     if (firstInputRef.current) {
@@ -40,6 +41,25 @@ function Dialog({ dialog }) {
     // Enter stays in the bubble phase, after the dialog's own fields.
     function handleEnter(e) {
       if (e.key !== 'Enter' || e.shiftKey) return;
+      // If keyboard focus is on one of the dialog's own buttons (e.g. Tab to
+      // Cancel), Enter must activate THAT button, not silently run primary —
+      // plan DLG1 / audit CMD-B8. jsdom does not synthesize a click from a
+      // button's Enter keydown, so this is resolved explicitly rather than
+      // left to native activation, which keeps it deterministic in both
+      // jsdom and the packaged app.
+      const active = document.activeElement;
+      if (
+        actionsRef.current &&
+        active instanceof HTMLButtonElement &&
+        actionsRef.current.contains(active)
+      ) {
+        const focused = actions[Number(active.dataset.actionIndex)];
+        if (focused) {
+          e.preventDefault();
+          resolve({ action: focused.value, values });
+        }
+        return;
+      }
       const primary = actions.find((a) => a.primary);
       if (primary) {
         e.preventDefault();
@@ -142,6 +162,7 @@ function Dialog({ dialog }) {
         ))}
 
         <div
+          ref={actionsRef}
           className="flex gap-3 mt-2"
           style={{
             justifyContent: actions.length <= 2 ? 'center' : 'flex-end',
@@ -150,6 +171,7 @@ function Dialog({ dialog }) {
           {actions.map((action, idx) => (
             <button
               key={idx}
+              data-action-index={idx}
               onClick={() => resolve({ action: action.value, values })}
               className="min-w-[132px] h-12 py-0 px-[18px] text-[15px] font-semibold rounded-[14px] cursor-pointer border"
               style={buttonStyle(action.variant, action.primary)}
