@@ -24,6 +24,23 @@ export function outputWindowOptions({ preload, icon }: { preload: string; icon: 
   };
 }
 
+/**
+ * Whether an `output:refreshSlide` may repaint the projector (plan L4, audit
+ * LIVE-A3). The renderer's session sync reads the live slide id, awaits an IPC
+ * round trip, then refreshes that slide — so a clicker press landing in between
+ * could send the PREVIOUS slide back over the one that just went live. A refresh
+ * applies only to the slide main knows is live; before anything is live
+ * (a window re-syncing on load), it applies.
+ */
+export function shouldApplyRefresh(
+  current: { id?: unknown } | null | undefined,
+  incoming: { id?: unknown } | null | undefined
+): boolean {
+  if (!incoming) return false;
+  if (!current) return true;
+  return current.id === incoming.id;
+}
+
 /** The part of Electron's `powerSaveBlocker` this module uses. */
 export type PowerSaveBlockerApi = {
   start(type: 'prevent-display-sleep'): number;

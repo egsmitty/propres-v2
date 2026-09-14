@@ -1,5 +1,6 @@
 import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
+import { usePresenterStore } from '@/store/presenterStore';
 import {
   createPresentation,
   createMedia,
@@ -518,6 +519,17 @@ export async function deleteSelectedSlideFromCurrentPresentation() {
   if (!selectedIds.length) return false;
 
   const idsToDelete = new Set(selectedIds);
+
+  // Deleting the slide that is on the projector asks first, like the other
+  // live-safety guards (plan L4, audit LIVE-A4).
+  const { isPresenting, liveSlideId } = usePresenterStore.getState();
+  if (isPresenting && liveSlideId && idsToDelete.has(liveSlideId)) {
+    const confirmed = await confirmDialog(
+      'This slide is live on the output display. Delete it anyway?',
+      { title: 'Delete Live Slide', confirmLabel: 'Delete', danger: true }
+    );
+    if (!confirmed) return false;
+  }
   const allSlides = presentation.sections.flatMap((section) =>
     section.slides.map((slide) => ({ id: slide.id, sectionId: section.id }))
   );
