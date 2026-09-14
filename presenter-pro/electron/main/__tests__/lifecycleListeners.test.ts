@@ -43,6 +43,10 @@ const REQUIRED_APP_LISTENERS: ReadonlyArray<{ event: string; why: string }> = [
     event: 'child-process-gone',
     why: 'a GPU or utility process crash is otherwise invisible; it must at least be logged with its reason (plan C1)',
   },
+  {
+    event: 'will-quit',
+    why: 'checkpoints WAL and closes the DB handle so a quit never leaves -wal/-shm files behind (MAIN-B11)',
+  },
 ];
 
 const REQUIRED_WEBCONTENTS_LISTENERS: ReadonlyArray<{ event: string; why: string }> = [
@@ -88,6 +92,36 @@ describe('single instance (plan C1)', () => {
   });
 });
 
+describe('database quit handling (MAIN-B11)', () => {
+  it('calls closeDb() from inside the will-quit handler', () => {
+    expect(MAIN_SOURCE).toMatch(/app\.on\('will-quit',[\s\S]{0,120}closeDb\(\)/);
+  });
+});
+
+describe('media import canonical-path lookup (MAIN-B15)', () => {
+  /** The two handlers that used to scan the whole media table per lookup. */
+  const HANDLERS: ReadonlyArray<{ channel: string }> = [
+    { channel: "ipc.handle('media:import'" },
+    { channel: "ipc.handle('media:pick'" },
+  ];
+
+  function handlerBody(channel: string): string {
+    const start = MAIN_SOURCE.indexOf(channel);
+    expect(start, `${channel} not found in index.js`).toBeGreaterThanOrEqual(0);
+    const nextHandler = MAIN_SOURCE.indexOf('ipc.handle(', start + channel.length);
+    return MAIN_SOURCE.slice(start, nextHandler === -1 ? undefined : nextHandler);
+  }
+
+  it.each(HANDLERS)(
+    '$channel uses the indexed canonical-path lookup, not a full-table scan',
+    ({ channel }) => {
+      const body = handlerBody(channel);
+      expect(body).not.toMatch(/\.getMedia\(db\)\s*\.find\(/);
+      expect(body).toContain('mediaQueries.findMediaByCanonicalPath(');
+    }
+  );
+});
+
 describe('preview window robustness (plan C1)', () => {
   it('watches render-process-gone on all three windows: main, output, stage', () => {
     const count = (MAIN_SOURCE.match(/webContents\.on\('render-process-gone'/g) ?? []).length;
@@ -130,6 +164,14 @@ describe('build wiring', () => {
     ]) {
       expect(viteConfig, `${entry} must be a rollup input`).toContain(entry);
     }
+  });
+
+  it('emits db/seed as its own entry point', () => {
+    // seed.js (MAIN-B10) is required from index.js; without an explicit
+    // rollup input the packaged app crashes on launch with "Cannot find
+    // module './seed'" — same failure mode as closeController above.
+    const viteConfig = readFileSync(resolve(dirname, '../../../electron.vite.config.js'), 'utf8');
+    expect(viteConfig).toContain("'db/seed'");
   });
 });
 

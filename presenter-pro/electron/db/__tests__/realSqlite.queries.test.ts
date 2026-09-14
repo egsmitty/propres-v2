@@ -221,6 +221,15 @@ describe('media and folders', () => {
     expect((media.updateMediaFolder(db, f.id, { name: 'New' }) as Row).name).toBe('New');
     expect(media.updateMediaFolder(db, 999, { name: 'x' })).toBeNull();
   });
+
+  // MAIN-B15: media import used to scan the whole table per imported file
+  // (getMedia + JS .find); this indexed lookup replaces it.
+  it('findMediaByCanonicalPath finds the matching row by canonical_path and returns undefined for no match', () => {
+    item({ name: 'a.png', canonical_path: '/canon/a.png' });
+    const match = item({ name: 'b.png', canonical_path: '/canon/b.png' });
+    expect((media.findMediaByCanonicalPath(db, '/canon/b.png') as Row).id).toBe(match.id);
+    expect(media.findMediaByCanonicalPath(db, '/does/not/exist.png')).toBeUndefined();
+  });
 });
 
 describe('presentation journal (legacy rows only)', () => {

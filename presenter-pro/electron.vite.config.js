@@ -62,6 +62,9 @@ export default defineConfig({
           'shared/ipcContract': resolve(__dirname, 'shared/ipcContract.ts'),
           'db/index': resolve(__dirname, 'electron/db/index.js'),
           'db/migrations': resolve(__dirname, 'electron/db/migrations.js'),
+          // Required by index.js via relative require (CommonJS main), so it
+          // needs its own entry — same reason as main/closeController.
+          'db/seed': resolve(__dirname, 'electron/db/seed.js'),
           // Required by migrations.js via relative require (CommonJS main), so
           // each needs its own entry — same reason as main/closeController.
           'db/migrationPlanner': resolve(__dirname, 'electron/db/migrationPlanner.ts'),

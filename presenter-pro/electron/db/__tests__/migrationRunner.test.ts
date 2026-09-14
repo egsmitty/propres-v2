@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   runMigrations,
+  NewerSchemaVersionError,
   type MigrationDb,
   type BackupStore,
   type PreparedStatement,
@@ -232,5 +233,28 @@ describe('runMigrations', () => {
       `${BACKUP_DIR}/presenterpro.backup-v1-20260101T000000Z.db`,
       `${BACKUP_DIR}/presenterpro.backup-v1-20260201T000000Z.db`,
     ]);
+  });
+
+  // MAIN-B12: a database written by a newer build (a recorded version above
+  // anything this build's migration list knows) must be refused, not silently
+  // accepted as "nothing pending".
+  it('refuses a database newer than any known migration, before any backup or migration runs', () => {
+    const fake = createFake([1, 2, 3, 4, 5, 6]);
+    let thrown: unknown;
+    try {
+      run(fake, [migration(1, fake.log), migration(2, fake.log)]);
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(NewerSchemaVersionError);
+    expect((thrown as Error).message).toContain('created by a newer version of PresenterPro');
+    // Exhaustive: nothing was written — no backup, no DDL, no migration ran.
+    expect(fake.log).toEqual([]);
+  });
+
+  it('does not refuse when the recorded version exactly equals the highest known migration', () => {
+    const fake = createFake([1, 2]);
+    const result = run(fake, [migration(1, fake.log), migration(2, fake.log)]);
+    expect(result).toEqual({ applied: [], backupPath: null });
   });
 });
