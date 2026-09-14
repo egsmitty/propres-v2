@@ -59,6 +59,9 @@ export default defineConfig({
           // The native menu template (plan L1), required from index.js — same
           // reason as closeController: without an entry the app will not launch.
           'main/nativeMenu': resolve(__dirname, 'electron/main/nativeMenu.ts'),
+          // Output window options + the display sleep blocker (plan L3), also
+          // required from index.js.
+          'main/presentationWindows': resolve(__dirname, 'electron/main/presentationWindows.ts'),
           'shared/ipcContract': resolve(__dirname, 'shared/ipcContract.ts'),
           'db/index': resolve(__dirname, 'electron/db/index.js'),
           'db/migrations': resolve(__dirname, 'electron/db/migrations.js'),

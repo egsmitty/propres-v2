@@ -6,12 +6,14 @@ const {
   dialog,
   screen,
   nativeImage,
+  powerSaveBlocker,
   protocol,
 } = require('electron');
 const os = require('os');
 const { createCloseController } = require('./closeController');
 const { createIpcRegistry } = require('./ipcRegistry');
 const { buildNativeMenuTemplate } = require('./nativeMenu');
+const { createDisplaySleepBlocker, outputWindowOptions } = require('./presentationWindows');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
@@ -70,6 +72,11 @@ const closeController = createCloseController();
 // Set when a quit was deferred so the unsaved-changes prompt could run. The
 // `closed` handler re-issues the quit once the renderer approves the close.
 let quitRequested = false;
+
+// Keeps the operator's display awake while a presentation is live (plan L3,
+// audit LIVE-A15). Started by every slide that goes live (idempotent), released
+// on stop, when the output window closes, and at shutdown.
+const displaySleepBlocker = createDisplaySleepBlocker(powerSaveBlocker);
 
 function emitWindowViewState(win) {
   if (!win || win.isDestroyed()) return;
@@ -458,6 +465,7 @@ function recoverPreviewRenderer(kind, win, details) {
 
 function prepareForAppShutdown() {
   closeController.markQuitting();
+  displaySleepBlocker.stop();
   clearCountdownInterval();
   closePreviewWindows();
 }
@@ -765,19 +773,15 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
   outputReady = false;
   resetOutputState();
 
-  outputWindow = new BrowserWindow({
-    width: 1280,
-    height: 720,
-    title: 'Output',
-    frame: false,
-    show: false,
-    icon: appWindowIcon,
-    webPreferences: {
+  // Options — including a black background, so it never flashes the light app
+  // colour while loading or on a crash reload — live in ./presentationWindows,
+  // where they are tested (plan L3, audit LIVE-A14).
+  outputWindow = new BrowserWindow(
+    outputWindowOptions({
       preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
+      icon: appWindowIcon,
+    })
+  );
 
   outputWindow.once('ready-to-show', () => {
     if (!outputWindow) return;
@@ -807,6 +811,7 @@ function createOutputWindow({ displayId = null, useConfiguredDisplay = true } = 
   }
 
   outputWindow.on('closed', () => {
+    displaySleepBlocker.stop();
     outputWindow = null;
     outputReady = false;
     outputReadyResolvers = [];
@@ -1308,6 +1313,7 @@ function registerIpcHandlers() {
   });
 
   ipc.handle('output:sendSlide', (_, { slide, background }) => {
+    displaySleepBlocker.start();
     resetOutputState();
     currentStageSlide = slide || null;
     currentStageBackground = background || null;
@@ -1351,6 +1357,7 @@ function registerIpcHandlers() {
     return { success: true, data: countdownState };
   });
   ipc.handle('output:stop', () => {
+    displaySleepBlocker.stop();
     resetOutputState();
     resetCountdownState();
     presentationSessionSlides = [];
