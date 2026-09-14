@@ -76,7 +76,8 @@ import {
   clearPendingNumericFieldCommit,
   registerPendingNumericFieldCommit,
 } from '@/utils/pendingNumericCommit';
-import { formatShortcutLabel, getPlatform } from '@/utils/platformShortcuts';
+import { getPlatform } from '@/utils/platformShortcuts';
+import { commandTooltip } from '@/utils/commandRegistry';
 import { uuid } from '@/utils/uuid';
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup';
 import {
@@ -171,7 +172,9 @@ function PresentButton({ onPresent, isPresenting, disabled, collapseLabel = fals
       data-tour="present-button"
       data-editor-toolbar="true"
       onClick={onPresent}
-      title="Present (F5)"
+      // Plan CMDS1: the tooltip names the command the click will run (CMD-B15
+      // — it used to say "Present (F5)" while showing Stop).
+      title={commandTooltip(isPresenting ? 'present:stop' : 'present:start', getPlatform())}
       disabled={disabled}
       className={`flex items-center gap-1.5 rounded-xl shrink-0 h-[38px] text-text-on-accent text-[13px] font-bold ${
         disabled
@@ -998,7 +1001,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
   const hideEditColorLabels = isTextEditing && compactLevel >= 4;
   const collapseEditColorsToPalette = isTextEditing && effectiveWidth < 900;
   const platform = getPlatform();
-  const newSlideShortcut = formatShortcutLabel(['mod', 'm'], platform);
+  const newSlideTooltip = commandTooltip('insert:newSlide', platform);
 
   const activeAlign = isTextEditing
     ? normalizeAlignValue(editorSnapshot?.textAlign, style.align || 'center')
@@ -1550,7 +1553,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
               <CommandButton
                 icon={Plus}
                 label="New"
-                title={`New Slide (${newSlideShortcut})`}
+                title={newSlideTooltip}
                 onClick={handleNewSlide}
                 disabled={!hasPresentation}
                 primary

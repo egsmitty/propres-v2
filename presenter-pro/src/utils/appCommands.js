@@ -9,8 +9,6 @@ function isTextFieldFocused() {
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
 }
 import {
-  openOutputWindow,
-  openStageDisplayWindow,
   resolveWindowCloseRequest,
   sendBlack,
   sendLogo,
@@ -19,13 +17,10 @@ import {
 } from '@/utils/ipc';
 import { startSidebarPresentationSession, stopPresentationSession } from '@/utils/presenterFlow';
 import {
-  copySelectedSlideToClipboard,
   createNewPresentation,
-  clearSelectedSlide,
   importMediaToSelectedSlide,
   insertNewSlideIntoCurrentPresentation,
   insertNewSectionIntoCurrentPresentation,
-  pasteSlideAfterSelected,
   revertCurrentPresentationToLastSave,
   saveCurrentPresentation,
   saveCurrentPresentationAs,
@@ -34,8 +29,15 @@ import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
 import { resolveBlockingEditors } from '@/utils/blockingEditors';
 import { confirmStopBeforeLeaving } from '@/utils/leaveWhilePresenting';
 import { alertDialog, confirmDialog } from '@/utils/dialog';
+import { isCommandEnabled, readCommandState } from '@/utils/commandRegistry';
 
 export async function runAppCommand(command) {
+  // Plan CMDS1: the registry's enabled rule guards every path a command can
+  // arrive by. Native menu commands used to run unconditionally, so on Home a
+  // reflexive ⌘M added a slide to the hidden deck and F5 presented it
+  // (audit CMD-B4), and File ▸ Version History opened mid-service (CMD-B5).
+  if (!isCommandEnabled(command, readCommandState())) return false;
+
   const appState = useAppStore.getState();
   const editorState = useEditorStore.getState();
   const presenterState = usePresenterStore.getState();
@@ -165,7 +167,6 @@ export async function runAppCommand(command) {
       }
       return true;
     case 'insert:newSlide':
-    case 'insert:blank':
       return insertNewSlideIntoCurrentPresentation();
     case 'insert:song':
       appState.setMediaLibraryOpen(false);
@@ -185,12 +186,6 @@ export async function runAppCommand(command) {
       return importMediaToSelectedSlide('image');
     case 'insert:video':
       return importMediaToSelectedSlide('video');
-    case 'edit:copySlide':
-      return copySelectedSlideToClipboard();
-    case 'edit:pasteSlide':
-      return pasteSlideAfterSelected();
-    case 'edit:clearSlide':
-      return clearSelectedSlide();
     case 'view:filmstrip':
       appState.setFilmstripVisible(!appState.filmstripVisible);
       return true;
@@ -213,19 +208,6 @@ export async function runAppCommand(command) {
       presenter.setPresenterPanelOpen(!presenter.presenterPanelOpen);
       return true;
     }
-    case 'view:presenterView': {
-      const presenter = usePresenterStore.getState();
-      if (presenter.isPresenting) {
-        presenter.setPresenterPanelOpen(true);
-        return true;
-      }
-      presenter.setPresenterPanelOpen(!presenter.presenterPanelOpen);
-      return true;
-    }
-    case 'view:outputWindow':
-      return openOutputWindow();
-    case 'view:stageDisplayWindow':
-      return openStageDisplayWindow();
     case 'present:start':
       if (editorState.presentation && !presenterState.isPresenting) {
         const started = await startSidebarPresentationSession(editorState.presentation);

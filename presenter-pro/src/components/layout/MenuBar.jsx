@@ -4,68 +4,12 @@ import { usePresenterStore } from '@/store/presenterStore';
 import { useAppStore } from '@/store/appStore';
 import { useLatest } from '@/hooks/useLatest';
 import { runAppCommand } from '@/utils/appCommands';
-import { formatShortcutLabel, getPlatform } from '@/utils/platformShortcuts';
+import { getPlatform } from '@/utils/platformShortcuts';
+import { IN_APP_MENU_ORDER, MENU_TITLES, menuItems } from '@/utils/commandRegistry';
 
-const MENUS = [
-  {
-    label: 'File',
-    items: [
-      { label: 'New Presentation', shortcutTokens: ['mod', 'n'], action: 'file:new' },
-      { label: 'Open…', shortcutTokens: ['mod', 'o'], action: 'file:open' },
-      { label: 'Save', shortcutTokens: ['mod', 's'], action: 'file:save' },
-      { label: 'Save As…', shortcutTokens: ['mod', 'shift', 's'], action: 'file:saveAs' },
-      { label: 'Revert to Last Save', action: 'file:revert' },
-      { label: 'Version History…', action: 'file:versionHistory' },
-      { divider: true },
-      { label: 'Close', action: 'file:close' },
-    ],
-  },
-  {
-    label: 'Insert',
-    items: [
-      { label: 'New Slide', shortcutTokens: ['mod', 'm'], action: 'insert:newSlide' },
-      { divider: true },
-      { label: 'Song', action: 'insert:song' },
-      { label: 'Media', action: 'insert:media' },
-      { label: 'Announcement', action: 'insert:announcement' },
-      { label: 'Sermon', action: 'insert:sermon' },
-    ],
-  },
-  {
-    label: 'Edit',
-    items: [
-      { label: 'Presentation Settings…', action: 'edit:presentationSettings' },
-      { label: 'Output Settings…', action: 'view:outputSettings' },
-    ],
-  },
-  {
-    label: 'View',
-    items: [
-      { label: 'Service Order', action: 'view:filmstrip' },
-      { label: 'Song Library', action: 'view:songLibrary' },
-      { label: 'Media Library', action: 'view:mediaLibrary' },
-      { label: 'Show Presenter Panel', action: 'view:presenterPanel' },
-    ],
-  },
-  {
-    label: 'Present',
-    items: [
-      { label: 'Start Presenting', shortcut: 'F5', action: 'present:start' },
-      { label: 'Stop Presenting', shortcut: 'Esc', action: 'present:stop' },
-      { divider: true },
-      { label: 'Black Screen', shortcut: 'B', action: 'present:black' },
-      { label: 'Logo Screen', shortcut: 'L', action: 'present:logo' },
-    ],
-  },
-  {
-    label: 'Help',
-    items: [
-      { label: 'Show Tutorial', action: 'help:tutorial' },
-      { label: 'Keyboard Shortcuts', shortcut: '?', action: 'help:shortcuts' },
-      { label: 'About PresenterPro', action: 'help:about' },
-    ],
-  },
-];
+// Plan CMDS1: the menus, their labels, shortcuts and enabled rules come from
+// the command registry — the same list the shortcuts sheet, the toolbar
+// tooltips and `runAppCommand`'s guard read. Nothing is spelled twice.
 
 function MenuItem({ item, onAction, onClose }) {
   if (item.divider) {
@@ -108,6 +52,7 @@ export default function MenuBar() {
   const menuRef = useRef(null);
   const platform = getPlatform();
 
+  const currentView = useAppStore((s) => s.currentView);
   const filmstripVisible = useAppStore((s) => s.filmstripVisible);
   const presentation = useEditorStore((s) => s.presentation);
   const isDirty = useEditorStore((s) => s.isDirty);
@@ -141,65 +86,26 @@ export default function MenuBar() {
     await runAppCommand(action);
   }
 
-  const computedMenus = MENUS.map((menu) => ({
-    ...menu,
-    items: menu.items.map((item) => {
-      if (item.divider) return item;
+  // The menu never reads focus, so `typing` is false here; the guard in
+  // runAppCommand reads the live value when a command actually runs.
+  const commandState = {
+    view: currentView === 'editor' ? 'editor' : 'home',
+    hasPresentation: Boolean(presentation),
+    isDirty: Boolean(isDirty),
+    requiresInitialSave: Boolean(requiresInitialSave),
+    isPresenting: Boolean(isPresenting),
+    presenterPanelOpen: Boolean(presenterPanelOpen),
+    filmstripVisible: Boolean(filmstripVisible),
+    typing: false,
+  };
 
-      let disabled = false;
-
-      if (['file:save', 'file:saveAs', 'file:close', 'present:start'].includes(item.action)) {
-        disabled = !presentation;
-      }
-      if (['edit:presentationSettings', 'view:outputSettings'].includes(item.action)) {
-        disabled = !presentation;
-      }
-      if (item.action === 'file:versionHistory') {
-        // Disabled mid-service: restoring replaces the presentation, and if the
-        // live slide is not in the restored document PresenterPanel's liveIdx
-        // becomes -1, which makes canGoNext true and sends the next spacebar to
-        // slide 1 of the deck, in front of the room.
-        disabled = !presentation || isPresenting;
-      }
-      if (item.action === 'file:revert') {
-        // Nothing to revert to until the document has been saved once, and
-        // nothing to revert while it matches its last save.
-        disabled = !presentation || !isDirty || requiresInitialSave;
-      }
-      if (item.action === 'present:start') disabled = disabled || isPresenting;
-      if (['present:stop', 'present:black', 'present:logo'].includes(item.action)) {
-        disabled = !isPresenting;
-      }
-      if (
-        ['view:filmstrip', 'view:songLibrary', 'view:mediaLibrary', 'view:presenterPanel'].includes(
-          item.action
-        )
-      ) {
-        disabled = !presentation;
-      }
-      if (item.action === 'view:filmstrip') {
-        return {
-          ...item,
-          label: filmstripVisible ? 'Hide Service Order' : 'Show Service Order',
-          disabled,
-        };
-      }
-      if (item.action === 'view:presenterPanel') {
-        return {
-          ...item,
-          label: presenterPanelOpen ? 'Hide Presenter Panel' : 'Show Presenter Panel',
-          disabled,
-        };
-      }
-
-      return {
-        ...item,
-        disabled,
-        shortcut: item.shortcutTokens
-          ? formatShortcutLabel(item.shortcutTokens, platform)
-          : item.shortcut,
-      };
-    }),
+  const computedMenus = IN_APP_MENU_ORDER.map((menu) => ({
+    label: MENU_TITLES[menu],
+    items: menuItems(menu, commandState, platform).map((row) =>
+      row.divider
+        ? row
+        : { label: row.label, shortcut: row.shortcut, action: row.id, disabled: row.disabled }
+    ),
   }));
 
   return (

@@ -158,3 +158,28 @@ describe('native menu — production safety', () => {
     expect(byLabel('Start Presenting')?.registerAccelerator).toBeUndefined();
   });
 });
+
+// Plan CMDS1. Every clickable item carries its command as its `id`, so the
+// renderer can address it (`Menu.getMenuItemById`) to push enabled state.
+// The pairs are collected whole: an item without an id, or with the wrong
+// one, shows up as a missing or mismatched pair.
+describe('native menu — ids (plan CMDS1)', () => {
+  it('every clickable item has its command as its id', () => {
+    const { template } = build(true);
+    const pairs: Array<[string | undefined, string]> = [];
+    for (const top of template) {
+      for (const item of top.submenu ?? []) {
+        if (!item.click) continue;
+        const sent: string[] = [];
+        const probe = buildNativeMenuTemplate({ isDev: true, sendCommand: (c) => sent.push(c) });
+        const twin = probe
+          .find((t) => t.label === top.label)
+          ?.submenu?.find((i) => i.label === item.label);
+        twin?.click?.();
+        pairs.push([item.id, sent[0] ?? '(nothing sent)']);
+      }
+    }
+    expect(pairs).toHaveLength(21);
+    for (const [id, command] of pairs) expect(id).toBe(command);
+  });
+});

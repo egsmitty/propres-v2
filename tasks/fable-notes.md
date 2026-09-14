@@ -2711,3 +2711,48 @@ the recapture run says whether that held.
 presenter flow stamps the aspect fields and the effective background id onto
 the slide, which is why the renderer is given `presentation={slide}`. The
 old text layer, kept for one slice as `OutputSlideText.jsx`, is deleted.
+
+---
+
+## CMDS1 PR A — one command registry (2026-09-14)
+
+**What was wrong.** Four hand-written lists described the app's commands and
+disagreed: the `switch` that runs them, the in-app menu bar, the native menu
+and the keyboard-shortcuts sheet. Seven switch cases had no caller at all. The
+native menu had no idea of state — every item was always enabled — and the
+app ran whatever it sent, so on the Home screen, with the last presentation
+still sitting in memory, a reflexive ⌘M added a slide to a deck nobody could
+see and F5 presented it (audit CMD-B4); File ▸ Version History could open
+mid-service from the native menu (CMD-B5). The Present tooltip said "F5" while
+showing Stop; the shortcuts sheet listed Esc twice and Close, Undo and Redo not
+at all.
+
+**What changed.** One registry (`commandRegistry.ts`) describes every command
+once — id, label, menu, shortcut, and the rule for when it is enabled. The
+in-app menu, the shortcuts sheet and the toolbar tooltips are generated from
+it, `runAppCommand` refuses anything the rule disallows whatever route it
+arrived by, and the seven dead cases are gone. A source-text test holds the
+switch and the registry to the same set of ids; another holds the native
+template to the registry (same commands, same labels, hints for exactly the
+renderer-owned keys). Every clickable native item now carries its command as
+its id, which is what PR B needs to grey it. Two visible changes, both
+deliberate: the in-app Close item shows the ⌘W it always had natively, and the
+sheet is regenerated (Close, Undo, Redo added; "Stop Presenting" once).
+
+**Rules worth knowing.** Save and Save As need a document but not the editor
+view — the E2E harness sends `file:save` the moment a blank presentation is
+created, before the view flips, and a save from Home writes the same row
+anyway. Stop, Black and Logo are gated on "presenting" only, never on the
+view: the onboarding tour can reach Home without stopping a session, and Stop
+Presenting must stay reachable in front of the room. The quit handshake
+(`window:requestClose`) is enabled in every state — a refusal there deadlocks
+quit — and a test asserts it across the whole matrix.
+
+**Findings.** Two key paths still exist: a registered native accelerator
+arrives as a command, a key typed into the page goes through
+`editorKeyAction` — and only the latter enforces "close the panels before
+presenting" (CMD-B11's cause). A registered bare accelerator such as F5 is
+documented in `nativeMenu.ts` to fire on top of the renderer's handling;
+whether ⌘-accelerators are consumed first is unverified. On Home neither the
+menu bar nor the editor's key listener is mounted, so the native menu was the
+only route into the bug. `platformShortcuts.js` has no test of its own.
