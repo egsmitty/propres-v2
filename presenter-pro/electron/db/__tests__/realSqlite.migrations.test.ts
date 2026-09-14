@@ -4,7 +4,12 @@ import { mkdtempSync, readdirSync, rmSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MIGRATIONS } from '../migrationList';
-import { BACKUP_FILE_PATTERN, runMigrations, type BackupStore } from '../migrationRunner';
+import {
+  BACKUP_FILE_PATTERN,
+  runMigrations,
+  NewerSchemaVersionError,
+  type BackupStore,
+} from '../migrationRunner';
 import type { MigrationDb } from '../migrationPlanner';
 import {
   LEGACY_PRESENTATION_TITLE,
@@ -129,5 +134,25 @@ describe('migration runner on the legacy schema (real SQLite)', () => {
     expect(second).toEqual({ applied: [], backupPath: null });
     expect(readdirSync(dir)).toEqual(before);
     expect(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()).toEqual({ n: 5 });
+  });
+});
+
+describe('migration runner refuses a database from a newer build (MAIN-B12, real SQLite)', () => {
+  it('throws NewerSchemaVersionError and writes no second backup when the recorded version exceeds MIGRATIONS', () => {
+    run(); // bring the legacy fixture up to the current version (5)
+    const before = readdirSync(dir);
+    db.prepare(
+      "INSERT INTO schema_migrations (version, name, applied_at) VALUES (6, 'from-the-future', unixepoch())"
+    ).run();
+
+    let thrown: unknown;
+    try {
+      run();
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(NewerSchemaVersionError);
+    expect((thrown as Error).message).toContain('created by a newer version of PresenterPro');
+    expect(readdirSync(dir)).toEqual(before); // no new backup was written
   });
 });
