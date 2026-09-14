@@ -35,8 +35,10 @@ test.describe('visual baseline', () => {
     await page.waitForTimeout(1_000);
     await expect(page).toHaveScreenshot('editor.png', { fullPage: false, ...STRICT });
 
+    // Listen before opening, or a fast window's event is missed (plan E2E1).
+    const opened = app.waitForEvent('window', { timeout: 15_000 });
     await page.evaluate(() => window.electronAPI.openOutputWindow({ useConfiguredDisplay: false }));
-    const output = await app.waitForEvent('window', { timeout: 15_000 });
+    const output = await opened;
     await output.waitForLoadState('load');
     await output.setViewportSize({ width: 1024, height: 576 });
     await output.waitForTimeout(1_000);

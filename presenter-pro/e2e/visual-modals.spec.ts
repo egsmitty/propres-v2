@@ -46,10 +46,12 @@ test.describe('visual baseline — song editor, dialog, stage display', () => {
     await expect(page.getByRole('heading', { name: 'Unsaved Changes' })).toHaveCount(0);
 
     // 3. Stage display window, windowed preview, idle.
+    // Listen before opening, or a fast window's event is missed (plan E2E1).
+    const stageOpened = app.waitForEvent('window', { timeout: 15_000 });
     await page.evaluate(() =>
       window.electronAPI.openStageDisplayWindow({ useConfiguredDisplay: false })
     );
-    const stage = await app.waitForEvent('window', { timeout: 15_000 });
+    const stage = await stageOpened;
     await stage.waitForLoadState('load');
     await stage.setViewportSize({ width: 1024, height: 576 });
     await stage.waitForTimeout(1_000);

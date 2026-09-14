@@ -2609,3 +2609,26 @@ captures a version label. 10 new unit cases (5 fail on the pre-fix code),
 one existing `versionLabels.test.ts` case deliberately behavior-changed
 (it asserted the SAVE-C6 bug itself — "without a time" — now asserts the
 fix; stated in the file). Gate: 647/647.
+
+---
+
+## E2E1 — the keyboard spec listens for the output window before pressing F5 (2026-09-14)
+
+**What was wrong.** PR #136's required `E2E (macOS)` check failed with 48 passed
+and 1 flaky. The flaky one was the keyboard operability spec: it pressed F5 and
+only then started waiting for the output window. When the window opened quickly,
+its `window` event fired before anyone was listening, and the 15-second wait
+timed out. The retry passed in 1.2 s. Because `playwright.config.ts` turns
+flakes into failures on CI — deliberately, so flakes get fixed instead of
+ignored — one lost race failed an unrelated PR.
+
+**What changed.** The wait now starts before the key press and is awaited after
+it — the order the same spec already used for waiting on the window's close.
+Nothing else in the spec moved. A grep for the same shape found seven more
+windows opened before their wait started — in the CSP, lifecycle and three
+screenshot specs — and they got the same reorder, so none of them can be the
+next PR's surprise failure.
+
+**Worth knowing.** Playwright only sees events emitted after `waitForEvent` is
+called. Any "do the thing, then wait for the event it causes" line is a race;
+the safe shape is `const p = waitForEvent(…); await action(); await p;`.
