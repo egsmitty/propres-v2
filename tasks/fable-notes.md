@@ -2433,6 +2433,45 @@ tested predicate beside L3's window options.
 
 ---
 
+## S2 — typing no longer disappears during a save or a reopen (2026-09-14)
+
+**What was wrong.** Two quiet ways to lose words, no error shown.
+
+1. **⌘S while typing.** `saveCurrentPresentation` read the document, awaited the
+   write, and then replaced the editor's copy with the saved row. Anything typed
+   while the write was on its way disappeared, and the title bar said "Saved".
+2. **Reopen within the autosave window.** Type, go back to Home, and reopen the
+   same presentation within a couple of seconds. The open read the database row
+   before autosave had written the change. Loading that older row flipped the
+   document to clean, which autosave's subscription reads as "saved or
+   reverted", so it cancelled the scheduled write. Up to ten seconds of typing
+   went with it.
+
+**What changed.**
+- **Save** syncs the editor only if the editor still holds the exact object it
+  sent. If something was typed in the meantime, the newer edit stays and the
+  document stays unsaved. The row and its restore point hold what was sent, and
+  autosave writes the newer edit, as it already planned to.
+- **Opening a presentation** first awaits a new `flushPendingAutosave()`. It waits
+  for any write already on its way, then writes a still-scheduled change with the
+  same guards the timer uses. A change that Discard or Revert cancelled has no
+  timer, so it is never brought back.
+
+**Worth knowing.**
+- **Where the flush lives matters.** The obvious place for it is the store
+  subscription, on a same-id `setPresentation`. That is exactly what the audit's
+  first draft proposed, and it would have been a bug: restoring a version does a
+  same-id `setPresentation` right after writing the restored snapshot, and a flush
+  there would write the pre-restore content back over it. So the flush happens
+  only where a read is about to happen.
+- **The first red run was wrong for two cases.** Setting `presentationId` and
+  `isDirty` in one `setState` looks like a document switch to autosave, which
+  schedules nothing. Those tests failed because nothing was scheduled, not
+  because of the bug. Opening the presentation clean and then editing it, the way
+  the editor really works, gave the honest red.
+
+---
+
 ## V1 — version history edge cases (2026-09-14)
 
 Three small, independent fixes, none touching stored data or the IPC seam.

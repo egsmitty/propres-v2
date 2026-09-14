@@ -31,6 +31,7 @@ import {
   revertToLatestVersion,
 } from '@/utils/presentationVersionsSync';
 import { ensureBuiltInSongsSeeded } from '@/utils/builtInSongSeed';
+import { flushPendingAutosave } from '@/utils/autosaveSync';
 
 function selectFirstSlide(presentation) {
   const firstSection = presentation?.sections?.[0];
@@ -96,6 +97,11 @@ export function loadPresentationIntoEditor(presentation) {
  *   counts as never-saved and cannot have diverged from its own first version.
  */
 export async function openPresentationInEditor(id, options = {}) {
+  // Plan S2 (audit SAVE-A4): write what autosave still has scheduled — or wait
+  // for a write already on its way — BEFORE reading the row. Reopening the same
+  // presentation used to read the older row and cancel the schedule, losing up
+  // to AUTOSAVE_MAX_WAIT_MS of typing.
+  await flushPendingAutosave();
   await touchPresentation(id);
   const loaded = await getPresentation(id);
   if (!loaded?.success || !loaded.data) return null;
@@ -233,13 +239,25 @@ export async function saveCurrentPresentation() {
     return { success: false, error };
   }
 
-  // Deliberately NOT loadPresentationIntoEditor: that resets the selection to
-  // the first slide and clears undo history, which is fine when opening a
-  // document and wrong when saving the one you are working in.
-  state.syncSavedPresentation(result.data);
-  // Save is the commit: it is what moves the restore point forward. The
-  // snapshot is taken from the same normalized value the store now holds.
-  const captured = await captureVersion(useEditorStore.getState().presentation);
+  let captured;
+  if (useEditorStore.getState().presentation === presentation) {
+    // Deliberately NOT loadPresentationIntoEditor: that resets the selection to
+    // the first slide and clears undo history, which is fine when opening a
+    // document and wrong when saving the one you are working in.
+    state.syncSavedPresentation(result.data);
+    // Save is the commit: it is what moves the restore point forward. The
+    // snapshot is taken from the same normalized value the store now holds.
+    captured = await captureVersion(useEditorStore.getState().presentation);
+  } else {
+    // Plan S2 (audit SAVE-A3): something was typed while the write was on its
+    // way. Replacing the editor's copy with the saved row would erase it, so
+    // keep the newer edit. The row and its restore point hold what was sent,
+    // which leaves the document unsaved; autosave writes the newer edit.
+    const store = useEditorStore.getState();
+    store.setRequiresInitialSave(false);
+    store.setDirty(true);
+    captured = await captureVersion(normalizePresentation(result.data));
+  }
   if (!captured) {
     // The row is written, but without its restore point the document is not
     // committed, and "Saved" would be undone by the next open (audit SAVE-A9).
