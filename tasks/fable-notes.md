@@ -1898,6 +1898,40 @@ nothing this plan touched.
 
 ---
 
+## D1 — a save that did not happen is never reported as one (2026-09-13)
+
+Audit items SAVE-A2, A6 (the gate half), A7, A8, A9, A10, A11 and B4. None of
+them depends on Ethan's D6 save-model decision: whatever the model, a failed
+write must not look like a successful one.
+
+**Every one of these was the same shape: a result that was never looked at.**
+The song editor awaited `updateSong` and closed; the IPC layer reports failure
+as `{ success: false }` rather than throwing, so the `catch` beside it was dead
+and a failed song save took the edits with the closed modal. `appCommands`
+dropped `saveCurrentPresentation`'s result, so ⌘S failures were silent.
+`captureVersion` returns a boolean that five call sites ignored — after the
+dirty flag had already been cleared, so a failed restore point said "Saved".
+
+**The one deliberate test change.** `Editor.save.test.tsx` pinned the editor's
+own "Save Failed" alert. The alert now lives in `saveCurrentPresentation`, so
+every way of saving reports failures once; keeping the editor's alert as well
+would show the same failure twice. The case now asserts no second alert, and it
+fails on the old code.
+
+**Two places a stricter check would have broken passing tests for the wrong
+reason, and did not.** The Unsaved Changes gate tests and the song editor tests
+mock `captureVersion` and the song IPC without return values. `captureVersion`
+always returns a real boolean, so the gate checks `=== false`; the song editor
+checks the envelope, and its existing tests only ever asserted the calls and
+payloads, so they pass unchanged.
+
+**Left for its own plan:** the main-process half of SAVE-A7 (`.changes === 0`
+as an error) — the audit's verification pass showed it would make autosave's
+"Presentation Deleted" branch unreachable and turn those writes into the
+three-strike alert instead.
+
+---
+
 ## DB1 — one bad row no longer empties Home, and lists sort stably (2026-09-13)
 
 Four small, unrelated `electron/db` bugs from the whole-app audit
