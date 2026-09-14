@@ -2127,3 +2127,74 @@ phase and calls `stopPropagation()`, so with a text box *selected* (not being
 edited) while presenting, Backspace deletes the box and never reaches the panel.
 That is editing the live deck rather than navigating it, and it belongs with the
 editor work; recorded rather than widened into this plan.
+
+---
+
+## DB2 — the database gets a lifecycle: seeded once, closed on quit, refused when too new (2026-09-13)
+
+Audit items MAIN-B11, B12, B14, B15 — small, unrelated-looking bugs that all
+trace back to the same thing: nothing in this codebase ever treated the SQLite
+file as having a *lifecycle*. It got opened once and otherwise left alone.
+
+**MAIN-B10 (the non-atomic seed) was dropped from this PR at merge time.**
+The plan extracted `seed(db)` verbatim into `electron/db/seed.js` and wrapped
+it in a transaction. Meanwhile S1 (#125) rewrote `seed()` in `index.js`:
+it no longer seeds songs at all, builds the sample presentation from
+public-domain `firstRunSeed.ts`, and already runs the insert and the
+`initialized` flag in one `db.transaction`. Keeping this PR's `seed.js` would
+have brought back the two copyrighted sample songs S1 removed — in a new file,
+so git would never have shown a conflict. The extraction, its three
+`seed.test.ts` cases and its `db/seed` Rollup input were removed at merge and
+main's `seed()` kept. Lesson kept from the attempt: `vi.mock` on a local
+CommonJS module does not intercept `require()` in `electron/`; patching
+`db.prepare` on a real `better-sqlite3` instance does, and proves real
+rollback.
+
+**A quit never closed the database.** No `will-quit` listener existed at
+all, so the WAL and its `-shm` sibling were simply abandoned at every quit
+instead of checkpointed. Added `getDbPath`/`resolveDbFileName`/`closeDb` to
+`electron/db/index.js` — `closeDb` guarded to run once, swallowing and
+logging any error, because a checkpoint failure must never hang or crash
+app quit. The same file also does `const { app } = require('electron')` at
+its top, which looked like it would make the whole module untestable
+outside Electron the way `index.js` is — but `require('electron')` under
+plain Node resolves to a path string, not the Electron module, so `app` is
+just `undefined` there, and nothing at module scope touches it. The pure
+functions are directly importable.
+
+**A database from a newer build was silently accepted.** The runner computed
+`pending` migrations and, if a database's recorded version was already
+higher than anything in the current `MIGRATIONS` list (say, a user opened a
+future build's profile with an old installer), `pending` came out empty —
+indistinguishable from "already up to date." Added a check, before any
+backup or migration, that throws `NewerSchemaVersionError` when the recorded
+version exceeds the highest known one. No UI, no catch anywhere — that dialog
+is MAIN-B1's job; this only makes the runner refuse instead of proceeding.
+
+**`npm run dev` and the packaged app were reading and writing the same SQLite
+file.** Every edit made while developing landed in the exact file the
+installed app uses. `getDb()` now resolves `presenterpro-dev.db` only under
+the electron-vite dev server (`ELECTRON_RENDERER_URL` set), `presenterpro.db`
+otherwise — the decision lives in a pure `getDbPath(userDataDir, usesDevServer)`
+so it's unit-tested directly rather than through Electron. The first version
+keyed it on `!app.isPackaged`, and CI's E2E caught it: preview and Playwright
+are unpackaged too, so the app wrote the -dev file while every E2E spec read
+`presenterpro.db` ("no such table: presentations"). The same trap is already
+written down for renderer loading in `electron/main/index.js`; it caught us
+anyway, and only a real end-to-end run could have. Consequence for Ethan: the first `npm run dev` after this
+lands starts with an empty library (freshly seeded); whatever was in dev
+before sits untouched at the old shared path, copyable once if wanted.
+
+**Media import scanned the whole table per imported file, needlessly — the
+index already existed.** `media:import` called `mediaQueries.getMedia(db)`
+(every row, `SELECT * ... ORDER BY created_at DESC`) inside its per-file
+loop, then `.find()` in JS. `idx_media_canonical_path` was already there
+(migration 1), so this was a pure query fix: `findMediaByCanonicalPath(db,
+canonicalPath)` with `WHERE canonical_path = ?`, `.get()` not `.all()` +
+`.find()` since the column is 0-or-1 per path. `media:pick`'s single lookup
+got the same treatment for consistency, though it wasn't the per-file
+hot path the audit named.
+
+16 new cases after the MAIN-B10 removal, 15 red on `main` before the fix
+(the equal-version case is a deliberate non-regression sanity check).
+Gate re-run on the merged branch (see the PR).

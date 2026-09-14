@@ -16,7 +16,7 @@ const { buildNativeMenuTemplate } = require('./nativeMenu');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
-const { getDb } = require('../db/index');
+const { getDb, closeDb } = require('../db/index');
 const { runMigrations } = require('../db/migrations');
 const songQueries = require('../db/queries/songs');
 const presentationQueries = require('../db/queries/presentations');
@@ -1054,9 +1054,7 @@ function registerIpcHandlers() {
         const absPath = normalizeMediaFilePath(filePath);
         if (!mediaPathExists(absPath)) return [];
         const canonicalPath = canonicalizeMediaFilePath(absPath);
-        const existing = mediaQueries
-          .getMedia(db)
-          .find((item) => item.canonical_path === canonicalPath);
+        const existing = mediaQueries.findMediaByCanonicalPath(db, canonicalPath);
         if (existing) return [serializeMediaRecord(existing)];
         const name = path.basename(absPath);
         const ext = path.extname(absPath).toLowerCase().slice(1);
@@ -1093,9 +1091,7 @@ function registerIpcHandlers() {
         return { success: false, error: 'The selected media file could not be found.' };
       }
       const canonicalPath = canonicalizeMediaFilePath(filePath);
-      const existing = mediaQueries
-        .getMedia(db)
-        .find((item) => item.canonical_path === canonicalPath);
+      const existing = mediaQueries.findMediaByCanonicalPath(db, canonicalPath);
       if (existing) return { success: true, data: serializeMediaRecord(existing) };
 
       const name = path.basename(filePath);
@@ -1400,4 +1396,11 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+});
+
+// MAIN-B11: checkpoint the WAL and close the handle so a quit never leaves
+// `-wal`/`-shm` files behind. `closeDb()` is guarded to run at most once and
+// never throws — a failure here must not block or hang app quit.
+app.on('will-quit', () => {
+  closeDb();
 });

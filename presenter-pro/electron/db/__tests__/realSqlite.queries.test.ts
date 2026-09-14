@@ -294,6 +294,15 @@ describe('media and folders', () => {
     expect(media.updateMediaFolder(db, 999, { name: 'x' })).toBeNull();
   });
 
+  // MAIN-B15: media import used to scan the whole table per imported file
+  // (getMedia + JS .find); this indexed lookup replaces it.
+  it('findMediaByCanonicalPath finds the matching row by canonical_path and returns undefined for no match', () => {
+    item({ name: 'a.png', canonical_path: '/canon/a.png' });
+    const match = item({ name: 'b.png', canonical_path: '/canon/b.png' });
+    expect((media.findMediaByCanonicalPath(db, '/canon/b.png') as Row).id).toBe(match.id);
+    expect(media.findMediaByCanonicalPath(db, '/does/not/exist.png')).toBeUndefined();
+  });
+
   it('getMedia orders most recently created first, with id DESC breaking ties (MAIN-B16)', () => {
     const tiedA = item({ name: 'tiedA.png' });
     const tiedB = item({ name: 'tiedB.png' });
