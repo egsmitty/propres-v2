@@ -11,6 +11,7 @@ const {
 const os = require('os');
 const { createCloseController } = require('./closeController');
 const { createIpcRegistry } = require('./ipcRegistry');
+const { buildNativeMenuTemplate } = require('./nativeMenu');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
@@ -1434,103 +1435,8 @@ function registerIpcHandlers() {
 
 function buildNativeMenu() {
   const sendCommand = (command) => mainWindow?.webContents.send('app:command', command);
-  const template = [
-    {
-      label: 'PresenterPro',
-      submenu: [
-        { label: 'About PresenterPro', role: 'about' },
-        { type: 'separator' },
-        { role: 'services' },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    },
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'New Presentation',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => sendCommand('file:new'),
-        },
-        { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => sendCommand('file:open') },
-        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => sendCommand('file:save') },
-        {
-          label: 'Save As…',
-          accelerator: 'CmdOrCtrl+Shift+S',
-          click: () => sendCommand('file:saveAs'),
-        },
-        // No accelerator: Pages and Keynote give Revert none either, and an
-        // unbid shortcut for a destructive action is a hazard. This app has no
-        // menu-state plumbing, so the item is always enabled and the renderer
-        // command alerts when there is nothing to revert.
-        { label: 'Revert to Last Save', click: () => sendCommand('file:revert') },
-        { label: 'Version History…', click: () => sendCommand('file:versionHistory') },
-        { type: 'separator' },
-        { label: 'Close', accelerator: 'CmdOrCtrl+W', click: () => sendCommand('file:close') },
-      ],
-    },
-    {
-      label: 'Insert',
-      submenu: [
-        {
-          label: 'New Slide',
-          accelerator: 'CmdOrCtrl+M',
-          click: () => sendCommand('insert:newSlide'),
-        },
-        { type: 'separator' },
-        { label: 'Insert Image…', click: () => sendCommand('insert:image') },
-        { label: 'Insert Video…', click: () => sendCommand('insert:video') },
-      ],
-    },
-    {
-      label: 'Present',
-      submenu: [
-        { label: 'Start Presenting', accelerator: 'F5', click: () => sendCommand('present:start') },
-        {
-          label: 'Stop Presenting',
-          accelerator: 'Escape',
-          click: () => sendCommand('present:stop'),
-        },
-        { type: 'separator' },
-        { label: 'Black Screen', accelerator: 'B', click: () => sendCommand('present:black') },
-        { label: 'Logo Screen', accelerator: 'L', click: () => sendCommand('present:logo') },
-      ],
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => sendCommand('edit:undo') },
-        { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => sendCommand('edit:redo') },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'selectAll' },
-        { type: 'separator' },
-        { label: 'Presentation Settings…', click: () => sendCommand('edit:presentationSettings') },
-        { label: 'Output Settings…', click: () => sendCommand('view:outputSettings') },
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { label: 'Song Library', click: () => sendCommand('view:songLibrary') },
-        { label: 'Media Library', click: () => sendCommand('view:mediaLibrary') },
-        { label: 'Show / Hide Presenter Panel', click: () => sendCommand('view:presenterPanel') },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-      ],
-    },
-  ];
-
+  // The template lives in ./nativeMenu so it can be tested (plan L1).
+  const template = buildNativeMenuTemplate({ isDev, sendCommand });
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 

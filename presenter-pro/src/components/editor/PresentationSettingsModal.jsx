@@ -32,8 +32,9 @@ export default function PresentationSettingsModal() {
       e.preventDefault();
       setPresentationSettingsOpen(false);
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    // Capture phase: consumed before the Editor's stop-presenting listener (L1).
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [setPresentationSettingsOpen]);
 
   function handleSave() {

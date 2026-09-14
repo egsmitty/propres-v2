@@ -1753,3 +1753,34 @@ Gate: `type-check ✓ · lint ✓ · vitest 536/536 passed (0 skipped)`. One
 flake observed mid-run (`SongEditorModal.test.tsx` timed out under the full
 64-worker parallel gate load) — reran in isolation, 17/17 passed in 1.5s;
 not a regression, and that file is untouched by this PR.
+
+---
+
+## L1 — the listener that ran first was the one that took the projector down (2026-09-13)
+
+Audit items MAIN-B4, CMD-B7 and LIVE-A11 (`tasks/fable-pass-2-audit.md`, local).
+
+**The Escape bug was registration order, and three overlays already "fixed" it
+without fixing it.** The Editor stops presenting from a window keydown listener
+it adds when it mounts. Every dialog, menu and settings sheet adds its own
+Escape listener later, so in the bubble phase the Editor always ran first. The
+Dialog and all three settings modals already called `preventDefault()` — which
+looked like consumption and did nothing, because by then the Editor had read the
+key and stopped the show. The fix moves only Escape to the capture phase (which
+runs before every bubble listener, whatever the order) and makes the Editor
+ignore a consumed Escape.
+
+**Two things that would have broken if the whole listener had moved.** Dialog's
+Enter must stay after the dialog's own fields; and the shortcuts sheet closes on
+`?` while the Editor *toggles* it on `?` — close-first in capture, then toggle,
+reopens it. So each overlay now has an Escape listener in capture and keeps its
+other keys where they were.
+
+**The menu is now a tested template.** It was extracted verbatim first and
+pinned row-for-row (44 rows, 21 commands) so the extraction provably changed
+nothing, and only then gated: Reload and DevTools exist only in development, and
+Escape, B and L are shown as hints but not registered with the OS. That last one
+is SUSPECTED rather than proven — Playwright cannot see native accelerators — so
+it removes the second path instead of trying to demonstrate the double fire. It
+still needs a check in a packaged build on both macOS and Windows; the exact
+click-path is in the plan.

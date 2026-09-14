@@ -56,6 +56,9 @@ export default defineConfig({
           // IPC contract enforcement (plan B1): the registry is required from
           // index.js; the contract is imported by the registry AND by preload.
           'main/ipcRegistry': resolve(__dirname, 'electron/main/ipcRegistry.ts'),
+          // The native menu template (plan L1), required from index.js — same
+          // reason as closeController: without an entry the app will not launch.
+          'main/nativeMenu': resolve(__dirname, 'electron/main/nativeMenu.ts'),
           'shared/ipcContract': resolve(__dirname, 'shared/ipcContract.ts'),
           'db/index': resolve(__dirname, 'electron/db/index.js'),
           'db/migrations': resolve(__dirname, 'electron/db/migrations.js'),
