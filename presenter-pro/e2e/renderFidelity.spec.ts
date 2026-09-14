@@ -123,6 +123,60 @@ async function measureSite(page: Page, site: string): Promise<SiteFacts> {
   });
 }
 
+/**
+ * The canvas draws boxes as `[data-textbox-root]` inside a native-size stage
+ * scaled by one transform (`Canvas.jsx`). Its scale is the stage's rendered
+ * width over the presentation's native width.
+ */
+async function measureCanvas(page: Page): Promise<SiteFacts> {
+  const canvas = page.locator('[data-slide-editing]').first();
+  await expect(canvas).toHaveCount(1, { timeout: 15_000 });
+
+  return canvas.evaluate((node) => {
+    const round1 = (value: number) => Math.round(value * 10) / 10;
+    const stage = node.firstElementChild as HTMLElement | null;
+    if (!stage) throw new Error('the canvas has no stage');
+    const nativeWidth = Number.parseFloat(stage.style.width);
+    const origin = stage.getBoundingClientRect();
+    const scale = origin.width / nativeWidth;
+
+    const boxes = Array.from(node.querySelectorAll('[data-textbox-root="true"]')).map((box) => {
+      const rect = box.getBoundingClientRect();
+      const content = box.firstElementChild as HTMLElement | null;
+      if (!content) throw new Error('a canvas text box has no content element');
+      const style = getComputedStyle(content);
+      const range = document.createRange();
+      range.selectNodeContents(content);
+      const halfLine = (Number.parseFloat(style.lineHeight) * scale) / 2;
+      const tops = Array.from(range.getClientRects())
+        .filter((line) => line.height > 0)
+        .map((line) => line.top)
+        .sort((a, b) => a - b);
+      let lines = 0;
+      let lastTop = Number.NEGATIVE_INFINITY;
+      for (const top of tops) {
+        if (top - lastTop > halfLine) lines += 1;
+        lastTop = top;
+      }
+      return {
+        id: box.getAttribute('data-text-box-id'),
+        x: round1((rect.left - origin.left) / scale),
+        y: round1((rect.top - origin.top) / scale),
+        w: round1(rect.width / scale),
+        h: round1(rect.height / scale),
+        padding: style.padding,
+        textShadow: style.textShadow,
+        boxShadow: style.boxShadow,
+        fontSize: style.fontSize,
+        lineHeight: style.lineHeight,
+        fontFamily: style.fontFamily,
+        lines,
+      };
+    });
+    return { scale, boxes };
+  });
+}
+
 function styleFacts(box: BoxFacts) {
   const { x, y, w, h, ...rest } = box;
   void x;
@@ -154,6 +208,11 @@ test.describe('render fidelity', () => {
     await expect(page.getByText(/^Presenting/)).toBeVisible({ timeout: 15_000 });
     measured.set('output', await measureSite(output, 'output'));
 
+    // Slice 3: the editor canvas. It has no `data-slide-render` frame — its
+    // stage is the scaled canvas root — so its boxes are measured against that
+    // stage and the store's scale, with the same fields as every other site.
+    measured.set('canvas', await measureCanvas(page));
+
     const reference = measured.get(SITES[0])!;
 
     // Structural floor: the seeded first slide has one box with four lines of
@@ -163,8 +222,8 @@ test.describe('render fidelity', () => {
     expect(reference.boxes).toHaveLength(1);
     expect(reference.boxes[0]!.lines).toBeGreaterThanOrEqual(2);
 
-    const others = [...SITES.slice(1), 'output'];
-    expect(others).toHaveLength(3);
+    const others = [...SITES.slice(1), 'output', 'canvas'];
+    expect(others).toHaveLength(4);
     for (const site of others) {
       const facts = measured.get(site)!;
       expect(facts.scale, site).toBeGreaterThan(0);

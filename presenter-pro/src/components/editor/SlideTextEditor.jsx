@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DEFAULT_TEXT_COLOR, PLACEHOLDER_TEXT_COLOR } from '@/utils/colorPalettes';
+import { DEFAULT_TEXT_COLOR } from '@/utils/colorPalettes';
 import { useLatest } from '@/hooks/useLatest';
 import { slideBodyToHtml, slideBodyToPlainText } from '@/utils/slideMarkup';
-import { DEFAULT_TEXT_STYLE, resolvePlaceholderText } from '@/utils/textBoxes';
+import { resolvePlaceholderText } from '@/utils/textBoxes';
+import { textBoxContentStyle } from '@/utils/slideRenderStyle';
 import { isRecentEditorToolbarInteraction } from '@/utils/richTextEditor';
 
 function selectAllContents(element, collapseToEnd = false) {
@@ -200,7 +201,11 @@ export default function SlideTextEditor({
     });
   }
 
-  const style = textBox?.textStyle || {};
+  // Plan ED36 slice 3: the editor's text reads the same style module as the
+  // rendered box, so what you type cannot drift from what is drawn. Only the
+  // text properties are taken; the box's frame, padding and shadows belong to
+  // the container the canvas renders around this editor.
+  const content = textBoxContentStyle(textBox || {}, { placeholder: placeholderActive });
 
   return (
     <div className="w-full h-full flex flex-col" style={{ justifyContent: 'inherit' }}>
@@ -225,24 +230,21 @@ export default function SlideTextEditor({
         onBlur={handleBlur}
         className="w-full outline-hidden"
         style={{
-          color: placeholderActive ? PLACEHOLDER_TEXT_COLOR : style.color || DEFAULT_TEXT_COLOR,
-          fontSize: style.size || DEFAULT_TEXT_STYLE.size,
-          fontWeight: style.bold ? 700 : 400,
-          fontStyle: placeholderActive ? 'italic' : style.italic ? 'italic' : 'normal',
-          textDecoration:
-            [style.underline ? 'underline' : null, style.strikethrough ? 'line-through' : null]
-              .filter(Boolean)
-              .join(' ') || 'none',
-          textAlign: style.align || 'center',
-          lineHeight: style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight,
-          fontFamily: style.fontFamily || 'Arial, sans-serif',
-          caretColor: style.color || DEFAULT_TEXT_COLOR,
+          color: content.color,
+          fontSize: content.fontSize,
+          fontWeight: content.fontWeight,
+          fontStyle: content.fontStyle,
+          textDecoration: content.textDecoration,
+          textAlign: content.textAlign,
+          lineHeight: content.lineHeight,
+          fontFamily: content.fontFamily,
+          caretColor: textBox?.textStyle?.color || DEFAULT_TEXT_COLOR,
           userSelect: 'text',
           cursor: 'text',
           minHeight: '1em',
-          whiteSpace: textBox?.wrapText === false ? 'nowrap' : 'normal',
-          wordBreak: textBox?.wrapText === false ? 'normal' : 'break-word',
-          writingMode: textBox?.textDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb',
+          whiteSpace: content.whiteSpace,
+          wordBreak: content.wordBreak,
+          writingMode: content.writingMode,
         }}
       />
     </div>

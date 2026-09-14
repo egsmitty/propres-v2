@@ -2711,3 +2711,29 @@ the recapture run says whether that held.
 presenter flow stamps the aspect fields and the effective background id onto
 the slide, which is why the renderer is given `presentation={slide}`. The
 old text layer, kept for one slice as `OutputSlideText.jsx`, is deleted.
+
+---
+
+## ED36 slice 3 — the canvas draws what the wall draws (2026-09-14)
+
+**What changed.** The editor canvas — the one place that already laid a slide
+out at native size behind a single transform — now takes a text box's look
+from the same style module the thumbnails, the presenter and the projector
+use. The canvas keeps only what is its own: the cursor, the selection
+z-order, visible handles. The inline text editor reads the same module for
+its font, colour, alignment and wrapping, so what you type cannot drift from
+what is drawn. One visible change, deliberate: the canvas's soft text-shadow
+(0.5) became the projector's (0.9) — the editor now shows the wall.
+
+**Proof.** A characterization test pinned every inline style value the canvas
+set _before_ the change, then changed exactly the one named value after it.
+The fidelity E2E now measures five sites — thumbnail, presenter live preview
+and grid, output window and canvas — and asserts identical computed styles,
+identical wrapped-line counts and the same native geometry within a pixel.
+Every editor baseline that shows a text box moves (the shadow); the
+recapture's triage is in the commit that carries them.
+
+**Worth knowing.** jsdom's `getComputedStyle` knows only a few properties, so
+the pin reads `element.style`; and its `cssstyle` serializes an inline
+`border: none` as "medium", so the pin reads `borderStyle`. ED-36 is closed:
+one renderer, one style module, five sites in one test.
