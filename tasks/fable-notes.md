@@ -2675,4 +2675,11 @@ triaged; nothing else moved.
 "No slide") was dead: `normalizeTextBox` already stores a resolved placeholder
 on every box, so thumbnails have always said "Double-click to edit". Song
 slides store `autoFit: 'shrink'` and nothing renders it. Thumbnails still
-autoplay `<video>` backgrounds (FS-31).
+autoplay `<video>` backgrounds (FS-31). No UI sets a text box's `shadowEnabled`,
+so the Shadow setting cannot be checked by hand — it is pinned by unit tests.
+And the recapture exposed a hole in the screenshot net: `editor-song-library`'s
+committed baseline still showed the pre-#125 seed (seven songs, two of them
+copyrighted) and had passed every run since, because CI allows
+`maxDiffPixelRatio: 0.01` and a changed song list in small text stays under 1 %
+of the frame. The corrected baseline is committed with this slice; the
+tolerance itself is a CI item, not this plan's.

@@ -137,6 +137,42 @@ describe('SlideRender', () => {
     expect(screen.getByText('Sermon clip')).toBeInTheDocument();
   });
 
+  it('8. missingMediaLabel={null} draws nothing for a missing media slide (the projector)', () => {
+    const { container } = render(
+      <SlideRender
+        presentation={{}}
+        slide={{ id: 'slide-1', type: 'media', mediaId: 9 }}
+        mediaLibrary={[]}
+        missingMediaLabel={null}
+      />
+    );
+    expect(container.textContent).toBe('');
+    expect(screen.queryAllByTestId('textbox-view')).toEqual([]);
+  });
+
+  it('9. a highlighted style wraps the body in a highlight span', () => {
+    render(
+      <SlideRender
+        presentation={{}}
+        slide={{
+          id: 'slide-1',
+          type: 'song',
+          textBoxes: [{ id: 'a', body: 'Marked', textStyle: { highlightColor: '#ffff00' } }],
+        }}
+      />
+    );
+    const span = screen.getByText('Marked');
+    expect(span.tagName).toBe('SPAN');
+    expect(span).toHaveStyle({ backgroundColor: '#ffff00' });
+  });
+
+  it('10. without a ResizeObserver the frame renders hidden instead of throwing', () => {
+    vi.stubGlobal('ResizeObserver', undefined);
+    render(<SlideRender presentation={{}} slide={textSlide('Hello')} />);
+    expect(stage().style.visibility).toBe('hidden');
+    expect(frame().getAttribute('data-slide-scale')).toBe('');
+  });
+
   it('5. a text slide with a background renders the media and the fixed overlay; a media slide has no overlay', () => {
     const mediaLibrary = [
       { id: 7, type: 'image', file_path: '/bg.jpg', name: 'Sky' },

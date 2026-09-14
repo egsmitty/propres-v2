@@ -71,7 +71,8 @@ function useFrameSize(frameRef) {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (!frameRef.current) return undefined;
+    // jsdom has no ResizeObserver; an unmeasured frame simply stays hidden.
+    if (!frameRef.current || typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
@@ -96,7 +97,8 @@ const round2 = (value) => Math.round(value * 100) / 100;
  * @property {((media: object) => React.ReactNode) | null} [renderBackground] draws the
  *   background media in place of the default `<img>`/`<video>` (the projector's
  *   continuous-playback element)
- * @property {string} [missingMediaLabel] label for a media slide whose file is gone
+ * @property {string | null} [missingMediaLabel] label for a media slide whose file is
+ *   gone; `null` draws nothing (the projector never puts a label on the wall)
  * @property {string} [site] names the place this slide is drawn (`thumbnail`,
  *   `presenter-live`, `presenter-grid`, `home`, `filmstrip-preview`, `output`);
  *   the fidelity E2E selects sites by it
@@ -193,7 +195,7 @@ export default function SlideRender({
               );
             })}
       </div>
-      {mediaSlide && !showMediaSlide ? (
+      {mediaSlide && !showMediaSlide && missingMediaLabel ? (
         <div
           className="absolute inset-0 flex items-center justify-center text-center px-2"
           style={{ color: 'var(--on-dark-10)', fontSize: 10 }}

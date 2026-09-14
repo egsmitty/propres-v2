@@ -171,4 +171,16 @@ describe('textBoxContentStyle', () => {
       '#112233'
     );
   });
+
+  it('(g) a transparent outline draws no border whatever its width', () => {
+    expect(
+      textBoxContentStyle(createTextBox({ outlineWidth: 4, outlineColor: 'transparent' })).border
+    ).toBe('none');
+  });
+
+  it('(h) a shadow switched on with no colour uses the default colour and blur', () => {
+    expect(textBoxContentStyle(createTextBox({ shadowEnabled: true })).boxShadow).toBe(
+      '0px 10px 18px rgba(0,0,0,0.35)'
+    );
+  });
 });

@@ -13,6 +13,16 @@ import type { Page } from '@playwright/test';
 // rect by the site's scale must give the same native rect everywhere, and
 // computed styles (which ignore transforms) must be identical strings.
 //
+// This spec cannot run against the old code — its seams did not exist — so it
+// lands green. Its red is the measured plan table: on the old code the
+// filmstrip thumbnail's padding computed to `4px 4px 4px 4px` and the
+// presenter grid's to `5px 7px 5px 7px` (each site had its own screen-pixel
+// floor), with font sizes that differed by rounding.
+//
+// Preconditions: the seeded presentation is open (its first slide selected)
+// and the presenter panel is shown — the live preview and the grid do not
+// exist otherwise.
+//
 // If an assertion fails, the bug is elsewhere — never loosen the assertion to
 // pass. Fix the root cause or record it as a suspected regression.
 
@@ -68,15 +78,24 @@ async function measureSite(page: Page, site: string): Promise<SiteFacts> {
       const content = box.firstElementChild as HTMLElement | null;
       if (!content) throw new Error('a text box has no content element');
       const style = getComputedStyle(content);
-      // Distinct line tops = rendered lines. Client rects are in screen space
-      // (already scaled), which is fine: lines are distinct at any scale.
+      // Rendered lines = clusters of client-rect tops. The range also yields a
+      // rect for the wrapping block (whose top is the first line's, give or
+      // take sub-pixel jitter), so tops closer than half a line are one line.
+      // Client rects are in screen space (already scaled): a native line of
+      // `lineHeight` px is `lineHeight * scale` px apart here.
       const range = document.createRange();
       range.selectNodeContents(content);
-      const tops = new Set(
-        Array.from(range.getClientRects())
-          .filter((line) => line.height > 0)
-          .map((line) => Math.round(line.top))
-      );
+      const halfLine = (Number.parseFloat(style.lineHeight) * scale) / 2;
+      const tops = Array.from(range.getClientRects())
+        .filter((line) => line.height > 0)
+        .map((line) => line.top)
+        .sort((a, b) => a - b);
+      let lines = 0;
+      let lastTop = Number.NEGATIVE_INFINITY;
+      for (const top of tops) {
+        if (top - lastTop > halfLine) lines += 1;
+        lastTop = top;
+      }
       return {
         id: box.getAttribute('data-text-box-id'),
         x: round1((rect.left - origin.left) / scale),
@@ -89,7 +108,7 @@ async function measureSite(page: Page, site: string): Promise<SiteFacts> {
         fontSize: style.fontSize,
         lineHeight: style.lineHeight,
         fontFamily: style.fontFamily,
-        lines: tops.size,
+        lines,
       };
     });
     return { scale, boxes };

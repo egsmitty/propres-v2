@@ -15,17 +15,19 @@ proof and tightens as each slice lands.
 
 ## Measured (read on 2026-09-14, `main` @ `a18458f`)
 
-Six places draw a slide. Four of them go through `ScaledSlideText`.
+Seven sites draw a slide. Six of them reach `ScaledSlideText` — three directly
+(`OutputRenderer.jsx:299`, `Filmstrip.jsx:290`, `Home.jsx:1107`) and three via
+`SlidePreviewSurface.jsx:80`.
 
-| Site                               | Component                                                                      | Scale method                                                                                                                     | Text-shadow                                                                                                                                                                                   | User "Shadow" setting drawn as                                       | Padding floor (screen px) | Media overlay                         |
-| ---------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------- | ------------------------------------- |
-| Editor canvas                      | `Canvas.jsx:1128-1141` stage, `renderTextBox` `:940-1000`                      | native 1920×1080 stage, **one** `transform: scale(s)`                                                                            | always `0 2px 16px rgba(0,0,0,0.5)` (`:987`)                                                                                                                                                  | **box-shadow** `renderShadow(box)` (`:991`, `canvasTextStyle.ts:57`) | none — native padding     | `rgba(0,0,0,0.18)` (`:1148`)          |
-| Projector                          | `OutputRenderer.jsx:297-303` → `ScaledSlideText`                               | every px value × scale; `scaleInlineHtml` regex-rewrites `font-size`/`line-height` inside the HTML (`ScaledSlideText.jsx:77-95`) | `0 2px 16px rgba(0,0,0,0.9)` **unless** the user's shadow is on — then **the user's shadow replaces it as a text-shadow** (`renderShadow(box, scale, fallback)` `:28-35`); no box-shadow ever | text-shadow                                                          | 4 / 4                     | `rgba(0,0,0,0.22)` (`:290`)           |
-| Filmstrip thumbnail                | `FilmstripSlide.jsx:149` → `SlidePreviewSurface` → `ScaledSlideText`           | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                          | 4 / 4                     | `0.18` (`SlidePreviewSurface.jsx:42`) |
-| Filmstrip floating/section preview | `Filmstrip.jsx:290` → `ScaledSlideText`                                        | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                          | 6 / 6                     | none (no background layer at all)     |
-| Presenter live preview             | `PresenterPanel.jsx:410` → `SlidePreviewSurface`                               | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                          | 8 / 8                     | `0.18`                                |
-| Presenter grid                     | `PresenterPanel.jsx:576` → `SlidePreviewSurface`                               | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                          | 7 / 5                     | `0.18`                                |
-| Home recent card                   | `Home.jsx:1107` → `ScaledSlideText` (body cut to 4 lines, legacy `slide.body`) | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                          | 8 / 8                     | none                                  |
+| Site                               | Component                                                                                  | Scale method                                                                                                                     | Text-shadow                                                                                                                                                                                   | User "Shadow" setting drawn as                                          | Padding floor (screen px) | Media overlay                         |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------- | ------------------------------------- |
+| Editor canvas                      | `Canvas.jsx:1128-1141` stage, `renderTextBox` `:935-1000`                                  | native 1920×1080 stage, **one** `transform: scale(s)`                                                                            | always `0 2px 16px rgba(0,0,0,0.5)` (`:987`)                                                                                                                                                  | **box-shadow** `renderShadow(box)` (`:991`, `canvasTextStyle.ts:55-62`) | none — native padding     | `rgba(0,0,0,0.18)` (`:1146`)          |
+| Projector                          | `OutputRenderer.jsx:299-305` → `ScaledSlideText`, with **`presentation={slide}`** (`:300`) | every px value × scale; `scaleInlineHtml` regex-rewrites `font-size`/`line-height` inside the HTML (`ScaledSlideText.jsx:77-95`) | `0 2px 16px rgba(0,0,0,0.9)` **unless** the user's shadow is on — then **the user's shadow replaces it as a text-shadow** (`renderShadow(box, scale, fallback)` `:28-35`); no box-shadow ever | text-shadow                                                             | 4 / 4                     | `rgba(0,0,0,0.22)` (`:290`)           |
+| Filmstrip thumbnail                | `FilmstripSlide.jsx:149` → `SlidePreviewSurface` → `ScaledSlideText`                       | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                             | 4 / 4                     | `0.18` (`SlidePreviewSurface.jsx:42`) |
+| Filmstrip floating/section preview | `Filmstrip.jsx:290` → `ScaledSlideText`                                                    | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                             | 6 / 6                     | none (no background layer at all)     |
+| Presenter live preview             | `PresenterPanel.jsx:410` → `SlidePreviewSurface`                                           | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                             | 8 / 8                     | `0.18`                                |
+| Presenter grid                     | `PresenterPanel.jsx:576` → `SlidePreviewSurface`                                           | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                             | 7 / 5                     | `0.18`                                |
+| Home recent card                   | `Home.jsx:1107` → `ScaledSlideText` (body cut to 4 lines, legacy `slide.body`)             | as projector                                                                                                                     | `none`                                                                                                                                                                                        | text-shadow                                                             | 8 / 8                     | none                                  |
 
 Other measured facts the design depends on:
 
@@ -43,10 +45,33 @@ Other measured facts the design depends on:
   (`getPresentationScale` returns 1 for a 0×0 container) — a 1920px-wide box
   inside an `overflow-hidden` frame for one frame.
 - **Unit-test seams:** `vitest.setup.mjs` has no `ResizeObserver`;
-  `OutputRenderer.safety.test.tsx:118-134` stubs one and asserts the **stage
-  root** (`container.firstElementChild`) is observed exactly once per showing —
-  it explicitly tolerates the text layer observing its own frame. `Home.test.tsx`
-  keeps fixtures on the no-slide branch to avoid the renderer.
+  `OutputRenderer.safety.test.tsx:79-88` stubs one that records every observed
+  element and **never fires**, and `:118-135` asserts the **viewport root**
+  (`container.firstElementChild`) is observed exactly once per showing — it
+  explicitly tolerates the text layer observing its own frame. The same file's
+  `:94` asserts `container.textContent` under that never-firing stub, so a
+  renderer must render-and-hide, never return nothing while unmeasured.
+  `OutputRenderer.test.tsx:31-35` replaces the **whole** `@/utils/backgrounds`
+  module with `{ getMediaAssetUrl, isVideoMedia }` — any new import from that
+  module is `undefined` there. `Home.test.tsx` keeps fixtures on the no-slide
+  branch to avoid the renderer.
+- **The projector has no presentation.** `output:update` carries
+  `{ slide, background }` (`electron/main/index.js:1219,1246,1257`); `background`
+  is `null` at every call site (`presenterFlow.js:106,131,157`). The slide is
+  flattened by `withEffectiveBackground` (`backgrounds.js:45-53` → `sectionId`,
+  `effectiveBackgroundId`) and `withPresentationMeta` (`presenterFlow.js:16-25`
+  → `aspectRatio`, `customAspectWidth/Height`), which is why `presentation={slide}`
+  works. There is no `sections` array, so `getEffectiveBackgroundId(slide, slide.sectionId, slide)`
+  returns `slide.effectiveBackgroundId`. `OutputRenderer` resolves the item from
+  its own `getMedia()` copy and owns **video continuity** through the
+  `backgroundIdRef` early return (`:145-147`): the same background id never
+  re-sets state, so the `<video>` element survives slide changes within a
+  section. `OutputBackground` (`:345-395`) is a plain uncontrolled element.
+- **Nothing in the app sets `shadowEnabled`.** `grep -rn shadowEnabled src`
+  finds only the default (`textBoxes.js:48`), the two renderers, and copy/paste
+  plumbing in `Filmstrip.jsx`; `Toolbar.jsx` has no shadow control. Decision 3
+  contradicts no UI copy and affects no stored row today; a manual check of it
+  is impossible (finding).
 - **Existing tests touching this code:** `ScaledSlideText.test.tsx` (2 cases:
   `dir="auto"` on `data-testid="scaled-slide-text-box"`),
   `canvasTextStyle.test.ts` (exact strings of `renderOutline`/`renderShadow`/…),
@@ -101,11 +126,18 @@ Other measured facts the design depends on:
    (continuous playback) by passing `renderBackground`; the overlay and the text
    stage are `SlideRender`'s. Slice 2 measures OutputRenderer's own resolution
    before wiring it (Todo 8).
-6. **Nothing renders until measured.** The stage is `visibility: hidden` until
+6. **Nothing shows until measured.** The stage is `visibility: hidden` until
    the frame's first `ResizeObserver` callback, so there is no one-frame 1920px
-   flash. The frame carries `data-slide-render` and `data-slide-scale="<s>"`; the
-   stage `data-slide-stage`; each box `data-textbox-view` — these are the E2E
-   seams and are not to be renamed.
+   flash. Pitfalls, each pinned by a unit case: render-and-hide, never return
+   nothing (the safety test reads `textContent` under a stub that never fires);
+   a missing global `ResizeObserver` leaves the frame hidden instead of throwing;
+   the projector must not give `SlideRender` a per-slide `key`, or it re-hides
+   on every advance. The frame carries `data-slide-render="<site>"` and
+   `data-slide-scale="<s>"` (empty until measured); the stage `data-slide-stage`;
+   each box `data-textbox-view` — these are the E2E seams and are not to be
+   renamed. A media slide whose file is gone draws `missingMediaLabel` in the
+   previews and **nothing** on the projector (`missingMediaLabel={null}`), as
+   today.
 7. **Not in this plan, recorded as findings:** the dead `empty` prop (dropped
    without replacement — the placeholder text is the box's own); Home's
    four-line truncation of legacy `slide.body` (kept as is); `autoFit: 'shrink'`
@@ -146,15 +178,18 @@ entries, and per slice:
   `src/components/shared/__tests__/ScaledSlideText.test.tsx` (moved into
   `SlideRender.test.tsx`), `FilmstripSlide.jsx:149-158`, `Filmstrip.jsx:8,290-297`,
   `PresenterPanel.jsx:11,410-419,576-584`, `Home.jsx:21,1107-1114`,
-  `OutputRenderer.jsx:17,297-303` **import only** — the projector keeps
+  `src/pages/__tests__/Home.test.tsx:14` (a stale comment naming `ScaledSlideText`),
+  `OutputRenderer.jsx:17,299-305` **import only** — the projector keeps
   `ScaledSlideText`'s behaviour until Slice 2, so Slice 1 renames nothing it
   uses: the old text layer is kept as `src/components/presenter/OutputSlideText.jsx`
   (a verbatim move of `ScaledSlideText.jsx`, deleted in Slice 2).
-- **Slice 2 (projector):** `OutputRenderer.jsx` (the stage block `:262-305`),
-  `OutputSlideText.jsx` (deleted), `OutputRenderer.test.tsx`/`.safety.test.tsx`
-  only where Todo 8 says.
-- **Slice 3 (canvas):** `Canvas.jsx` (`renderTextBox` `:934-1000`, `renderTextBody`
-  `:83-95`, the overlay `:1148`), `SlideTextEditor.jsx:203-247` (style block
+- **Slice 2 (projector):** `OutputRenderer.jsx` (the stage block `:272-305`),
+  `OutputSlideText.jsx` (deleted), `OutputRenderer.test.tsx:31-35` (the
+  `backgrounds` module mock gains `getEffectiveBackgroundId` — a mock extension,
+  not a behaviour change; every existing assertion stays), `.safety.test.tsx`
+  (nothing).
+- **Slice 3 (canvas):** `Canvas.jsx` (`renderTextBox` `:935-1000`, `renderTextBody`
+  `:82-94`, the overlay `:1146`), `SlideTextEditor.jsx:203-247` (style block
   only), `canvasTextStyle.ts` (nothing removed; `resolveVerticalAlignment` is
   reused).
 
@@ -170,30 +205,40 @@ record, not to edit.
 
 ### Slice 1 — previews (thumbnail, floating preview, presenter live + grid, Home)
 
-- [ ] 1. **Characterize the style module before it exists (red).**
+_Todos 1–4 were written before the fresh-agent review and revised after it
+(cases (g)–(h) and 8–10 added, the never-throw guard, the nullable label)._
+
+- [x] 1. **Characterize the style module before it exists (red).**
       `src/utils/__tests__/slideRenderStyle.test.ts`: for a box built with
       `createTextBox({ x: 100, y: 50, width: 800, height: 300, rotation: 5, opacity: 0.5, cornerRadius: 9, outlineWidth: 3, outlineColor: '#ff0000', shadowEnabled: true, shadowOffsetY: 4, shadowBlur: 6, shadowColor: 'rgba(0,0,0,0.5)', paddingTop: 0, paddingLeft: 7, textStyle: { size: 120, bold: true, italic: true, underline: true, align: 'left', valign: 'bottom', lineHeight: 1.2, color: '#00ff00', fontFamily: 'Georgia' } })`
       assert `textBoxFrameStyle` and `textBoxContentStyle` **as whole objects with
       `toEqual`** (exact keys, exact values, native px numbers): frame `{ position:'absolute', left:100, top:50, width:800, height:300, transform:'rotate(5deg)', transformOrigin:'center center', opacity:0.5 }`; content includes `paddingTop:0, paddingRight:28, paddingBottom:22, paddingLeft:7, fontSize:120, fontWeight:700, fontStyle:'italic', textDecoration:'underline', textAlign:'left', justifyContent:'flex-end', lineHeight:1.2, color:'#00ff00', fontFamily:'Georgia', textShadow: LEGIBILITY_TEXT_SHADOW, boxShadow:'0px 4px 6px rgba(0,0,0,0.5)', border:'3px solid #ff0000', borderRadius:9, background:'transparent', overflow:'hidden', writingMode:'horizontal-tb', wordBreak:'break-word', whiteSpace:'normal', display:'flex', flexDirection:'column' }`.
-      Six more cases, this list is exhaustive: (a) default box → `transform:'none'`,
+      Eight more cases, this list is exhaustive — (a)–(h): (a) default box → `transform:'none'`,
       `boxShadow:'none'`, `border:'none'`, `borderRadius:14`, all four default
       paddings; (b) `{ placeholder: true }` → `color: PLACEHOLDER_TEXT_COLOR`,
       `fontStyle:'italic'` even when the style is not italic; (c) `wrapText:false` →
       `whiteSpace:'nowrap'`, `wordBreak:'normal'`; (d) `textDirection:'vertical'` →
       `writingMode:'vertical-rl'`; (e) `valign:'top'` → `flex-start`, missing →
-      `center`; (f) the two constants equal the projector's literal strings above.
+      `center`; (f) an explicit `backgroundColor` is the fill; (g) a `transparent`
+      outline draws no border whatever its width; (h) a shadow switched on with
+      no colour uses the default colour and blur. Plus the two constants equal the
+      projector's literal strings above.
       Red: `npx vitest run src/utils/__tests__/slideRenderStyle.test.ts` fails on
       "Cannot find module" — that is **not** the red; write the module as an empty
-      export first so the red is `toEqual` on its assertion.
-- [ ] 2. Write `src/utils/slideRenderStyle.ts` (Decision 4) reusing
+      export first so the red is `toEqual` on its assertion. _Done: 10 failed on
+      `toEqual`/`toBe` against the stub._
+- [x] 2. Write `src/utils/slideRenderStyle.ts` (Decision 4) reusing
       `resolveTextBoxPadding`, `resolveVerticalAlignment`, `renderOutline`,
       `renderShadow`, `renderTextDecoration` from `canvasTextStyle.ts`. Green on
-      Todo 1.
-- [ ] 3. **`SlideRender` unit tests (red first).**
+      Todo 1: `npx vitest run src/utils/__tests__/slideRenderStyle.test.ts`.
+- [x] 3. **`SlideRender` unit tests (red first).**
       `src/components/shared/__tests__/SlideRender.test.tsx` (`@vitest-environment jsdom`;
       stub `globalThis.ResizeObserver` in `beforeEach` with a class that records the
       observed element and exposes `fire({ width, height })`; restore in `afterEach`).
-      This table is exhaustive — all 7:
+      Red: run against a stub component that renders only the frame and stage —
+      every case must fail on its assertion (_done: 7 failed on `toEqual`/`toBe`_).
+      Verify: `npx vitest run src/components/shared/__tests__/SlideRender.test.tsx`.
+      This table is exhaustive — all 10:
   1. before `fire`, the stage has `visibility: hidden`; after `fire({1920/4, 1080/4})`
      the frame has `data-slide-scale="0.25"` and the stage `transform: scale(0.25)`,
      `width: 1920px`, `height: 1080px` (exact strings).
@@ -212,63 +257,100 @@ record, not to edit.
      renders no overlay.
   6. `placeholder={false}` renders an empty box (no text) for a body-less box;
      the default renders the box's own placeholder text in italics.
-  7. `renderBackground` is called with the resolved media and its element is
-     rendered in place of the default one.
-- [ ] 4. Write `src/components/shared/SlideRender.jsx` (Decisions 1, 5, 6) and
+  7. `renderBackground` is called with the resolved media (every call — React
+     renders more than once) and its element is rendered in place of the default.
+  8. `missingMediaLabel={null}` draws nothing for a missing media slide
+     (`container.textContent === ''`).
+  9. a `highlightColor` style wraps the body in a `<span>` with that background
+     (`TextBoxBody`'s branch).
+  10. with no global `ResizeObserver` the frame renders hidden and does not throw.
+- [x] 4. Write `src/components/shared/SlideRender.jsx` (Decisions 1, 5, 6) and
       `TextBoxBody`. Green on Todo 3. `npx vitest run src/components/shared`.
-- [ ] 5. **Fidelity E2E (red on CI).** `e2e/renderFidelity.spec.ts`: launch,
-      dismiss tutorial, open "Sunday Morning Service" (keyboard: focus row, Enter,
-      wait for `[data-slide-editing]`), then `const opened = app.waitForEvent('window'); await page.evaluate(() => window.electronAPI.openOutputWindow({ useConfiguredDisplay: false })); const output = await opened;` (listener first — plan E2E1), go live on the first slide via `page.keyboard.press('F5')` is **not** used (it opens a second output); instead call `window.electronAPI.setLiveSlide`-equivalent as `presenterPreview.spec.ts` does — read that spec and reuse its helper verbatim. Then in **both** windows collect, for the first slide's thumbnail (`[data-slide-render]` inside the first `[data-textbox-root]`-free filmstrip item — use the first `.mx-2` filmstrip slide's `[data-slide-render]`) and the projector's `[data-slide-render]`:
-      `{ scale, boxes: [{ id, nativeRect: rect/scale rounded to 0.1, padding, textShadow, boxShadow, fontSize, lineHeight, lines }] }` where `lines` is the number of distinct `Math.round(top)` values over `document.createRange().selectNodeContents(content).getClientRects()`.
-      Assert, in this order: both `boxes.length === 1` (exact); precondition
-      `lines >= 2` on the projector (Amazing Grace has 4 lines — an empty artifact
-      means the harness failed); then `expect(thumb.boxes).toEqual(output.boxes)`
-      for the string fields and `lines`, and `|Δ| ≤ 1` per rect field.
-      This fails on `main`: the thumbnail's `padding` is `4px 4px 4px 4px` (floors)
-      and its `textShadow` is `none`, the projector's are `22px 28px 22px 28px` and
-      `rgba(0, 0, 0, 0.9) 0px 2px 16px`. **In Slice 1 this test is red on the
-      projector side by design** (the projector still uses the old layer), so Slice 1
-      commits it with the projector half replaced by a second thumbnail — the
-      presenter grid's first `[data-slide-render]` — and Slice 2 switches it to the
-      projector. Slice 3 adds the canvas's `[data-textbox-root]` as a third member
-      with the same fields.
-- [ ] 6. Wire the five preview sites, delete `ScaledSlideText.jsx` and
+- [x] 5. **Fidelity E2E — lands green; its red is analytical.** `e2e/renderFidelity.spec.ts`
+      cannot run against `main`: `[data-slide-render]`, `data-slide-scale` and
+      `[data-textbox-view]` did not exist, so on `main` it would fail as a locator
+      timeout, which is a harness failure and **not** a red. The red is the
+      Measured table: on `main` the filmstrip thumbnail's computed padding was
+      `4px 4px 4px 4px` (`FilmstripSlide.jsx:149`, floors 4/4) and the presenter
+      grid's `5px 7px 5px 7px` (`PresenterPanel.jsx:582-583`, floors 7/5), with
+      `fontSize` differing by rounding; `textShadow` was `none` at both. The
+      spec's header states this.
+      Flow: launch, dismiss tutorial, open "Sunday Morning Service" (focus row,
+      Enter, wait for `[data-slide-editing]`), `showPresenterPanel(page)` —
+      **precondition:** the live preview and the grid exist only with the panel
+      shown. No output window in Slice 1. For each site in
+      `['thumbnail', 'presenter-live', 'presenter-grid']` take the first
+      `[data-slide-render="<site>"]`, wait for `data-slide-scale` to match
+      `/^[0-9.]+$/`, and collect `{ scale, boxes: [{ id, x, y, w, h, padding, textShadow, boxShadow, fontSize, lineHeight, fontFamily, lines }] }`
+      where `x/y/w/h` are the box's screen rect relative to the stage's rect
+      divided by `scale` (rounded to 0.1), the strings are `getComputedStyle` of
+      the box's first child (the content div), and `lines` counts clusters of
+      `getClientRects()` tops over the content's range with a gap threshold of
+      half a screen line (`lineHeight × scale / 2`).
+      Assert, in this order: reference `scale > 0`; `boxes.length === 1` (exact);
+      precondition `lines >= 2` (Amazing Grace has 4 — an empty measurement means
+      the harness failed); then, per other site, `toEqual` on the style fields and
+      `lines` (whole array, order exact) and `|Δ| ≤ 1` per geometry field.
+      Slice 2 adds `'output'` (the projector window) to `SITES`; Slice 3 adds the
+      canvas's `[data-textbox-root]` with the same fields.
+- [x] 6. Wire the five preview sites, delete `ScaledSlideText.jsx` and
       `SlidePreviewSurface.jsx`, move the projector's copy to `OutputSlideText.jsx`
-      (verbatim, import path only), update `inlineStyleBudget.test.ts` rows (remove
-      the two deleted files, add `components/shared/SlideRender.jsx` at its exact
-      count — the ratchet fails over and under). `npm run gate`, `npm run format:check`.
+      (verbatim, import path only), update `inlineStyleBudget.test.ts` rows: remove
+      `ScaledSlideText.jsx` (3) and `SlidePreviewSurface.jsx` (2); add
+      `components/presenter/OutputSlideText.jsx: 3` (the verbatim copy — removed
+      again in Slice 2) and `components/shared/SlideRender.jsx` at its exact count
+      (8); `FilmstripSlide.jsx: 2` and `SlideTextEditor.jsx: 2` are unchanged.
+      The ratchet fails over and under. `npm run gate`, `npm run format:check`.
+      _Done: gate green, 112 files / 919 tests._
 - [ ] 7. Baselines: dispatch `update_baselines`, download, `cmp`, triage. Expected
-      movers (this list is exhaustive for Slice 1): `editor.png`, `editor-textbox-selected.png`,
-      `editor-song-order-tray.png`, `editor-missing-background.png`,
-      `editor-presenting.png`, `editor-song-library.png`, `editor-media-library.png`,
-      `editor-media-library-items.png`, `editor-media-library-folder.png`, `home.png`,
-      `home-recent.png`, `home-open.png`, plus hover clips that include a thumbnail
-      — thumbnails gain the legibility text-shadow and lose the padding floor.
-      `output.png` and `stage-display.png` must **not** move in Slice 1. Commit only
-      changed files; name each in the commit message. PR with findings; records.
+      movers — this list is exhaustive for Slice 1, each with its reason (a mover
+      outside it is an unintended side effect and stops the slice): every capture
+      that shows a thumbnail, a presenter preview or a Home card gains the
+      legibility text-shadow and loses the padding floor — `editor.png`,
+      `editor-textbox-selected.png`, `editor-song-order-tray.png`,
+      `editor-missing-background.png`, `editor-presenting.png`,
+      `editor-song-library.png`, `editor-media-library.png`,
+      `editor-media-library-items.png`, `editor-media-library-folder.png`
+      (editor + filmstrip + presenter panel); `presentation-settings.png`,
+      `output-settings.png`, `shortcuts-overlay.png`, `song-editor-modal.png`,
+      `dialog-unsaved-changes.png` (full-page captures over the open editor);
+      `home.png`, `home-recent.png`, `home-open.png`, `home-new.png`,
+      `home-context-menu.png`, `tutorial.png` (full-page captures over Home's
+      cards); and the hover clips whose clip includes a thumbnail. Must **not**
+      move: `output.png`, `stage-display.png`, `home-open-empty.png`. All files are
+      `*-darwin.png`. Commit only changed files; name each in the commit message.
+      PR with findings; records.
 
 ### Slice 2 — projector
 
-- [ ] 8. **Measure** `OutputRenderer.jsx:1-180`: how `background` and
-      `mediaSlideItem` are resolved (its own library copy — FS-36), whether the
-      live payload carries `sectionId`/`effectiveBackgroundId`, and what
-      `OutputBackground` does for continuity. Write the answers into this plan under
-      "Slice 2 measured" before coding. If the payload has no `sectionId`, pass
-      `backgroundMedia`/`mediaSlideItem` already resolved instead of `mediaLibrary`
-      (add both optional props to `SlideRender`; a unit case for each; Todo 3's count
-      becomes 9).
-- [ ] 9. Replace the stage's background/overlay/`OutputSlideText` block with
-      `<SlideRender … renderBackground={(media) => <OutputBackground media={media} />} placeholder={false}>`;
-      delete `OutputSlideText.jsx`. `OutputRenderer.safety.test.tsx` "resize observer
-      watches the stage root" must pass **unchanged** (the stage root is still
-      observed by `OutputRenderer`'s own observer; `SlideRender` observes its frame).
-      `OutputRenderer.test.tsx` media/background cases must pass unchanged.
-- [ ] 10. Switch `renderFidelity.spec.ts`'s second member to the projector
-      (Todo 5). Baselines: expected movers `output.png` and `editor-presenting.png`
-      only (the projector's shadow model changes for boxes with the user's shadow on
-      — none in the seed — and its overlay for media — none in the seed; so the
-      expectation is **zero pixel change** on `output.png`; if it moves, triage
-      before accepting). Gate, PR, records.
+- [ ] 8. **Measured (see "The projector has no presentation" above).** The
+      payload carries `sectionId` and `effectiveBackgroundId` but no `sections`,
+      and `OutputRenderer` owns continuity via `backgroundIdRef`. So the projector
+      passes what it already resolved: add optional `backgroundMedia` and
+      `mediaSlideItem` props to `SlideRender` that, when given, replace the
+      library lookup (two unit cases: each prop wins over `mediaLibrary`; Todo 3's
+      count becomes 12). `renderBackground={(media) => <OutputBackground media={media} />}`
+      keeps the uncontrolled element; a unit case in `OutputRenderer.test.tsx`
+      asserts the `<video>` **node identity** survives a second `output:update`
+      with a different slide and the same background id (the `backgroundIdRef`
+      early return). `missingMediaLabel={null}`, `placeholder={false}`,
+      `site="output"`, and no per-slide `key`.
+- [ ] 9. Replace the stage's background/overlay/`OutputSlideText` block
+      (`:272-305`) with `SlideRender`; delete `OutputSlideText.jsx` and its
+      `inlineStyleBudget` row; lower `OutputRenderer.jsx`'s row to its exact count.
+      `OutputRenderer.safety.test.tsx` must pass **unchanged** (its stub records
+      every observed element and filters on the viewport root, which
+      `OutputRenderer`'s own observer still watches; `SlideRender` observes a
+      different node). `OutputRenderer.test.tsx:31-35`'s `backgrounds` mock gains
+      `getEffectiveBackgroundId` (pre-authorized — a mock extension, not a
+      behaviour change; every existing assertion stays as written). Verify:
+      `npx vitest run src/components/presenter`.
+- [ ] 10. Add `'output'` to `renderFidelity.spec.ts`'s `SITES`: open the output
+      window with the listener registered first (`const opened = app.waitForEvent('window'); await page.evaluate(() => window.electronAPI.openOutputWindow({ useConfiguredDisplay: false })); const output = await opened;` — `visual.spec.ts:38-46`), go live on the first slide the way `visual-surfaces.spec.ts:88-97` does (F5 from the editor, wait for the `Presenting` banner), then measure `[data-slide-render="output"]` in the output page. Baselines: expected movers `output.png` only, and only if a
+      seeded box has the user's shadow on or a media background — the seed has
+      neither, so the expectation is **zero pixel change**; if it moves, triage
+      before accepting. `editor-presenting.png` must not move (the editor is
+      unchanged in this slice). Gate, PR, records.
 
 ### Slice 3 — canvas
 
@@ -298,9 +380,11 @@ record, not to edit.
       baseline refreshed (by name, with the triage verdict), behaviour-change test
       edits, anything the plan did not anticipate. Manual check owed (listed, not
       run — rule 8 in the handoff): with a media background set, compare the
-      thumbnail, presenter preview and projector for one slide; with the user's
-      Shadow switched on, confirm the projector shows a box shadow, not a text
-      shadow.
+      thumbnail, presenter preview and projector for one slide at native and at
+      windowed output sizes. The user's Shadow cannot be checked by hand — no UI
+      sets `shadowEnabled` (Measured); the box-shadow reading is pinned by Todo 1
+      case (h) and `canvasTextStyle.test.ts`, and "no UI sets `shadowEnabled`" is
+      reported as a finding.
 
 ## Compliance Manifest
 
@@ -309,15 +393,15 @@ record, not to edit.
 | Item                                          | Disposition                                                                                                                                                                                                                       |
 | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Assertion weakening designed against          | Clause verbatim; exactness/order/count stated under Decisions; Todo 1 uses whole-object `toEqual`; Todo 5 names the one tolerance and its unit                                                                                    |
-| List sampling designed against                | Todo 1 "six more cases, exhaustive"; Todo 3 "all 7"; Todo 5 asserts `boxes.length`; Todo 7 exhaustive mover list                                                                                                                  |
+| List sampling designed against                | Todo 1 "eight more cases (a)–(h), exhaustive"; Todo 3 "all 10"; Todo 5 asserts `boxes.length`; Todo 7's mover list is exhaustive with a reason per group                                                                          |
 | Quantifier erosion designed against           | Todo 3.3 collects every `data-textbox-view` and asserts the array; Todo 5 iterates every box of both windows and asserts `boxes.length === 1` before comparing                                                                    |
 | Sanctioned escape hatch                       | None needed: no allowlist; a baseline that moves outside the expected list stops the slice (Decision 8)                                                                                                                           |
 | Bounded blast radius                          | Blast radius section, per slice, with a may-not-change list                                                                                                                                                                       |
 | File-specific pitfall notes                   | Measured: no `ResizeObserver` in jsdom (stub per test); `OutputRenderer.safety` asserts the stage root is observed exactly once; `normalizeTextBox` pre-resolves placeholders (`empty` is dead); scale-1 flash before measurement |
 | Exact paths                                   | Blast radius; no new test directories                                                                                                                                                                                             |
-| Per-todo verification                         | Each todo names its vitest command; gate at Todos 6, 10, 13                                                                                                                                                                       |
+| Per-todo verification                         | Todos 1–4 name `npx vitest run <file>`; Todo 5 is verified by CI's `E2E (macOS)`; Todo 9 `npx vitest run src/components/presenter`; Todo 11 its own file; gate at Todos 6, 10, 13                                                 |
 | Snapshot policy inline                        | Decision 8 and Todos 7/10/13: CI recapture, `cmp`, triage, commit only movers, name them in the commit                                                                                                                            |
-| Preconditions for conditional UI              | Todo 5: presentation open, output window open, slide live; precondition `lines >= 2` asserted                                                                                                                                     |
+| Preconditions for conditional UI              | Todo 5: presentation open with slide 1 selected and the presenter panel shown (the live preview and grid exist only then); Todo 10 adds the output window and a live slide; `lines >= 2` asserted                                 |
 | Structural floor under snapshots              | Todo 5 pairs geometry/style equality with the `lines >= 2` floor; baselines are paired with the existing specs' structural asserts (unchanged)                                                                                    |
 | IPC contract pinning                          | N/A — no channel touched; the projector's payload is read, not changed (Todo 8 records its shape)                                                                                                                                 |
 | Manual verification steps                     | Todo 14 (owed, not run — no local app launches while Ethan is at the machine)                                                                                                                                                     |
@@ -326,15 +410,15 @@ record, not to edit.
 
 ### testing-standards.mdc (10 items)
 
-| #   | Item                             | Disposition                                                                                                                                                                      |
-| --- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | TDD ordering                     | Todos 1→2, 3→4, 5 (red on CI) →6, 11→12                                                                                                                                          |
-| 2   | Behavior-change test edits       | Todo 3.3 (moved `dir="auto"` tests), Todo 11→12 (canvas text-shadow), each named in its commit and the findings report                                                           |
-| 3   | No weakened assertions           | Clause verbatim; whole-object `toEqual`; one named tolerance                                                                                                                     |
-| 4   | Coverage floor                   | Todo 1 (every branch of both style functions), Todo 3 (every prop of `SlideRender`)                                                                                              |
-| 5   | Lint floor                       | No `.only`/`.skip`; jsdom stubs restored in `afterEach`; `eslint . --max-warnings 0` in the gate                                                                                 |
-| 6   | Snapshot discipline              | Decision 8; Todos 7, 10, 13                                                                                                                                                      |
-| 7   | Completion gate                  | Todos 6, 10, 13 report type-check, lint, passed/total                                                                                                                            |
-| 8   | Vitest / jsdom mechanics         | `@vitest-environment jsdom`; `ResizeObserver` stubbed as a measurement seam, never asserted through jsdom layout; stores reset in `beforeEach` (Todo 11); `src/utils/ipc` mocked |
-| 9   | Test placement                   | `src/utils/__tests__/`, `src/components/shared/__tests__/`, `src/components/editor/__tests__/`, `e2e/`                                                                           |
-| 10  | Characterization before refactor | Todo 11 pins Canvas before Todo 12; `canvasTextStyle.test.ts` (F1) must pass unchanged in every slice                                                                            |
+| #   | Item                             | Disposition                                                                                                                                                                                                                                                                                                         |
+| --- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | TDD ordering                     | Todos 1→2, 3→4 (both red against a stub, on their assertions), 11→12; Todo 5 lands green with its red stated analytically (its seams did not exist on `main`)                                                                                                                                                       |
+| 2   | Behavior-change test edits       | Todo 3.3 (moved `dir="auto"` tests), Todo 11→12 (canvas text-shadow), each named in its commit and the findings report                                                                                                                                                                                              |
+| 3   | No weakened assertions           | Clause verbatim; whole-object `toEqual`; one named tolerance                                                                                                                                                                                                                                                        |
+| 4   | Coverage floor                   | Todo 1 (every branch of both style functions incl. transparent outline and the shadow-colour fallback), Todo 3 (every prop of `SlideRender` incl. the highlight span and the no-observer path)                                                                                                                      |
+| 5   | Lint floor                       | No `.only`/`.skip`; jsdom stubs restored in `afterEach`; `eslint . --max-warnings 0` in the gate                                                                                                                                                                                                                    |
+| 6   | Snapshot discipline              | Decision 8; Todos 7, 10, 13                                                                                                                                                                                                                                                                                         |
+| 7   | Completion gate                  | Todos 6, 10, 13 report type-check, lint, passed/total                                                                                                                                                                                                                                                               |
+| 8   | Vitest / jsdom mechanics         | `@vitest-environment jsdom`; `ResizeObserver` stubbed as a measurement seam, never asserted through jsdom layout; stores reset in `beforeEach` (Todo 11); `src/utils/ipc` mocked                                                                                                                                    |
+| 9   | Test placement                   | `src/utils/__tests__/`, `src/components/shared/__tests__/`, `src/components/editor/__tests__/`, `e2e/`                                                                                                                                                                                                              |
+| 10  | Characterization before refactor | Todo 11 pins Canvas before Todo 12; `canvasTextStyle.test.ts` (F1) must pass unchanged in every slice. Slice 1's edits to `Filmstrip.jsx`/`Home.jsx`/`PresenterPanel.jsx` are import swaps of one element each, pinned by `SlideRender.test.tsx` and the recaptured baselines — N/A for a new characterization file |
