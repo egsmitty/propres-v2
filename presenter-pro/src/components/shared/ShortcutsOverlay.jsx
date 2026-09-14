@@ -37,11 +37,24 @@ export default function ShortcutsOverlay({ onClose }) {
   const platform = getPlatform();
 
   useEffect(() => {
-    function handleKey(e) {
-      if (e.key === 'Escape' || e.key === '?') onClose();
+    // Escape in the capture phase and consumed, so closing the sheet does not
+    // also stop a live presentation (plan L1).
+    function handleEscape(e) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      onClose();
     }
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    // `?` deliberately stays in the bubble phase: the Editor toggles the sheet
+    // on `?` too, and closing here first would let that toggle reopen it.
+    function handleQuestionMark(e) {
+      if (e.key === '?') onClose();
+    }
+    window.addEventListener('keydown', handleEscape, true);
+    window.addEventListener('keydown', handleQuestionMark);
+    return () => {
+      window.removeEventListener('keydown', handleEscape, true);
+      window.removeEventListener('keydown', handleQuestionMark);
+    };
   }, [onClose]);
 
   return (

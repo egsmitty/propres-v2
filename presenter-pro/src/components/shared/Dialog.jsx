@@ -28,21 +28,30 @@ function Dialog({ dialog }) {
   }, []);
 
   useEffect(() => {
-    function handleKey(e) {
-      if (e.key === 'Escape') {
+    // Escape in the CAPTURE phase, so it is consumed before the Editor's own
+    // window listener (registered earlier, so it runs first in the bubble phase)
+    // can read it as "stop presenting" — plan L1.
+    function handleEscape(e) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      const cancel = actions.find((a) => a.cancel) || actions[0];
+      resolve(cancel ? { action: cancel.value, values } : null);
+    }
+    // Enter stays in the bubble phase, after the dialog's own fields.
+    function handleEnter(e) {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      const primary = actions.find((a) => a.primary);
+      if (primary) {
         e.preventDefault();
-        const cancel = actions.find((a) => a.cancel) || actions[0];
-        resolve(cancel ? { action: cancel.value, values } : null);
-      } else if (e.key === 'Enter' && !e.shiftKey) {
-        const primary = actions.find((a) => a.primary);
-        if (primary) {
-          e.preventDefault();
-          resolve({ action: primary.value, values });
-        }
+        resolve({ action: primary.value, values });
       }
     }
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    window.addEventListener('keydown', handleEscape, true);
+    window.addEventListener('keydown', handleEnter);
+    return () => {
+      window.removeEventListener('keydown', handleEscape, true);
+      window.removeEventListener('keydown', handleEnter);
+    };
   }, [values, actions, resolve]);
 
   function setField(name, value) {

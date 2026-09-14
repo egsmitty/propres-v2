@@ -1756,6 +1756,148 @@ not a regression, and that file is untouched by this PR.
 
 ---
 
+## L1 — the listener that ran first was the one that took the projector down (2026-09-13)
+
+Audit items MAIN-B4, CMD-B7 and LIVE-A11 (`tasks/fable-pass-2-audit.md`, local).
+
+**The Escape bug was registration order, and three overlays already "fixed" it
+without fixing it.** The Editor stops presenting from a window keydown listener
+it adds when it mounts. Every dialog, menu and settings sheet adds its own
+Escape listener later, so in the bubble phase the Editor always ran first. The
+Dialog and all three settings modals already called `preventDefault()` — which
+looked like consumption and did nothing, because by then the Editor had read the
+key and stopped the show. The fix moves only Escape to the capture phase (which
+runs before every bubble listener, whatever the order) and makes the Editor
+ignore a consumed Escape.
+
+**Two things that would have broken if the whole listener had moved.** Dialog's
+Enter must stay after the dialog's own fields; and the shortcuts sheet closes on
+`?` while the Editor *toggles* it on `?` — close-first in capture, then toggle,
+reopens it. So each overlay now has an Escape listener in capture and keeps its
+other keys where they were.
+
+**The menu is now a tested template.** It was extracted verbatim first and
+pinned row-for-row (44 rows, 21 commands) so the extraction provably changed
+nothing, and only then gated: Reload and DevTools exist only in development, and
+Escape, B and L are shown as hints but not registered with the OS. That last one
+is SUSPECTED rather than proven — Playwright cannot see native accelerators — so
+it removes the second path instead of trying to demonstrate the double fire. It
+still needs a check in a packaged build on both macOS and Windows; the exact
+click-path is in the plan.
+
+---
+
+## H1 — Home list opens once, and keyboard users can reach Pin/More (2026-09-13)
+
+The whole-app audit found a real double-click on a Home presentation row
+opening it three times, not once. The browser's own double-click dispatches
+`click`, `click`, `dblclick` in sequence — the row had a handler on each of
+those first two clicks *and* a separate `onDoubleClick`, so a double-click ran
+three concurrent `touchPresentation`/`getPresentation`/`ensureVersion` round
+trips against the same row. The fix is not a debounce (that still lets two
+genuinely separate clicks each open something) but a per-presentation-id
+in-flight guard on `handleOpen` itself, plus dropping `onDoubleClick`
+entirely — single click opens, the same as Google Docs. The guard is keyed by
+id rather than a single flag so opening two *different* rows back to back
+(e.g. arrow key then Enter) still works.
+
+Fixed alongside it: the row's Pin and More buttons only ever appeared on
+`hovered || selected || menuOpen` — a keyboard user who tabbed onto the row
+(it's natively focusable) got a spacer div instead of the actions. Added a
+fourth `focusWithin` boolean, set via the row's `onFocus`/`onBlur` (React's
+bubbling focus-in/focus-out, not native non-bubbling `focus`/`blur`, so one
+handler pair on the row root correctly tracks "focus is somewhere inside this
+row" without false-clearing when focus moves from the row to its own Pin
+button). Left alone, and recorded as a Finding: the row is `role="button"`
+containing two real `<button>`s, invalid nesting, but restructuring it would
+move the Home screenshot baselines and the task explicitly scoped that out.
+
+**Skipped, not fixed: HOME-24 (locale-aware dates, "Today, 9:14 AM").** The
+screenshot baselines mask a row's date cell via `homeMasks` in
+`e2e/fixtures/visual.ts`, but the mask regex (`DATE_TEXT`) only matches the
+literal `"Mon D, YYYY"` shape the app renders today. A relative/time form for
+rows updated "today" would render text the mask can't see, leaving a live,
+clock-dependent string unmasked in a pixel-diffed baseline on any day a
+captured row happened to be "today." Fixing that means widening `DATE_TEXT`
+too, which is baseline-safety infrastructure the task brief named as
+read-before-touching, not a drive-by edit for an unrelated P2 item — left for
+a follow-up that does both together and re-captures if anything moves.
+
+---
+
+## ED1 — four small editor correctness fixes: broken lines, a negative jump, a missing zero, and RTL text (2026-09-13)
+
+`tasks/plan-ED1-editor-small-fixes.md`. Four independent, small `[S]` items
+from the whole-app audit's editor section (ED-6, ED-11, ED-18, ED-30), done
+together in one PR because each is a one- or two-line production fix, not
+because they touch shared code.
+
+**ED-6's fix isn't the audit's first suggestion, and checking that first
+mattered.** The audit's suggested fix for Clear Formatting joining selected
+lyric lines was "split `selection.toString()` on `\n`." Tried that against
+jsdom before writing a single test and it doesn't work: jsdom's `Selection`
+and `Range` do no layout, so neither `selection.toString()` nor
+`range.cloneContents().textContent` ever contains a `\n` at a block boundary —
+both returned `"Line oneLine two"` for a real two-`<br>`-line selection,
+confirmed with a throwaway script before touching `richTextEditor.js`. Since
+this app's own line encoding is `<br>` (`slideMarkup.js` turns `\n` into
+`<br />`, never a `<div>` per line), a fix built on `\n` splitting would have
+been untestable in this repo's own test environment and wrong for its own
+data shape. The audit's second-listed option — unwrap formatting elements
+inside the selected range while keeping `<br>` and block elements — doesn't
+depend on `\n` at all, and is what shipped: a small recursive fragment
+rebuilder that copies text nodes, keeps `<br>` as `<br>`, keeps block tags
+(`div`/`p`/`li`/`ol`/`ul`/`h1`-`h6`/`blockquote`) with their attributes
+stripped, and unwraps everything else. Verified against both line shapes
+(`<br>`-separated and `<div>`-per-line) before it went in the test file.
+
+**ED-11's `clampBoxPosition` isolates one bad interaction of `clamp`'s own
+documented behaviour.** `canvasGeometry.test.ts` already pinned "max wins when
+the bounds are inverted" for `clamp` itself — that was never wrong on its own.
+The bug was a caller, `Canvas.jsx`'s drag-move handler, passing inverted
+bounds (`0, nativeW - box.width`) whenever a box is wider than the slide,
+which made every drag jump the box to the same fixed negative position
+regardless of the pointer. `clampBoxPosition(value, size, extent)` orders the
+bounds itself — `[min(0, extent - size), max(0, extent - size)]` — so the box
+stays draggable (and bounded) either way. Only the drag-move branch changed;
+the four resize-branch `clamp` calls a few lines down clamp *size*, not
+position, and are a different bug shape the audit item doesn't name.
+
+**ED-18 found a second, un-deduped copy of the shadow helper.** Plan F1 (2026-09-09)
+extracted `renderShadow` out of `Canvas.jsx` into `canvasTextStyle.ts` — but
+`ScaledSlideText.jsx` had its own local `renderShadow(box, scale,
+fallbackShadow)`, never touched by F1 because F1's slice 1 was scoped to
+`Canvas.jsx`/`Toolbar.jsx` only. Both copies had the same `||` bug (an
+explicit `shadowOffsetY: 0` or `paddingTop: 0` was replaced by the default,
+because `mergeTextBox`'s `{ ...DEFAULT_TEXT_BOX, ...frame }` genuinely
+preserves an explicit `0` all the way through to render). Fixed both — the
+shared helper's call site and the duplicate — and added one new shared
+`resolveTextBoxPadding` helper rather than inlining the `??` swap twice, since
+`Canvas.jsx` (unscaled) and `ScaledSlideText.jsx` (scaled, with its own
+`Math.max(minPadding, … * scale)` floor) both resolve the same per-axis value
+before doing their own thing with it. `renderOutline`'s `outlineWidth || 0`
+was checked and left alone: its fallback already equals `0`, so there was
+nothing for `??` to fix there.
+
+**ED-30** added `dir="auto"` to `SlideTextEditor.jsx`'s `contentEditable` and
+to `ScaledSlideText.jsx`'s per-box container (`data-testid="scaled-slide-text-box"`
+added alongside it, since nothing selector-stable existed on that element
+before). Confirmed inert for left-to-right content with its own test case, not
+just asserted from the audit's claim.
+
+**24 new cases, gate green** (`type-check ✓ · lint ✓ · vitest 589/589 passed
+(0 skipped)`), `inlineStyleBudget.test.ts` unchanged (no `style={` block added
+or removed, only values inside existing ones), no screenshot baseline at risk
+(grepped `e2e/visual-editor.spec.ts` and `e2e/visual.spec.ts` for every
+padding/shadow-offset-zero fixture, an oversized fixture box, and any Clear
+Formatting interaction — none exist). One test-file flake noted, not caused by
+this change: `SongEditorModal.test.tsx`'s "does not ask when the raw edit is
+the only edit" timed out once under full-suite parallel load and passed
+clean in isolation and on every full-suite re-run after; that file imports
+nothing this plan touched.
+
+---
+
 ## D1 — a save that did not happen is never reported as one (2026-09-13)
 
 Audit items SAVE-A2, A6 (the gate half), A7, A8, A9, A10, A11 and B4. None of
