@@ -362,3 +362,32 @@ this branch had deleted `seed()`; S1 had rewritten it. Resolution:
 **Counts after the merge:** 16 new cases (20 minus `seed.test.ts`'s 3 and the
 `db/seed` check), **15 red** on `main` as measured; the equal-version case
 stays a sanity check. No other test changed.
+
+## E2E regression and the MAIN-B14 re-key (2026-09-14)
+
+CI's E2E run on the merged branch failed in every spec that inspects the
+database — `Error: in prepare, no such table: presentations` (autosave,
+autosaveTyping, hymns, …). Cause: Decision 4 keyed the `-dev` file on
+`!app.isPackaged`, but `npm run preview` and Playwright E2E are unpackaged too.
+The app wrote `presenterpro-dev.db` while every E2E spec (and
+`e2e/fixtures/launchApp.ts`'s documented isolation guarantee) reads
+`userData/presenterpro.db`. `electron/main/index.js` already records this exact
+lesson for renderer loading (`rendererLoading.test.ts`).
+
+**Re-key:** the `-dev` file is chosen only under the electron-vite dev server —
+`Boolean(process.env.ELECTRON_RENDERER_URL)`, which only `npm run dev` sets and
+which `launchApp.ts` deletes. That is precisely the audit's item (dev must not
+share the installed app's file); preview, E2E and the packaged app keep
+`presenterpro.db`. `resolveDbFileName` / `getDbPath` now take `usesDevServer`.
+
+**Tests:** this plan's own four MAIN-B14 path cases in `index.test.ts` flip
+meaning (they are new in this PR, not on `main`), and two source-text cases pin
+that `getDb` decides by `ELECTRON_RENDERER_URL` and that `db/index.js` code never
+mentions `isPackaged`. Red on the previous commit: **6 fail on their
+assertions** (the 4 flipped cases and both source cases); the 4 `closeDb` cases
+pass. The E2E run on the pushed branch is the end-to-end proof.
+
+Also resolved in this merge (with DB1, #127): the `runMigrations` doc comment
+keeps both this plan's step 3 (refuse a newer database) and DB1's
+back-up-then-prune wording (MAIN-B13); `realSqlite.queries.test.ts` keeps both
+new tests.

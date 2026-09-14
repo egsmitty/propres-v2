@@ -8,21 +8,26 @@ let closed = false;
 /**
  * MAIN-B14: `npm run dev` and the installed app used to share one database
  * file (`presenterpro.db`) — every edit while developing wrote straight into
- * the same file the packaged app reads. Unpackaged runs now get a sibling
- * `-dev` file instead. Pure so it is unit-testable without Electron.
+ * the same file the packaged app reads. Runs under the electron-vite dev
+ * server (the only thing that sets ELECTRON_RENDERER_URL) now get a sibling
+ * `-dev` file. Deliberately NOT keyed on `app.isPackaged`: `npm run preview`
+ * and Playwright E2E are unpackaged too, and every E2E spec reads
+ * `userData/presenterpro.db` — the first version of this fix moved them to the
+ * -dev file and E2E failed with "no such table". Pure so it is unit-testable
+ * without Electron.
  */
-function resolveDbFileName(isPackaged) {
-  return isPackaged ? 'presenterpro.db' : 'presenterpro-dev.db';
+function resolveDbFileName(usesDevServer) {
+  return usesDevServer ? 'presenterpro-dev.db' : 'presenterpro.db';
 }
 
 /** Pure: combine the userData directory with the run's db filename. */
-function getDbPath(userDataDir, isPackaged) {
-  return path.join(userDataDir, resolveDbFileName(isPackaged));
+function getDbPath(userDataDir, usesDevServer) {
+  return path.join(userDataDir, resolveDbFileName(usesDevServer));
 }
 
 function getDb() {
   if (!db) {
-    const dbPath = getDbPath(app.getPath('userData'), app.isPackaged);
+    const dbPath = getDbPath(app.getPath('userData'), Boolean(process.env.ELECTRON_RENDERER_URL));
     db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');

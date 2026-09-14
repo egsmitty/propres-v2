@@ -10,6 +10,8 @@ import { getSongPartColor, withColorAlpha } from '@/utils/sectionTypes';
 import { getPresentationAspectRatio, getPresentationDimensions } from '@/utils/presentationSizing';
 import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
 import { withEffectiveBackground } from '@/utils/backgrounds';
+import { presenterActionForKey } from '@/utils/presenterKeymap';
+import { shouldIgnoreGlobalShortcut } from '@/utils/shortcutGuard';
 
 const LIVE_SLIDE_OUTLINE_COLOR = 'var(--live-outline)';
 const PRESENTER_PANEL_TOP_HEIGHT_KEY = 'presenterpro.presenterPanelTopHeight';
@@ -155,27 +157,36 @@ export default function PresenterPanel({ onSetOpen }) {
     });
   }, [isPresenting, liveSlideId]);
 
-  // Arrow key navigation when presenting
+  // Slide Show keys when presenting (plan L2): the PowerPoint set, so a
+  // clicker's PageDown / PageUp work, and nothing moves while typing in a field
+  // or while a dialog or settings sheet is showing. Black (B / .) is the
+  // Editor's; see editorKeyAction.
   const latestGoPrev = useLatest(goPrev);
   const latestGoNext = useLatest(goNext);
+  const latestGoFirst = useLatest(goFirst);
+  const latestGoLast = useLatest(goLast);
   useEffect(() => {
     if (!isPresenting) return;
     function handler(e) {
-      const tag = document.activeElement?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable)
-        return;
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        latestGoPrev.current();
-      }
-      if (e.key === 'ArrowRight' || e.key === ' ' || e.code === 'Space') {
+      if (shouldIgnoreGlobalShortcut()) return;
+      const action = presenterActionForKey(e);
+      if (action === 'next') {
         e.preventDefault();
         latestGoNext.current();
+      } else if (action === 'prev') {
+        e.preventDefault();
+        latestGoPrev.current();
+      } else if (action === 'first') {
+        e.preventDefault();
+        latestGoFirst.current();
+      } else if (action === 'last') {
+        e.preventDefault();
+        latestGoLast.current();
       }
     }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isPresenting, latestGoNext, latestGoPrev]);
+  }, [isPresenting, latestGoFirst, latestGoLast, latestGoNext, latestGoPrev]);
 
   async function goToSlide(slide) {
     if (!slide) return;
@@ -199,6 +210,18 @@ export default function PresenterPanel({ onSetOpen }) {
     const slides = allSlidesRef.current;
     if (idx >= slides.length - 1) return;
     goToSlide(slides[idx + 1]);
+  }
+
+  function goFirst() {
+    const slides = allSlidesRef.current;
+    if (!slides.length || liveIdxRef.current === 0) return;
+    goToSlide(slides[0]);
+  }
+
+  function goLast() {
+    const slides = allSlidesRef.current;
+    if (!slides.length || liveIdxRef.current === slides.length - 1) return;
+    goToSlide(slides[slides.length - 1]);
   }
 
   async function handleStart() {

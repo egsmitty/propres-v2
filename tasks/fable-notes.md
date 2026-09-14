@@ -2008,6 +2008,128 @@ library's starting contents changed; no PNG was touched by this PR.
 
 ---
 
+## DB1 — one bad row no longer empties Home, and lists sort stably (2026-09-13)
+
+Four small, unrelated `electron/db` bugs from the whole-app audit
+(`tasks/fable-pass-2-audit.md`, local): MAIN-B2, MAIN-B13, MAIN-B16, SONG-16.
+All four are query-text or ordering-of-two-statements fixes — no migration,
+no rewritten row, D8's backup/rollback rule has nothing to attach to.
+
+**MAIN-B2.** `presentations.js`'s shared `parse` helper did
+`JSON.parse(row.sections || '[]')` with no try/catch, called from both
+`getPresentations`'s `.map(parse)` and `getPresentation`'s single call. One
+row with invalid `sections` JSON threw inside `.map`, so the *entire* Home
+list came back empty instead of showing the other rows — a single corrupt
+row, not a missing one, was the failure mode. Fixed once, in the shared
+helper: a parse failure now flags that row `{ sections: [], corrupt: true }`
+and `console.error`s the id; healthy rows are byte-for-byte unchanged (no
+`corrupt` key added to them).
+
+**MAIN-B13, the real trap in this PR.** The runner pruned old backups
+*before* writing the new one, so a failed `VACUUM INTO` (disk full,
+permissions) had already deleted backups it couldn't replace. The "obvious"
+fix — just swap the two lines — is wrong by itself. `pruneBackups`'s retain
+math (`keep - 1`) assumed it ran *before* the write, reserving one slot for
+the file about to be written. The real `BackupStore.list()`
+(`electron/db/migrations.js`, `fs.readdirSync`) reads the directory live, so
+once you write first, the new file is already inside `list()` — reserving a
+slot for it on top of that under-retains by one backup, silently, forever
+(keep=3 would actually keep 2). The unit test's fake didn't catch this
+because it returned a fixed backup list regardless of what `db.exec` did.
+Fixed both at once: the fake now tracks `VACUUM INTO` as actually appending
+to the list (and `remove` actually splicing it out, mirroring
+`fs.unlinkSync`), and `pruneBackups` now retains `keep` total with no
+reserved slot — correct only because it is called after the write. Worked
+the arithmetic by hand before writing code (see the plan's Pitfall notes);
+the pre-existing "prunes old backups so at most 3 remain" test needed zero
+assertion changes once both sides were fixed together, which is the check
+that the fix is actually right and not just differently wrong.
+
+**MAIN-B16.** `ORDER BY updated_at DESC` (presentations) and
+`ORDER BY created_at DESC` (media) sort only by a second-resolution
+`unixepoch()` column — same-second rows have unstable relative order between
+calls. Added `, id DESC`/`, id ASC` tie-breakers (every id here is
+`INTEGER PRIMARY KEY AUTOINCREMENT`); `getMediaFolders` got one too on the
+same reasoning even though no test forces it (two folders sharing both name
+and second is unlikely but the column is free).
+
+**SONG-16.** `ORDER BY title ASC` is SQLite's byte-order default —
+case-sensitive, so `"amazing love"` sorted after `"Zion"`. Changed to
+`ORDER BY title COLLATE NOCASE ASC, id ASC`. This is the one test edit in
+the PR: the existing case asserted the old byte-order output with a comment
+saying so (`// SQLite ASC is byte order`) — updated to assert the
+case-insensitive order and comment, which fails under the old code and
+passes under the new.
+
+**Findings:** no item was already fixed or wrong on `main`; all four applied
+as scoped. No suspected regression found. 8 new test cases plus the one
+intentional edit, all in the two existing real-SQLite test files
+(`realSqlite.queries.test.ts`, `migrationRunner.test.ts`) — no new test
+directory.
+
+---
+
+## D3 — song edits can't vanish on quit or on a stale lyrics box (2026-09-14)
+
+**What was wrong.** The song editor keeps its edits in modal state, and every
+way out of the app (quit, File ▸ Close, New, Open) consulted only the editor
+store, so an edited song was dropped without a word. Separately, focusing Raw
+Lyrics showed the text from when the editor opened: edit a slide on the right,
+click into Raw Lyrics, type one character, Save — the song was rebuilt from the
+stale text. Plan G3's "Two versions of this song" question did not catch it,
+because the keystroke resets "structure touched since the raw edit".
+
+**What changed.** A small `blockingEditors` registry: an editor whose work lives
+outside the store registers `{ isDirty, resolve }` while mounted, and the four
+exit commands ask every dirty one first. The song modal resolves through its
+existing Unsaved Changes dialog, which now reports whether it actually closed.
+On quit the registry is asked **before** the Still Presenting guard — otherwise
+a service could be stopped and the quit then cancelled by the song dialog. Raw
+Lyrics now refreshes from the current sections on focus, until the user types
+in it.
+
+**Worth knowing.** The first red run of the SONG-2 cases failed for the wrong
+reason: the slide text appears in two textareas (the slide editor and the
+section's slide list), so the selector threw. The selector was scoped and the
+pair re-proved red by reverting only the one-line fix — a failure is only proof
+when it fails on the assertion.
+
+---
+
+## L2 — four keyboard handlers, four different ideas of "the user is typing" (2026-09-13)
+
+Audit items LIVE-A5, LIVE-C1, LIVE-C2, CMD-B6, CMD-B10, LIVE-B12 and ED-2.
+
+**The bugs were all the same missing question.** The Editor, the presenter
+panel and Canvas each listen on `window`, and each decided for itself whether a
+key was meant for them. Two checked `INPUT`, `TEXTAREA` and contentEditable;
+none counted a `<select>`; none knew a dialog was open; Canvas checked nothing.
+So Backspace in the toolbar's font-size box deleted the selected text box, ↓ in a
+focused `<select>` moved the slide selection, and Space on a dialog button moved
+the projector. One module now answers it for all three.
+
+**Backspace was the worst one, and it was a vocabulary mismatch, not a typo.**
+In this editor Backspace deletes the selected slide; in PowerPoint's Slide Show
+it means *go back*. A volunteer who presses it mid-service expecting the
+previous slide deleted a slide instead — and autosave wrote the deletion. While
+presenting, the Editor now returns nothing for Backspace, Delete, ↑ or ↓, and
+the panel's keymap (copied key-for-key from PowerPoint, including the PageDown /
+PageUp a clicker sends and the `.` many clickers send for "blank") owns
+navigation.
+
+**The Editor's decision is now a pure function**, because the editor cannot be
+mounted in jsdom (Canvas needs measured geometry). Its test table pins every
+existing behaviour row by row, and marks the fixes, so the extraction is
+provably behaviour-preserving everywhere it was meant to be.
+
+**Found and not fixed:** Canvas's Delete/Backspace handler runs in the capture
+phase and calls `stopPropagation()`, so with a text box *selected* (not being
+edited) while presenting, Backspace deletes the box and never reaches the panel.
+That is editing the live deck rather than navigating it, and it belongs with the
+editor work; recorded rather than widened into this plan.
+
+---
+
 ## DB2 — the database gets a lifecycle: seeded once, closed on quit, refused when too new (2026-09-13)
 
 Audit items MAIN-B11, B12, B14, B15 — small, unrelated-looking bugs that all
@@ -2051,10 +2173,15 @@ is MAIN-B1's job; this only makes the runner refuse instead of proceeding.
 
 **`npm run dev` and the packaged app were reading and writing the same SQLite
 file.** Every edit made while developing landed in the exact file the
-installed app uses. `getDb()` now resolves `presenterpro-dev.db` when
-`!app.isPackaged`, `presenterpro.db` otherwise — the decision lives in a pure
-`getDbPath(userDataDir, isPackaged)` so it's unit-tested directly rather than
-through Electron. Consequence for Ethan: the first `npm run dev` after this
+installed app uses. `getDb()` now resolves `presenterpro-dev.db` only under
+the electron-vite dev server (`ELECTRON_RENDERER_URL` set), `presenterpro.db`
+otherwise — the decision lives in a pure `getDbPath(userDataDir, usesDevServer)`
+so it's unit-tested directly rather than through Electron. The first version
+keyed it on `!app.isPackaged`, and CI's E2E caught it: preview and Playwright
+are unpackaged too, so the app wrote the -dev file while every E2E spec read
+`presenterpro.db` ("no such table: presentations"). The same trap is already
+written down for renderer loading in `electron/main/index.js`; it caught us
+anyway, and only a real end-to-end run could have. Consequence for Ethan: the first `npm run dev` after this
 lands starts with an empty library (freshly seeded); whatever was in dev
 before sits untouched at the old shared path, copyable once if wanted.
 

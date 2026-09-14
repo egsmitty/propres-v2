@@ -1,5 +1,8 @@
 function getPresentations(db) {
-  return db.prepare('SELECT * FROM presentations ORDER BY updated_at DESC').all().map(parse);
+  return db
+    .prepare('SELECT * FROM presentations ORDER BY updated_at DESC, id DESC')
+    .all()
+    .map(parse);
 }
 
 function getPresentation(db, id) {
@@ -111,14 +114,28 @@ function deletePresentation(db, id) {
   })();
 }
 
+// One corrupt `sections` value must not take the rest of the list down with
+// it (MAIN-B2): a single bad row emptied Home entirely. Parse defensively and
+// flag the row instead of throwing; `getPresentations`' `.map(parse)` and
+// `getPresentation`'s single call both go through here, so both are covered.
 function parse(row) {
   const defaultBackgroundId = row.default_background_id ?? null;
   const aspectRatio = row.aspect_ratio || '16:9';
   const customAspectWidth = row.custom_aspect_width ?? null;
   const customAspectHeight = row.custom_aspect_height ?? null;
+  let sections;
+  let corrupt;
+  try {
+    sections = JSON.parse(row.sections || '[]');
+  } catch (error) {
+    console.error(`[presentations] row ${row.id} has corrupt sections JSON:`, error);
+    sections = [];
+    corrupt = true;
+  }
   return {
     ...row,
-    sections: JSON.parse(row.sections || '[]'),
+    sections,
+    ...(corrupt ? { corrupt: true } : {}),
     defaultBackgroundId,
     aspectRatio,
     customAspectWidth,

@@ -58,6 +58,7 @@ import {
   resolveVerticalAlignment,
 } from '@/utils/canvasTextStyle';
 import { getSelectedSlide } from '@/utils/selectedSlide';
+import { isModalOpen, isTypingOutsideSlideEditor } from '@/utils/shortcutGuard';
 import SlideTextEditor from './SlideTextEditor';
 
 const DEFAULT_GHOST_OFFSET = 24;
@@ -540,6 +541,12 @@ export default function Canvas() {
   useEffect(() => {
     function handleKeyDown(event) {
       if (!slide || mediaOnlySlide) return;
+      // Plan L2 (audit ED-2): keys typed into any other field — the toolbar's
+      // font-size box, a rename input — are not canvas shortcuts. Backspace
+      // there used to delete the selected text box. The slide text editor
+      // itself is excluded, so ⌘B and Escape inside it still work. Nothing
+      // here fires behind an open dialog or settings sheet either.
+      if (isTypingOutsideSlideEditor(document.activeElement) || isModalOpen()) return;
       const meta = event.metaKey || event.ctrlKey;
 
       if (event.key === 'Escape') {

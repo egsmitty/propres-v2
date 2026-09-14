@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import path from 'path';
+import path, { resolve } from 'path';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+
+const dirname = fileURLToPath(new URL('.', import.meta.url));
 
 // `electron/db/index.js` does `const { app } = require('electron')` at the
 // top, but calls nothing on `app` at module scope — only inside `getDb()`.
@@ -10,27 +14,49 @@ import path from 'path';
 // — so the dev-vs-packaged path decision is unit-testable without Electron.
 import * as dbIndex from '../index';
 
+// MAIN-B14 is about `npm run dev` sharing the installed app's database, and
+// only the electron-vite dev server sets ELECTRON_RENDERER_URL. Keying the
+// file on `app.isPackaged` instead (this plan's first version) also moved
+// `npm run preview` and Playwright E2E — both unpackaged — to the -dev file,
+// while every E2E spec reads userData/presenterpro.db: "no such table:
+// presentations". electron/main/index.js records the same lesson for renderer
+// loading (rendererLoading.test.ts).
 describe('resolveDbFileName (MAIN-B14)', () => {
-  it('uses presenterpro.db when packaged', () => {
-    expect(dbIndex.resolveDbFileName(true)).toBe('presenterpro.db');
+  it('uses presenterpro.db without the dev server (packaged app, preview, E2E)', () => {
+    expect(dbIndex.resolveDbFileName(false)).toBe('presenterpro.db');
   });
 
-  it('uses a -dev suffixed file when not packaged, so dev and the installed app never share a database', () => {
-    expect(dbIndex.resolveDbFileName(false)).toBe('presenterpro-dev.db');
+  it('uses a -dev suffixed file under the dev server, so npm run dev never touches the installed app database', () => {
+    expect(dbIndex.resolveDbFileName(true)).toBe('presenterpro-dev.db');
   });
 });
 
 describe('getDbPath (MAIN-B14)', () => {
-  it('joins the userData directory with the packaged filename', () => {
-    expect(dbIndex.getDbPath('/Users/x/Library/Application Support/PresenterPro', true)).toBe(
+  it('joins the userData directory with presenterpro.db without the dev server', () => {
+    expect(dbIndex.getDbPath('/Users/x/Library/Application Support/PresenterPro', false)).toBe(
       path.join('/Users/x/Library/Application Support/PresenterPro', 'presenterpro.db')
     );
   });
 
-  it('joins the userData directory with the dev filename when unpackaged', () => {
-    expect(dbIndex.getDbPath('/Users/x/Library/Application Support/PresenterPro', false)).toBe(
+  it('joins the userData directory with the dev filename under the dev server', () => {
+    expect(dbIndex.getDbPath('/Users/x/Library/Application Support/PresenterPro', true)).toBe(
       path.join('/Users/x/Library/Application Support/PresenterPro', 'presenterpro-dev.db')
     );
+  });
+});
+
+describe('getDb chooses the file by the dev server, not by packaging (MAIN-B14)', () => {
+  const source = readFileSync(resolve(dirname, '../index.js'), 'utf8');
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+  it('reads ELECTRON_RENDERER_URL to decide', () => {
+    expect(code).toMatch(
+      /getDbPath\(\s*app\.getPath\('userData'\),\s*Boolean\(process\.env\.ELECTRON_RENDERER_URL\)\s*\)/
+    );
+  });
+
+  it('never keys the database file on app.isPackaged', () => {
+    expect(code).not.toContain('isPackaged');
   });
 });
 
