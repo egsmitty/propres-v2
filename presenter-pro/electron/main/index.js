@@ -13,10 +13,11 @@ const { createCloseController } = require('./closeController');
 const { FIRST_RUN_PRESENTATION } = require('./firstRunSeed');
 const { createIpcRegistry } = require('./ipcRegistry');
 const { buildNativeMenuTemplate } = require('./nativeMenu');
+const { describeStartupFailure } = require('./startupFailure');
 const fs = require('fs');
 const path = require('path');
 const { Readable } = require('stream');
-const { getDb } = require('../db/index');
+const { getDb, closeDb } = require('../db/index');
 const { runMigrations } = require('../db/migrations');
 const songQueries = require('../db/queries/songs');
 const presentationQueries = require('../db/queries/presentations');
@@ -531,6 +532,28 @@ function seed(db) {
 
     db.prepare("INSERT INTO settings (key, value) VALUES ('initialized', 'true')").run();
   })();
+}
+
+// ─── Startup Failure ─────────────────────────────────────────────────────────
+
+// MAIN-B1: a database that could not be opened or migrated rejected the
+// whenReady chain with nothing listening — no window, no message, and the
+// process idled in the dock. Say what happened and where the library is, then
+// exit. `finally`: the process must exit even if the dialog itself throws.
+function handleStartupFailure(error) {
+  console.error('[main] startup failed:', error);
+  let userDataPath = '';
+  try {
+    userDataPath = app.getPath('userData');
+  } catch (pathError) {
+    console.error('[main] could not resolve the userData folder:', pathError);
+  }
+  const { title, message } = describeStartupFailure(error, { userDataPath });
+  try {
+    dialog.showErrorBox(title, message);
+  } finally {
+    app.exit(1);
+  }
 }
 
 // ─── Window Creation ─────────────────────────────────────────────────────────
@@ -1054,9 +1077,7 @@ function registerIpcHandlers() {
         const absPath = normalizeMediaFilePath(filePath);
         if (!mediaPathExists(absPath)) return [];
         const canonicalPath = canonicalizeMediaFilePath(absPath);
-        const existing = mediaQueries
-          .getMedia(db)
-          .find((item) => item.canonical_path === canonicalPath);
+        const existing = mediaQueries.findMediaByCanonicalPath(db, canonicalPath);
         if (existing) return [serializeMediaRecord(existing)];
         const name = path.basename(absPath);
         const ext = path.extname(absPath).toLowerCase().slice(1);
@@ -1093,9 +1114,7 @@ function registerIpcHandlers() {
         return { success: false, error: 'The selected media file could not be found.' };
       }
       const canonicalPath = canonicalizeMediaFilePath(filePath);
-      const existing = mediaQueries
-        .getMedia(db)
-        .find((item) => item.canonical_path === canonicalPath);
+      const existing = mediaQueries.findMediaByCanonicalPath(db, canonicalPath);
       if (existing) return { success: true, data: serializeMediaRecord(existing) };
 
       const name = path.basename(filePath);
@@ -1359,20 +1378,23 @@ if (!gotSingleInstanceLock) {
     console.error('[main] child process gone:', details?.type, details?.reason);
   });
 
-  app.whenReady().then(() => {
-    const dockIconPath = resolveRuntimeAssetPath('public', 'icons', 'app-icon.png');
-    if (process.platform === 'darwin' && dockIconPath && app.dock?.setIcon) {
-      app.dock.setIcon(dockIconPath);
-    }
-    registerMediaProtocol();
-    const db = getDb();
-    runMigrations(db);
-    syncMediaCanonicalPaths(db);
-    seed(db);
-    registerIpcHandlers();
-    buildNativeMenu();
-    createMainWindow();
-  });
+  app
+    .whenReady()
+    .then(() => {
+      const dockIconPath = resolveRuntimeAssetPath('public', 'icons', 'app-icon.png');
+      if (process.platform === 'darwin' && dockIconPath && app.dock?.setIcon) {
+        app.dock.setIcon(dockIconPath);
+      }
+      registerMediaProtocol();
+      const db = getDb();
+      runMigrations(db);
+      syncMediaCanonicalPaths(db);
+      seed(db);
+      registerIpcHandlers();
+      buildNativeMenu();
+      createMainWindow();
+    })
+    .catch(handleStartupFailure);
 }
 
 // Without this listener the window `close` handler's preventDefault() silently
@@ -1400,4 +1422,11 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+});
+
+// MAIN-B11: checkpoint the WAL and close the handle so a quit never leaves
+// `-wal`/`-shm` files behind. `closeDb()` is guarded to run at most once and
+// never throws — a failure here must not block or hang app quit.
+app.on('will-quit', () => {
+  closeDb();
 });

@@ -322,7 +322,7 @@ export const PRESENTATION_TEMPLATES = [
     id: 'student-night',
     title: 'Student Night',
     description:
-      'A youth-service template with welcome, game moment, worship, message, and response.',
+      'A youth-service template with a welcome, a game moment, and a message with response prompts.',
     buildPresentation: () => ({
       title: 'Student Night',
       sections: [
@@ -356,7 +356,7 @@ export const PRESENTATION_TEMPLATES = [
     id: 'prayer-night',
     title: 'Prayer Night',
     description:
-      'A calm service flow for scripture, guided prayer, reflection, and closing worship.',
+      'A calm service flow for gathering together and guided prayer for the church and city.',
     buildPresentation: () => ({
       title: 'Prayer Night',
       sections: [
