@@ -67,6 +67,9 @@ export default defineConfig({
           // required from index.js.
           'main/presentationWindows': resolve(__dirname, 'electron/main/presentationWindows.ts'),
           'shared/ipcContract': resolve(__dirname, 'shared/ipcContract.ts'),
+          // Required by index.js via relative require (CommonJS main), so it
+          // needs its own entry — same reason as main/closeController (MAIN-B1).
+          'main/startupFailure': resolve(__dirname, 'electron/main/startupFailure.ts'),
           'db/index': resolve(__dirname, 'electron/db/index.js'),
           'db/migrations': resolve(__dirname, 'electron/db/migrations.js'),
           // Required by migrations.js via relative require (CommonJS main), so
