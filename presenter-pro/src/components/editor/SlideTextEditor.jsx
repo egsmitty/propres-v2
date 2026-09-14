@@ -153,6 +153,7 @@ export default function SlideTextEditor({
         data-slide-text-editor="true"
         data-text-box-id={textBox?.id || ''}
         data-placeholder-active={placeholderActive ? 'true' : 'false'}
+        dir="auto"
         contentEditable
         suppressContentEditableWarning
         onBeforeInput={handleBeforeInput}
