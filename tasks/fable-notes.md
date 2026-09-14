@@ -2096,6 +2096,190 @@ when it fails on the assertion.
 
 ---
 
+## L2 — four keyboard handlers, four different ideas of "the user is typing" (2026-09-13)
+
+Audit items LIVE-A5, LIVE-C1, LIVE-C2, CMD-B6, CMD-B10, LIVE-B12 and ED-2.
+
+**The bugs were all the same missing question.** The Editor, the presenter
+panel and Canvas each listen on `window`, and each decided for itself whether a
+key was meant for them. Two checked `INPUT`, `TEXTAREA` and contentEditable;
+none counted a `<select>`; none knew a dialog was open; Canvas checked nothing.
+So Backspace in the toolbar's font-size box deleted the selected text box, ↓ in a
+focused `<select>` moved the slide selection, and Space on a dialog button moved
+the projector. One module now answers it for all three.
+
+**Backspace was the worst one, and it was a vocabulary mismatch, not a typo.**
+In this editor Backspace deletes the selected slide; in PowerPoint's Slide Show
+it means *go back*. A volunteer who presses it mid-service expecting the
+previous slide deleted a slide instead — and autosave wrote the deletion. While
+presenting, the Editor now returns nothing for Backspace, Delete, ↑ or ↓, and
+the panel's keymap (copied key-for-key from PowerPoint, including the PageDown /
+PageUp a clicker sends and the `.` many clickers send for "blank") owns
+navigation.
+
+**The Editor's decision is now a pure function**, because the editor cannot be
+mounted in jsdom (Canvas needs measured geometry). Its test table pins every
+existing behaviour row by row, and marks the fixes, so the extraction is
+provably behaviour-preserving everywhere it was meant to be.
+
+**Found and not fixed:** Canvas's Delete/Backspace handler runs in the capture
+phase and calls `stopPropagation()`, so with a text box *selected* (not being
+edited) while presenting, Backspace deletes the box and never reaches the panel.
+That is editing the live deck rather than navigating it, and it belongs with the
+editor work; recorded rather than widened into this plan.
+
+---
+
+## DB2 — the database gets a lifecycle: seeded once, closed on quit, refused when too new (2026-09-13)
+
+Audit items MAIN-B11, B12, B14, B15 — small, unrelated-looking bugs that all
+trace back to the same thing: nothing in this codebase ever treated the SQLite
+file as having a *lifecycle*. It got opened once and otherwise left alone.
+
+**MAIN-B10 (the non-atomic seed) was dropped from this PR at merge time.**
+The plan extracted `seed(db)` verbatim into `electron/db/seed.js` and wrapped
+it in a transaction. Meanwhile S1 (#125) rewrote `seed()` in `index.js`:
+it no longer seeds songs at all, builds the sample presentation from
+public-domain `firstRunSeed.ts`, and already runs the insert and the
+`initialized` flag in one `db.transaction`. Keeping this PR's `seed.js` would
+have brought back the two copyrighted sample songs S1 removed — in a new file,
+so git would never have shown a conflict. The extraction, its three
+`seed.test.ts` cases and its `db/seed` Rollup input were removed at merge and
+main's `seed()` kept. Lesson kept from the attempt: `vi.mock` on a local
+CommonJS module does not intercept `require()` in `electron/`; patching
+`db.prepare` on a real `better-sqlite3` instance does, and proves real
+rollback.
+
+**A quit never closed the database.** No `will-quit` listener existed at
+all, so the WAL and its `-shm` sibling were simply abandoned at every quit
+instead of checkpointed. Added `getDbPath`/`resolveDbFileName`/`closeDb` to
+`electron/db/index.js` — `closeDb` guarded to run once, swallowing and
+logging any error, because a checkpoint failure must never hang or crash
+app quit. The same file also does `const { app } = require('electron')` at
+its top, which looked like it would make the whole module untestable
+outside Electron the way `index.js` is — but `require('electron')` under
+plain Node resolves to a path string, not the Electron module, so `app` is
+just `undefined` there, and nothing at module scope touches it. The pure
+functions are directly importable.
+
+**A database from a newer build was silently accepted.** The runner computed
+`pending` migrations and, if a database's recorded version was already
+higher than anything in the current `MIGRATIONS` list (say, a user opened a
+future build's profile with an old installer), `pending` came out empty —
+indistinguishable from "already up to date." Added a check, before any
+backup or migration, that throws `NewerSchemaVersionError` when the recorded
+version exceeds the highest known one. No UI, no catch anywhere — that dialog
+is MAIN-B1's job; this only makes the runner refuse instead of proceeding.
+
+**`npm run dev` and the packaged app were reading and writing the same SQLite
+file.** Every edit made while developing landed in the exact file the
+installed app uses. `getDb()` now resolves `presenterpro-dev.db` only under
+the electron-vite dev server (`ELECTRON_RENDERER_URL` set), `presenterpro.db`
+otherwise — the decision lives in a pure `getDbPath(userDataDir, usesDevServer)`
+so it's unit-tested directly rather than through Electron. The first version
+keyed it on `!app.isPackaged`, and CI's E2E caught it: preview and Playwright
+are unpackaged too, so the app wrote the -dev file while every E2E spec read
+`presenterpro.db` ("no such table: presentations"). The same trap is already
+written down for renderer loading in `electron/main/index.js`; it caught us
+anyway, and only a real end-to-end run could have. Consequence for Ethan: the first `npm run dev` after this
+lands starts with an empty library (freshly seeded); whatever was in dev
+before sits untouched at the old shared path, copyable once if wanted.
+
+**Media import scanned the whole table per imported file, needlessly — the
+index already existed.** `media:import` called `mediaQueries.getMedia(db)`
+(every row, `SELECT * ... ORDER BY created_at DESC`) inside its per-file
+loop, then `.find()` in JS. `idx_media_canonical_path` was already there
+(migration 1), so this was a pure query fix: `findMediaByCanonicalPath(db,
+canonicalPath)` with `WHERE canonical_path = ?`, `.get()` not `.all()` +
+`.find()` since the column is 0-or-1 per path. `media:pick`'s single lookup
+got the same treatment for consistency, though it wasn't the per-file
+hot path the audit named.
+
+16 new cases after the MAIN-B10 removal, 15 red on `main` before the fix
+(the equal-version case is a deliberate non-regression sanity check).
+Gate re-run on the merged branch (see the PR).
+
+---
+
+## H2 — the onboarding tour was leaving people stranded on a dark screen (2026-09-14)
+
+Audit items HOME-12, HOME-13, HOME-14, HOME-15 (`tasks/fable-pass-2-audit.md`,
+local). All four turned out to share one root cause worth naming: nothing in
+`OnboardingTutorial.jsx` distinguished "the highlighted step's target isn't on
+screen right now" from "there is no target for this step" — every one of the
+6 steps declares a selector, so the two cases are the same case, and the old
+code treated it as intentional (dim the whole screen, center the tooltip).
+That state was reachable in completely normal use: `handleBack`'s only
+Home-aware branch was `nextIndex === 0`, so Back from the toolbar step (which
+needs the editor) to the templates step (which needs Home) never switched the
+view — landing exactly on the undetectable-target case. The fix removes the
+fallback dim entirely (a null target now renders nothing behind the tooltip)
+and generalizes the Back check from "index 0" to "does the step I'm going
+back to live on Home," which also means Back now goes through the same
+`resolveUnsavedChanges` → `touchPresentation` → `setHomeTab` → `setCurrentView`
+sequence `TitleBar.jsx` uses, not a raw view switch that skipped the
+unsaved-changes gate.
+
+The two template descriptions that lied were `student-night` ("worship" —
+no song section exists in this template at all) and `prayer-night`
+("scripture," "reflection," "closing worship" — only `Gathering` and `Guided
+Prayer` exist). The other 5 templates were already accurate; both fixed
+descriptions were re-verified against real `buildPresentation()` output
+(fixture: the 4 real hymn titles from `shared/hymns.json`) rather than
+eyeballed. The field they live in, `template.description`, turned out to be
+rendered nowhere in the app today (`TemplateCard` only shows `.title`) — a
+second, separate field, `templateVisuals.js`'s `lines` (the pills actually
+shown on each card), has the same class of drift and was left alone: the
+task brief named `presentationTemplates.js`'s description specifically, and
+widening scope to a sibling file wasn't asked for.
+
+The tutorial's own template action (`handleTemplateAction`) created a fresh
+"Sunday Morning Example" every run with no dedupe — the generic
+`createPresentationFromTemplate` flow every `TemplateCard` click uses was
+left untouched on purpose (clicking a template card by hand should still
+make a new document, the same way opening a template in PowerPoint or
+Keynote does); only the tutorial's *automatic* action now looks up an
+existing presentation by title first and reopens it.
+
+7 new test cases, 3 of them red-to-green against real bugs (the missing-
+target dim, Back-from-toolbar, and the tutorial's create-on-every-run), plus
+2 forbidden-word regression checks (also red-to-green) and an exhaustiveness
+check over all 7 templates' section output. One ratchet moved as a direct,
+expected consequence of the fix rather than a drive-by: deleting the
+no-target fallback `<div>` dropped `OnboardingTutorial.jsx`'s real inline-
+style count from 5 to 4, so `inlineStyleBudget.test.ts`'s ceiling for that
+file was lowered to match — the ratchet's own stated purpose ("lower it when
+a slice lands"), not a weakening.
+
+---
+
+## MB1 — a library that won't open says so instead of leaving no window (2026-09-14)
+
+**What was wrong.** Everything the main process does at startup — open the
+database, migrate it, seed it, register IPC, build the menu, open the window —
+ran inside one `app.whenReady().then(...)` with no `.catch`. A corrupt or locked
+library, or a migration that failed (and correctly rolled back and threw), turned
+into an unhandled rejection: no window, no message, `window-all-closed` never
+fired, and PresenterPro sat in the dock doing nothing. To the person at the
+machine on a Sunday morning, the app simply did not open.
+
+**What changed.** The chain ends in `.catch(handleStartupFailure)`, which shows
+"PresenterPro Could Not Start" — the library's folder and the error — and exits
+with a failure code. The words live in a pure `startupFailure.ts`, tested
+exactly; `index.js` is pinned by source text, the same way
+`lifecycleListeners.test.ts` pins the quit wiring, because it cannot be imported
+in a unit test. A library written by a newer build gets plain words instead of a
+schema number, recognised by the error's name so this and #132 (which adds that
+error) can land in either order.
+
+**Worth knowing.** The exit is in a `finally`: if the dialog itself throws, a
+process that stays alive with no window is exactly the bug being fixed. And the
+new module needed a Rollup input — a missing one would have crashed the packaged
+app at launch with the very same "nothing opens" symptom, while the build
+reported success.
+
+---
+
 ## SEC1 — no window can be tricked into opening or navigating somewhere else, and built-in media names can't escape their folder (2026-09-14)
 
 Two small, unrelated hardening items from the whole-app audit

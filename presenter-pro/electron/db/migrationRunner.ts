@@ -37,6 +37,26 @@ export interface RunResult {
 
 const DEFAULT_KEEP_BACKUPS = 3;
 
+/**
+ * Thrown when the database's recorded schema version is higher than any
+ * migration this build knows about — i.e. the database was written by a
+ * newer build of PresenterPro. A distinct class (rather than a generic
+ * `Error`) so a future startup dialog (MAIN-B1) can catch it by type instead
+ * of parsing the message; the message itself still carries the literal
+ * phrase "created by a newer version of PresenterPro" for a string-matching
+ * caller. Thrown before any backup or migration runs — refusing to touch a
+ * database this build does not fully understand.
+ */
+export class NewerSchemaVersionError extends Error {
+  constructor(dbVersion: number, highestKnownVersion: number) {
+    super(
+      `This database was created by a newer version of PresenterPro (schema v${dbVersion}); ` +
+        `this build only recognizes up to v${highestKnownVersion}. Refusing to touch it.`
+    );
+    this.name = 'NewerSchemaVersionError';
+  }
+}
+
 /** Matches backup files this runner writes. Exported so the store can filter by it. */
 export const BACKUP_FILE_PATTERN = /^presenterpro\.backup-v(\d+)-(\d{8}T\d{6}Z)\.db$/;
 
@@ -97,20 +117,24 @@ function pruneBackups(store: BackupStore, keep: number): void {
 /**
  * Apply every pending migration, in order, each in its own transaction.
  *
- * Behaviour, in order — all six, exhaustive:
+ * Behaviour, in order — all seven, exhaustive:
  *  1. Validate the migration list (throws on a malformed list).
  *  2. Read applied versions — only if `schema_migrations` exists (checked via
  *     sqlite_master); otherwise none. Nothing is written yet.
- *  3. Compute pending. Nothing pending → return with ZERO writes: no table
+ *  3. Refuse a database whose recorded version is higher than any migration
+ *     this build knows (MAIN-B12) — `NewerSchemaVersionError`, before any
+ *     backup or migration. Without this, a newer-than-us database has
+ *     nothing "pending" and step 4 would silently return as if fine.
+ *  4. Compute pending. Nothing pending → return with ZERO writes: no table
  *     creation, no backup.
- *  4. Back up the still-untouched database first (`VACUUM INTO`, consistent
+ *  5. Back up the still-untouched database first (`VACUUM INTO`, consistent
  *     under WAL because it reads through a normal transaction — unlike
  *     copying the file), THEN prune old backups. The backup is therefore
  *     exactly what the user had, with no trace of this system in it — and a
  *     failed backup write (disk full, permissions) never costs an older
  *     backup that was pruned to make room for it (MAIN-B13).
- *  5. Ensure `schema_migrations` exists.
- *  6. For each pending migration, in one transaction: run `up`, then record
+ *  6. Ensure `schema_migrations` exists.
+ *  7. For each pending migration, in one transaction: run `up`, then record
  *     the version. A throw rolls that transaction back, records nothing for
  *     it, and propagates. Later migrations do not run.
  *
@@ -141,6 +165,12 @@ export function runMigrations(
         (row) => row.version
       )
     : [];
+  const dbVersion = currentVersion(appliedVersions);
+  const highestKnownVersion = currentVersion(migrations.map((migration) => migration.version));
+  if (dbVersion > highestKnownVersion) {
+    throw new NewerSchemaVersionError(dbVersion, highestKnownVersion);
+  }
+
   const pending = selectPendingMigrations(appliedVersions, migrations);
 
   if (pending.length === 0) {
