@@ -1929,3 +1929,30 @@ payloads, so they pass unchanged.
 as an error) — the audit's verification pass showed it would make autosave's
 "Presentation Deleted" branch unreachable and turn those writes into the
 three-strike alert instead.
+
+---
+
+## MB1 — a library that won't open says so instead of leaving no window (2026-09-14)
+
+**What was wrong.** Everything the main process does at startup — open the
+database, migrate it, seed it, register IPC, build the menu, open the window —
+ran inside one `app.whenReady().then(...)` with no `.catch`. A corrupt or locked
+library, or a migration that failed (and correctly rolled back and threw), turned
+into an unhandled rejection: no window, no message, `window-all-closed` never
+fired, and PresenterPro sat in the dock doing nothing. To the person at the
+machine on a Sunday morning, the app simply did not open.
+
+**What changed.** The chain ends in `.catch(handleStartupFailure)`, which shows
+"PresenterPro Could Not Start" — the library's folder and the error — and exits
+with a failure code. The words live in a pure `startupFailure.ts`, tested
+exactly; `index.js` is pinned by source text, the same way
+`lifecycleListeners.test.ts` pins the quit wiring, because it cannot be imported
+in a unit test. A library written by a newer build gets plain words instead of a
+schema number, recognised by the error's name so this and #132 (which adds that
+error) can land in either order.
+
+**Worth knowing.** The exit is in a `finally`: if the dialog itself throws, a
+process that stays alive with no window is exactly the bug being fixed. And the
+new module needed a Rollup input — a missing one would have crashed the packaged
+app at launch with the very same "nothing opens" symptom, while the build
+reported success.
