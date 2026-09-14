@@ -358,7 +358,7 @@ _Todos 1–4 were written before the fresh-agent review and revised after it
 
 ### Slice 3 — canvas
 
-- [ ] 11. Characterization (red-then-green is N/A: pin first). A test in
+- [x] 11. Characterization (red-then-green is N/A: pin first). A test in
       `src/components/editor/__tests__/Canvas.render.test.tsx` that mounts Canvas
       with a two-box slide (store reset in `beforeEach`, `ResizeObserver` stubbed,
       `src/utils/ipc` mocked) and asserts each `[data-textbox-root]` child's style
@@ -367,20 +367,20 @@ _Todos 1–4 were written before the fresh-agent review and revised after it
       against the current strings, expecting `textShadow: '0 2px 16px rgba(0,0,0,0.5)'`,
       then updated in Todo 12 to `LEGIBILITY_TEXT_SHADOW` with the change named in
       the commit (this is the one behaviour-change edit; it must fail on old code).
-- [ ] 12. `renderTextBox` spreads `textBoxFrameStyle`/`textBoxContentStyle` and
+- [x] 12. `renderTextBox` spreads `textBoxFrameStyle`/`textBoxContentStyle` and
       keeps only `cursor`, `userSelect`, `zIndex`, `overflow: 'visible'` on the frame
       and the interaction handlers; `renderTextBody` → `TextBoxBody`; overlay →
       `MEDIA_OVERLAY`; `SlideTextEditor`'s style block reads the same content style
       for font/colour/line-height/family/decoration/align/whiteSpace/wordBreak/writingMode
       (keeps `caretColor`, `userSelect`, `cursor`, `minHeight`). `inlineStyleBudget`
       rows for `Canvas.jsx` and `SlideTextEditor.jsx` updated to exact counts.
-- [ ] 13. Fidelity E2E gains the canvas as third member (Todo 5). Baselines:
+- [x] 13. Fidelity E2E gains the canvas as third member (Todo 5). Baselines:
       expected movers all `editor-*.png` and `editor.png` (canvas text-shadow 0.5 →
       0.9). Gate, PR, records, `## Review` appended to this plan.
 
 ### Every slice
 
-- [ ] 14. Findings report in the PR body: suspected regressions, every
+- [x] 14. Findings report in the PR body: suspected regressions, every
       baseline refreshed (by name, with the triage verdict), behaviour-change test
       edits, anything the plan did not anticipate. Manual check owed (listed, not
       run — rule 8 in the handoff): with a media background set, compare the
@@ -426,3 +426,25 @@ _Todos 1–4 were written before the fresh-agent review and revised after it
 | 8   | Vitest / jsdom mechanics         | `@vitest-environment jsdom`; `ResizeObserver` stubbed as a measurement seam, never asserted through jsdom layout; stores reset in `beforeEach` (Todo 11); `src/utils/ipc` mocked                                                                                                                                    |
 | 9   | Test placement                   | `src/utils/__tests__/`, `src/components/shared/__tests__/`, `src/components/editor/__tests__/`, `e2e/`                                                                                                                                                                                                              |
 | 10  | Characterization before refactor | Todo 11 pins Canvas before Todo 12; `canvasTextStyle.test.ts` (F1) must pass unchanged in every slice. Slice 1's edits to `Filmstrip.jsx`/`Home.jsx`/`PresenterPanel.jsx` are import swaps of one element each, pinned by `SlideRender.test.tsx` and the recaptured baselines — N/A for a new characterization file |
+
+## Review
+
+**Slice 1** (#145) — `SlideRender` and `slideRenderStyle.ts`; the five preview
+sites; `ScaledSlideText`/`SlidePreviewSurface` deleted. The recapture moved
+one baseline, which turned out to be stale since #125 — the 1 % pixel
+tolerance had hidden a changed song list; recorded as a CI item.
+
+**Slice 2** (#147) — the projector draws through the renderer, handing it the
+media it resolves and pins itself; a unit case holds the `<video>` node
+across slides; zero baselines moved, as predicted.
+
+**Slice 3** — the canvas and its inline editor read the style module; the
+canvas keeps only its interaction layer. Its text-shadow moved from 0.5 to the
+projector's 0.9 — the one deliberate visible change, pinned before and named
+after. The fidelity E2E compares five sites.
+
+**What ED-36 leaves behind, deliberately:** `autoFit: 'shrink'` is stored and
+still not rendered; thumbnails still autoplay `<video>` (FS-31); the Home
+card still truncates legacy `slide.body` to four lines; no UI sets a box's
+`shadowEnabled`; the screenshot net's `maxDiffPixelRatio: 0.01` is too loose
+to see small-text changes.

@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_TEXT_COLOR, PLACEHOLDER_TEXT_COLOR } from '@/utils/colorPalettes';
 import { useLatest } from '@/hooks/useLatest';
 import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
@@ -48,18 +47,12 @@ import {
   resizeBoxFromCenter,
   snapGroupToGuides,
 } from '@/utils/canvasGeometry';
-import {
-  baseHighlightStyle,
-  cycleCase,
-  renderOutline,
-  renderShadow,
-  renderTextDecoration,
-  resolveTextBoxPadding,
-  resolveVerticalAlignment,
-} from '@/utils/canvasTextStyle';
+import { cycleCase } from '@/utils/canvasTextStyle';
 import { getSelectedSlide } from '@/utils/selectedSlide';
 import { isModalOpen, isTypingOutsideSlideEditor } from '@/utils/shortcutGuard';
 import SlideTextEditor from './SlideTextEditor';
+import { TextBoxBody } from '@/components/shared/SlideRender';
+import { MEDIA_OVERLAY, textBoxContentStyle, textBoxFrameStyle } from '@/utils/slideRenderStyle';
 
 const DEFAULT_GHOST_OFFSET = 24;
 const MARQUEE_FILL = 'rgba(74,124,255,0.12)';
@@ -78,19 +71,6 @@ const INDICATOR_STYLE = {
   whiteSpace: 'nowrap',
   boxShadow: '0 12px 28px rgba(0,0,0,0.32)',
 };
-
-function renderTextBody(bodyHtml, style) {
-  const highlightStyle = baseHighlightStyle(style);
-  if (!highlightStyle) {
-    return <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />;
-  }
-
-  return (
-    <div style={{ width: '100%', textAlign: style?.align || 'center' }}>
-      <span style={highlightStyle} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
-    </div>
-  );
-}
 
 export default function Canvas() {
   const presentation = useEditorStore((s) => s.presentation);
@@ -938,61 +918,28 @@ export default function Canvas() {
     const style = box.textStyle || {};
     const placeholder = !box.body;
     const showSingleSelectionChrome = selected && selectedTextBoxIds.length === 1;
-    const padding = resolveTextBoxPadding(box, DEFAULT_TEXT_BOX);
 
+    // Plan ED36 slice 3: the box looks exactly as the thumbnails and the
+    // projector draw it — the same style module — and the canvas adds only
+    // its interaction layer (cursor, selection, z-order, visible handles).
     return (
       <div
         key={box.id}
         data-textbox-root="true"
+        data-text-box-id={box.id}
         data-selected={selected ? 'true' : 'false'}
         onMouseDown={(event) => handleTextBoxMouseDown(event, box)}
         onDoubleClick={(event) => handleTextBoxDoubleClick(event, box.id)}
         onContextMenu={(event) => handleTextBoxContextMenu(event, box.id)}
         style={{
-          position: 'absolute',
-          left: box.x,
-          top: box.y,
-          width: box.width,
-          height: box.height,
+          ...textBoxFrameStyle(box),
           cursor: editing ? 'text' : 'move',
           overflow: 'visible',
-          transform: box.rotation ? `rotate(${box.rotation}deg)` : 'none',
-          transformOrigin: 'center center',
-          opacity: box.opacity ?? 1,
           userSelect: editing ? 'text' : 'none',
           zIndex: showSingleSelectionChrome ? 20 : box.zIndex + 1,
         }}
       >
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: resolveVerticalAlignment(style),
-            paddingTop: padding.paddingTop,
-            paddingRight: padding.paddingRight,
-            paddingBottom: padding.paddingBottom,
-            paddingLeft: padding.paddingLeft,
-            textAlign: style.align || 'center',
-            color: placeholder ? PLACEHOLDER_TEXT_COLOR : style.color || DEFAULT_TEXT_COLOR,
-            fontSize: style.size || DEFAULT_TEXT_STYLE.size,
-            fontWeight: style.bold ? 700 : 400,
-            fontStyle: placeholder ? 'italic' : style.italic ? 'italic' : 'normal',
-            textDecoration: renderTextDecoration(style),
-            lineHeight: style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight,
-            fontFamily: style.fontFamily || 'Arial, sans-serif',
-            wordBreak: box.wrapText === false ? 'normal' : 'break-word',
-            whiteSpace: box.wrapText === false ? 'nowrap' : 'normal',
-            textShadow: '0 2px 16px rgba(0,0,0,0.5)',
-            background: box.backgroundColor || 'transparent',
-            border: renderOutline(box),
-            borderRadius: box.cornerRadius ?? DEFAULT_TEXT_BOX.cornerRadius,
-            boxShadow: renderShadow(box),
-            overflow: 'hidden',
-            writingMode: box.textDirection === 'vertical' ? 'vertical-rl' : 'horizontal-tb',
-          }}
-        >
+        <div style={textBoxContentStyle(box, { placeholder })}>
           {editing ? (
             <SlideTextEditor
               textBox={box}
@@ -1017,7 +964,7 @@ export default function Canvas() {
           ) : placeholder ? (
             <span>{resolvePlaceholderText(box.placeholderText)}</span>
           ) : (
-            renderTextBody(slideBodyToHtml(box.body), style)
+            <TextBoxBody html={slideBodyToHtml(box.body)} style={style} />
           )}
         </div>
 
@@ -1143,7 +1090,7 @@ export default function Canvas() {
                     style={{
                       position: 'absolute',
                       inset: 0,
-                      background: backgroundMedia ? 'rgba(0,0,0,0.18)' : 'transparent',
+                      background: backgroundMedia ? MEDIA_OVERLAY : 'transparent',
                     }}
                   />
                 )}
