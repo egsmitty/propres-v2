@@ -326,7 +326,7 @@ _Todos 1–4 were written before the fresh-agent review and revised after it
 
 ### Slice 2 — projector
 
-- [ ] 8. **Measured (see "The projector has no presentation" above).** The
+- [x] 8. **Measured (see "The projector has no presentation" above).** The
       payload carries `sectionId` and `effectiveBackgroundId` but no `sections`,
       and `OutputRenderer` owns continuity via `backgroundIdRef`. So the projector
       passes what it already resolved: add optional `backgroundMedia` and
@@ -338,7 +338,7 @@ _Todos 1–4 were written before the fresh-agent review and revised after it
       with a different slide and the same background id (the `backgroundIdRef`
       early return). `missingMediaLabel={null}`, `placeholder={false}`,
       `site="output"`, and no per-slide `key`.
-- [ ] 9. Replace the stage's background/overlay/`OutputSlideText` block
+- [x] 9. Replace the stage's background/overlay/`OutputSlideText` block
       (`:272-305`) with `SlideRender`; delete `OutputSlideText.jsx` and its
       `inlineStyleBudget` row; lower `OutputRenderer.jsx`'s row to its exact count.
       `OutputRenderer.safety.test.tsx` must pass **unchanged** (its stub records
@@ -348,7 +348,8 @@ _Todos 1–4 were written before the fresh-agent review and revised after it
       `getEffectiveBackgroundId` (pre-authorized — a mock extension, not a
       behaviour change; every existing assertion stays as written). Verify:
       `npx vitest run src/components/presenter`.
-- [ ] 10. Add `'output'` to `renderFidelity.spec.ts`'s `SITES`: open the output
+      _Slice 2 done: `SlideRender` gained `backgroundMedia`/`mediaSlideItem` (cases 11–13); the projector passes its resolved items and `renderBackground`; a continuity case asserts the `<video>` node survives a slide change with the same background; `OutputSlideText.jsx` deleted; `OutputRenderer.jsx` budget row 13 → 11; gate 928/928._
+- [x] 10. Add `'output'` to `renderFidelity.spec.ts`'s `SITES`: open the output
       window with the listener registered first (`const opened = app.waitForEvent('window'); await page.evaluate(() => window.electronAPI.openOutputWindow({ useConfiguredDisplay: false })); const output = await opened;` — `visual.spec.ts:38-46`), go live on the first slide the way `visual-surfaces.spec.ts:88-97` does (F5 from the editor, wait for the `Presenting` banner), then measure `[data-slide-render="output"]` in the output page. Baselines: expected movers `output.png` only, and only if a
       seeded box has the user's shadow on or a media background — the seed has
       neither, so the expectation is **zero pixel change**; if it moves, triage

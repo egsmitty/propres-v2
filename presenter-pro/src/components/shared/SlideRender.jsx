@@ -102,6 +102,11 @@ const round2 = (value) => Math.round(value * 100) / 100;
  * @property {string} [site] names the place this slide is drawn (`thumbnail`,
  *   `presenter-live`, `presenter-grid`, `home`, `filmstrip-preview`, `output`);
  *   the fidelity E2E selects sites by it
+ * @property {object | null} [backgroundMedia] an already-resolved background
+ *   item; when given, the library lookup is skipped (the projector resolves
+ *   its own and pins the object so video playback continues across slides)
+ * @property {object | null} [mediaSlideItem] an already-resolved media-slide
+ *   item, likewise
  */
 
 /** @param {SlideRenderProps} props */
@@ -114,20 +119,23 @@ export default function SlideRender({
   renderBackground = null,
   missingMediaLabel = 'Media slide',
   site = 'slide',
+  backgroundMedia: resolvedBackground,
+  mediaSlideItem: resolvedMediaSlideItem,
 }) {
   const frameRef = useRef(null);
   const size = useFrameSize(frameRef);
 
   const mediaSlide = isMediaSlide(slide);
-  const mediaSlideItem = useMemo(
-    () => (mediaSlide ? mediaLibrary.find((item) => item.id === slide?.mediaId) || null : null),
-    [mediaLibrary, mediaSlide, slide]
-  );
+  const mediaSlideItem = useMemo(() => {
+    if (resolvedMediaSlideItem !== undefined) return resolvedMediaSlideItem;
+    return mediaSlide ? mediaLibrary.find((item) => item.id === slide?.mediaId) || null : null;
+  }, [mediaLibrary, mediaSlide, resolvedMediaSlideItem, slide]);
   const backgroundMedia = useMemo(() => {
+    if (resolvedBackground !== undefined) return resolvedBackground;
     if (mediaSlide) return null;
     const id = getEffectiveBackgroundId(presentation, sectionId, slide);
     return mediaLibrary.find((item) => item.id === id) || null;
-  }, [mediaLibrary, mediaSlide, presentation, sectionId, slide]);
+  }, [mediaLibrary, mediaSlide, presentation, resolvedBackground, sectionId, slide]);
   const textBoxes = useMemo(() => getSlideTextBoxes(slide), [slide]);
 
   if (!slide) return null;
@@ -139,6 +147,12 @@ export default function SlideRender({
   const top = measured ? round2((size.height - nativeHeight * scale) / 2) : 0;
   const showBackground = !mediaSlide && hasAsset(backgroundMedia);
   const showMediaSlide = mediaSlide && hasAsset(mediaSlideItem);
+  // A custom renderer is also asked to draw an item whose file is gone (the
+  // projector shows its own notice); the default draws nothing for it.
+  const drawBackground = renderBackground
+    ? !mediaSlide && Boolean(backgroundMedia)
+    : showBackground;
+  const drawMediaSlide = renderBackground ? mediaSlide && Boolean(mediaSlideItem) : showMediaSlide;
   const background = renderBackground || ((media) => <BackgroundMedia media={media} />);
 
   return (
@@ -161,8 +175,8 @@ export default function SlideRender({
           visibility: scale === null ? 'hidden' : 'visible',
         }}
       >
-        {showMediaSlide ? background(mediaSlideItem) : null}
-        {showBackground ? background(backgroundMedia) : null}
+        {drawMediaSlide ? background(mediaSlideItem) : null}
+        {drawBackground ? background(backgroundMedia) : null}
         {showBackground ? (
           <div
             data-slide-overlay="true"
