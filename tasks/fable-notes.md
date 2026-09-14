@@ -1572,3 +1572,72 @@ migration plan doesn't have to re-derive it.
 
 Full detail, every `file:line` quoted before it was changed, is in
 `tasks/plan-DOC1-stale-docs.md`.
+
+---
+
+## CI1 — every job has a timeout, every action is pinned, coverage is enforced (2026-09-13)
+
+Nine items from the audit's Part 8, all mechanical: CI-1, CI-4, CI-5, CI-6,
+CI-7, CI-8, CI-10, CI-11, and the gate half of SEC-6.
+
+**What:** `test:unit` now runs `vitest run --coverage --coverage.reporter=text-summary`,
+so the ratchet thresholds in `vitest.config.mjs` — dead since they were
+written, because nothing ever passed `--coverage` — finally run on every PR.
+They pass today with room to spare (26.93/24.8/24.59/27.87 measured against
+26.8/24.7/24.4/27.7), so no threshold change was needed. Every job in all
+three workflows got `timeout-minutes` (gate 10, build 15, pr-gate 5, e2e 25,
+package 30, release 10) and every `uses:` got pinned to a 40-char commit SHA
+with a `# vN` comment, both enforced by a new
+`electron/main/__tests__/workflows.test.ts` that reads the workflow YAML as
+plain text (no `yaml` dependency — the repo doesn't have one) and asserts
+both properties for every job and every `uses:` line it finds, with a
+non-empty-parse guard so a broken file walker can't pass vacuously. Red before
+the fix (3 of 4 checks failed against `main`'s workflows), green after. The
+PR-matrix `build` job's `macos-latest` entry is gone — `E2E (macOS)` already
+builds and runs the app on macOS on every PR, so it was pure duplication, not
+coverage. `build-release.yml`'s top-level `contents: write` moved down to
+just the `release` job; the top level is `contents: read` and the packaging
+job never touches it. Dependabot's header comment claimed "deliberately no
+`ignore` list" three lines above an `ignore:` block with 5 entries — fixed to
+describe the actual policy (specific, recorded holds, not blanket pins) —
+and both `updates` entries got `cooldown: { default-days: 3 }`.
+`playwright.config.ts` gained `failOnFlakyTests: !!process.env.CI` next to
+`retries`, which is unchanged. The gate job gained
+`npm audit --omit=dev --audit-level=high` after install; run locally first
+(same command, same flags) — 0 vulnerabilities today, so it ships as a real
+gate rather than a step nobody has verified goes green.
+
+**Why:** CI-4's premise was worth checking rather than trusting the audit
+outright — `package.json`'s `build.npmRebuild: false` and the total absence
+of a `postinstall` script confirm better-sqlite3 (`^13.0.3`, N-API) never
+gets natively rebuilt by *any* install in this project, full or
+`--ignore-scripts`. The old comments in `pr-checks.yml`, `e2e.yml`, and
+`build-release.yml` each guessed at a different wrong reason for the same
+non-event. The corrected comments say what the full installs are actually
+for: getting the real Electron binary onto the runner for a job that builds,
+packages, or launches the app, not compiling a native dependency that was
+never compiled to begin with.
+
+**Surprises:**
+- The three "full install" comments weren't copies of each other — pr-checks
+  and build-release both invoked a nonexistent "better-sqlite3 rebuild",
+  while e2e.yml specifically claimed the rebuild was "for Electron's ABI."
+  Same wrong idea, independently rephrased three times, which is its own
+  small argument for CI-4 as a category: an inaccurate comment doesn't just
+  sit still, it gets re-derived wrong at each new call site.
+- `softprops/action-gh-release@v3` is the one action in this repo pinned to
+  an *annotated* tag — `gh api .../git/ref/tags/v3` returned an object of
+  type `tag`, not `commit`, and needed a second `gh api .../git/tags/<sha>`
+  call to reach the actual commit SHA. The other four actions (all
+  `actions/*`) are lightweight tags and resolved in one call. Worth knowing
+  before assuming every tag resolves the same way.
+- The coverage thresholds passed on the first real `--coverage` run with
+  margin under 0.2 points on every axis (branches: 24.8% measured vs. 24.7%
+  threshold). That's not a coincidence — the ratchet comments in
+  `vitest.config.mjs` already track the suite's real numbers by hand across
+  several plans; they just never had `--coverage` actually running against
+  them to prove it. This PR is the first time the numbers in that file's
+  comments and the numbers CI enforces are the same measurement.
+
+Everything else — CI-12/13/14, and the non-mechanical CI-2/CI-9 decisions —
+is explicitly out of scope for this pass; see the audit for those.
