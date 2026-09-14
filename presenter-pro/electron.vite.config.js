@@ -63,6 +63,12 @@ export default defineConfig({
           // The native menu template (plan L1), required from index.js — same
           // reason as closeController: without an entry the app will not launch.
           'main/nativeMenu': resolve(__dirname, 'electron/main/nativeMenu.ts'),
+          // Plan SEC1 (audit SEC-1/SEC-3): the navigation allow-list and
+          // built-in-media traversal guard, both required from index.js —
+          // same reason as closeController: without an entry the app crashes
+          // on launch with "Cannot find module".
+          'main/navigationPolicy': resolve(__dirname, 'electron/main/navigationPolicy.ts'),
+          'main/mediaAssetSafety': resolve(__dirname, 'electron/main/mediaAssetSafety.ts'),
           'shared/ipcContract': resolve(__dirname, 'shared/ipcContract.ts'),
           'db/index': resolve(__dirname, 'electron/db/index.js'),
           'db/migrations': resolve(__dirname, 'electron/db/migrations.js'),
