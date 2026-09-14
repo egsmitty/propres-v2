@@ -4,6 +4,14 @@ function getMedia(db) {
   return db.prepare('SELECT * FROM media ORDER BY created_at DESC, id DESC').all();
 }
 
+// MAIN-B15: media import used to fetch every row (`getMedia`) and `.find()`
+// in JS per imported file — O(rows) per file, growing as the library grows.
+// This uses `idx_media_canonical_path` (migration 1) instead. `.get`, not
+// `.all` + `[0]`: canonical_path lookups are 0-or-1 row.
+function findMediaByCanonicalPath(db, canonicalPath) {
+  return db.prepare('SELECT * FROM media WHERE canonical_path = ?').get(canonicalPath);
+}
+
 function getMediaFolders(db) {
   // id ASC is a free extra tie-breaker for the rare case two folders share
   // both name and created_at second (MAIN-B16).
@@ -98,6 +106,7 @@ function deleteMedia(db, id) {
 
 module.exports = {
   getMedia,
+  findMediaByCanonicalPath,
   getMediaFolders,
   createMediaFolder,
   updateMediaFolder,
