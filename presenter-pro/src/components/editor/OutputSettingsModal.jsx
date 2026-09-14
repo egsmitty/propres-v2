@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLatest } from '@/hooks/useLatest';
 import { DEFAULT_BLACK, DEFAULT_TEXT_COLOR } from '@/utils/colorPalettes';
 import { useAppStore } from '@/store/appStore';
+import { usePresenterStore } from '@/store/presenterStore';
 import {
   closeOutputWindow,
   closeStageDisplayWindow,
@@ -35,11 +36,20 @@ function getDisplayLabel(display) {
   return display.primary ? `${baseLabel} (${size}, Primary)` : `${baseLabel} (${size})`;
 }
 
-function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhenClosed = false }) {
+function PreviewToggleButton({
+  open,
+  openLabel,
+  closeLabel,
+  onClick,
+  primaryWhenClosed = false,
+  disabled = false,
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
+      title={disabled ? 'Stop presenting to open or close preview windows' : undefined}
       className="text-xs rounded-sm h-[42px] w-full py-0 px-3.5 font-[650] tracking-[0.015em]"
       style={{
         background: open
@@ -49,6 +59,8 @@ function PreviewToggleButton({ open, openLabel, closeLabel, onClick, primaryWhen
             : 'var(--bg-surface)',
         color: open || !primaryWhenClosed ? 'var(--text-primary)' : 'var(--text-on-accent)',
         border: open || !primaryWhenClosed ? '1px solid var(--border-default)' : 'none',
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : undefined,
       }}
     >
       {open ? closeLabel : openLabel}
@@ -66,6 +78,11 @@ export default function OutputSettingsModal() {
   const [saving, setSaving] = useState(false);
   const [mainPreviewOpen, setMainPreviewOpen] = useState(false);
   const [stagePreviewOpen, setStagePreviewOpen] = useState(false);
+  const isPresenting = usePresenterStore((s) => s.isPresenting);
+  // Which preview windows THIS sheet opened. Main cannot tell a preview from
+  // the live output, so closing "whatever is open" took the projector down
+  // mid-service (plan L3, audit LIVE-A1).
+  const openedBySheetRef = useRef({ output: false, stage: false });
 
   useEffect(() => {
     let cancelled = false;
@@ -121,14 +138,15 @@ export default function OutputSettingsModal() {
   );
 
   async function handleClose() {
-    if (mainPreviewOpen) {
+    if (mainPreviewOpen && openedBySheetRef.current.output) {
       await closeOutputWindow();
       setMainPreviewOpen(false);
     }
-    if (stagePreviewOpen) {
+    if (stagePreviewOpen && openedBySheetRef.current.stage) {
       await closeStageDisplayWindow();
       setStagePreviewOpen(false);
     }
+    openedBySheetRef.current = { output: false, stage: false };
     setOutputSettingsOpen(false);
   }
 
@@ -161,11 +179,13 @@ export default function OutputSettingsModal() {
   async function toggleMainPreview() {
     if (mainPreviewOpen) {
       await closeOutputWindow();
+      openedBySheetRef.current.output = false;
       setMainPreviewOpen(false);
     } else {
       await openOutputWindow(
         mainDisplayId ? { displayId: Number(mainDisplayId) } : { useConfiguredDisplay: false }
       );
+      openedBySheetRef.current.output = true;
       setMainPreviewOpen(true);
     }
   }
@@ -173,11 +193,13 @@ export default function OutputSettingsModal() {
   async function toggleStagePreview() {
     if (stagePreviewOpen) {
       await closeStageDisplayWindow();
+      openedBySheetRef.current.stage = false;
       setStagePreviewOpen(false);
     } else {
       await openStageDisplayWindow(
         stageDisplayId ? { displayId: Number(stageDisplayId) } : { useConfiguredDisplay: false }
       );
+      openedBySheetRef.current.stage = true;
       setStagePreviewOpen(true);
     }
   }
@@ -246,6 +268,7 @@ export default function OutputSettingsModal() {
                     closeLabel="Close Main Preview"
                     onClick={toggleMainPreview}
                     primaryWhenClosed
+                    disabled={isPresenting}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -257,6 +280,7 @@ export default function OutputSettingsModal() {
                     openLabel="Open Stage Display Preview"
                     closeLabel="Close Stage Preview"
                     onClick={toggleStagePreview}
+                    disabled={isPresenting}
                   />
                 </div>
               </div>

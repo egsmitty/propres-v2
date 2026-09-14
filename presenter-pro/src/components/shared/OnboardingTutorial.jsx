@@ -1,7 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
-import { createPresentationFromTemplate } from '@/utils/presentationCommands';
+import { useEditorStore } from '@/store/editorStore';
+import {
+  createPresentationFromTemplate,
+  openPresentationInEditor,
+} from '@/utils/presentationCommands';
+import { PRESENTATION_TEMPLATES } from '@/utils/presentationTemplates';
+import { getPresentations, touchPresentation } from '@/utils/ipc';
+import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
+
+// Steps whose highlight target lives on the Home screen, not the editor.
+// Back navigation into one of these must return to Home the same way every
+// other Home-bound navigation does (plan H2 / HOME-15b).
+const HOME_STEP_IDS = new Set(['sidebar', 'templates']);
 
 const STEPS = [
   {
@@ -38,13 +50,14 @@ const STEPS = [
     id: 'present',
     selector: '[data-tour="present-button"]',
     title: 'Go Live With Control',
-    body: 'Use Present or press F5 to open Presenter View and the clean output window. From there you can advance slides, trigger black or logo, and run the live countdown overlay.',
+    body: 'Use Present or press F5 to open the output window and start presenting. Advance slides from the Presenter Panel, trigger black or logo, and run the live countdown overlay.',
   },
 ];
 
 export default function OnboardingTutorial({ onComplete }) {
   const currentView = useAppStore((s) => s.currentView);
   const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const setHomeTab = useAppStore((s) => s.setHomeTab);
   const tutorialStepIndex = useAppStore((s) => s.tutorialStepIndex);
   const setTutorialStepIndex = useAppStore((s) => s.setTutorialStepIndex);
   // The store is the single owner of the step (plan D2 #3); no local mirror.
@@ -122,16 +135,48 @@ export default function OnboardingTutorial({ onComplete }) {
   async function handleTemplateAction() {
     setIsWorking(true);
     try {
-      await createPresentationFromTemplate('featured-sunday-example');
+      // Re-running the tour must not spawn another "Sunday Morning Example"
+      // (plan H2 / HOME-13) — reuse the existing one if there is one.
+      const featuredTitle = PRESENTATION_TEMPLATES.find(
+        (template) => template.id === 'featured-sunday-example'
+      )?.title;
+      const existingResult = await getPresentations();
+      const existing = existingResult?.success
+        ? (existingResult.data || []).find((item) => item.title === featuredTitle)
+        : null;
+      if (existing) {
+        await openPresentationInEditor(existing.id);
+      } else {
+        await createPresentationFromTemplate('featured-sunday-example');
+      }
       setTutorialStepIndex(2);
     } finally {
       setIsWorking(false);
     }
   }
 
-  function handleBack() {
+  async function handleBack() {
     const nextIndex = Math.max(0, stepIndex - 1);
-    if (nextIndex === 0 && currentView === 'editor') {
+    // The step at nextIndex may target a Home-only element while the editor
+    // is still open (e.g. Back from `toolbar` to `templates`) — go home the
+    // same way every other Home-bound navigation does, not a raw view
+    // switch that skips the unsaved-changes gate (plan H2 / HOME-15b;
+    // compare TitleBar.jsx's handleBack).
+    if (HOME_STEP_IDS.has(STEPS[nextIndex].id) && currentView === 'editor') {
+      const editorState = useEditorStore.getState();
+      const canLeave = await resolveUnsavedChanges({
+        presentation: editorState.presentation,
+        isDirty: editorState.isDirty,
+        requiresInitialSave: editorState.requiresInitialSave,
+        setDirty: editorState.setDirty,
+        setRequiresInitialSave: editorState.setRequiresInitialSave,
+        actionLabel: 'go back home',
+      });
+      if (!canLeave) return;
+      if (editorState.presentation?.id) {
+        await touchPresentation(editorState.presentation.id);
+      }
+      setHomeTab('home');
       setCurrentView('home');
     }
     setTutorialStepIndex(nextIndex);
@@ -147,7 +192,7 @@ export default function OnboardingTutorial({ onComplete }) {
 
   return (
     <div className="fixed inset-0 z-[80] pointer-events-none">
-      {targetRect ? (
+      {targetRect && (
         <div
           style={{
             position: 'fixed',
@@ -161,8 +206,6 @@ export default function OnboardingTutorial({ onComplete }) {
             background: 'transparent',
           }}
         />
-      ) : (
-        <div className="absolute inset-0" style={{ background: 'rgba(7, 10, 18, 0.62)' }} />
       )}
 
       <div

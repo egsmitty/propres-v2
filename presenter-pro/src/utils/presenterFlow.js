@@ -145,10 +145,14 @@ export async function syncPresentationSession(presentation) {
   const { isPresenting, liveSectionId, liveSlideId } = usePresenterStore.getState();
   if (!isPresenting || !liveSectionId || !liveSlideId) return true;
 
-  const liveSlide = slides.find(
-    (slide) => slide.sectionId === liveSectionId && slide.id === liveSlideId
-  );
+  // By id alone (plan L4, audit LIVE-A4): slide ids are unique, and a live
+  // slide moved into another section must keep refreshing. Its section is
+  // updated to where it now lives.
+  const liveSlide = slides.find((slide) => slide.id === liveSlideId);
   if (!liveSlide) return true;
+  if (liveSlide.sectionId !== liveSectionId) {
+    usePresenterStore.setState({ liveSectionId: liveSlide.sectionId });
+  }
 
   await refreshLiveSlide(liveSlide, null);
   return true;

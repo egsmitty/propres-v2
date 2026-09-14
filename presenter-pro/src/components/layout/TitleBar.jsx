@@ -4,6 +4,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
 import { touchPresentation } from '@/utils/ipc';
 import { resolveUnsavedChanges } from '@/utils/unsavedChanges';
+import { confirmStopBeforeLeaving } from '@/utils/leaveWhilePresenting';
 import { DEFAULT_NAMES, commitName } from '@/utils/nameDraft';
 
 export default function TitleBar() {
@@ -28,6 +29,8 @@ export default function TitleBar() {
   }, [renaming]);
 
   async function handleBack() {
+    // Never leave the deck with a presentation live (plan L4, audit LIVE-A6).
+    if (!(await confirmStopBeforeLeaving('go back home'))) return;
     const canLeave = await resolveUnsavedChanges({
       presentation,
       isDirty,
