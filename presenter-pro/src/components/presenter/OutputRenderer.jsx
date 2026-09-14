@@ -61,6 +61,15 @@ export default function OutputRenderer() {
     width: typeof window !== 'undefined' ? window.innerWidth : 0,
     height: typeof window !== 'undefined' ? window.innerHeight : 0,
   });
+  // The stage element only exists while a slide is showing, and black / logo
+  // unmount it; the resize observer must re-attach every time it mounts
+  // (plan L3, audit LIVE-A13).
+  const showingStage = Boolean(slide) && !isBlack && !isLogo;
+  // The pill that closes a windowed output is for previews only — never one
+  // click away while a slide is live (plan L3, audit LIVE-A8).
+  const showClosePreview = isPreviewWindow && !slide;
+  // No mouse pointer on the projector (plan L3, audit LIVE-C4).
+  const outputCursor = isPreviewWindow ? undefined : 'none';
 
   useEffect(() => {
     mediaRef.current = media;
@@ -93,7 +102,7 @@ export default function OutputRenderer() {
 
     observer.observe(viewportRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [showingStage]);
 
   useEffect(() => {
     fetchMedia().then((library) => {
@@ -110,8 +119,10 @@ export default function OutputRenderer() {
 
     const offUpdate = onOutputUpdate(async ({ slide: s, background: bg }) => {
       setSlide(s);
-      setIsBlack(false);
-      setIsLogo(false);
+      // Black and logo are NOT cleared here (plan L3, audit LIVE-A2). Main
+      // resets them and broadcasts output:black / output:logo when a NEW slide
+      // goes live; it also sends output:update for every edit to the live
+      // slide, and that must never un-black the projector.
 
       if (isMediaSlide(s)) {
         const library = mediaRef.current.length ? mediaRef.current : await fetchMedia();
@@ -176,9 +187,10 @@ export default function OutputRenderer() {
           height: '100vh',
           background: 'var(--projector-bg)',
           position: 'relative',
+          cursor: outputCursor,
         }}
       >
-        {isPreviewWindow ? <PreviewCloseButton /> : null}
+        {showClosePreview ? <PreviewCloseButton /> : null}
       </div>
     );
   }
@@ -194,9 +206,10 @@ export default function OutputRenderer() {
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
+          cursor: outputCursor,
         }}
       >
-        {isPreviewWindow ? <PreviewCloseButton /> : null}
+        {showClosePreview ? <PreviewCloseButton /> : null}
         <div
           style={{
             width: 120,
@@ -220,8 +233,10 @@ export default function OutputRenderer() {
 
   if (!slide) {
     return (
-      <div className="w-screen h-screen bg-projector-bg flex items-center justify-center p-[6vw] relative">
-        {isPreviewWindow ? <PreviewCloseButton /> : null}
+      <div
+        className={`w-screen h-screen bg-projector-bg flex items-center justify-center p-[6vw] relative ${isPreviewWindow ? '' : 'cursor-none'}`}
+      >
+        {showClosePreview ? <PreviewCloseButton /> : null}
         <span className="text-white/24 text-[clamp(30px,2.8vw,52px)] font-medium font-[Inter,system-ui,sans-serif] tracking-[0.02em] text-center">
           Main Output Display
         </span>
@@ -247,9 +262,10 @@ export default function OutputRenderer() {
         justifyContent: 'center',
         overflow: 'hidden',
         position: 'relative',
+        cursor: outputCursor,
       }}
     >
-      {isPreviewWindow ? <PreviewCloseButton /> : null}
+      {showClosePreview ? <PreviewCloseButton /> : null}
 
       <div
         style={{

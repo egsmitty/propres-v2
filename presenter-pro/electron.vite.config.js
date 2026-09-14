@@ -63,6 +63,9 @@ export default defineConfig({
           // The native menu template (plan L1), required from index.js — same
           // reason as closeController: without an entry the app will not launch.
           'main/nativeMenu': resolve(__dirname, 'electron/main/nativeMenu.ts'),
+          // Output window options + the display sleep blocker (plan L3), also
+          // required from index.js.
+          'main/presentationWindows': resolve(__dirname, 'electron/main/presentationWindows.ts'),
           // Plan SEC1 (audit SEC-1/SEC-3): the navigation allow-list and
           // built-in-media traversal guard, both required from index.js —
           // same reason as closeController: without an entry the app crashes

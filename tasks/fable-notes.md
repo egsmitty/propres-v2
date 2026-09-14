@@ -2361,3 +2361,41 @@ this session (per instruction — the machine was in use) or by CI's E2E run.
 Confirm CI's E2E (loads `out/renderer/index.html` from disk, the `file:`
 branch) stays green, and that `npm run dev` still HMRs (the `rendererDevUrl`
 branch) — the two allow-list paths a unit test cannot reach.
+
+---
+
+## L3 — the output window, one congregation-visible failure at a time (2026-09-13)
+
+Audit items LIVE-A1, A2, A8 (partly), A13, A14, A15 and C4.
+
+**The two worst ones were each one wrong assumption.** Output Settings closed
+"whatever preview window is open" when you dismissed it — but main answers "is
+a window open" without knowing whether it is a preview or the live projector, so
+Cancel took the projector down mid-service. The sheet now remembers which
+windows it opened. And the output renderer cleared black on every update,
+although main already clears it (and says so) when a new slide goes live; the
+only update that reached the renderer's own clear on its own was the refresh
+sent for every edit to the live slide. Fixing a typo while blacked out put the
+slide back on the screen. The fix is deleting two lines.
+
+**A test that passed for the wrong reason, twice.** The first observer test
+asserted "the ResizeObserver observed something" and passed on the broken code:
+`ScaledSlideText` runs its own observer on the text layer. The second draft
+assumed blacking out remounts the stage's root `<div>` and asserted a new
+element — but React reuses the node across the two branches; what changes is
+that the ref is cleared and the effect cleaned up. The final test asserts the
+root element itself is observed, by identity, once and then again after black.
+Both corrections made the test stricter, and the red proof is still real: on the
+old code the root is observed zero times.
+
+**Main-process pieces moved somewhere testable.** The output window's options
+(now opening black, like the stage display already did) and a display-sleep
+blocker live in `electron/main/presentationWindows.ts`, free of any `electron`
+import. The blocker is idempotent because it is started by every live slide and
+stopped from every path that can end a session — `output:stop`, the window's
+`closed`, and shutdown.
+
+**Deferred on purpose:** auto-picking a display and what Stop should do on a
+one-display laptop wait on Ethan's decision #8; display hot-plug waits for L6's
+injectable `screen` seam; black restarting the background video is a separate
+renderer restructure.
