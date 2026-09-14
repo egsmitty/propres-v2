@@ -2280,6 +2280,34 @@ reported success.
 
 ---
 
+## ED2 — `&` no longer turns into `&amp;amp;` after every edit (2026-09-14)
+
+**What was wrong.** Type "Praise & Worship" into a slide, click away, click back:
+the canvas, the thumbnail and the projector read `Praise &amp; Worship`, and each
+further edit added another `amp;`. The editor saves its element's `innerHTML`,
+which spells the ampersand as `&amp;` and has no tags. `slideBodyToHtml` treats
+a body with no tags as raw text and escapes it — escaping the already-escaped
+ampersand. The seed/save loop did the rest. The stage display was worse still:
+`slideBodyToPlainText` stripped tags but never decoded anything, so it showed
+the entity from the first save on. For a worship app, "Praise & Worship" is not
+an edge case.
+
+**What changed.** A body without tags is decoded once and then escaped. Raw text
+("Rock & Roll", from seeds and imports) and editor HTML ("Praise &amp; Worship")
+now render the same, and a seed/save cycle stores exactly what it read. Plain
+text decodes once, after the tags are gone. Bodies with real markup take the
+same path as before.
+
+**Worth knowing.** The decode is a single pass on purpose: `&amp;amp;` becomes
+`&amp;`, not `&`. A slide whose text genuinely reads "&amp;" has to keep it, and
+running the decode to a fixed point would eat it. The same reason means rows the
+bug already damaged stop growing but keep their one extra `&amp;`; repairing
+stored text is the storage-format plan the audit keeps for [F]. And the decode
+happens after the tags are stripped, so a typed "<b>" can never be mistaken for
+one.
+
+---
+
 ## L3 — the output window, one congregation-visible failure at a time (2026-09-13)
 
 Audit items LIVE-A1, A2, A8 (partly), A13, A14, A15 and C4.
