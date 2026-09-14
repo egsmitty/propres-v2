@@ -2198,3 +2198,55 @@ hot path the audit named.
 16 new cases after the MAIN-B10 removal, 15 red on `main` before the fix
 (the equal-version case is a deliberate non-regression sanity check).
 Gate re-run on the merged branch (see the PR).
+
+---
+
+## H2 — the onboarding tour was leaving people stranded on a dark screen (2026-09-14)
+
+Audit items HOME-12, HOME-13, HOME-14, HOME-15 (`tasks/fable-pass-2-audit.md`,
+local). All four turned out to share one root cause worth naming: nothing in
+`OnboardingTutorial.jsx` distinguished "the highlighted step's target isn't on
+screen right now" from "there is no target for this step" — every one of the
+6 steps declares a selector, so the two cases are the same case, and the old
+code treated it as intentional (dim the whole screen, center the tooltip).
+That state was reachable in completely normal use: `handleBack`'s only
+Home-aware branch was `nextIndex === 0`, so Back from the toolbar step (which
+needs the editor) to the templates step (which needs Home) never switched the
+view — landing exactly on the undetectable-target case. The fix removes the
+fallback dim entirely (a null target now renders nothing behind the tooltip)
+and generalizes the Back check from "index 0" to "does the step I'm going
+back to live on Home," which also means Back now goes through the same
+`resolveUnsavedChanges` → `touchPresentation` → `setHomeTab` → `setCurrentView`
+sequence `TitleBar.jsx` uses, not a raw view switch that skipped the
+unsaved-changes gate.
+
+The two template descriptions that lied were `student-night` ("worship" —
+no song section exists in this template at all) and `prayer-night`
+("scripture," "reflection," "closing worship" — only `Gathering` and `Guided
+Prayer` exist). The other 5 templates were already accurate; both fixed
+descriptions were re-verified against real `buildPresentation()` output
+(fixture: the 4 real hymn titles from `shared/hymns.json`) rather than
+eyeballed. The field they live in, `template.description`, turned out to be
+rendered nowhere in the app today (`TemplateCard` only shows `.title`) — a
+second, separate field, `templateVisuals.js`'s `lines` (the pills actually
+shown on each card), has the same class of drift and was left alone: the
+task brief named `presentationTemplates.js`'s description specifically, and
+widening scope to a sibling file wasn't asked for.
+
+The tutorial's own template action (`handleTemplateAction`) created a fresh
+"Sunday Morning Example" every run with no dedupe — the generic
+`createPresentationFromTemplate` flow every `TemplateCard` click uses was
+left untouched on purpose (clicking a template card by hand should still
+make a new document, the same way opening a template in PowerPoint or
+Keynote does); only the tutorial's *automatic* action now looks up an
+existing presentation by title first and reopens it.
+
+7 new test cases, 3 of them red-to-green against real bugs (the missing-
+target dim, Back-from-toolbar, and the tutorial's create-on-every-run), plus
+2 forbidden-word regression checks (also red-to-green) and an exhaustiveness
+check over all 7 templates' section output. One ratchet moved as a direct,
+expected consequence of the fix rather than a drive-by: deleting the
+no-target fallback `<div>` dropped `OnboardingTutorial.jsx`'s real inline-
+style count from 5 to 4, so `inlineStyleBudget.test.ts`'s ceiling for that
+file was lowered to match — the ratchet's own stated purpose ("lower it when
+a slice lands"), not a weakening.
