@@ -2523,3 +2523,24 @@ resolving `ok`); the other 2 already matched old behavior and exist to pin
 that Enter still fires primary when nothing/the primary button has focus —
 they're "keep working" cases, not bug proofs, and the plan says so rather than
 inflating the red count.
+
+---
+
+## E2E1 — the keyboard spec listens for the output window before pressing F5 (2026-09-14)
+
+**What was wrong.** PR #136's required `E2E (macOS)` check failed with 48 passed
+and 1 flaky. The flaky one was the keyboard operability spec: it pressed F5 and
+only then started waiting for the output window. When the window opened quickly,
+its `window` event fired before anyone was listening, and the 15-second wait
+timed out. The retry passed in 1.2 s. Because `playwright.config.ts` turns
+flakes into failures on CI — deliberately, so flakes get fixed instead of
+ignored — one lost race failed an unrelated PR.
+
+**What changed.** The wait now starts before the key press and is awaited after
+it — the order the same spec already used for waiting on the window's close.
+Nothing else in the spec moved.
+
+**Worth knowing.** Playwright only sees events emitted after `waitForEvent` is
+called. Any "do the thing, then wait for the event it causes" line is a race;
+the safe shape is `const p = waitForEvent(…); await action(); await p;`. Other
+specs were not audited for the same pattern in this change.

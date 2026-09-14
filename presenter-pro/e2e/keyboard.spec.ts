@@ -23,8 +23,13 @@ test.describe('keyboard operability', () => {
     await expect(page.getByText('Show this overlay')).toHaveCount(0);
 
     // F5 presents (the output window opens); Escape stops (it closes).
+    // Listen BEFORE pressing: on a fast runner the output window can open
+    // before a listener attached afterwards exists, so the event is missed and
+    // the wait times out (CI run 34821114021 failed here, then passed on
+    // retry). Same order as the `close` wait below.
+    const opened = app.waitForEvent('window', { timeout: 15_000 });
     await page.keyboard.press('F5');
-    const output = await app.waitForEvent('window', { timeout: 15_000 });
+    const output = await opened;
     await output.waitForLoadState('domcontentloaded');
     expect(app.windows()).toHaveLength(2);
     // The presenting flag flips only after the output window's ready handshake;
