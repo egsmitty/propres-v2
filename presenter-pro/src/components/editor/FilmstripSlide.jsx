@@ -4,7 +4,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { useAppStore } from '@/store/appStore';
 import { usePresenterStore } from '@/store/presenterStore';
 import ContextMenu from '@/components/shared/ContextMenu';
-import SlidePreviewSurface from '@/components/shared/SlidePreviewSurface';
+import SlideRender from '@/components/shared/SlideRender';
 import { getSectionTypeLabel } from '@/utils/sectionTypes';
 import { getPresentationAspectRatio } from '@/utils/presentationSizing';
 import { importMediaToSelectedSlide } from '@/utils/presentationCommands';
@@ -146,15 +146,13 @@ export default function FilmstripSlide({
           </span>
 
           <div className="w-full h-full relative">
-            <SlidePreviewSurface
+            <SlideRender
               presentation={presentation}
               slide={slide}
               sectionId={sectionId}
               mediaLibrary={mediaLibrary}
-              empty="Click to edit"
-              shadow="none"
-              showPlaceholder
               missingMediaLabel={slide.label || 'Media'}
+              site="thumbnail"
             />
           </div>
 

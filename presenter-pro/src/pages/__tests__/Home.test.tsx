@@ -11,9 +11,9 @@ import { act, render, screen, fireEvent } from '@testing-library/react';
 // them.
 //
 // `sections: []` on the fixture keeps `PresentationPreview` on its no-slide
-// branch, which skips `ScaledSlideText` — that component measures itself via
-// `ResizeObserver`, which is absent from `vitest.setup.mjs` and would throw in
-// jsdom.
+// branch, which skips `SlideRender` — that component measures itself via
+// `ResizeObserver`, absent from `vitest.setup.mjs`; without one it renders its
+// stage hidden (plan ED36).
 
 vi.mock('@/utils/ipc', () => ({
   getPresentations: vi.fn(),

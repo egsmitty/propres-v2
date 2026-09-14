@@ -14,7 +14,9 @@ import {
 import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds';
 import { isMediaSlide } from '@/utils/sectionTypes';
 import { getPresentationDimensions, getPresentationScale } from '@/utils/presentationSizing';
-import ScaledSlideText from '@/components/shared/ScaledSlideText';
+// Plan ED36 slice 1: the projector keeps the old text layer for one more
+// slice; slice 2 replaces it with `SlideRender`.
+import ScaledSlideText from './OutputSlideText';
 
 function formatRemaining(endAt) {
   if (!endAt) return '00:00';
