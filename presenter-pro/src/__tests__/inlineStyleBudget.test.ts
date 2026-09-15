@@ -18,7 +18,7 @@ const SRC = join(__dirname, '..');
 const BUDGET: Record<string, number> = {
   'components/layout/Toolbar.jsx': 23,
   'components/presenter/PresenterPanel.jsx': 23,
-  'components/editor/Canvas.jsx': 19,
+  'components/editor/Canvas.jsx': 18,
   'components/editor/Filmstrip.jsx': 17,
   'components/presenter/OutputRenderer.jsx': 11,
   'components/library/SongEditorModal.jsx': 10,

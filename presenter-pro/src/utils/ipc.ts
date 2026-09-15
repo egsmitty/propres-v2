@@ -203,6 +203,10 @@ export async function getPreviewWindowState(): Promise<
 export function resolveWindowCloseRequest(): void {
   api().resolveWindowCloseRequest();
 }
+/** Plan CMDS1 PR B: the native menu's enabled state, by command id. */
+export function setMenuEnabled(payload: { enabled: Record<string, boolean> }): void {
+  api().setMenuEnabled(payload);
+}
 
 // ─── System ──────────────────────────────────────────────────────────────────
 
