@@ -109,4 +109,17 @@ describe('autosave failure alerts', () => {
     const message = String(vi.mocked(alertDialog).mock.calls[0]?.[0]);
     expect(message).toContain('An object could not be cloned.');
   });
+
+  // Plan SAVED1 (audit SAVE-D1). The write now goes through the one row writer,
+  // which carries a failed envelope's error verbatim — possibly none. When it is
+  // none, autosave still falls back to "unknown error" (uncovered before SAVED1).
+  it('falls back to "unknown error" when the write fails with no error message', async () => {
+    vi.mocked(updatePresentation).mockResolvedValue({ success: false } as never);
+
+    for (let i = 0; i < AUTOSAVE_FAILURE_ALERT_THRESHOLD; i += 1) await editAndSettle();
+
+    expect(couldNotSaveAlerts()).toBe(1);
+    const message = String(vi.mocked(alertDialog).mock.calls[0]?.[0]);
+    expect(message).toContain('unknown error');
+  });
 });

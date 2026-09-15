@@ -2806,3 +2806,65 @@ recapture's triage is in the commit that carries them.
 the pin reads `element.style`; and its `cssstyle` serializes an inline
 `border: none` as "medium", so the pin reads `borderStyle`. ED-36 is closed:
 one renderer, one style module, five sites in one test.
+
+---
+
+## SAVED1 — one row writer, `persistPresentation` (2026-09-15)
+
+Audit SAVE-D1 ("eight separate row writers with different rules"). Six sites
+wrote a `presentations` row through the IPC wrapper, each applying its own
+subset of the same rules (guard the rejected call, guard the failed envelope,
+tell a deleted row from a failure, normalize the returned row). The three
+`createPresentation` sites were never in scope. The mechanics now live once in
+`src/utils/persistPresentation.ts`; `updatePresentation(` is called from exactly
+the wrapper and that writer, and a source-text guard
+(`persistPresentation.oneWriter.test.ts`) fails the moment a seventh caller
+appears.
+
+**What stayed with the callers, on purpose.** The dialogs (the exact words a
+user reads) and the store effects are policies, not mechanics: Save's S2
+"keep the newer edit" branch, the gate's `setDirty(false)` on success,
+autosave's failure counting and "never commit", restore/revert's two captures
+that bracket the write and their document swap. The writer returns a failed
+envelope's error **verbatim** (possibly none) so each caller keeps its own
+fallback string, and it takes `commit` as a **function passed in** — never an
+import of the version module — so it closes no cycle.
+
+**Two behaviour changes, both declared and tested (testing-standards #2):**
+
+- The Unsaved Changes gate used `success === false`, so a null/undefined
+  envelope fell through to the `data == null` branch and read as "This
+  presentation no longer exists". Through the one writer a null envelope is a
+  failure like any other → "Failed to save your presentation.", which is what
+  `saveCurrentPresentation` already did. Only the explicit
+  `{ success: true, data: null }` still means the row was deleted.
+- `renamePresentationById` returned the raw envelope, so renaming a row deleted
+  between opening the dialog and confirming returned `{ success: true, data:
+  null }` and Home refreshed its list. It now returns `{ success: false }` — the
+  row is gone, nothing was renamed — and Home does not refresh. No editor store
+  is touched either way.
+
+**Traps this hit.**
+
+- The gate's restore-point check was `captured === false`, strict on purpose:
+  `captureVersion` returns `true` when there is nothing new to record, and its
+  test mocks it to return `undefined`. `!outcome.committed` broke that test;
+  `outcome.committed === false` preserves it. Save (site 1) used `!captured`
+  against the *real* captureVersion (always boolean), so it keeps `!`. The two
+  sites' strictness differed before this plan and still does — match each.
+- The writer's `PersistDeps` expects `Envelope<Presentation>`; `AutosaveDeps`
+  types its dep as `Envelope<unknown>`, so passing it through needs a cast
+  (`as PersistDeps['updatePresentation']`). `VersionDeps` already returns
+  `Envelope<Presentation>` and passes through with no cast.
+- The review's own Measured claim was wrong: no test injects
+  `deps.updatePresentation`; every renderer test `vi.mock('@/utils/ipc')`. So
+  there was no dependency rename to make — the sites pass the existing dep
+  through to the writer, and the module mock still drives the write. `deps`
+  stayed exactly as it was in both modules.
+
+Gate green: type-check, `eslint --max-warnings 0`, 1071 unit tests (122 files),
+coverage 42.7 / 40.4 / 40.7 / 43.7 — well over the 26.8 / 24.7 / 24.4 / 27.7
+thresholds; the ratchet was not tightened. **Manual checks owed** (no app
+launched): ⌘S with a typed edit in flight keeps the newer text (S2); Discard on
+a never-saved presentation deletes it; Restore from Version History still
+works and is undoable.

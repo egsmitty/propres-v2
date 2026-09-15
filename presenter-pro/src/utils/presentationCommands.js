@@ -11,9 +11,9 @@ import {
   getPresentation,
   resolveBuiltInMedia,
   touchPresentation,
-  updatePresentation,
 } from '@/utils/ipc';
 import { mediaComparisonKey, normalizePresentation } from '@/utils/backgrounds';
+import { persistPresentation, PERSIST_MISSING_MESSAGE } from '@/utils/persistPresentation';
 import { PRESENTATION_TEMPLATES, SAMPLE_MEDIA_LIBRARY } from '@/utils/presentationTemplates';
 import { uuid } from '@/utils/uuid';
 import {
@@ -220,21 +220,22 @@ export async function saveCurrentPresentation() {
   const presentation = state.presentation;
   if (!presentation) return null;
 
-  const result = await updatePresentation(presentation.id, presentation);
+  // One row writer (plan SAVED1): the rejected-call, failed-envelope and
+  // deleted-row guards live in `persistPresentation`, which returns the written
+  // row normalized once. The capture stays HERE, not `commit`, because which
+  // document it snapshots depends on the S2 branch below.
+  const outcome = await persistPresentation(presentation.id, presentation);
 
   // Every way of saving comes through here — File ▸ Save and ⌘S included, whose
   // callers drop the result — so failures are reported HERE, once (plan D1,
   // audit SAVE-A8). Nothing below may leave "Saved" on screen for work that is
-  // not committed.
-  if (!result?.success) {
-    const error = result?.error || 'Failed to save your presentation.';
-    await alertDialog(error, { title: 'Save Failed' });
-    return { ...result, success: false, error };
-  }
-  if (result.data == null) {
-    // The row is gone — deleted from Home while it was open here. This branch
-    // used to mark the document saved (audit SAVE-A7).
-    const error = 'This presentation no longer exists, so it could not be saved.';
+  // not committed. A `missing` row was deleted from Home while it was open here;
+  // that branch used to mark the document saved (audit SAVE-A7).
+  if (!outcome.ok) {
+    const error =
+      outcome.reason === 'missing'
+        ? PERSIST_MISSING_MESSAGE
+        : outcome.error || 'Failed to save your presentation.';
     await alertDialog(error, { title: 'Save Failed' });
     return { success: false, error };
   }
@@ -244,7 +245,7 @@ export async function saveCurrentPresentation() {
     // Deliberately NOT loadPresentationIntoEditor: that resets the selection to
     // the first slide and clears undo history, which is fine when opening a
     // document and wrong when saving the one you are working in.
-    state.syncSavedPresentation(result.data);
+    state.syncSavedPresentation(outcome.presentation);
     // Save is the commit: it is what moves the restore point forward. The
     // snapshot is taken from the same normalized value the store now holds.
     captured = await captureVersion(useEditorStore.getState().presentation);
@@ -256,7 +257,7 @@ export async function saveCurrentPresentation() {
     const store = useEditorStore.getState();
     store.setRequiresInitialSave(false);
     store.setDirty(true);
-    captured = await captureVersion(normalizePresentation(result.data));
+    captured = await captureVersion(outcome.presentation);
   }
   if (!captured) {
     // The row is written, but without its restore point the document is not
@@ -267,7 +268,7 @@ export async function saveCurrentPresentation() {
     await alertDialog(error, { title: 'Restore Point Not Saved' });
     return { success: false, error };
   }
-  return result;
+  return { success: true, data: outcome.presentation };
 }
 
 /**
@@ -585,25 +586,28 @@ export async function renamePresentationById(id, currentTitle) {
   const loaded = await getPresentation(id);
   if (!loaded?.success || !loaded.data) return loaded;
 
-  const result = await updatePresentation(id, {
-    ...loaded.data,
-    title,
-  });
-  // Renaming from Home writes the row without touching the editor store. With
-  // no version captured, the row would diverge from its newest restore point
-  // and the presentation would open dirty forever (plan A5, fact 10).
-  if (result?.success && result.data) {
-    const captured = await captureVersion(normalizePresentation(result.data));
-    if (!captured) {
-      // The name is saved but its restore point is not, so the presentation
-      // would open with unsaved changes; say so (plan D1, audit SAVE-A9).
-      await alertDialog(
-        'The presentation was renamed, but a restore point could not be recorded. Open it and save to record one.',
-        { title: 'Restore Point Not Saved' }
-      );
-    }
+  // One row writer (plan SAVED1). Renaming from Home writes the row without
+  // touching the editor store, so with no version captured the row would diverge
+  // from its newest restore point and open dirty forever (plan A5, fact 10) —
+  // hence `commit`. As before, a failed write is returned to Home without an
+  // alert (Home only refreshes on success); only a failed restore point speaks.
+  const outcome = await persistPresentation(
+    id,
+    { ...loaded.data, title },
+    { commit: (row) => captureVersion(row) }
+  );
+  if (!outcome.ok) {
+    return outcome.error ? { success: false, error: outcome.error } : { success: false };
   }
-  return result;
+  if (!outcome.committed) {
+    // The name is saved but its restore point is not, so the presentation
+    // would open with unsaved changes; say so (plan D1, audit SAVE-A9).
+    await alertDialog(
+      'The presentation was renamed, but a restore point could not be recorded. Open it and save to record one.',
+      { title: 'Restore Point Not Saved' }
+    );
+  }
+  return { success: true, data: outcome.presentation };
 }
 
 export async function deletePresentationById(id, title) {

@@ -1,8 +1,8 @@
-import { deletePresentation, updatePresentation } from '@/utils/ipc';
+import { deletePresentation } from '@/utils/ipc';
 import { alertDialog, showDialog } from '@/utils/dialog';
 import { cancelPendingAutosave } from '@/utils/autosaveSync';
 import { captureVersion, revertToLatestVersion } from '@/utils/presentationVersionsSync';
-import { normalizePresentation } from '@/utils/backgrounds';
+import { persistPresentation, PERSIST_MISSING_MESSAGE } from '@/utils/persistPresentation';
 import { useEditorStore } from '@/store/editorStore';
 
 /**
@@ -61,26 +61,28 @@ export async function resolveUnsavedChanges({
 
   if (choice === 'save') {
     cancelPendingAutosave();
-    const saveResult = await updatePresentation(currentPresentation.id, currentPresentation);
-    if (saveResult?.success === false) {
-      await alertDialog(saveResult.error || 'Failed to save your presentation.', {
-        title: 'Save Failed',
-      });
+    // One row writer (plan SAVED1). Save is the commit, here as everywhere else,
+    // so the capture rides through `commit` — and a commit whose restore point
+    // failed is not one (plan D1, audit SAVE-A9). A `missing` row was deleted
+    // from Home while open; capturing the in-memory copy here wrote an orphan
+    // version and let the window close as "saved" (audit SAVE-A6). Note (SAVED1):
+    // a null/undefined envelope now reads as a failure ("Failed to save your
+    // presentation.") rather than "no longer exists", matching Save; the deleted
+    // row is still the explicit `{ success: true, data: null }` → `missing`.
+    const outcome = await persistPresentation(currentPresentation.id, currentPresentation, {
+      commit: (row) => captureVersion(row),
+    });
+    if (!outcome.ok) {
+      const message =
+        outcome.reason === 'missing'
+          ? PERSIST_MISSING_MESSAGE
+          : outcome.error || 'Failed to save your presentation.';
+      await alertDialog(message, { title: 'Save Failed' });
       return false;
     }
-    if (saveResult?.data == null) {
-      // The row is gone (deleted from Home while open). Capturing the in-memory
-      // copy here wrote an orphan version for a presentation that no longer
-      // exists, and let the window close as "saved" (plan D1, audit SAVE-A6).
-      await alertDialog('This presentation no longer exists, so it could not be saved.', {
-        title: 'Save Failed',
-      });
-      return false;
-    }
-    // Save is the commit, here as everywhere else — and a commit whose restore
-    // point failed is not one (plan D1, audit SAVE-A9).
-    const captured = await captureVersion(normalizePresentation(saveResult.data));
-    if (captured === false) {
+    // Strict `=== false` as before: only an explicit failed capture blocks the
+    // exit — captureVersion returns true when there was nothing new to record.
+    if (outcome.committed === false) {
       await alertDialog(
         'Your presentation was saved, but a restore point could not be recorded. Try saving again before you leave.',
         { title: 'Restore Point Not Saved' }
