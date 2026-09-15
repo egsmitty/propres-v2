@@ -241,3 +241,39 @@ say whether the coverage ratchet (`vitest.config.mjs:65-70`) is raised.
 Reviewer's bottom line: worth doing — the rejected-call try/catch exists only
 in autosave today — but pitch it as "one place for the rejection and envelope
 guard", not "five rules unified".
+
+---
+
+## Completed (2026-09-15) — Todos 4–7 done, all review blockers resolved
+
+Branch merged `main` first (#148/#149, render/menu only — no save conflicts).
+All six sites now go through `persistPresentation`; the one-writer guard is
+green. Gate green (type-check, lint, 1071 tests, coverage well over threshold);
+`format:check` clean.
+
+How each review blocker was handled:
+
+1. **False "tests inject `deps.updatePresentation`" claim.** No dep rename made.
+   `AutosaveDeps`/`VersionDeps` are unchanged; autosave and restore/revert pass
+   their existing dep through — `persistPresentation(id, doc, { deps: {
+   updatePresentation: deps.updatePresentation }, … })` — and the module mock
+   still drives the write. Autosave's dep is `Envelope<unknown>`, so it casts
+   `as PersistDeps['updatePresentation']`; `VersionDeps` needs no cast.
+2. **Fallback strings pinned.** New cases: restore "Failed to restore that
+   version." and revert "Failed to revert your presentation."
+   (`presentationVersionsSync.captureResult.test.ts`), autosave "unknown error"
+   (`autosaveSync.failures.test.ts`).
+3. **Gate `success === false` behaviour named.** Declared change: a
+   null/undefined envelope at the gate now reads as a failed save, not a deleted
+   row (matches Save). Pinned in `unsavedChanges.test.ts`, with the explicit
+   `{ success: true, data: null }` still asserting "no longer exists".
+4. **Return shapes kept.** `saveCurrentPresentation` returns
+   `{ success: true, data }` / `{ success: false, error }`;
+   `renamePresentationById` still returns an envelope Home reads `.success` on
+   (a rename of a deleted row now returns `{ success: false }` — declared).
+5. **No import cycle** — `commit` is a function passed in; the writer imports
+   only `@/utils/backgrounds` and `@/utils/ipc`.
+
+Also: the gate keeps its strict `outcome.committed === false` (was
+`captured === false`); Save and Rename keep `!` against the real
+`captureVersion`. Coverage ratchet not tightened.

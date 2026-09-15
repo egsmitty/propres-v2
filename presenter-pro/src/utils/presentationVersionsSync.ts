@@ -1,8 +1,8 @@
 import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
-import { normalizePresentation } from '@/utils/backgrounds';
 import { alertDialog } from '@/utils/dialog';
 import { getLatestVersion, getVersion, updatePresentation, writeVersion } from '@/utils/ipc';
+import { persistPresentation } from '@/utils/persistPresentation';
 import {
   VERSION_EXEMPT_PRESENTATION_IDS,
   hasDiverged,
@@ -173,15 +173,20 @@ export async function restoreVersion(
     return false;
   }
 
-  const result = await deps.updatePresentation(row.presentation_id, snapshot);
-  if (!result?.success || !result.data) {
-    await deps.alertDialog(result?.error || 'Failed to restore that version.', {
+  // One row writer (plan SAVED1): the rejected-call and failed-envelope guards
+  // and the single normalize live in `persistPresentation`. `commit` is not used
+  // here — the two captures that bracket this write stay in the caller.
+  const outcome = await persistPresentation(row.presentation_id, snapshot, {
+    deps: { updatePresentation: deps.updatePresentation },
+  });
+  if (!outcome.ok) {
+    await deps.alertDialog(outcome.error || 'Failed to restore that version.', {
       title: 'Restore Failed',
     });
     return false;
   }
 
-  const normalized = normalizePresentation(result.data);
+  const normalized = outcome.presentation;
   applyRestored(normalized, deps, true);
   // THE INVARIANT: the newest version must equal the document again.
   if (!(await captureVersion(normalized, deps))) {
@@ -242,17 +247,20 @@ export async function revertToLatestVersion(
     return false;
   }
 
-  const result = await deps.updatePresentation(id, snapshot as Presentation);
-  // Guard the envelope exactly as saveCurrentPresentation does. Loading an
-  // undefined result would normalize to undefined and blank the open document.
-  if (!result?.success || !result.data) {
-    await deps.alertDialog(result?.error || 'Failed to revert your presentation.', {
+  // One row writer (plan SAVED1), guarded exactly as saveCurrentPresentation is.
+  // Loading an undefined result would normalize to undefined and blank the open
+  // document; `persistPresentation` treats that as a failure like any other.
+  const outcome = await persistPresentation(id, snapshot as Presentation, {
+    deps: { updatePresentation: deps.updatePresentation },
+  });
+  if (!outcome.ok) {
+    await deps.alertDialog(outcome.error || 'Failed to revert your presentation.', {
       title: 'Revert Failed',
     });
     return false;
   }
 
-  const normalized = normalizePresentation(result.data);
+  const normalized = outcome.presentation;
   applyRestored(normalized, deps, navigate);
   // THE INVARIANT: the newest version must equal the document again. With
   // `capture: false` nothing was appended, so the target already is the newest.

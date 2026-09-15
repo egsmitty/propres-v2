@@ -89,6 +89,38 @@ describe('resolveUnsavedChanges', () => {
     expect(input.setDirty).toHaveBeenCalledTimes(0);
   });
 
+  it('a Save on a deleted row reports it is gone, and writes no version', async () => {
+    vi.mocked(showDialog).mockResolvedValue({ action: 'save' });
+    vi.mocked(updatePresentation).mockResolvedValue({ success: true, data: null });
+    const input = args();
+
+    expect(await resolveUnsavedChanges(input)).toBe(false);
+    expect(alertDialog).toHaveBeenCalledWith(
+      'This presentation no longer exists, so it could not be saved.',
+      { title: 'Save Failed' }
+    );
+    expect(captureVersion).not.toHaveBeenCalled();
+    expect(input.setDirty).toHaveBeenCalledTimes(0);
+  });
+
+  // BEHAVIOUR CHANGE (plan SAVED1, audit SAVE-D1). The write goes through the one
+  // row writer now. Before, a null/undefined envelope fell past the
+  // `success === false` check into the `data == null` branch and read as "no
+  // longer exists"; through the writer a null envelope is a failure like any
+  // other, matching saveCurrentPresentation. Only the explicit
+  // `{ success: true, data: null }` above still means the row is gone.
+  it('a null envelope now reads as a failed save, not a deleted row', async () => {
+    vi.mocked(showDialog).mockResolvedValue({ action: 'save' });
+    vi.mocked(updatePresentation).mockResolvedValue(null as never);
+    const input = args();
+
+    expect(await resolveUnsavedChanges(input)).toBe(false);
+    expect(alertDialog).toHaveBeenCalledWith('Failed to save your presentation.', {
+      title: 'Save Failed',
+    });
+    expect(input.setDirty).toHaveBeenCalledTimes(0);
+  });
+
   it('Discard on a never-saved presentation deletes the row', async () => {
     vi.mocked(showDialog).mockResolvedValue({ action: 'discard' });
     const input = args({ requiresInitialSave: true });
