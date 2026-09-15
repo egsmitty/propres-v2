@@ -22,11 +22,12 @@ function duplicates(values: string[]): string[] {
 }
 
 describe('IPC contract tables', () => {
-  it('has the measured surface: 54 invoke, 1 send, 12 event methods', () => {
+  it('has the measured surface: 54 invoke, 2 send, 12 event methods', () => {
     // Exact counts, not floors: a channel added or removed must be a deliberate
     // edit here, in the same PR as its handler and wrapper.
+    // Plan CMDS1 PR B added the second send method, `menu:setEnabled`.
     expect(Object.keys(INVOKE_METHODS)).toHaveLength(54);
-    expect(Object.keys(SEND_METHODS)).toHaveLength(1);
+    expect(Object.keys(SEND_METHODS)).toHaveLength(2);
     expect(Object.keys(EVENT_METHODS)).toHaveLength(12);
   });
 

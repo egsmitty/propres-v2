@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { getPresentations, getProfile } from '@/utils/ipc';
 import ContextMenu from '@/components/shared/ContextMenu';
-import ScaledSlideText from '@/components/shared/ScaledSlideText';
+import SlideRender from '@/components/shared/SlideRender';
 import { useAppStore } from '@/store/appStore';
 import { getPresentationAspectRatio } from '@/utils/presentationSizing';
 import {
@@ -1099,18 +1099,15 @@ function PresentationPreview({ presentation }) {
 
   return (
     <div
-      className="w-[90px] rounded-2xl shrink-0 overflow-hidden bg-thumb-bg"
+      className="w-[90px] rounded-2xl shrink-0 overflow-hidden bg-thumb-bg relative"
       style={{
         aspectRatio: getPresentationAspectRatio(presentation),
       }}
     >
-      <ScaledSlideText
+      <SlideRender
         presentation={presentation}
         slide={{ ...slide, body: lines.join('\n') }}
-        empty="No slide"
-        shadow="none"
-        minPaddingX={8}
-        minPaddingY={8}
+        site="home"
       />
     </div>
   );

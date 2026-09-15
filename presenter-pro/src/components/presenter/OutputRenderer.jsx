@@ -14,7 +14,9 @@ import {
 import { getMediaAssetUrl, isVideoMedia } from '@/utils/backgrounds';
 import { isMediaSlide } from '@/utils/sectionTypes';
 import { getPresentationDimensions, getPresentationScale } from '@/utils/presentationSizing';
-import ScaledSlideText from '@/components/shared/ScaledSlideText';
+// Plan ED36 slice 2: the projector draws its slide through the one renderer
+// every preview uses, so the wall and the thumbnails cannot disagree.
+import SlideRender from '@/components/shared/SlideRender';
 
 function formatRemaining(endAt) {
   if (!endAt) return '00:00';
@@ -278,31 +280,21 @@ export default function OutputRenderer() {
           background: 'var(--projector-bg)',
         }}
       >
-        {mediaSlideItem?.file_path ? (
-          <OutputBackground media={mediaSlideItem} />
-        ) : background?.file_path ? (
-          <OutputBackground media={background} />
-        ) : null}
-        {!mediaSlideItem?.file_path && background?.file_path && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(0,0,0,0.22)',
-            }}
-          />
-        )}
-        {!mediaSlideItem?.file_path && (
-          <div style={{ position: 'absolute', inset: 0 }}>
-            <ScaledSlideText
-              presentation={slide}
-              slide={slide}
-              empty=""
-              shadow="0 2px 16px rgba(0,0,0,0.9)"
-              showPlaceholder={false}
-            />
-          </div>
-        )}
+        {/* The slide payload carries the presentation's aspect fields
+            (withPresentationMeta) and its effective background id; the media
+            items are resolved above and pinned by id so a video background
+            keeps playing across slides in one section. No per-slide key: the
+            renderer must not remount on every advance. */}
+        <SlideRender
+          presentation={slide}
+          slide={slide}
+          mediaSlideItem={mediaSlideItem}
+          backgroundMedia={background}
+          renderBackground={(media) => <OutputBackground media={media} />}
+          placeholder={false}
+          missingMediaLabel={null}
+          site="output"
+        />
       </div>
       {countdown.active && (
         <div

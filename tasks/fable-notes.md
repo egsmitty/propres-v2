@@ -1610,7 +1610,7 @@ gate rather than a step nobody has verified goes green.
 **Why:** CI-4's premise was worth checking rather than trusting the audit
 outright — `package.json`'s `build.npmRebuild: false` and the total absence
 of a `postinstall` script confirm better-sqlite3 (`^13.0.3`, N-API) never
-gets natively rebuilt by *any* install in this project, full or
+gets natively rebuilt by _any_ install in this project, full or
 `--ignore-scripts`. The old comments in `pr-checks.yml`, `e2e.yml`, and
 `build-release.yml` each guessed at a different wrong reason for the same
 non-event. The corrected comments say what the full installs are actually
@@ -1619,6 +1619,7 @@ packages, or launches the app, not compiling a native dependency that was
 never compiled to begin with.
 
 **Surprises:**
+
 - The three "full install" comments weren't copies of each other — pr-checks
   and build-release both invoked a nonexistent "better-sqlite3 rebuild",
   while e2e.yml specifically claimed the rebuild was "for Electron's ABI."
@@ -1626,7 +1627,7 @@ never compiled to begin with.
   small argument for CI-4 as a category: an inaccurate comment doesn't just
   sit still, it gets re-derived wrong at each new call site.
 - `softprops/action-gh-release@v3` is the one action in this repo pinned to
-  an *annotated* tag — `gh api .../git/ref/tags/v3` returned an object of
+  an _annotated_ tag — `gh api .../git/ref/tags/v3` returned an object of
   type `tag`, not `commit`, and needed a second `gh api .../git/tags/<sha>`
   call to reach the actual commit SHA. The other four actions (all
   `actions/*`) are lightweight tags and resolved in one call. Worth knowing
@@ -1653,7 +1654,7 @@ that the code deciding what goes on the projector had **zero** tests. Its own
 verification pass moved this plan ahead of every fix.
 
 **The design choice that matters: pin what is right, not what is wrong.** A
-characterization test that pinned a bug would have to be *edited* by the PR that
+characterization test that pinned a bug would have to be _edited_ by the PR that
 fixes the bug, which is exactly the "the test changed alongside the code" shape
 that proves nothing. So the 28 cases here pin only behaviour that must survive
 every Wave 1 fix: start goes live on the selected slide (or the first), stop
@@ -1661,7 +1662,7 @@ clears the session, a live slide carries its inherited background and the
 presentation's ratio, an edit refreshes the live slide by id, → / ← / Space
 move one slide with both ends bounded, typing in a field never moves the
 projector, and the Present menu only acts when it should. Each bug gets its own
-red test in its own fix PR. That means a deliberately *unpinned* case sits right
+red test in its own fix PR. That means a deliberately _unpinned_ case sits right
 next to a pinned one: "a deleted live slide is not refreshed" is pinned, "a live
 slide moved to another section is not refreshed" is not — LIVE-A4 changes it.
 
@@ -1772,7 +1773,7 @@ ignore a consumed Escape.
 
 **Two things that would have broken if the whole listener had moved.** Dialog's
 Enter must stay after the dialog's own fields; and the shortcuts sheet closes on
-`?` while the Editor *toggles* it on `?` — close-first in capture, then toggle,
+`?` while the Editor _toggles_ it on `?` — close-first in capture, then toggle,
 reopens it. So each overlay now has an Escape listener in capture and keeps its
 other keys where they were.
 
@@ -1792,13 +1793,13 @@ click-path is in the plan.
 The whole-app audit found a real double-click on a Home presentation row
 opening it three times, not once. The browser's own double-click dispatches
 `click`, `click`, `dblclick` in sequence — the row had a handler on each of
-those first two clicks *and* a separate `onDoubleClick`, so a double-click ran
+those first two clicks _and_ a separate `onDoubleClick`, so a double-click ran
 three concurrent `touchPresentation`/`getPresentation`/`ensureVersion` round
 trips against the same row. The fix is not a debounce (that still lets two
 genuinely separate clicks each open something) but a per-presentation-id
 in-flight guard on `handleOpen` itself, plus dropping `onDoubleClick`
 entirely — single click opens, the same as Google Docs. The guard is keyed by
-id rather than a single flag so opening two *different* rows back to back
+id rather than a single flag so opening two _different_ rows back to back
 (e.g. arrow key then Enter) still works.
 
 Fixed alongside it: the row's Pin and More buttons only ever appeared on
@@ -1860,7 +1861,7 @@ which made every drag jump the box to the same fixed negative position
 regardless of the pointer. `clampBoxPosition(value, size, extent)` orders the
 bounds itself — `[min(0, extent - size), max(0, extent - size)]` — so the box
 stays draggable (and bounded) either way. Only the drag-move branch changed;
-the four resize-branch `clamp` calls a few lines down clamp *size*, not
+the four resize-branch `clamp` calls a few lines down clamp _size_, not
 position, and are a different bug shape the audit item doesn't name.
 
 **ED-18 found a second, un-deduped copy of the shadow helper.** Plan F1 (2026-09-09)
@@ -2018,7 +2019,7 @@ no rewritten row, D8's backup/rollback rule has nothing to attach to.
 **MAIN-B2.** `presentations.js`'s shared `parse` helper did
 `JSON.parse(row.sections || '[]')` with no try/catch, called from both
 `getPresentations`'s `.map(parse)` and `getPresentation`'s single call. One
-row with invalid `sections` JSON threw inside `.map`, so the *entire* Home
+row with invalid `sections` JSON threw inside `.map`, so the _entire_ Home
 list came back empty instead of showing the other rows — a single corrupt
 row, not a missing one, was the failure mode. Fixed once, in the shared
 helper: a parse failure now flags that row `{ sections: [], corrupt: true }`
@@ -2026,10 +2027,10 @@ and `console.error`s the id; healthy rows are byte-for-byte unchanged (no
 `corrupt` key added to them).
 
 **MAIN-B13, the real trap in this PR.** The runner pruned old backups
-*before* writing the new one, so a failed `VACUUM INTO` (disk full,
+_before_ writing the new one, so a failed `VACUUM INTO` (disk full,
 permissions) had already deleted backups it couldn't replace. The "obvious"
 fix — just swap the two lines — is wrong by itself. `pruneBackups`'s retain
-math (`keep - 1`) assumed it ran *before* the write, reserving one slot for
+math (`keep - 1`) assumed it ran _before_ the write, reserving one slot for
 the file about to be written. The real `BackupStore.list()`
 (`electron/db/migrations.js`, `fs.readdirSync`) reads the directory live, so
 once you write first, the new file is already inside `list()` — reserving a
@@ -2110,7 +2111,7 @@ the projector. One module now answers it for all three.
 
 **Backspace was the worst one, and it was a vocabulary mismatch, not a typo.**
 In this editor Backspace deletes the selected slide; in PowerPoint's Slide Show
-it means *go back*. A volunteer who presses it mid-service expecting the
+it means _go back_. A volunteer who presses it mid-service expecting the
 previous slide deleted a slide instead — and autosave wrote the deletion. While
 presenting, the Editor now returns nothing for Backspace, Delete, ↑ or ↓, and
 the panel's keymap (copied key-for-key from PowerPoint, including the PageDown /
@@ -2123,7 +2124,7 @@ existing behaviour row by row, and marks the fixes, so the extraction is
 provably behaviour-preserving everywhere it was meant to be.
 
 **Found and not fixed:** Canvas's Delete/Backspace handler runs in the capture
-phase and calls `stopPropagation()`, so with a text box *selected* (not being
+phase and calls `stopPropagation()`, so with a text box _selected_ (not being
 edited) while presenting, Backspace deletes the box and never reaches the panel.
 That is editing the live deck rather than navigating it, and it belongs with the
 editor work; recorded rather than widened into this plan.
@@ -2134,7 +2135,7 @@ editor work; recorded rather than widened into this plan.
 
 Audit items MAIN-B11, B12, B14, B15 — small, unrelated-looking bugs that all
 trace back to the same thing: nothing in this codebase ever treated the SQLite
-file as having a *lifecycle*. It got opened once and otherwise left alone.
+file as having a _lifecycle_. It got opened once and otherwise left alone.
 
 **MAIN-B10 (the non-atomic seed) was dropped from this PR at merge time.**
 The plan extracted `seed(db)` verbatim into `electron/db/seed.js` and wrapped
@@ -2238,7 +2239,7 @@ The tutorial's own template action (`handleTemplateAction`) created a fresh
 `createPresentationFromTemplate` flow every `TemplateCard` click uses was
 left untouched on purpose (clicking a template card by hand should still
 make a new document, the same way opening a template in PowerPoint or
-Keynote does); only the tutorial's *automatic* action now looks up an
+Keynote does); only the tutorial's _automatic_ action now looks up an
 existing presentation by title first and reopens it.
 
 7 new test cases, 3 of them red-to-green against real bugs (the missing-
@@ -2332,10 +2333,10 @@ protocol+host (dev) or protocol+path (file).
 
 **SEC-3.** `resolveBuiltInMediaAssetPath` in `index.js` joined a
 renderer-supplied name straight onto `test-media/` with `path.join`, which
-*collapses* `..` segments instead of rejecting them — `../../../../etc/passwd`
+_collapses_ `..` segments instead of rejecting them — `../../../../etc/passwd`
 escaped the directory. The guard is `path.basename(name) !== name` as the
 audit specifies, plus an explicit check for a literal backslash: `path.basename`
-only splits on the *host* platform's separator, so running the suite on
+only splits on the _host_ platform's separator, so running the suite on
 macOS/Linux CI, `path.basename('..\\evil.png')` (POSIX `path`) leaves the
 string unchanged and would silently let a Windows-style traversal string
 through a basename-only check. Made both separators explicit so the guard's
@@ -2414,7 +2415,7 @@ is what this is. The rewrite stays deferred; nothing here needed it.
 **Leaving the deck was the dangerous one.** File ▸ Open, File ▸ Close, File ▸
 New and the Home button all switched away with a presentation still live. The
 Editor unmounted, taking the presenter keys with it, the projector froze on its
-last slide — and opening another deck synced *that* deck's slides into the live
+last slide — and opening another deck synced _that_ deck's slides into the live
 session, so the next Space sent its first slide to the congregation. Quitting
 already asked "Stop presenting?"; every other way of leaving now asks the same
 question through one helper.
@@ -2448,6 +2449,7 @@ tested predicate beside L3's window options.
    went with it.
 
 **What changed.**
+
 - **Save** syncs the editor only if the editor still holds the exact object it
   sent. If something was typed in the meantime, the newer edit stays and the
   document stays unsaved. The row and its restore point hold what was sent, and
@@ -2458,6 +2460,7 @@ tested predicate beside L3's window options.
   timer, so it is never brought back.
 
 **Worth knowing.**
+
 - **Where the flush lives matters.** The obvious place for it is the store
   subscription, on a same-id `setPresentation`. That is exactly what the audit's
   first draft proposed, and it would have been a bug: restoring a version does a
@@ -2540,7 +2543,7 @@ same content can easily disagree on insertion order without disagreeing on
 anything that matters, and `JSON.stringify` is order-sensitive, so the two
 produced different keys. Fixed with a small recursive `canonicalize()` that
 sorts object keys before stringifying and leaves array element order alone
-— reordering slides is a real edit, not formatting noise, so only *object*
+— reordering slides is a real edit, not formatting noise, so only _object_
 keys get sorted, never array elements. `hasDiverged` and autosave's dirty
 check both call `presentationContentKey` already, so they inherit the fix
 with no code of their own changing.
@@ -2585,7 +2588,7 @@ no de-duplication, functionally identical to "no fix yet" — so the
 collision tests could fail on their actual assertions (two same-minute rows
 producing the same string) against that stub, then replacing the stub with
 the real count-and-append-seconds logic. Recorded here as a reusable
-pattern: when a red test is *for a new function*, scaffold the function's
+pattern: when a red test is _for a new function_, scaffold the function's
 skinniest possible passthrough body first so the test's failure mode stays
 meaningful.
 
@@ -2632,3 +2635,174 @@ next PR's surprise failure.
 **Worth knowing.** Playwright only sees events emitted after `waitForEvent` is
 called. Any "do the thing, then wait for the event it causes" line is a race;
 the safe shape is `const p = waitForEvent(…); await action(); await p;`.
+
+---
+
+## ED36 slice 1 — one slide renderer for every preview (2026-09-14)
+
+**What was wrong.** Six places drew a slide and four of them (thumbnails, the
+Home cards, the presenter panel, the projector) went through a component that
+multiplied every pixel value by a scale factor and rewrote font sizes inside the
+HTML with a regular expression — then clamped padding to a screen-pixel floor so
+thumbnails would not look cramped. The floor narrowed the text column, the
+multiplication rounded differently from the wall, and a lyric that fit on one
+line on the projector could wrap in the thumbnail. On top of that the sites did
+not agree about shadows: the editor drew a soft text-shadow and treated the
+user's Shadow setting as a shape shadow; the projector drew a strong text-shadow
+unless the user's shadow was on, then turned that into a text-shadow and dropped
+the other; thumbnails drew none. And media backgrounds were darkened by 0.18 in
+the editor but 0.22 on the wall.
+
+**What changed.** A single `SlideRender` lays the slide out at its native size
+(1920×1080 for 16:9) and scales the whole stage with one CSS transform — the
+way the editor canvas already worked. One pure module, `slideRenderStyle`, is
+the only description of how a text box looks, in native pixels, with no floors.
+The projector's values are the truth: every box carries the projector's
+legibility text-shadow, media is darkened by 0.22, and the user's Shadow is a
+shape shadow everywhere (it lives beside fill, outline and corner radius —
+PowerPoint's shape effects). This slice moves the five preview sites; the
+projector keeps its old layer for one more slice and the canvas follows.
+
+**Proof.** Two unit suites (17 cases) pin the style module and the renderer's
+structure. A new E2E measures the same seeded slide at three sites and asserts
+identical computed styles, identical wrapped-line counts and the same native
+geometry within one pixel — it cannot run against the old code (the seams did
+not exist), so its red is the measured table in the plan: padding 4 / 8 / 7 px
+at the three sites. Baselines that show thumbnails were recaptured on CI and
+triaged; nothing else moved.
+
+**Worth knowing.** The `empty` prop the old previews passed ("Click to edit",
+"No slide") was dead: `normalizeTextBox` already stores a resolved placeholder
+on every box, so thumbnails have always said "Double-click to edit". Song
+slides store `autoFit: 'shrink'` and nothing renders it. Thumbnails still
+autoplay `<video>` backgrounds (FS-31). No UI sets a text box's `shadowEnabled`,
+so the Shadow setting cannot be checked by hand — it is pinned by unit tests.
+And the recapture exposed a hole in the screenshot net: `editor-song-library`'s
+committed baseline still showed the pre-#125 seed (seven songs, two of them
+copyrighted) and had passed every run since, because CI allows
+`maxDiffPixelRatio: 0.01` and a changed song list in small text stays under 1 %
+of the frame. The corrected baseline is committed with this slice; the
+tolerance itself is a CI item, not this plan's.
+
+---
+
+## ED36 slice 2 — the projector draws through the one renderer (2026-09-14)
+
+**What changed.** The output window no longer has its own text layer. It draws
+its slide through the same `SlideRender` every preview uses, so the wall and
+the thumbnails cannot disagree. Two things the projector owns stay its own:
+it resolves the background from the live payload against its own copy of the
+library and pins the object by id — that is what keeps a video background
+playing across the slides of one section — so it hands the renderer the item
+already resolved, and its `<video>`/`<img>` element (with its "Missing media
+file" notice) is drawn by the projector's own component through the
+renderer's `renderBackground` hook. A unit test now asserts the `<video>` DOM
+node is the same node after the next slide with the same background; a media
+slide whose file is gone draws nothing on the wall, as before.
+
+**Proof.** The fidelity E2E now includes the projector: the same seeded slide,
+measured in the editor's thumbnail, the presenter's live preview and grid,
+and the output window, must have identical computed styles, identical wrapped
+line counts and the same native geometry within a pixel. Expected pixel
+change on the wall: none for the seeded content (no user shadow, no media);
+the recapture run says whether that held.
+
+**Worth knowing.** The projector's slide payload has no presentation: the
+presenter flow stamps the aspect fields and the effective background id onto
+the slide, which is why the renderer is given `presentation={slide}`. The
+old text layer, kept for one slice as `OutputSlideText.jsx`, is deleted.
+
+---
+
+## CMDS1 PR A — one command registry (2026-09-14)
+
+**What was wrong.** Four hand-written lists described the app's commands and
+disagreed: the `switch` that runs them, the in-app menu bar, the native menu
+and the keyboard-shortcuts sheet. Seven switch cases had no caller at all. The
+native menu had no idea of state — every item was always enabled — and the
+app ran whatever it sent, so on the Home screen, with the last presentation
+still sitting in memory, a reflexive ⌘M added a slide to a deck nobody could
+see and F5 presented it (audit CMD-B4); File ▸ Version History could open
+mid-service from the native menu (CMD-B5). The Present tooltip said "F5" while
+showing Stop; the shortcuts sheet listed Esc twice and Close, Undo and Redo not
+at all.
+
+**What changed.** One registry (`commandRegistry.ts`) describes every command
+once — id, label, menu, shortcut, and the rule for when it is enabled. The
+in-app menu, the shortcuts sheet and the toolbar tooltips are generated from
+it, `runAppCommand` refuses anything the rule disallows whatever route it
+arrived by, and the seven dead cases are gone. A source-text test holds the
+switch and the registry to the same set of ids; another holds the native
+template to the registry (same commands, same labels, hints for exactly the
+renderer-owned keys). Every clickable native item now carries its command as
+its id, which is what PR B needs to grey it. Two visible changes, both
+deliberate: the in-app Close item shows the ⌘W it always had natively, and the
+sheet is regenerated (Close, Undo, Redo added; "Stop Presenting" once).
+
+**Rules worth knowing.** Save and Save As need a document but not the editor
+view — the E2E harness sends `file:save` the moment a blank presentation is
+created, before the view flips, and a save from Home writes the same row
+anyway. Stop, Black and Logo are gated on "presenting" only, never on the
+view: the onboarding tour can reach Home without stopping a session, and Stop
+Presenting must stay reachable in front of the room. The quit handshake
+(`window:requestClose`) is enabled in every state — a refusal there deadlocks
+quit — and a test asserts it across the whole matrix.
+
+**Findings.** Two key paths still exist: a registered native accelerator
+arrives as a command, a key typed into the page goes through
+`editorKeyAction` — and only the latter enforces "close the panels before
+presenting" (CMD-B11's cause). A registered bare accelerator such as F5 is
+documented in `nativeMenu.ts` to fire on top of the renderer's handling;
+whether ⌘-accelerators are consumed first is unverified. On Home neither the
+menu bar nor the editor's key listener is mounted, so the native menu was the
+only route into the bug. `platformShortcuts.js` has no test of its own.
+
+---
+
+## CMDS1 PR B — the native menu greys to match (2026-09-14)
+
+**What was wrong.** The native menu is built once by the main process and
+knew nothing about the app's state, so every item was always enabled: Save
+with nothing open, Version History mid-service, Start Presenting while live.
+PR A made those commands refuse to run; the menu still looked willing.
+
+**What changed.** The renderer pushes the registry's enabled map to the main
+process over a new `menu:setEnabled` channel — once on start, then whenever
+it changes — and main greys each native item by the id it carries. Nineteen
+commands are synced; Undo and Redo are not, because their rule depends on
+which field has focus, which the OS menu cannot see. Only the main window
+pushes: the output and stage windows hold their own stores and would grey the
+whole menu.
+
+**Worth knowing.** The guard in `runAppCommand` is the safety and the push is
+the grey pixels — a late or lost push can only leave an item looking enabled
+that does nothing. The channel is pinned on both sides: the wrapper's exact
+payload, and main's listener by source text; the contract's three guard tests
+(exactly one wrapper per method, exactly the contract channels registered,
+`assertComplete` at launch) pass unchanged.
+
+---
+
+## ED36 slice 3 — the canvas draws what the wall draws (2026-09-14)
+
+**What changed.** The editor canvas — the one place that already laid a slide
+out at native size behind a single transform — now takes a text box's look
+from the same style module the thumbnails, the presenter and the projector
+use. The canvas keeps only what is its own: the cursor, the selection
+z-order, visible handles. The inline text editor reads the same module for
+its font, colour, alignment and wrapping, so what you type cannot drift from
+what is drawn. One visible change, deliberate: the canvas's soft text-shadow
+(0.5) became the projector's (0.9) — the editor now shows the wall.
+
+**Proof.** A characterization test pinned every inline style value the canvas
+set _before_ the change, then changed exactly the one named value after it.
+The fidelity E2E now measures five sites — thumbnail, presenter live preview
+and grid, output window and canvas — and asserts identical computed styles,
+identical wrapped-line counts and the same native geometry within a pixel.
+Every editor baseline that shows a text box moves (the shadow); the
+recapture's triage is in the commit that carries them.
+
+**Worth knowing.** jsdom's `getComputedStyle` knows only a few properties, so
+the pin reads `element.style`; and its `cssstyle` serializes an inline
+`border: none` as "medium", so the pin reads `borderStyle`. ED-36 is closed:
+one renderer, one style module, five sites in one test.
