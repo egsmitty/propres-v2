@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { useEditorStore } from '@/store/editorStore';
-import { listVersionSummaries } from '@/utils/ipc';
+import { getVersion, listVersionSummaries } from '@/utils/ipc';
 import { confirmDialog } from '@/utils/dialog';
 import { restoreVersion } from '@/utils/presentationVersionsSync';
 import { formatVersionLabels, formatVersionTimestamp } from '@/utils/versionLabels';
+import { diffPresentationStructure } from '@/utils/versionDiff';
 
 /**
  * Version History (plan A6).
@@ -12,7 +13,58 @@ import { formatVersionLabels, formatVersionTimestamp } from '@/utils/versionLabe
  * Lists the restore points `⌘S` has created and lets you go back to one.
  * Restoring keeps the current state as a version first, so it is itself
  * undoable — the row directly below "Current" is where you just came from.
+ *
+ * Plan VH2 (issue #160): a Preview pane shows what restoring a version would
+ * change — compared against the CURRENT document, unsaved edits included,
+ * because that is "what I'm doing right now".
  */
+
+const BADGE = { added: 'new', removed: 'gone', changed: 'changed' };
+
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
+/** The headline of a preview: what restoring would do, as short chips. */
+export function summaryChips(summary) {
+  const chips = [];
+  if (summary.slidesAdded) chips.push(`+${plural(summary.slidesAdded, 'slide')}`);
+  if (summary.slidesRemoved) chips.push(`−${plural(summary.slidesRemoved, 'slide')}`);
+  if (summary.slidesChanged) chips.push(`${summary.slidesChanged} changed`);
+  if (summary.sectionsAdded) chips.push(`+${plural(summary.sectionsAdded, 'section')}`);
+  if (summary.sectionsRemoved) chips.push(`−${plural(summary.sectionsRemoved, 'section')}`);
+  if (summary.titleChanged) chips.push('Title changes');
+  if (summary.aspectChanged) chips.push('Aspect ratio changes');
+  return chips.length ? chips : ['No content differences'];
+}
+
+/**
+ * Parse a stored snapshot the same way `restoreVersion` does: it must be a real
+ * document. `JSON.parse('null')` succeeds and must not become a diff target.
+ */
+function parseSnapshot(raw) {
+  let value;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!value || typeof value !== 'object' || !Array.isArray(value.sections)) return null;
+  return value;
+}
+
+function Badge({ status }) {
+  const text = BADGE[status];
+  if (!text) return null;
+  const tone =
+    status === 'removed'
+      ? 'text-text-tertiary'
+      : status === 'added'
+        ? 'text-accent'
+        : 'text-text-secondary';
+  return <span className={`ml-1.5 text-[10px] uppercase tracking-wide ${tone}`}>{text}</span>;
+}
+
 export default function VersionHistoryModal() {
   const presentationId = useEditorStore((s) => s.presentationId);
   const setVersionHistoryOpen = useAppStore((s) => s.setVersionHistoryOpen);
@@ -24,13 +76,24 @@ export default function VersionHistoryModal() {
   // in a render body is an impure call, and the labels only need to be relative
   // to when the panel was opened.
   const [loadedAt, setLoadedAt] = useState(() => Date.now());
+  // The open preview: `{ version, status: 'loading' | 'error' | 'ready', diff?, message? }`.
+  const [preview, setPreview] = useState(null);
+  const previewOpenRef = useRef(false);
+  useEffect(() => {
+    previewOpenRef.current = preview !== null;
+  }, [preview]);
 
   const load = useCallback(async () => {
     if (presentationId === null || presentationId === undefined) return;
     const result = await listVersionSummaries(presentationId);
     if (result?.success) {
-      setVersions(result.data || []);
+      const list = result.data || [];
+      setVersions(list);
       setError(null);
+      // Keep the Version History command's gate accurate after a restore or
+      // revert appended rows (plan VH1's count is otherwise set only on open
+      // and save).
+      useEditorStore.getState().setVersionCount(list.length);
     } else {
       setError(result?.error || 'Version history could not be loaded.');
     }
@@ -49,11 +112,16 @@ export default function VersionHistoryModal() {
     };
   }, [load]);
 
-  // Escape closes, like every other overlay (plan E3).
+  // Escape closes, like every other overlay (plan E3) — the preview pane first,
+  // then the modal.
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key !== 'Escape') return;
       e.preventDefault();
+      if (previewOpenRef.current) {
+        setPreview(null);
+        return;
+      }
       setVersionHistoryOpen(false);
     }
     // Capture phase: consumed before the Editor's stop-presenting listener (L1).
@@ -89,9 +157,30 @@ export default function VersionHistoryModal() {
     if (!restored) return;
 
     // Restoring APPENDS rows, so the list on screen is stale the instant it
-    // succeeds and the Current marker would point at the wrong row.
+    // succeeds and the Current marker would point at the wrong row. The preview
+    // compared against a document that no longer exists, so it closes too.
+    setPreview(null);
     await load();
   }
+
+  async function handlePreview(version) {
+    if (preview?.version.id === version.id) {
+      setPreview(null);
+      return;
+    }
+    setPreview({ version, status: 'loading' });
+    const result = await getVersion(version.id);
+    const snapshot = result?.success && result.data ? parseSnapshot(result.data.snapshot) : null;
+    if (!snapshot) {
+      setPreview({ version, status: 'error', message: 'This version could not be read.' });
+      return;
+    }
+    // The LIVE document, unsaved edits included: "what I'm doing right now".
+    const diff = diffPresentationStructure(useEditorStore.getState().presentation, snapshot);
+    setPreview({ version, status: 'ready', diff });
+  }
+
+  const previewOpen = preview !== null;
 
   return (
     <div
@@ -101,7 +190,9 @@ export default function VersionHistoryModal() {
         if (e.target === e.currentTarget) setVersionHistoryOpen(false);
       }}
     >
-      <div className="bg-bg-surface border border-border-default rounded-[10px] p-6 w-[560px] max-h-[80vh] flex flex-col shadow-[0_24px_48px_rgba(0,0,0,0.4)]">
+      <div
+        className={`bg-bg-surface border border-border-default rounded-[10px] p-6 ${previewOpen ? 'w-[820px]' : 'w-[560px]'} max-h-[80vh] flex flex-col shadow-[0_24px_48px_rgba(0,0,0,0.4)]`}
+      >
         <h2 className="text-sm font-semibold mb-1 text-text-primary">Version History</h2>
         <p className="text-xs mb-4 text-text-secondary">
           Every time you save, PresenterPro keeps a version you can come back to.
@@ -128,38 +219,126 @@ export default function VersionHistoryModal() {
           </p>
         )}
 
-        <ul className="overflow-y-auto flex-1 -mx-1">
-          {(versions || []).map((version, index) => {
-            const isCurrent = version.id === currentId;
-            return (
-              <li
-                key={version.id}
-                data-version-row={version.id}
-                className="flex items-center justify-between gap-3 px-1 py-2 border-b border-border-subtle last:border-b-0"
-              >
-                <div className="min-w-0">
-                  <p className="text-[13px] text-text-primary">
-                    {versionLabels[index]}
-                    {isCurrent && <span className="ml-2 text-[11px] text-accent">Current</span>}
-                  </p>
-                  <p className="text-[11px] text-text-secondary">
-                    {typeof version.slide_count === 'number'
-                      ? `${version.slide_count} ${version.slide_count === 1 ? 'slide' : 'slides'}`
-                      : '—'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={isCurrent || busy}
-                  onClick={() => handleRestore(version)}
-                  className="text-[12px] font-medium px-3 py-1 rounded-md border border-border-default text-text-primary disabled:text-text-tertiary"
+        <div className="flex gap-4 flex-1 min-h-0">
+          <ul className="overflow-y-auto flex-1 min-w-0 -mx-1">
+            {(versions || []).map((version, index) => {
+              const isCurrent = version.id === currentId;
+              const isPreviewing = preview?.version.id === version.id;
+              return (
+                <li
+                  key={version.id}
+                  data-version-row={version.id}
+                  className="flex items-center justify-between gap-3 px-1 py-2 border-b border-border-subtle last:border-b-0"
                 >
-                  Restore
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                  <div className="min-w-0">
+                    <p className="text-[13px] text-text-primary">
+                      {versionLabels[index]}
+                      {isCurrent && <span className="ml-2 text-[11px] text-accent">Current</span>}
+                    </p>
+                    <p className="text-[11px] text-text-secondary">
+                      {typeof version.slide_count === 'number'
+                        ? `${version.slide_count} ${version.slide_count === 1 ? 'slide' : 'slides'}`
+                        : '—'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!isCurrent && (
+                      <button
+                        type="button"
+                        data-version-preview={version.id}
+                        aria-pressed={isPreviewing}
+                        disabled={busy}
+                        onClick={() => handlePreview(version)}
+                        className="text-[12px] font-medium px-3 py-1 rounded-md border border-border-default text-text-secondary disabled:text-text-tertiary"
+                      >
+                        Preview
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isCurrent || busy}
+                      onClick={() => handleRestore(version)}
+                      className="text-[12px] font-medium px-3 py-1 rounded-md border border-border-default text-text-primary disabled:text-text-tertiary"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {previewOpen && (
+            <aside
+              data-version-preview-pane={preview.version.id}
+              className="w-[300px] shrink-0 overflow-y-auto border-l border-border-subtle pl-4"
+            >
+              <p className="text-[11px] text-text-secondary mb-1">
+                {formatVersionTimestamp(preview.version.saved_at, loadedAt)}
+              </p>
+              {preview.status === 'loading' && (
+                <p className="text-xs text-text-secondary">Comparing…</p>
+              )}
+              {preview.status === 'error' && (
+                <p className="text-xs text-text-secondary">{preview.message}</p>
+              )}
+              {preview.status === 'ready' && (
+                <>
+                  <p className="text-[12px] font-semibold text-text-primary mb-1">
+                    Restoring this version would:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {summaryChips(preview.diff.summary).map((chip) => (
+                      <span
+                        key={chip}
+                        className="text-[11px] px-2 py-0.5 rounded-full border border-border-subtle text-text-secondary"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                  {preview.diff.tree.map((section) => (
+                    <div key={section.id} className="mb-2">
+                      <p
+                        className={`text-[12px] font-medium ${
+                          section.status === 'removed'
+                            ? 'line-through text-text-tertiary'
+                            : 'text-text-primary'
+                        }`}
+                      >
+                        {section.title || 'Untitled section'}
+                        <Badge status={section.status} />
+                      </p>
+                      <ul className="ml-3">
+                        {section.slides.map((slide) => (
+                          <li
+                            key={slide.id}
+                            className={`text-[11px] leading-5 ${
+                              slide.status === 'removed'
+                                ? 'line-through text-text-tertiary'
+                                : 'text-text-secondary'
+                            }`}
+                          >
+                            {slide.name}
+                            <Badge status={slide.status} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleRestore(preview.version)}
+                    className="mt-2 text-[12px] font-medium px-3 py-1 rounded-md border border-border-default text-text-primary disabled:text-text-tertiary"
+                  >
+                    Restore this version
+                  </button>
+                </>
+              )}
+            </aside>
+          )}
+        </div>
 
         <div className="flex justify-end mt-4">
           <button
