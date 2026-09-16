@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { diffPresentationStructure } from '@/utils/versionDiff';
 
-// Plan VH2 (issue #160). The diff reads as the CONSEQUENCE of restoring the
-// version onto the current document: `added` = you would get it back, `removed`
-// = you would LOSE it, `changed` = same id, different content. Baseline is the
-// current (live) document; target is the version.
+// Plan VH2/VH3 (issues #160, #163). The diff reads as the CONSEQUENCE of
+// restoring the version onto the current document: `added` = you would get it
+// back, `removed` = you would LOSE it, `changed` = same id, different content —
+// and for a changed slide, WHICH aspect and a literal before/after of its text.
+// Baseline is the current (live) document; target is the version.
 //
 // If an assertion fails, the bug is elsewhere — never loosen the assertion to
 // pass. Fix the root cause or record it as a suspected regression.
@@ -53,7 +54,10 @@ const ZERO = {
   slidesChanged: 0,
   sectionsAdded: 0,
   sectionsRemoved: 0,
+  backgroundsChanged: 0,
   titleChanged: false,
+  titleBefore: 'Sunday',
+  titleAfter: 'Sunday',
   aspectChanged: false,
 };
 
@@ -77,55 +81,108 @@ describe('diffPresentationStructure', () => {
     });
   });
 
-  it('a slide only in the version is `added` and its section `changed`', () => {
+  it('a slide only in the version is `added`, carrying the text you would get', () => {
     const current = doc([section('A', [slide('s1')])]);
-    const version = doc([section('A', [slide('s1'), slide('s2')])]);
+    const version = doc([section('A', [slide('s1'), slide('s2', { body: '<p>New words</p>' })])]);
     const out = diffPresentationStructure(current, version);
     expect(out.summary).toEqual({ ...ZERO, slidesAdded: 1 });
     expect(out.tree[0]!.status).toBe('changed');
-    expect(out.tree[0]!.slides.map((s) => [s.id, s.status])).toEqual([
-      ['s1', 'same'],
-      ['s2', 'added'],
-    ]);
+    expect(out.tree[0]!.slides[1]).toEqual({
+      id: 's2',
+      name: 'Slide',
+      preview: 'New words',
+      status: 'added',
+      after: 'New words',
+    });
   });
 
-  it('a slide only in the current document is `removed`, listed in place, section `changed`', () => {
-    const current = doc([section('A', [slide('s1'), slide('s2')])]);
+  it('a slide only in the current document is `removed`, listed in place with the text you would lose', () => {
+    const current = doc([section('A', [slide('s1'), slide('s2', { body: '<p>Keep me</p>' })])]);
     const version = doc([section('A', [slide('s1')])]);
     const out = diffPresentationStructure(current, version);
     expect(out.summary).toEqual({ ...ZERO, slidesRemoved: 1 });
-    expect(out.tree[0]!.status).toBe('changed');
-    // The lost slide is still shown, after the version's own slides.
     expect(out.tree[0]!.slides.map((s) => [s.id, s.status])).toEqual([
       ['s1', 'same'],
       ['s2', 'removed'],
     ]);
+    expect(out.tree[0]!.slides[1]!.before).toBe('Keep me');
+  });
+
+  it('a changed slide names the aspect and gives a literal before/after of its text', () => {
+    const current = doc([section('A', [slide('s1', { body: '<p>Amazing <b>grace</b></p>' })])]);
+    const version = doc([
+      section('A', [
+        slide('s1', {
+          body: '<p>Amazing grace, how sweet</p>',
+          textBoxes: [{ id: 'tb-s1', body: '<p>Amazing grace, how sweet</p>' }],
+        }),
+      ]),
+    ]);
+    const out = diffPresentationStructure(current, version);
+    expect(out.summary).toEqual({ ...ZERO, slidesChanged: 1 });
+    expect(out.tree[0]!.slides[0]).toEqual({
+      id: 's1',
+      name: 'Slide',
+      preview: 'Amazing grace, how sweet',
+      status: 'changed',
+      changes: ['text'],
+      before: 'Amazing grace',
+      after: 'Amazing grace, how sweet',
+    });
   });
 
   it.each([
-    ['body', { body: '<p>different</p>', textBoxes: [{ id: 'tb-s1', body: '<p>different</p>' }] }],
-    ['textBoxes only', { textBoxes: [{ id: 'tb-s1', body: '<p>s1</p>', x: 10 }] }],
-    ['notes', { notes: 'a note' }],
-    ['backgroundId', { backgroundId: 42 }],
-  ])('a slide whose %s differs is `changed`', (_what, over) => {
+    [
+      'formatting',
+      { body: '<p><b>s1</b></p>', textBoxes: [{ id: 'tb-s1', body: '<p><b>s1</b></p>' }] },
+      ['formatting'],
+    ],
+    ['layout', { textBoxes: [{ id: 'tb-s1', body: '<p>s1</p>', x: 10 }] }, ['layout']],
+    ['layout', { textStyle: { fontSize: 72 } }, ['layout']],
+    ['notes', { notes: 'a note' }, ['notes']],
+    ['background', { backgroundId: 42 }, ['background']],
+    ['label', { label: 'Chorus' }, ['label']],
+  ])('a slide whose %s differs is `changed` with that aspect', (_what, over, changes) => {
     const current = doc([section('A', [slide('s1')])]);
     const version = doc([section('A', [slide('s1', over)])]);
     const out = diffPresentationStructure(current, version);
-    expect(out.summary).toEqual({ ...ZERO, slidesChanged: 1 });
+    expect(out.summary.slidesChanged).toBe(1);
     expect(out.tree[0]!.slides[0]!.status).toBe('changed');
+    expect(out.tree[0]!.slides[0]!.changes).toEqual(changes);
     expect(out.tree[0]!.status).toBe('changed');
   });
 
-  it('reordered slides: the section is `changed`, the slides themselves `same`', () => {
+  it('a slide background change is also counted as a background change', () => {
+    const current = doc([section('A', [slide('s1')])]);
+    const version = doc([section('A', [slide('s1', { backgroundId: 42 })])]);
+    expect(diffPresentationStructure(current, version).summary).toEqual({
+      ...ZERO,
+      slidesChanged: 1,
+      backgroundsChanged: 1,
+    });
+  });
+
+  it('reordered slides: the section is `changed` for `order`, the slides themselves `same`', () => {
     const current = doc([section('A', [slide('s1'), slide('s2')])]);
     const version = doc([section('A', [slide('s2'), slide('s1')])]);
     const out = diffPresentationStructure(current, version);
     expect(out.summary).toEqual(ZERO);
     expect(out.tree[0]!.status).toBe('changed');
+    expect(out.tree[0]!.changes).toEqual(['order']);
     expect(out.tree[0]!.slides.map((s) => [s.id, s.status])).toEqual([
       ['s2', 'same'],
       ['s1', 'same'],
     ]);
+  });
+
+  it('a renamed section reports `title`; a section background change reports `background` and counts', () => {
+    const current = doc([section('A', [slide('s1')])]);
+    const version = doc([section('A', [slide('s1')], { title: 'Opening', backgroundId: 9 })]);
+    const out = diffPresentationStructure(current, version);
+    expect(out.summary).toEqual({ ...ZERO, backgroundsChanged: 1 });
+    expect(out.tree[0]!.status).toBe('changed');
+    expect(out.tree[0]!.changes).toEqual(['title', 'background']);
+    expect(out.tree[0]!.title).toBe('Opening');
   });
 
   it('a section only in the version is `added` with every slide `added`', () => {
@@ -169,19 +226,35 @@ describe('diffPresentationStructure', () => {
   });
 
   it('a legacy body-only snapshot compares by body against a text-boxes document', () => {
-    const current = doc([section('A', [slide('s1')])]); // has textBoxes
+    const current = doc([section('A', [slide('s1')])]);
     const legacy = slide('s1');
     delete legacy.textBoxes;
     const version = doc([section('A', [legacy])]);
     expect(diffPresentationStructure(current, version).summary).toEqual(ZERO);
   });
 
-  it('flags a title change and an aspect change without touching the tree', () => {
+  it('reports a title change with its before/after, and an aspect change, without touching the tree', () => {
     const current = doc([section('A', [slide('s1')])]);
     const version = doc([section('A', [slide('s1')])], { title: 'Easter', aspectRatio: '4:3' });
     const out = diffPresentationStructure(current, version);
-    expect(out.summary).toEqual({ ...ZERO, titleChanged: true, aspectChanged: true });
+    expect(out.summary).toEqual({
+      ...ZERO,
+      titleChanged: true,
+      titleBefore: 'Sunday',
+      titleAfter: 'Easter',
+      aspectChanged: true,
+    });
     expect(out.tree[0]!.status).toBe('same');
+  });
+
+  it('caps before/after text at 160 characters, and the preview at 40', () => {
+    const long = 'x'.repeat(200);
+    const current = doc([section('A', [slide('s1', { body: `<p>${long}</p>` })])]);
+    const version = doc([section('A', [slide('s1', { body: '<p>short</p>' })])]);
+    const s = diffPresentationStructure(current, version).tree[0]!.slides[0]!;
+    expect(s.before).toBe(`${'x'.repeat(159)}…`);
+    expect(s.after).toBe('short');
+    expect(s.preview).toBe('short');
   });
 
   it('names a slide by its label, previews the first line of its body stripped of tags, capped at 40', () => {

@@ -19,23 +19,43 @@ import { diffPresentationStructure } from '@/utils/versionDiff';
  * because that is "what I'm doing right now".
  */
 
-const BADGE = { added: 'new', removed: 'gone', changed: 'changed' };
+const BADGE = { added: 'new', removed: 'gone' };
+const SLIDE_ASPECT = {
+  text: 'Text',
+  formatting: 'Formatting',
+  label: 'Label',
+  notes: 'Notes',
+  background: 'Background',
+  layout: 'Layout',
+};
+const SECTION_ASPECT = {
+  title: 'Renamed',
+  type: 'Type',
+  background: 'Background',
+  order: 'Reordered',
+};
 
 function plural(n, word) {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
-/** The headline of a preview: what restoring would do, as short chips. */
-export function summaryChips(summary) {
-  const chips = [];
-  if (summary.slidesAdded) chips.push(`+${plural(summary.slidesAdded, 'slide')}`);
-  if (summary.slidesRemoved) chips.push(`−${plural(summary.slidesRemoved, 'slide')}`);
-  if (summary.slidesChanged) chips.push(`${summary.slidesChanged} changed`);
-  if (summary.sectionsAdded) chips.push(`+${plural(summary.sectionsAdded, 'section')}`);
-  if (summary.sectionsRemoved) chips.push(`−${plural(summary.sectionsRemoved, 'section')}`);
-  if (summary.titleChanged) chips.push('Title changes');
-  if (summary.aspectChanged) chips.push('Aspect ratio changes');
-  return chips.length ? chips : ['No content differences'];
+/**
+ * What restoring would do, as verb-first sentences with the real values in
+ * (issue #163: "1 changed" read as a bare count with no subject).
+ */
+export function summaryLines(summary) {
+  const lines = [];
+  if (summary.slidesChanged) lines.push(`Change ${plural(summary.slidesChanged, 'slide')}`);
+  if (summary.slidesAdded) lines.push(`Add ${plural(summary.slidesAdded, 'slide')}`);
+  if (summary.slidesRemoved) lines.push(`Remove ${plural(summary.slidesRemoved, 'slide')}`);
+  if (summary.sectionsAdded) lines.push(`Add ${plural(summary.sectionsAdded, 'section')}`);
+  if (summary.sectionsRemoved) lines.push(`Remove ${plural(summary.sectionsRemoved, 'section')}`);
+  if (summary.backgroundsChanged)
+    lines.push(`Change ${plural(summary.backgroundsChanged, 'background')}`);
+  if (summary.titleChanged)
+    lines.push(`Rename "${summary.titleBefore}" to "${summary.titleAfter}"`);
+  if (summary.aspectChanged) lines.push('Change the aspect ratio');
+  return lines.length ? lines : ['No content differences'];
 }
 
 /**
@@ -56,13 +76,52 @@ function parseSnapshot(raw) {
 function Badge({ status }) {
   const text = BADGE[status];
   if (!text) return null;
-  const tone =
-    status === 'removed'
-      ? 'text-text-tertiary'
-      : status === 'added'
-        ? 'text-accent'
-        : 'text-text-secondary';
+  const tone = status === 'removed' ? 'text-text-tertiary' : 'text-accent';
   return <span className={`ml-1.5 text-[10px] uppercase tracking-wide ${tone}`}>{text}</span>;
+}
+
+/** "Now: … / After restore: …" for a changed slide; what you gain or lose otherwise. */
+function SlideDetail({ slide }) {
+  const line = 'text-[11px] leading-5';
+  const labelCls = 'text-text-tertiary mr-1';
+  if (slide.status === 'changed') {
+    return (
+      <div className="ml-3 mb-1">
+        <p className="text-[10px] uppercase tracking-wide text-text-tertiary">
+          {(slide.changes || []).map((a) => SLIDE_ASPECT[a] || a).join(' · ')}
+        </p>
+        {slide.before !== slide.after && (
+          <>
+            <p className={`${line} text-text-secondary`}>
+              <span className={labelCls}>Now:</span>
+              <span>{slide.before}</span>
+            </p>
+            <p className={`${line} text-text-primary`}>
+              <span className={labelCls}>After restore:</span>
+              <span>{slide.after}</span>
+            </p>
+          </>
+        )}
+      </div>
+    );
+  }
+  if (slide.status === 'added' && slide.after) {
+    return (
+      <p className={`${line} ml-3 text-text-secondary`}>
+        <span className={labelCls}>Adds:</span>
+        <span>{slide.after}</span>
+      </p>
+    );
+  }
+  if (slide.status === 'removed' && slide.before) {
+    return (
+      <p className={`${line} ml-3 text-text-tertiary line-through`}>
+        <span className="mr-1">Removes:</span>
+        <span>{slide.before}</span>
+      </p>
+    );
+  }
+  return null;
 }
 
 export default function VersionHistoryModal() {
@@ -288,7 +347,7 @@ export default function VersionHistoryModal() {
                     Restoring this version would:
                   </p>
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    {summaryChips(preview.diff.summary).map((chip) => (
+                    {summaryLines(preview.diff.summary).map((chip) => (
                       <span
                         key={chip}
                         className="text-[11px] px-2 py-0.5 rounded-full border border-border-subtle text-text-secondary"
@@ -308,21 +367,37 @@ export default function VersionHistoryModal() {
                       >
                         {section.title || 'Untitled section'}
                         <Badge status={section.status} />
+                        {section.status === 'changed' && section.changes?.length > 0 && (
+                          <span className="ml-1.5 text-[10px] uppercase tracking-wide text-text-secondary">
+                            {section.changes.map((a) => SECTION_ASPECT[a] || a).join(' · ')}
+                          </span>
+                        )}
                       </p>
                       <ul className="ml-3">
-                        {section.slides.map((slide) => (
-                          <li
-                            key={slide.id}
-                            className={`text-[11px] leading-5 ${
-                              slide.status === 'removed'
-                                ? 'line-through text-text-tertiary'
-                                : 'text-text-secondary'
-                            }`}
-                          >
-                            {slide.name}
-                            <Badge status={slide.status} />
-                          </li>
-                        ))}
+                        {section.slides.map((slide) => {
+                          // A changed slide named from its own body would just repeat
+                          // the "Now:" line; show the name only when it is a real label.
+                          const showName = !(
+                            slide.status === 'changed' && slide.name === slide.preview
+                          );
+                          return (
+                            <li key={slide.id}>
+                              {showName && (
+                                <p
+                                  className={`text-[11px] leading-5 ${
+                                    slide.status === 'removed'
+                                      ? 'line-through text-text-tertiary'
+                                      : 'text-text-secondary'
+                                  }`}
+                                >
+                                  {slide.name}
+                                  <Badge status={slide.status} />
+                                </p>
+                              )}
+                              <SlideDetail slide={slide} />
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   ))}

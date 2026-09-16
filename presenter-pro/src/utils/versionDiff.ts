@@ -1,11 +1,12 @@
 /**
- * Plan VH2 (issue #160) — what restoring a version would change.
+ * Plans VH2/VH3 (issues #160, #163) — what restoring a version would change.
  *
  * Pure: no I/O, no store. Compares the CURRENT (live) document against a
  * VERSION and reports the consequence of restoring that version:
  *   - `added`   — in the version, not in the current document: you would get it back;
  *   - `removed` — in the current document, not in the version: you would LOSE it;
- *   - `changed` — same id, different content;
+ *   - `changed` — same id, different content — with WHICH aspect changed and a
+ *                 literal before/after of the slide's text (#163);
  *   - `same`.
  * The tree is the version's structure (what you are heading into), annotated,
  * with removed sections and slides listed in place so losses are visible.
@@ -20,6 +21,8 @@
 import { canonicalJson } from '@/utils/presentationVersions';
 
 export type DiffStatus = 'same' | 'added' | 'removed' | 'changed';
+export type SlideAspect = 'text' | 'formatting' | 'label' | 'notes' | 'background' | 'layout';
+export type SectionAspect = 'title' | 'type' | 'background' | 'order';
 
 export interface DiffSlide {
   id: string;
@@ -28,6 +31,12 @@ export interface DiffSlide {
   /** First non-empty line of the body with tags stripped, capped at 40 chars. */
   preview: string;
   status: DiffStatus;
+  /** For `changed`: which aspects differ, in a fixed order. */
+  changes?: SlideAspect[];
+  /** The slide's text NOW (current document), for `changed` and `removed`. */
+  before?: string;
+  /** The slide's text AFTER restoring (the version), for `changed` and `added`. */
+  after?: string;
 }
 
 export interface DiffSection {
@@ -35,6 +44,8 @@ export interface DiffSection {
   title: string;
   type: string;
   status: DiffStatus;
+  /** For `changed`: the section's own aspects that differ (empty if only its slides changed). */
+  changes?: SectionAspect[];
   slides: DiffSlide[];
 }
 
@@ -44,7 +55,11 @@ export interface DiffSummary {
   slidesChanged: number;
   sectionsAdded: number;
   sectionsRemoved: number;
+  /** Slide or section backgrounds that differ. */
+  backgroundsChanged: number;
   titleChanged: boolean;
+  titleBefore: string;
+  titleAfter: string;
   aspectChanged: boolean;
 }
 
@@ -56,6 +71,7 @@ export interface VersionDiff {
 type Node = Record<string, unknown>;
 
 const PREVIEW_MAX = 40;
+const TEXT_MAX = 160;
 
 function str(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -82,6 +98,15 @@ function stripHtml(html: string): string {
     .replace(/&#39;/g, "'");
 }
 
+function cap(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+/** The slide's whole text, tags stripped, whitespace collapsed — uncapped. */
+function plainText(slide: Node): string {
+  return stripHtml(str(slide.body)).replace(/\s+/g, ' ').trim();
+}
+
 /** First non-empty line of the body, tags stripped, capped at `PREVIEW_MAX`. */
 export function slidePreview(slide: Node): string {
   const line =
@@ -89,10 +114,10 @@ export function slidePreview(slide: Node): string {
       .split('\n')
       .map((l) => l.replace(/\s+/g, ' ').trim())
       .find((l) => l.length > 0) ?? '';
-  return line.length > PREVIEW_MAX ? `${line.slice(0, PREVIEW_MAX - 1)}…` : line;
+  return cap(line, PREVIEW_MAX);
 }
 
-function describeSlide(slide: Node): Omit<DiffSlide, 'status'> {
+function describeSlide(slide: Node): Pick<DiffSlide, 'id' | 'name' | 'preview'> {
   const preview = slidePreview(slide);
   const label = str(slide.label).trim();
   return { id: idOf(slide), name: label || preview || 'Untitled slide', preview };
@@ -113,12 +138,36 @@ function slideKey(slide: Node, withBoxes: boolean): string {
   });
 }
 
-function sectionOwnKey(section: Node): string {
-  return canonicalJson({
-    title: section.title ?? null,
-    type: section.type ?? null,
-    backgroundId: section.backgroundId ?? null,
-  });
+/** Which aspects of a changed slide differ, in a fixed, readable order. */
+function slideAspects(current: Node, version: Node, withBoxes: boolean): SlideAspect[] {
+  const out: SlideAspect[] = [];
+  const textDiffers = plainText(current) !== plainText(version);
+  const formattingDiffers = !textDiffers && str(current.body) !== str(version.body);
+  if (textDiffers) out.push('text');
+  if (formattingDiffers) out.push('formatting');
+  if (str(current.label) !== str(version.label)) out.push('label');
+  if (str(current.notes) !== str(version.notes)) out.push('notes');
+  if ((current.backgroundId ?? null) !== (version.backgroundId ?? null)) out.push('background');
+  const styleDiffers =
+    canonicalJson(current.textStyle ?? null) !== canonicalJson(version.textStyle ?? null);
+  const boxesDiffer =
+    withBoxes && canonicalJson(current.textBoxes) !== canonicalJson(version.textBoxes);
+  if (styleDiffers || (boxesDiffer && !textDiffers && !formattingDiffers)) out.push('layout');
+  return out.length ? out : ['layout'];
+}
+
+function sectionAspects(current: Node, version: Node): SectionAspect[] {
+  const out: SectionAspect[] = [];
+  if (str(current.title) !== str(version.title)) out.push('title');
+  if (str(current.type) !== str(version.type)) out.push('type');
+  if ((current.backgroundId ?? null) !== (version.backgroundId ?? null)) out.push('background');
+  const currentIds = nodes(current.slides).map(idOf);
+  const versionIds = nodes(version.slides).map(idOf);
+  // Ids are uuids, so '/' cannot occur inside one. Reordering is a real change
+  // (V1's rule) — but only when it is the SAME set of slides in a new sequence.
+  const sameSet = [...currentIds].sort().join('/') === [...versionIds].sort().join('/');
+  if (sameSet && currentIds.join('/') !== versionIds.join('/')) out.push('order');
+  return out;
 }
 
 function aspectOf(doc: Node): unknown {
@@ -138,7 +187,10 @@ export function diffPresentationStructure(currentIn: unknown, versionIn: unknown
     slidesChanged: 0,
     sectionsAdded: 0,
     sectionsRemoved: 0,
+    backgroundsChanged: 0,
     titleChanged: false,
+    titleBefore: str(current.title),
+    titleAfter: str(version.title),
     aspectChanged: false,
   };
   const currentSections = new Map(nodes(current.sections).map((s) => [idOf(s), s]));
@@ -150,9 +202,10 @@ export function diffPresentationStructure(currentIn: unknown, versionIn: unknown
     const header = { id, title: str(vSection.title), type: str(vSection.type) };
 
     if (!cSection) {
-      const slides = nodes(vSection.slides).map((s) => ({
+      const slides = nodes(vSection.slides).map((s): DiffSlide => ({
         ...describeSlide(s),
-        status: 'added' as const,
+        status: 'added',
+        after: cap(plainText(s), TEXT_MAX),
       }));
       summary.sectionsAdded += 1;
       summary.slidesAdded += slides.length;
@@ -161,49 +214,67 @@ export function diffPresentationStructure(currentIn: unknown, versionIn: unknown
     }
 
     const currentSlides = new Map(nodes(cSection.slides).map((s) => [idOf(s), s]));
-    const versionOrder = nodes(vSection.slides).map(idOf);
-    const currentOrder = nodes(cSection.slides).map(idOf);
-    // Reordering slides is a real change (V1's rule), so the section is
-    // `changed` even when every slide's own content is `same`. Ids are uuids,
-    // so '/' cannot occur inside one.
-    let changed =
-      sectionOwnKey(vSection) !== sectionOwnKey(cSection) ||
-      versionOrder.join('/') !== currentOrder.join('/');
+    const versionIds = new Set(nodes(vSection.slides).map(idOf));
+    const ownChanges = sectionAspects(cSection, vSection);
+    if (ownChanges.includes('background')) summary.backgroundsChanged += 1;
+    let changed = ownChanges.length > 0;
     const slides: DiffSlide[] = [];
 
     for (const vSlide of nodes(vSection.slides)) {
       const cSlide = currentSlides.get(idOf(vSlide));
       if (!cSlide) {
-        slides.push({ ...describeSlide(vSlide), status: 'added' });
+        slides.push({
+          ...describeSlide(vSlide),
+          status: 'added',
+          after: cap(plainText(vSlide), TEXT_MAX),
+        });
         summary.slidesAdded += 1;
         changed = true;
         continue;
       }
       const withBoxes = hasBoxes(vSlide) && hasBoxes(cSlide);
-      const same = slideKey(vSlide, withBoxes) === slideKey(cSlide, withBoxes);
-      slides.push({ ...describeSlide(vSlide), status: same ? 'same' : 'changed' });
-      if (!same) {
-        summary.slidesChanged += 1;
-        changed = true;
+      if (slideKey(vSlide, withBoxes) === slideKey(cSlide, withBoxes)) {
+        slides.push({ ...describeSlide(vSlide), status: 'same' });
+        continue;
       }
+      const changes = slideAspects(cSlide, vSlide, withBoxes);
+      if (changes.includes('background')) summary.backgroundsChanged += 1;
+      slides.push({
+        ...describeSlide(vSlide),
+        status: 'changed',
+        changes,
+        before: cap(plainText(cSlide), TEXT_MAX),
+        after: cap(plainText(vSlide), TEXT_MAX),
+      });
+      summary.slidesChanged += 1;
+      changed = true;
     }
     // What you would lose, listed in place after the version's own slides.
     for (const cSlide of nodes(cSection.slides)) {
-      if (versionOrder.includes(idOf(cSlide))) continue;
-      slides.push({ ...describeSlide(cSlide), status: 'removed' });
+      if (versionIds.has(idOf(cSlide))) continue;
+      slides.push({
+        ...describeSlide(cSlide),
+        status: 'removed',
+        before: cap(plainText(cSlide), TEXT_MAX),
+      });
       summary.slidesRemoved += 1;
       changed = true;
     }
-    tree.push({ ...header, status: changed ? 'changed' : 'same', slides });
+    tree.push(
+      changed
+        ? { ...header, status: 'changed', changes: ownChanges, slides }
+        : { ...header, status: 'same', slides }
+    );
   }
 
   // Sections only in the current document: restoring drops them, slides and all.
-  const versionIds = new Set(nodes(version.sections).map(idOf));
+  const versionSectionIds = new Set(nodes(version.sections).map(idOf));
   for (const cSection of nodes(current.sections)) {
-    if (versionIds.has(idOf(cSection))) continue;
-    const slides = nodes(cSection.slides).map((s) => ({
+    if (versionSectionIds.has(idOf(cSection))) continue;
+    const slides = nodes(cSection.slides).map((s): DiffSlide => ({
       ...describeSlide(s),
-      status: 'removed' as const,
+      status: 'removed',
+      before: cap(plainText(s), TEXT_MAX),
     }));
     summary.sectionsRemoved += 1;
     summary.slidesRemoved += slides.length;
@@ -216,7 +287,7 @@ export function diffPresentationStructure(currentIn: unknown, versionIn: unknown
     });
   }
 
-  summary.titleChanged = str(current.title) !== str(version.title);
+  summary.titleChanged = summary.titleBefore !== summary.titleAfter;
   summary.aspectChanged = canonicalJson(aspectOf(current)) !== canonicalJson(aspectOf(version));
   return { summary, tree };
 }
