@@ -92,7 +92,6 @@ const PRESENT_CLUSTER_FALLBACK_WIDTH = 312;
 const RIBBON_COLLISION_BUFFER = 28;
 const MIN_FONT_SIZE_DISPLAY = internalToDisplayFontSize(8);
 const MAX_FONT_SIZE_DISPLAY = internalToDisplayFontSize(320);
-const INSERT_BUTTON_MIN_WIDTH = 118;
 
 function Group({ title, children, grow = false, noDivider = false }) {
   return (
@@ -1502,7 +1501,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                   onFillChange={handleFillColorChange}
                 />
               ) : (
-                <>
+                <div className="flex items-center gap-3 shrink-0 min-w-0">
                   <div className="flex items-center gap-1.5 shrink-0 min-w-0">
                     {hideEditColorLabels ? (
                       <InlineTinyIconLabel icon={Type} title="Text color" />
@@ -1543,7 +1542,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                       onChange={handleFillColorChange}
                     />
                   </div>
-                </>
+                </div>
               )}
             </Group>
           </div>
@@ -1590,7 +1589,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 label="Song"
                 icon={Music}
                 width={88}
-                minButtonWidth={INSERT_BUTTON_MIN_WIDTH}
+                minButtonWidth={0}
                 height={36}
                 active={songLibraryOpen || newSongEditorOpen}
                 collapseLabel={hideMostLabels}
@@ -1624,7 +1623,7 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 label="Media"
                 icon={Image}
                 width={94}
-                minButtonWidth={INSERT_BUTTON_MIN_WIDTH}
+                minButtonWidth={0}
                 height={36}
                 active={mediaLibraryOpen}
                 collapseLabel={hideMostLabels}
@@ -1668,7 +1667,6 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 onClick={() => insertNewSectionIntoCurrentPresentation('announcement')}
                 disabled={!hasPresentation}
                 collapseLabel={hideMostLabels}
-                minWidth={INSERT_BUTTON_MIN_WIDTH}
               />
               <CommandButton
                 icon={BookOpen}
@@ -1677,7 +1675,6 @@ export default function Toolbar({ onPresent, onTogglePanel, presenterPanelOpen }
                 onClick={() => insertNewSectionIntoCurrentPresentation('sermon')}
                 disabled={!hasPresentation}
                 collapseLabel={hideMostLabels}
-                minWidth={INSERT_BUTTON_MIN_WIDTH}
               />
             </Group>
           </>
