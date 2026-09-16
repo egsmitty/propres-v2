@@ -183,7 +183,7 @@ describe('preview (VH2)', () => {
 
     expect(vi.mocked(getVersion).mock.calls).toEqual([[2]]);
     expect(await screen.findByText(/Restoring this version would/)).toBeInTheDocument();
-    expect(screen.getByText('−1 slide')).toBeInTheDocument();
+    expect(screen.getByText('Remove 1 slide')).toBeInTheDocument();
     // The slide you would lose is listed, marked gone.
     expect(screen.getByText('gone')).toBeInTheDocument();
   });
@@ -208,6 +208,33 @@ describe('preview (VH2)', () => {
 
     expect(confirmDialog).toHaveBeenCalledTimes(1);
     expect(vi.mocked(restoreVersion).mock.calls).toEqual([[2]]);
+  });
+
+  // Issue #163: a changed slide is a literal before/after, not a bare "changed".
+  it('shows what a changed slide is now and what it would be after restoring', async () => {
+    const section = PRESENTATION.sections[0]!;
+    const changed = { ...section.slides[1]!, body: 'B changed' };
+    vi.mocked(getVersion).mockResolvedValue({
+      success: true,
+      data: {
+        id: 2,
+        presentation_id: 7,
+        snapshot: JSON.stringify({
+          ...PRESENTATION,
+          sections: [{ ...section, slides: [section.slides[0], changed] }],
+        }),
+        saved_at: 1,
+      },
+    });
+    await renderModal();
+    await act(async () => previewButtons()[0]!.click());
+
+    expect(await screen.findByText('Change 1 slide')).toBeInTheDocument();
+    expect(screen.getByText('Now:')).toBeInTheDocument();
+    expect(screen.getByText('b')).toBeInTheDocument();
+    expect(screen.getByText('After restore:')).toBeInTheDocument();
+    expect(screen.getByText('B changed')).toBeInTheDocument();
+    expect(screen.queryByText('changed')).not.toBeInTheDocument();
   });
 
   it('clicking Preview on the open row again closes the pane', async () => {

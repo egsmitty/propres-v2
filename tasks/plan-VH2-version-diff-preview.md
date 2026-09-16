@@ -160,3 +160,29 @@ contract.
 | 4 | Coverage floor | Todo 1 covers every branch of the pure module |
 | 8 | Vitest/jsdom | Node env for `versionDiff`; jsdom + mocked `@/utils/ipc` for the modal, as its existing test does |
 | 10 | Characterization before refactor | N/A — additive feature; VH1's tests are the modal's characterization |
+
+---
+
+## VH3 follow-up (issue #163, from Ethan's live review of #160) — 2026-09-16
+
+**Feedback:** the summary read as bare counts ("1 changed") with no subject, and a
+changed slide said only "changed" instead of showing what it is now vs. what it
+would become.
+
+**Changes (same blast radius as VH2; `versionDiff.ts`, the modal, their tests):**
+- `DiffSummary` gains `backgroundsChanged`, `titleBefore`, `titleAfter`; the
+  modal renders verb-first lines with the values in — *Change 2 slides · Remove
+  1 slide · Change 1 background · Rename "Sunday" to "Easter" · Change the
+  aspect ratio* — or "No content differences".
+- `DiffSlide` gains `changes` (which aspects: text / formatting / label / notes /
+  background / layout, fixed order), `before` (the text now) and `after` (the
+  text after restoring), capped at 160 chars; `added` carries `after`,
+  `removed` carries `before`. `DiffSection` gains `changes` (title / type /
+  background / order — `order` only when it is the same set of slides in a new
+  sequence). The bare "changed" badge is gone; a changed slide shows its aspects
+  and **Now: … / After restore: …**; a slide named from its own body skips the
+  redundant name line.
+- Named test change: VH2's chip assertion `−1 slide` → `Remove 1 slide`.
+
+**Deferred (maybe, per Ethan):** a rendered thumbnail of the old slide via
+`SlideRender`.
