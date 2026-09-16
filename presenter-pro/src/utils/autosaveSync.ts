@@ -1,6 +1,7 @@
 import { useEditorStore } from '@/store/editorStore';
 import { alertDialog } from '@/utils/dialog';
 import { updatePresentation } from '@/utils/ipc';
+import { persistPresentation, type PersistDeps } from '@/utils/persistPresentation';
 import {
   VERSION_EXEMPT_PRESENTATION_IDS,
   presentationContentKey,
@@ -107,18 +108,29 @@ export function startAutosave(deps: AutosaveDeps = defaultDeps()): () => void {
     lastWriteAt = deps.now();
     const key = presentationContentKey(presentation);
 
-    // A rejected IPC call (for example an uncloneable value) is a failed write
-    // like any other, not an unhandled rejection that skips the failure count
-    // (plan D1, audit SAVE-A11).
-    let result: Envelope<unknown> | null;
-    try {
-      result = await deps.updatePresentation(id, presentation);
-    } catch (error) {
-      result = { success: false, error: error instanceof Error ? error.message : String(error) };
-    }
+    // One row writer (plan SAVED1). A rejected IPC call (for example an
+    // uncloneable value) is a failed write like any other, not an unhandled
+    // rejection that skips the failure count (plan D1, audit SAVE-A11) — the
+    // writer's try/catch owns that. Autosave never commits, so no `commit`.
+    const outcome = await persistPresentation(id, presentation, {
+      deps: { updatePresentation: deps.updatePresentation as PersistDeps['updatePresentation'] },
+    });
     if (mine !== generation) return;
 
-    if (!result?.success) {
+    if (!outcome.ok) {
+      if (outcome.reason === 'missing') {
+        // The row is gone — deleted from Home while it was still open here.
+        // Writing forever against a missing id helps nobody.
+        stoppedForMissingRow = true;
+        if (!alerted) {
+          alerted = true;
+          await deps.alertDialog(
+            'This presentation no longer exists, so your changes are not being saved.',
+            { title: 'Presentation Deleted' }
+          );
+        }
+        return;
+      }
       // Do NOT record the key: the content is still unwritten and must be
       // retried on the next change. Silent failure is the one thing autosave
       // may never do — the title bar would keep saying "Unsaved changes" while
@@ -127,22 +139,8 @@ export function startAutosave(deps: AutosaveDeps = defaultDeps()): () => void {
       if (failures >= AUTOSAVE_FAILURE_ALERT_THRESHOLD && !alerted) {
         alerted = true;
         await deps.alertDialog(
-          `Your changes could not be saved automatically: ${result?.error || 'unknown error'}. Try File ▸ Save.`,
+          `Your changes could not be saved automatically: ${outcome.error || 'unknown error'}. Try File ▸ Save.`,
           { title: 'Could Not Save' }
-        );
-      }
-      return;
-    }
-
-    if (result.data == null) {
-      // The row is gone — deleted from Home while it was still open here.
-      // Writing forever against a missing id helps nobody.
-      stoppedForMissingRow = true;
-      if (!alerted) {
-        alerted = true;
-        await deps.alertDialog(
-          'This presentation no longer exists, so your changes are not being saved.',
-          { title: 'Presentation Deleted' }
         );
       }
       return;
