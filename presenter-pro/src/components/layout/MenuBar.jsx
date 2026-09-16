@@ -57,6 +57,7 @@ export default function MenuBar() {
   const presentation = useEditorStore((s) => s.presentation);
   const isDirty = useEditorStore((s) => s.isDirty);
   const requiresInitialSave = useEditorStore((s) => s.requiresInitialSave);
+  const versionCount = useEditorStore((s) => s.versionCount);
   const isPresenting = usePresenterStore((s) => s.isPresenting);
   const presenterPanelOpen = usePresenterStore((s) => s.presenterPanelOpen);
 
@@ -97,6 +98,7 @@ export default function MenuBar() {
     presenterPanelOpen: Boolean(presenterPanelOpen),
     filmstripVisible: Boolean(filmstripVisible),
     typing: false,
+    versionCount: Number(versionCount) || 0,
   };
 
   const computedMenus = IN_APP_MENU_ORDER.map((menu) => ({

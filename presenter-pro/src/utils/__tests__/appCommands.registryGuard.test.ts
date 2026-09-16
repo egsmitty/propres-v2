@@ -101,6 +101,8 @@ describe('the registry guards runAppCommand', () => {
 
   it('in the editor, the same commands reach their actions', async () => {
     useAppStore.setState({ currentView: 'editor' });
+    // Plan VH1 (issue #159): Version History needs more than one version.
+    useEditorStore.setState({ versionCount: 2 });
     for (const [id, action] of EDITOR_COMMANDS) {
       await expect(runAppCommand(id), id).resolves.toBe(true);
       expect(action, id).toHaveBeenCalledTimes(1);
@@ -109,8 +111,16 @@ describe('the registry guards runAppCommand', () => {
     expect(useAppStore.getState().versionHistoryOpen).toBe(true);
   });
 
+  it('Version History is refused with only one version (VH1)', async () => {
+    useAppStore.setState({ currentView: 'editor' });
+    useEditorStore.setState({ versionCount: 1 });
+    await expect(runAppCommand('file:versionHistory')).resolves.toBe(false);
+    expect(useAppStore.getState().versionHistoryOpen).toBe(false);
+  });
+
   it('Version History is refused while presenting, even from the editor (CMD-B5)', async () => {
     useAppStore.setState({ currentView: 'editor' });
+    useEditorStore.setState({ versionCount: 2 });
     usePresenterStore.setState({ isPresenting: true });
     await expect(runAppCommand('file:versionHistory')).resolves.toBe(false);
     expect(useAppStore.getState().versionHistoryOpen).toBe(false);

@@ -32,6 +32,11 @@ export interface CommandState {
   filmstripVisible: boolean;
   /** Focus is in a text field, select or contenteditable. */
   typing: boolean;
+  /**
+   * How many saved versions the open presentation has (plan VH1, issue #159).
+   * Version History is pointless with one — there is nothing earlier to restore.
+   */
+  versionCount: number;
 }
 
 export interface CommandDef {
@@ -133,7 +138,9 @@ export const COMMANDS: readonly CommandDef[] = [
     // Disabled mid-service: restoring replaces the presentation, and if the
     // live slide is not in the restored document the next spacebar goes to
     // slide 1 of the deck, in front of the room (audit SAVE-B1 / CMD-B5).
-    when: (s) => editing(s) && !s.isPresenting,
+    // Also disabled with one version or none — there is nothing earlier to
+    // restore, so opening the panel would show only the current state (VH1).
+    when: (s) => editing(s) && !s.isPresenting && s.versionCount > 1,
     inApp: true,
     native: true,
   }),
@@ -355,6 +362,7 @@ export function readCommandState(): CommandState {
     presenterPanelOpen: Boolean(presenter.presenterPanelOpen),
     filmstripVisible: Boolean(app.filmstripVisible),
     typing: typeof document !== 'undefined' && isTypingTarget(document.activeElement),
+    versionCount: Number(editor.versionCount) || 0,
   };
 }
 
