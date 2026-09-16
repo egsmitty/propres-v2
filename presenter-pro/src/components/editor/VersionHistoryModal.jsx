@@ -14,7 +14,6 @@ import { formatVersionLabels, formatVersionTimestamp } from '@/utils/versionLabe
  * undoable — the row directly below "Current" is where you just came from.
  */
 export default function VersionHistoryModal() {
-  const presentation = useEditorStore((s) => s.presentation);
   const presentationId = useEditorStore((s) => s.presentationId);
   const setVersionHistoryOpen = useAppStore((s) => s.setVersionHistoryOpen);
 
@@ -62,22 +61,18 @@ export default function VersionHistoryModal() {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [setVersionHistoryOpen]);
 
-  // The number of slides in the open document, used to mark which row you are
-  // looking at. Derived from the document rather than assuming "the newest row
-  // is current", so the marker cannot drift if anything ever appends out of
-  // band — and while the document is dirty, no row is marked, which is honest.
-  const liveSlideCount = (presentation?.sections || []).reduce(
-    (total, section) => total + (section.slides?.length || 0),
-    0
-  );
+  // Which row is "Current". The app keeps the newest version equal to the
+  // committed row whenever the document is clean (the A5/A6 invariant, upheld by
+  // save, restore and revert), so Current is simply the newest version — no
+  // slide-count guessing, which mismarked when two versions shared a count
+  // (plan VH1, issue #159). While the document is dirty, no row is Current and a
+  // note says the working copy isn't a version yet.
   const isDirty = useEditorStore((s) => s.isDirty);
-  const currentId = isDirty
-    ? null
-    : ((versions || []).find((v) => v.slide_count === liveSlideCount)?.id ?? null);
+  const currentId = isDirty ? null : ((versions || [])[0]?.id ?? null);
 
-  // Computed over the WHOLE list so two rows that would otherwise read
-  // identically (routine under autosave — plan V1, audit SAVE-C6) are
-  // distinguishable from each other, not just individually well-formatted.
+  // Plain minute-precision timestamps (plan VH1 dropped the seconds
+  // disambiguator). Same-minute rows may share a label; slide count, order and
+  // the Current marker still tell them apart.
   const versionLabels = formatVersionLabels(versions || [], loadedAt);
 
   async function handleRestore(version) {
@@ -106,7 +101,7 @@ export default function VersionHistoryModal() {
         if (e.target === e.currentTarget) setVersionHistoryOpen(false);
       }}
     >
-      <div className="bg-bg-surface border border-border-default rounded-[10px] p-6 w-[420px] max-h-[70vh] flex flex-col shadow-[0_24px_48px_rgba(0,0,0,0.4)]">
+      <div className="bg-bg-surface border border-border-default rounded-[10px] p-6 w-[560px] max-h-[80vh] flex flex-col shadow-[0_24px_48px_rgba(0,0,0,0.4)]">
         <h2 className="text-sm font-semibold mb-1 text-text-primary">Version History</h2>
         <p className="text-xs mb-4 text-text-secondary">
           Every time you save, PresenterPro keeps a version you can come back to.
@@ -119,6 +114,17 @@ export default function VersionHistoryModal() {
         {!error && versions?.length === 0 && (
           <p className="text-xs text-text-secondary">
             No versions yet. Save this presentation to create one.
+          </p>
+        )}
+        {!error && versions?.length === 1 && (
+          <p className="text-xs mb-2 text-text-secondary">
+            This is the only version so far. Save changes to create restore points you can come back
+            to.
+          </p>
+        )}
+        {!error && isDirty && (versions?.length ?? 0) > 0 && (
+          <p className="text-xs mb-2 text-text-secondary">
+            You have unsaved changes — the current document isn’t saved as a version yet.
           </p>
         )}
 

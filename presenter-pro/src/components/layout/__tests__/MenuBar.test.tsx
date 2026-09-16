@@ -49,10 +49,17 @@ describe('File ▸ Version History…', () => {
     return screen.getByRole('button', { name: /Version History/ }) as HTMLButtonElement;
   }
 
-  it('is available with a presentation open', () => {
-    useEditorStore.setState({ presentation: PRESENTATION });
+  it('is available with a presentation open and more than one version', () => {
+    // Plan VH1 (issue #159): needs a second version to have something to restore.
+    useEditorStore.setState({ presentation: PRESENTATION, versionCount: 2 });
     openFileMenu();
     expect(historyItem()).toBeEnabled();
+  });
+
+  it('is disabled with only one version — nothing earlier to restore (VH1)', () => {
+    useEditorStore.setState({ presentation: PRESENTATION, versionCount: 1 });
+    openFileMenu();
+    expect(historyItem()).toBeDisabled();
   });
 
   it('is disabled with no presentation open', () => {
@@ -63,9 +70,9 @@ describe('File ▸ Version History…', () => {
   it('is disabled while presenting', async () => {
     // Restoring mid-service replaces the presentation; if the live slide is not
     // in the restored document, the next spacebar jumps to slide 1 in front of
-    // the room.
+    // the room. versionCount is set so presenting is the only reason it's off.
     const { usePresenterStore } = await import('@/store/presenterStore');
-    useEditorStore.setState({ presentation: PRESENTATION });
+    useEditorStore.setState({ presentation: PRESENTATION, versionCount: 2 });
     act(() => usePresenterStore.setState({ isPresenting: true }));
     openFileMenu();
     expect(historyItem()).toBeDisabled();

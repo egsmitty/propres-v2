@@ -83,6 +83,35 @@ describe('VersionHistoryModal', () => {
     expect(screen.queryByText('Current')).not.toBeInTheDocument();
   });
 
+  // Plan VH1 (issue #159). Current is the newest version by identity, not a
+  // slide-count guess. Here the newest row (id 3) has a different slide count
+  // than the document while an older row (id 2) coincidentally matches it — the
+  // old guess marked id 2; Current must be the newest, the committed row.
+  it('marks the NEWEST version Current, not one that merely shares the slide count', async () => {
+    vi.mocked(listVersionSummaries).mockResolvedValue({
+      success: true,
+      data: [
+        { id: 3, saved_at: SUMMARIES[0]!.saved_at, slide_count: 9 },
+        { id: 2, saved_at: SUMMARIES[1]!.saved_at, slide_count: 2 },
+      ],
+    });
+    render(<VersionHistoryModal />);
+    await waitFor(() => expect(restoreButtons()).toHaveLength(2));
+
+    const currentRow = screen.getByText('Current').closest('[data-version-row]');
+    expect(currentRow?.getAttribute('data-version-row')).toBe('3');
+    // And the newest row's own Restore is the disabled one.
+    expect(restoreButtons()[0]).toBeDisabled();
+  });
+
+  // Plan VH1: while dirty, no row is Current and a note says the working copy is
+  // not a version yet — so "doesn't show the current when unsaved" is answered.
+  it('shows an unsaved-changes note while the document is dirty', async () => {
+    act(() => useEditorStore.setState({ isDirty: true }));
+    await renderModal();
+    expect(screen.getByText(/unsaved changes/i)).toBeInTheDocument();
+  });
+
   it('asks for confirmation and restores that row when confirmed', async () => {
     vi.mocked(confirmDialog).mockResolvedValue(true);
     await renderModal();

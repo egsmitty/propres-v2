@@ -73,8 +73,15 @@ export const useEditorStore = create((set) => ({
   editingSlideId: null,
   isDirty: false,
   requiresInitialSave: false,
+  // How many saved versions the open presentation has (plan VH1). Drives whether
+  // Version History can be opened — one version has nothing earlier to restore.
+  // Set by the open/save paths, not by setPresentation, so a same-id restore
+  // does not disturb it.
+  versionCount: 0,
   past: [],
   future: [],
+
+  setVersionCount: (count) => set({ versionCount: Number(count) || 0 }),
 
   setPresentation: (presentation, options = {}) =>
     set({

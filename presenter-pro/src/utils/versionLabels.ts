@@ -7,11 +7,6 @@
  */
 
 const TIME = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-const TIME_WITH_SECONDS = new Intl.DateTimeFormat(undefined, {
-  hour: 'numeric',
-  minute: '2-digit',
-  second: '2-digit',
-});
 const WEEKDAY = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
   day: 'numeric',
@@ -60,26 +55,18 @@ export function formatVersionTimestamp(savedAtSeconds: number, now: number): str
 }
 
 /**
- * Labels for a WHOLE list of versions at once (plan V1, audit SAVE-C6).
- * `formatVersionTimestamp` alone renders at minute precision (or, for the
- * oldest bucket, day precision only), so several restore points captured
- * close together — routine under autosave — can render as indistinguishable
- * duplicates: fifty rows all reading "Today 9:14 AM". Any label that collides
- * with another one in THIS list gets its exact time (with seconds) appended
- * so the two rows are never identical on screen; a label with no collision is
- * left untouched.
+ * Labels for a whole list of versions.
+ *
+ * Plan V1 once appended the exact time-with-seconds to any label that collided
+ * with another in the list. Plan VH1 (issue #159) removes that: the seconds read
+ * as noise, and restore's before+after capture can land two versions in the same
+ * second anyway, where the disambiguator repeated identically and helped nothing.
+ * Same-minute rows now share their plain label and stay distinguishable in the
+ * modal by slide count, order and the Current marker.
  */
 export function formatVersionLabels(
   versions: ReadonlyArray<{ saved_at: number }>,
   now: number
 ): string[] {
-  const base = versions.map((v) => formatVersionTimestamp(v.saved_at, now));
-  const counts = new Map<string, number>();
-  for (const label of base) counts.set(label, (counts.get(label) ?? 0) + 1);
-
-  return versions.map((v, i) => {
-    const label = base[i]!;
-    if ((counts.get(label) ?? 0) <= 1) return label;
-    return `${label} (${TIME_WITH_SECONDS.format(new Date(v.saved_at * 1000))})`;
-  });
+  return versions.map((v) => formatVersionTimestamp(v.saved_at, now));
 }

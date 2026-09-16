@@ -28,6 +28,8 @@ const EDITOR: CommandState = {
   presenterPanelOpen: false,
   filmstripVisible: true,
   typing: false,
+  // Two or more versions: Version History has something earlier to restore.
+  versionCount: 2,
 };
 
 /** Home, with a stale presentation still in the editor store (audit CMD-B4). */
@@ -129,6 +131,9 @@ describe('2. the enabled matrix', () => {
     ['file:versionHistory', LIVE, false],
     ['file:versionHistory', HOME, false],
     ['file:versionHistory', { ...EDITOR, hasPresentation: false }, false],
+    // Plan VH1 (issue #159): nothing earlier to restore with one version or none.
+    ['file:versionHistory', { ...EDITOR, versionCount: 1 }, false],
+    ['file:versionHistory', { ...EDITOR, versionCount: 0 }, false],
     ['present:start', EDITOR, true],
     ['present:start', LIVE, false],
     ['present:start', HOME, false],
@@ -156,8 +161,9 @@ describe('2. the enabled matrix', () => {
     for (const id of covered) {
       expect(IDS.includes(id), `matrix row for unknown id ${id}`).toBe(true);
     }
-    // 30 explicit rows follow the two generated blocks.
-    expect(ROWS).toHaveLength(ALWAYS.length * 3 + EDITOR_ONLY.length * 3 + 30);
+    // 32 explicit rows follow the two generated blocks (VH1 added two
+    // file:versionHistory gate rows for versionCount 1 and 0).
+    expect(ROWS).toHaveLength(ALWAYS.length * 3 + EDITOR_ONLY.length * 3 + 32);
   });
 
   it('the quit handshake is enabled in EVERY state — a false here deadlocks quit', () => {

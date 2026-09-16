@@ -11,6 +11,7 @@ import {
   getPresentation,
   resolveBuiltInMedia,
   touchPresentation,
+  listVersionSummaries,
 } from '@/utils/ipc';
 import { mediaComparisonKey, normalizePresentation } from '@/utils/backgrounds';
 import { persistPresentation, PERSIST_MISSING_MESSAGE } from '@/utils/persistPresentation';
@@ -83,6 +84,20 @@ function insertSlideAfterSelection(
   };
 }
 
+/**
+ * Refresh the editor store's version count for `id` (plan VH1, issue #159), so
+ * the Version History command greys out until there are at least two versions.
+ * Guarded on the store still holding `id`: an open that raced past us must not
+ * have its count overwritten by a stale read.
+ */
+async function refreshVersionCount(id) {
+  const result = await listVersionSummaries(id);
+  const count = result?.success ? (result.data?.length ?? 0) : 0;
+  if (useEditorStore.getState().presentationId === id) {
+    useEditorStore.getState().setVersionCount(count);
+  }
+}
+
 export function loadPresentationIntoEditor(presentation) {
   const normalized = normalizePresentation(presentation);
   useEditorStore.getState().setPresentation(normalized);
@@ -106,6 +121,9 @@ export async function openPresentationInEditor(id, options = {}) {
   const loaded = await getPresentation(id);
   if (!loaded?.success || !loaded.data) return null;
   const normalized = loadPresentationIntoEditor(loaded.data);
+  // Reset the version count for the new document until we have read it; a stale
+  // count from the previous document must not enable Version History here (VH1).
+  useEditorStore.getState().setVersionCount(0);
 
   // Set the flags BEFORE any version I/O. A brand-new presentation has to count
   // as unsaved from the instant the editor appears — if a quit lands while the
@@ -129,6 +147,9 @@ export async function openPresentationInEditor(id, options = {}) {
     state.setDirty(true);
     state.setRequiresInitialSave(false);
   }
+
+  // Now that ensureVersion has run, the count is accurate for gating (VH1).
+  await refreshVersionCount(id);
   return normalized;
 }
 
@@ -268,6 +289,9 @@ export async function saveCurrentPresentation() {
     await alertDialog(error, { title: 'Restore Point Not Saved' });
     return { success: false, error };
   }
+  // A save may have added a version; refresh the count so Version History enables
+  // once there is something earlier to restore (plan VH1).
+  await refreshVersionCount(presentation.id);
   return { success: true, data: outcome.presentation };
 }
 

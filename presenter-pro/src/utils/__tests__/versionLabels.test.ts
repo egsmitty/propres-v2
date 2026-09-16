@@ -53,13 +53,13 @@ describe('formatVersionTimestamp', () => {
   });
 });
 
-// Plan V1 (audit SAVE-C6). `formatVersionTimestamp` alone renders at minute
-// precision (or, before this plan, no time at all for days 2-6), so a list of
-// several restore points saved close together — trivially easy under
-// autosave, which can write a version every few minutes of activity — could
-// read as fifty identical "Today 9:14 AM" rows with nothing to tell them
-// apart. `formatVersionLabels` looks at the WHOLE list at once and only
-// touches a label that actually collides with another one in that same list.
+// Plan VH1 (issue #159). BEHAVIOUR CHANGE from plan V1: the seconds
+// disambiguator (`(9:31:48 AM)`) is removed — the user found it noise, and it
+// could not even tell apart the same-second rows restore's before+after capture
+// produces. `formatVersionLabels` now returns the plain per-row timestamp label.
+// Same-minute rows may share a label; they stay distinguishable in the modal by
+// slide count, order and the Current marker. Fails on the old code (which
+// appended seconds), passes on the new.
 describe('formatVersionLabels', () => {
   function secondsAtExact(dayOffset: number, hour: number, minute: number, second: number): number {
     const d = new Date(NOW);
@@ -68,51 +68,28 @@ describe('formatVersionLabels', () => {
     return Math.floor(d.getTime() / 1000);
   }
 
-  it('leaves every label alone when nothing in the list collides', () => {
+  it('returns exactly the plain per-row timestamps', () => {
     const rows = [
       { saved_at: secondsAt(0, 9) },
       { saved_at: secondsAt(-1, 16) },
       { saved_at: secondsAt(-3, 16) },
     ];
-    // Exactness matters: same values, same order, nothing appended.
     expect(formatVersionLabels(rows, NOW)).toEqual(
       rows.map((r) => formatVersionTimestamp(r.saved_at, NOW))
     );
   });
 
-  it('makes two same-minute rows distinguishable from EACH OTHER by adding seconds', () => {
+  it('does NOT append seconds to same-minute rows — each stays the plain label', () => {
     const a = { saved_at: secondsAtExact(0, 9, 14, 5) };
     const b = { saved_at: secondsAtExact(0, 9, 14, 47) };
     const [labelA, labelB] = formatVersionLabels([a, b], NOW);
 
-    // The whole point: two rows that used to render identically must now
-    // render differently.
-    expect(labelA).not.toBe(labelB);
-  });
-
-  it('keeps the base label as a prefix on a disambiguated row', () => {
-    const a = { saved_at: secondsAtExact(0, 9, 14, 5) };
-    const b = { saved_at: secondsAtExact(0, 9, 14, 47) };
-    const [labelA] = formatVersionLabels([a, b], NOW);
-    expect(labelA!.startsWith(formatVersionTimestamp(a.saved_at, NOW))).toBe(true);
-  });
-
-  it('does not touch a row with no collision even when other rows in the list DO collide', () => {
-    const a = { saved_at: secondsAtExact(0, 9, 14, 5) };
-    const b = { saved_at: secondsAtExact(0, 9, 14, 47) };
-    const c = { saved_at: secondsAtExact(0, 10, 0, 0) };
-    const [, , labelC] = formatVersionLabels([a, b, c], NOW);
-    expect(labelC).toBe(formatVersionTimestamp(c.saved_at, NOW));
-  });
-
-  it('disambiguates three-way collisions too, not just pairs', () => {
-    const rows = [
-      { saved_at: secondsAtExact(0, 9, 14, 1) },
-      { saved_at: secondsAtExact(0, 9, 14, 2) },
-      { saved_at: secondsAtExact(0, 9, 14, 3) },
-    ];
-    const labels = formatVersionLabels(rows, NOW);
-    // Count AND uniqueness: all three must end up mutually distinguishable.
-    expect(new Set(labels).size).toBe(3);
+    // No parenthetical, no seconds component (H:MM:SS) — just the base label,
+    // which for two same-minute rows is deliberately identical now.
+    const base = formatVersionTimestamp(a.saved_at, NOW);
+    expect(labelA).toBe(base);
+    expect(labelB).toBe(base);
+    expect(labelA).not.toMatch(/\d{1,2}:\d{2}:\d{2}/);
+    expect(labelA).not.toContain('(');
   });
 });
