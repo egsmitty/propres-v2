@@ -3,11 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 
-vi.mock('@/utils/ipc', () => ({ listVersionSummaries: vi.fn() }));
+vi.mock('@/utils/ipc', () => ({ listVersionSummaries: vi.fn(), getVersion: vi.fn() }));
 vi.mock('@/utils/dialog', () => ({ confirmDialog: vi.fn() }));
 vi.mock('@/utils/presentationVersionsSync', () => ({ restoreVersion: vi.fn() }));
 
-import { listVersionSummaries } from '@/utils/ipc';
+import { getVersion, listVersionSummaries } from '@/utils/ipc';
 import { confirmDialog } from '@/utils/dialog';
 import { restoreVersion } from '@/utils/presentationVersionsSync';
 import { useEditorStore } from '@/store/editorStore';
@@ -141,5 +141,80 @@ describe('VersionHistoryModal', () => {
     // Restoring APPENDS rows, so an un-refreshed list is stale the instant it
     // succeeds and its Current marker points at the wrong row.
     await waitFor(() => expect(listVersionSummaries).toHaveBeenCalledTimes(2));
+  });
+});
+
+// Plan VH2 (issue #160). Preview a version AGAINST THE CURRENT DOCUMENT — the
+// user's decision: "what will change if I restore this?" — inside the modal.
+describe('preview (VH2)', () => {
+  /** The version keeps only s1, so restoring it would REMOVE s2 ("b"). */
+  function snapshotWithOnlyS1() {
+    const section = PRESENTATION.sections[0]!;
+    return JSON.stringify({
+      ...PRESENTATION,
+      sections: [{ ...section, slides: [section.slides[0]] }],
+    });
+  }
+  function previewButtons(): HTMLButtonElement[] {
+    return [...document.querySelectorAll('[data-version-preview]')] as HTMLButtonElement[];
+  }
+
+  beforeEach(() => {
+    vi.mocked(getVersion).mockResolvedValue({
+      success: true,
+      data: { id: 2, presentation_id: 7, snapshot: snapshotWithOnlyS1(), saved_at: 1 },
+    });
+  });
+
+  it('shows a Preview on every non-Current row and none on the Current row', async () => {
+    await renderModal();
+    expect(previewButtons()).toHaveLength(2);
+    expect(document.querySelector('[data-version-row="3"] [data-version-preview]')).toBeNull();
+  });
+
+  it('records the version count in the store when the list loads (VH1 follow-up)', async () => {
+    await renderModal();
+    expect(useEditorStore.getState().versionCount).toBe(SUMMARIES.length);
+  });
+
+  it('fetches that version once and says what restoring it would change', async () => {
+    await renderModal();
+    await act(async () => previewButtons()[0]!.click());
+
+    expect(vi.mocked(getVersion).mock.calls).toEqual([[2]]);
+    expect(await screen.findByText(/Restoring this version would/)).toBeInTheDocument();
+    expect(screen.getByText('−1 slide')).toBeInTheDocument();
+    // The slide you would lose is listed, marked gone.
+    expect(screen.getByText('gone')).toBeInTheDocument();
+  });
+
+  it('shows an inline message for a version that cannot be read', async () => {
+    vi.mocked(getVersion).mockResolvedValue({
+      success: true,
+      data: { id: 2, presentation_id: 7, snapshot: 'not json', saved_at: 1 },
+    });
+    await renderModal();
+    await act(async () => previewButtons()[0]!.click());
+    expect(await screen.findByText('This version could not be read.')).toBeInTheDocument();
+  });
+
+  it('restores from the preview pane through the same confirmation', async () => {
+    vi.mocked(confirmDialog).mockResolvedValue(true);
+    await renderModal();
+    await act(async () => previewButtons()[0]!.click());
+    await screen.findByText(/Restoring this version would/);
+
+    await act(async () => screen.getByRole('button', { name: 'Restore this version' }).click());
+
+    expect(confirmDialog).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(restoreVersion).mock.calls).toEqual([[2]]);
+  });
+
+  it('clicking Preview on the open row again closes the pane', async () => {
+    await renderModal();
+    await act(async () => previewButtons()[0]!.click());
+    await screen.findByText(/Restoring this version would/);
+    await act(async () => previewButtons()[0]!.click());
+    expect(screen.queryByText(/Restoring this version would/)).not.toBeInTheDocument();
   });
 });

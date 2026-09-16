@@ -77,6 +77,15 @@ function canonicalize(value: unknown): unknown {
 }
 
 /**
+ * Stable JSON of ANY value with every nested object's keys sorted (plan VH2,
+ * issue #160). `versionDiff` keys sections and slides with this so there is one
+ * canonicalizer, not a second sorter that could drift from V1's.
+ */
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalize(value));
+}
+
+/**
  * Stable JSON of the content fields, in `CONTENT_FIELDS` order, with every
  * nested object's keys sorted so that two deep-equal documents whose nested
  * objects happened to be built with different key insertion order (e.g. one
