@@ -73,7 +73,7 @@ const IDS = [
 describe('1. the registry lists every command once, in order', () => {
   it('has exactly the 30 live ids (37 switch cases minus the 7 dead ones)', () => {
     expect(COMMANDS.map((command) => command.id)).toEqual(IDS);
-    expect(IN_APP_MENU_ORDER).toEqual(['file', 'insert', 'edit', 'view', 'present', 'help']);
+    expect(IN_APP_MENU_ORDER).toEqual(['file', 'insert', 'present', 'edit', 'view', 'help']);
   });
 });
 
@@ -254,19 +254,19 @@ describe('5. the shortcuts sheet is generated from the registry', () => {
       },
       { group: 'Insert', items: [{ label: 'New Slide', keys: ['⌘', 'M'] }] },
       {
-        group: 'Edit',
-        items: [
-          { label: 'Undo', keys: ['⌘', 'Z'] },
-          { label: 'Redo', keys: ['⌘', '⇧', 'Z'] },
-        ],
-      },
-      {
         group: 'Present',
         items: [
           { label: 'Start Presenting', keys: ['F5'] },
           { label: 'Stop Presenting', keys: ['Esc'] },
           { label: 'Black Screen', keys: ['B'] },
           { label: 'Logo Screen', keys: ['L'] },
+        ],
+      },
+      {
+        group: 'Edit',
+        items: [
+          { label: 'Undo', keys: ['⌘', 'Z'] },
+          { label: 'Redo', keys: ['⌘', '⇧', 'Z'] },
         ],
       },
     ]);
@@ -276,8 +276,8 @@ describe('5. the shortcuts sheet is generated from the registry', () => {
     expect(shortcutGroups('darwin').map((group) => group.group)).toEqual([
       'File',
       'Insert',
-      'Edit',
       'Present',
+      'Edit',
     ]);
   });
 

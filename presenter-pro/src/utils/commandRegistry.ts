@@ -312,7 +312,7 @@ export const COMMANDS: readonly CommandDef[] = [
 
 const BY_ID: ReadonlyMap<string, CommandDef> = new Map(COMMANDS.map((c) => [c.id, c]));
 
-export const IN_APP_MENU_ORDER: Menu[] = ['file', 'insert', 'edit', 'view', 'present', 'help'];
+export const IN_APP_MENU_ORDER: Menu[] = ['file', 'insert', 'present', 'edit', 'view', 'help'];
 
 export const MENU_TITLES: Record<Menu, string> = {
   file: 'File',
