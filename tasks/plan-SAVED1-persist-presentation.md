@@ -114,7 +114,7 @@ assertion in the 15 pinned test files; any E2E spec.
 
 ## Todos
 
-- [ ] 1. **Writer characterization (red).** `src/utils/__tests__/persistPresentation.test.ts`
+- [x] 1. **Writer characterization (red).** `src/utils/__tests__/persistPresentation.test.ts`
       against a stub module exporting `persistPresentation` that returns
       `{ ok: false, reason: 'failed', error: '' }` (so the red is on assertions).
       This table is exhaustive — all 8, each asserting the **whole** outcome
@@ -128,12 +128,12 @@ assertion in the 15 pinned test files; any E2E spec.
   7. with `commit: true` and `captureVersion` → `true`: `committed: true`, and `captureVersion` was called once with **exactly** the normalized row.
   8. with `commit: true` and `captureVersion` → `false`: `{ ok: true, …, committed: false }` (the row is written; the caller decides what to say).
      Verify: `npx vitest run src/utils/__tests__/persistPresentation.test.ts`.
-- [ ] 2. Write `persistPresentation.ts` (Decision 1). Green on Todo 1.
-- [ ] 3. **One-writer guard (red).** `persistPresentation.oneWriter.test.ts`:
+- [x] 2. Write `persistPresentation.ts` (Decision 1). Green on Todo 1.
+- [x] 3. **One-writer guard (red).** `persistPresentation.oneWriter.test.ts`:
       walk `src/` (skip `__tests__`), collect files containing `updatePresentation(`,
       assert the sorted list equals `['src/utils/ipc.ts', 'src/utils/persistPresentation.ts']`
       (length 2). Red now: six more files match.
-- [ ] 4. Move site 1 (Save) and site 3 (Rename) onto the writer. Save:
+- [x] 4. Move site 1 (Save) and site 3 (Rename) onto the writer. Save:
       `const outcome = await persistPresentation(id, presentation, { commit: false })`;
       its `failed`/`missing` branches raise the **same** two alerts and return the
       same shapes; then the S2 branch decides sync vs. keep-newer, and the capture
@@ -142,7 +142,7 @@ assertion in the 15 pinned test files; any E2E spec.
       alert on `committed === false` as today. Verify:
       `npx vitest run src/utils/__tests__/presentationCommands` — all green,
       unchanged.
-- [ ] 5. Move site 2 (gate save) with `commit: true`; sites 5 and 6 (restore,
+- [x] 5. Move site 2 (gate save) with `commit: true`; sites 5 and 6 (restore,
       revert) with `commit: false` (their two captures bracket the write and stay
       where they are); site 4 (autosave) with `commit: false`. `AutosaveDeps` and
       `VersionDeps` replace `updatePresentation` with `persist` (same signature
@@ -150,9 +150,9 @@ assertion in the 15 pinned test files; any E2E spec.
       inject `updatePresentation` fakes now inject `persist` fakes returning the
       equivalent outcome — a dependency rename, stated in the commit, with no
       assertion changed. Verify: `npx vitest run src/utils/__tests__/autosaveSync src/utils/__tests__/presentationVersionsSync src/utils/__tests__/unsavedChanges`.
-- [ ] 6. Todo 3 green. `npm run gate` (report type-check, lint, passed/total,
+- [x] 6. Todo 3 green. `npm run gate` (report type-check, lint, passed/total,
       skipped); `npm run format:check`. No baseline is affected.
-- [ ] 7. Findings report in the PR body: suspected regressions; the
+- [x] 7. Findings report in the PR body: suspected regressions; the
       dependency renames; anything the six sites did that the writer does not
       (there should be nothing). **Manual check owed** (not run — no app launches
       while Ethan is at the machine): ⌘S with a typed edit in flight still keeps

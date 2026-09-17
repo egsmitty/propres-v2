@@ -149,7 +149,7 @@ be updated.
 - **Rule files carry standing context.** Keep prompts short by referencing them
   instead of repeating rules.
 - **`tasks/` and GitHub are long-term memory.** Important decisions and accepted
-  regressions belong in `tasks/todo.md` or on the PR.
+  regressions belong in `tasks/TODO.md` or on the PR.
 
 ---
 

@@ -88,26 +88,55 @@ PowerPoint-style alternative to ProPresenter.
 - Phase 5: section-based background model, reusable Media Library, continuous
   background playback, countdown overlay, media slides in the flow.
 - Session 9: floating contextual text box toolbar.
+- September 2026 (the Fable pass and its follow-ups): one slide renderer for
+  every preview and the projector (ED36); one command registry driving the
+  in-app menu, shortcuts sheet, tooltips and native-menu greying (CMDS1);
+  presenting safety — Escape and the menu can't end a service, output-window
+  guards, the live slide survives edits (L1–L4); save races and version edges
+  (S2, V1); one `presentations` row writer (SAVED1); Version History marks
+  Current by identity, greys out with one version, and previews what restoring
+  would change against the current document with per-slide before/after
+  (VH1–VH3); a public-domain first-run seed (S1); database lifecycle and a
+  startup-failure screen (DB1/DB2/MB1); onboarding accuracy (H2); even toolbar
+  spacing (#165) and the in-app menu order matching the native bar (#168).
 
 ## In Progress
 
+**Where work is tracked (2026-09-16).** Open work lives on the GitHub Project
+**ProPres Issue Tracker** (every issue joins it; statuses Backlog → Ready →
+In progress → PR made → In review → Done — only Ethan moves a card to Done)
+and is summarised in `tasks/TODO.md`, the living checklist. Start a fresh
+session from `tasks/TODO.md` plus the newest `tasks/HANDOFF-*.md` on disk
+(local, untracked handoffs kept outside git by design; the tracked
+`tasks/HANDOFF-2026-09-09.md` is the fallback).
+
 **The Fable pass** (`tasks/fable-pass-plan.md`, status table at the bottom;
-narrative in `tasks/fable-notes.md`). Phase 6's engineering system is done.
-F1 (pure-helper characterization) and G1–G3 (UX review fixes) have landed,
-which clears workstream F's (structure) gate — F1 was the gate — so it is now
-unblocked; the actual decomposition of the large files is still ahead.
-Start a fresh session from the newest `tasks/HANDOFF-*.md` on disk (these are
-local, untracked handoffs kept outside git by design), falling back to the
-tracked `tasks/HANDOFF-2026-09-09.md` if none exist.
+narrative and every finding in `tasks/fable-notes.md`). Landed through
+2026-09-16: the engineering system (Phase 6), L0–L4 presenting safety, the
+save-race and version edges (S2, V1) and SAVED1's one row writer, ED36's one
+slide renderer, CMDS1's command registry, and the Version History preview
+(VH1–VH3). **Parked:** ED1R (repairing `&amp;`-compounded rows) — nothing
+coded, its review unfinished. **Next in order:** the D8 storage migrations
+(ED-38, FS-34, MAIN-B17), the split plans (FS-37 first, then ED-35 Canvas,
+CMD-S2 Toolbar, FS-38 Filmstrip), then the design docs. The Part 11 decisions
+— above all D6, the save model — are Ethan's.
+
+**Deferred by decision:** redesign-scale UI (the media library, #155; Home and
+the title/rename header, #167) waits on direction.
 
 ## What's Pending
 
-- Audit remaining inline styles against the PDF's design-system guidance.
-- Improve background rendering fidelity in filmstrip/home previews.
+- Audit remaining inline styles against the PDF's design-system guidance
+  (E1/E4 moved most to tokens and `hover:` classes; what remains is budgeted
+  file-by-file in `src/__tests__/inlineStyleBudget.test.ts`, which only
+  tightens).
 - Decide whether "Open…" stays a Home/recent-navigation action or grows into a
   fuller presentation picker / export-import flow.
-- Full manual runtime verification on both macOS and Windows hardware,
-  especially multi-display output assignment and native presentation behavior.
+- Manual runtime verification is tracked in issues #101–#107 (crash recovery
+  passed on macOS 2026-09-15). **Windows has never been run on real hardware**
+  — #107 is the fresh-clone setup guide plus the Windows-only checklist.
+  Multi-display needs real hardware and can never be automated.
+- The song editor has no autosave or crash recovery (#152).
 
 ## Known Issues
 
@@ -129,9 +158,10 @@ tracked `tasks/HANDOFF-2026-09-09.md` if none exist.
   every IPC call carry a full media payload.
 - Section background is the primary background model; it persists under text
   across slide changes within a section until changed.
-- Renderer talks to main only through `src/utils/ipc.js`, which returns a
-  `{ success, data, error }` envelope. Do not call `window.electronAPI` directly
-  from components.
+- Renderer talks to main only through `src/utils/ipc.ts`, which returns a
+  `{ success, data, error }` envelope over the channels typed in
+  `shared/ipcContract.ts`. Do not call `window.electronAPI` directly from
+  components.
 - **Save model (plan A5).** Edits autosave to the presentation's own row a
   couple of seconds after typing stops. `isDirty` means "the live row differs
   from the newest restore point", so autosave never clears it — only Save (which
@@ -140,3 +170,13 @@ tracked `tasks/HANDOFF-2026-09-09.md` if none exist.
   crash-recovery journal from plan A2 is no longer written: autosave bumps
   `updated_at`, which would make every journal row stale before it was read.
   Its table and startup drain remain for profiles written by older builds.
+  Every `presentations` row write goes through
+  `src/utils/persistPresentation.ts` (plan SAVED1); callers keep their own
+  dialogs and store effects. Opening a presentation flushes any pending
+  autosave first (S2). Editors with their own unsaved state — the song editor —
+  register with `src/utils/blockingEditors.ts` so quit/Close/New/Open ask first
+  (D3). Version History (VH1–VH3): the newest version always equals the
+  committed row, so Current is the newest version when the document is clean;
+  the command is disabled with one version or none; Preview compares a version
+  against the *current* document (unsaved edits included) and shows each
+  changed slide's text now vs. after restoring.
