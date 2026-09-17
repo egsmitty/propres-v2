@@ -43,19 +43,19 @@ describe('ShortcutsOverlay', () => {
       },
       { group: 'Insert', rows: [['New Slide', ['⌘', 'M']]] },
       {
-        group: 'Edit',
-        rows: [
-          ['Undo', ['⌘', 'Z']],
-          ['Redo', ['⌘', '⇧', 'Z']],
-        ],
-      },
-      {
         group: 'Present',
         rows: [
           ['Start Presenting', ['F5']],
           ['Stop Presenting', ['Esc']],
           ['Black Screen', ['B']],
           ['Logo Screen', ['L']],
+        ],
+      },
+      {
+        group: 'Edit',
+        rows: [
+          ['Undo', ['⌘', 'Z']],
+          ['Redo', ['⌘', '⇧', 'Z']],
         ],
       },
       {
