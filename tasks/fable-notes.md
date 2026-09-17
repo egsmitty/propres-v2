@@ -2868,3 +2868,56 @@ thresholds; the ratchet was not tightened. **Manual checks owed** (no app
 launched): ⌘S with a typed edit in flight keeps the newer text (S2); Discard on
 a never-saved presentation deletes it; Restore from Version History still
 works and is undoable.
+
+---
+
+## 2026-09-16 — toolbar spacing, menu order, Version History preview (#158, #166, #160, #163)
+
+Issue-driven follow-ups after the Fable pass, each landed the same day through
+the usual path (red tests → gate → PR → auto-merge → the card to **In review**
+on the GitHub Project, which is now the tracker of record; `tasks/TODO.md` is
+the local checklist).
+
+- **#159 / VH1** — Version History marked Current by *guessing slide count*,
+  which mismarked at two versions. Current is now the newest version when the
+  document is clean (the newest version always equals the committed row);
+  seconds are gone from labels; the command greys out with ≤1 version via a new
+  `versionCount` on the editor store (set on open and after a save, refreshed by
+  the modal's load).
+- **#160 / VH2 + #163 / VH3** — a Preview pane answers "what will change if I
+  restore this?" against the **current** document (Ethan's call, as a user).
+  Pure `versionDiff.ts` keyed by V1's canonicalizer (now exported as
+  `canonicalJson`); `collapsed`/`color`/`placeholderText`/legacy `textBox` are
+  excluded from content keys. After live review: verb-first summary lines with
+  the values in, and a literal Now / After-restore of each changed slide's text.
+- **#158 / #165** — the Insert buttons were padded to a 118px minimum, so short
+  labels left dead space and the gaps read as uneven; the colour swatches were
+  one flat run. Verified with Playwright captures of the real toolbar (1800 and
+  1200 wide) before and after.
+- **#166 / #168** — the in-app menu bar now matches the native one (Present
+  before Edit); the shortcuts sheet follows.
+
+**Traps, new this day.**
+
+- **zsh has no `PIPESTATUS`.** A `cmd | grep …; exit ${PIPESTATUS[0]}` guard
+  reads as success and lets a failing gate through — it did, once, on the menu
+  branch (caught before any PR). Use `if npm run gate > log; then …` or zsh's
+  `$pipestatus`.
+- **Local Playwright:** the tutorial tour appears ~2.5 s after launch and its
+  overlay blocks clicks — wait for **Skip Tour** and click it. Open a document
+  from Home's **Blank Presentation** button (sending `file:new` over
+  `app:command` did not reach the editor locally); enter text editing by
+  double-clicking `[data-textbox-root="true"]`, then wait for
+  `[data-slide-text-editor="true"]` — a new presentation's toolbar shows the
+  TEXT row before that marker exists.
+- **`update_baselines` rewrites only the snapshots that fail the 1 % ratio.** A
+  small text change (menu order) moved only the clipped `hover-menu-item`
+  capture; the full editor and shortcuts-overlay captures stayed within
+  tolerance and were left as they were. Name the exact files in the PR.
+- **GitHub auto-deletes merged head branches**, so `git branch -r --merged`
+  comes back empty — never `&&` a chain on a grep of it.
+- **The unsaved-changes gate keeps its strict `=== false` on the restore point**
+  (SAVED1): `captureVersion` returns `true` when there is nothing new to record,
+  and its gate test mocks it to `undefined`. Save uses `!` against the real
+  function. Match each site's own strictness.
+

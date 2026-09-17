@@ -9,14 +9,20 @@ Everything is stored locally in a SQLite database inside Electron's user-data fo
 | Path                                  | What it is                                                                           |
 | ------------------------------------- | ------------------------------------------------------------------------------------ |
 | `presenter-pro/`                      | The Electron + React application (main process, preload, renderer, tests)            |
-| `presenter-pro/electron/`             | Main process (`main/`), preload, and the database layer (`db/`, migrations, queries) |
-| `presenter-pro/src/`                  | React renderer (Zustand store, components, utilities)                                |
-| `presenter-pro/e2e/`                  | Playwright end-to-end specs that drive the built app                                 |
-| `.github/workflows/`                  | CI: PR checks, E2E, tag-triggered release builds                                     |
+| `presenter-pro/electron/`             | Main process (`main/` — windows, native menu, lifecycle), `preload/`, and the database layer (`db/` — migrations, queries, seed) |
+| `presenter-pro/shared/`               | The typed IPC contract (`ipcContract.ts`) shared by main and renderer — the one place a channel's shape is defined |
+| `presenter-pro/src/`                  | React renderer: `components/`, `pages/`, `store/` (Zustand), `utils/` (commands, save model, version history, diff), `hooks/`, `styles/`, `types/`, and `__tests__/` guards |
+| `presenter-pro/e2e/`                  | Playwright end-to-end specs that drive the built app; `*-snapshots/` hold the screenshot baselines, captured on the CI runner |
+| `presenter-pro/scripts/`              | Build helpers (app icons)                                                            |
+| `presenter-pro/out/`, `dist/`         | `electron-vite build` output and packaged installers — generated, never committed    |
+| `.github/workflows/`                  | CI: PR checks, E2E (with the `update_baselines` dispatch), tag-triggered release builds |
+| `.husky/`                             | Pre-commit (Prettier + ESLint on staged files) and commit-msg (Conventional Commits) hooks |
 | `.cursor/rules/`                      | Testing and executable-plan standards that every change follows                      |
 | `AGENTS.md`, `AI_OPERATING_MANUAL.md` | How work is planned, executed, and reviewed in this repo                             |
-| `tasks/`                              | Executable plans, remediation logs, and the running engineering notes                |
+| `tasks/`                              | Executable plans (`plan-<ID>-*.md`), the Fable-pass charter and notes, and `TODO.md` — the living checklist. `HANDOFF-*.md` session handoffs are kept local and untracked by design |
 | `test-media/`                         | Sample images/video the built-in media resolver and E2E suite read at runtime; gitignored, so a fresh clone does not have it (see `CLAUDE.md` Known Issues) |
+
+Work is tracked on the GitHub Project **ProPres Issue Tracker** (every issue joins it) and summarised in `tasks/TODO.md`, the living checklist.
 
 ## Requirements
 
@@ -66,7 +72,7 @@ npm run test:e2e            # builds, then runs every spec
 npx playwright test e2e/quit.spec.ts   # one spec, after a build
 ```
 
-Specs cover launch, quitting, the unsaved-changes prompt, versioned database migrations (fresh and legacy databases, backups, pruning), crash recovery, and the built-in hymn seeder.
+Specs cover launch, quitting, the unsaved-changes prompt, versioned database migrations (fresh and legacy databases, backups, pruning), crash recovery, the built-in hymn seeder, version history and restore, presenting and the output window, keyboard shortcuts, and screenshot baselines of every surface (captured on the CI runner, never a laptop).
 
 ## The database
 

@@ -108,26 +108,26 @@ contract.
 
 ## Todos (red first)
 
-- [ ] 1. **Red:** `versionDiff.test.ts`, exhaustive small cases, whole-object
+- [x] 1. **Red:** `versionDiff.test.ts`, exhaustive small cases, whole-object
       `toEqual`: identical → every node `same`, all counts 0 · slide added ·
       slide removed · slide `changed` by body / by `textBoxes` / by `notes` ·
       slides reordered → section `changed`, slides `same` · section added ·
       section removed (its slides listed as removed) · `collapsed` and `color`
       toggled → **not** changed · `titleChanged` · legacy body-only snapshot vs
       a `textBoxes` document compares by `body`.
-- [ ] 2. `versionDiff.ts` + export `canonicalJson`. Green on Todo 1; the
+- [x] 2. `versionDiff.ts` + export `canonicalJson`. Green on Todo 1; the
       existing `presentationVersions.test.ts` passes unchanged.
-- [ ] 3. **Red:** modal tests — Preview appears on non-Current rows only (0 on
+- [x] 3. **Red:** modal tests — Preview appears on non-Current rows only (0 on
       the Current row); clicking it calls `getVersion(id)` exactly once and
       renders the summary (e.g. `+1 slide`) and one badge per node; an
       unreadable snapshot renders the inline message; Restore from the pane
       calls `restoreVersion(id)`; a second click closes the pane; `load()` sets
       `versionCount` to the list length.
-- [ ] 4. Modal implementation, `w-[820px]`, Escape-closes-pane-first.
-- [ ] 5. `npm run gate` (report passed/total, coverage) + `npm run format:check`.
+- [x] 4. Modal implementation, `w-[820px]`, Escape-closes-pane-first.
+- [x] 5. `npm run gate` (report passed/total, coverage) + `npm run format:check`.
       No baseline is touched; confirm `versionHistory.spec.ts` selectors are
       untouched by grep.
-- [ ] 6. PR body: findings; the named export addition; **manual check owed** (no
+- [x] 6. PR body: findings; the named export addition; **manual check owed** (no
       app launched): on a real three-version document, open Preview on the
       oldest row and confirm the "would remove" list matches exactly what
       Restore then drops.

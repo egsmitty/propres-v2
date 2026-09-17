@@ -64,22 +64,22 @@ the `versions` DB queries; retention; any restore semantics.
 
 ## Todos
 
-- [ ] 1. **Red:** `versionLabels.test.ts` — same-minute rows render with NO
+- [x] 1. **Red:** `versionLabels.test.ts` — same-minute rows render with NO
       seconds appended (fails on current code, which appends them).
-- [ ] 2. `versionLabels.ts` — drop `TIME_WITH_SECONDS` + the collision seconds;
+- [x] 2. `versionLabels.ts` — drop `TIME_WITH_SECONDS` + the collision seconds;
       `formatVersionLabels` maps `formatVersionTimestamp`. Green on Todo 1.
-- [ ] 3. **Red:** `commandRegistry.test.ts` — `file:versionHistory` disabled when
+- [x] 3. **Red:** `commandRegistry.test.ts` — `file:versionHistory` disabled when
       `versionCount <= 1`, enabled when `> 1` (editing, not presenting). Add
       `versionCount` to the EDITOR fixture.
-- [ ] 4. `commandRegistry.ts` + `editorStore.js` + `MenuBar.jsx` +
+- [x] 4. `commandRegistry.ts` + `editorStore.js` + `MenuBar.jsx` +
       `presentationCommands.js` — the `versionCount` field, `when` gate, and the
       open/save refresh. Green on Todo 3.
-- [ ] 5. **Red then green:** `VersionHistoryModal.test.tsx` — with two versions of
+- [x] 5. **Red then green:** `VersionHistoryModal.test.tsx` — with two versions of
       the same slide count, the newest is marked Current (the old guess failed);
       an unsaved document shows the "Unsaved changes" note and marks no row.
-- [ ] 6. Modal sizing (`w-[560px] max-h-[80vh]`) and the ≤1-version graceful
+- [x] 6. Modal sizing (`w-[560px] max-h-[80vh]`) and the ≤1-version graceful
       state. `npm run gate` + `npm run format:check`.
-- [ ] 7. PR body: findings, the named test changes (seconds removal), manual check
+- [x] 7. PR body: findings, the named test changes (seconds removal), manual check
       owed (open Version History after a first save; confirm Current tracks).
 
 ## Compliance Manifest (writing-executable-plans.mdc)
