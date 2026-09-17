@@ -137,7 +137,7 @@ describe('every menu, every row, in order (plan CMDS1 pin)', () => {
   it('for a clean, saved, open presentation', () => {
     useEditorStore.setState({ presentation: PRESENTATION, isDirty: false });
     render(<MenuBar />);
-    const menus = ['File', 'Insert', 'Edit', 'View', 'Present', 'Help'].map((name) => [
+    const menus = ['File', 'Insert', 'Present', 'Edit', 'View', 'Help'].map((name) => [
       name,
       openMenu(name),
     ]);
