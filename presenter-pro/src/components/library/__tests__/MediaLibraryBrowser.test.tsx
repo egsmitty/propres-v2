@@ -90,16 +90,18 @@ function libraryWith(overrides: Partial<MediaLibraryProp> = {}): MediaLibraryPro
 function renderBrowser(overrides: Partial<MediaLibraryProp> = {}, selectedMediaId?: string) {
   const lib = libraryWith(overrides);
   const onPhotoClick = vi.fn();
+  const onPhotoContextMenu = vi.fn();
   const ref = createRef<MediaLibraryBrowserHandle>();
   render(
     <MediaLibraryBrowser
       ref={ref}
       mediaLibrary={lib}
       onPhotoClick={onPhotoClick}
+      onPhotoContextMenu={onPhotoContextMenu}
       selectedMediaId={selectedMediaId ?? null}
     />
   );
-  return { lib, onPhotoClick, ref };
+  return { lib, onPhotoClick, onPhotoContextMenu, ref };
 }
 
 // A tile's accessible name is its label, not its title, so read the tiles by
@@ -233,6 +235,15 @@ describe('tiles', () => {
     expect(onPhotoClick).toHaveBeenCalledWith(PHOTOS[0]);
     expect(document.querySelector('[data-media-tile="13"]')).toHaveClass('ring-accent');
     expect(document.querySelector('[data-media-tile="10"]')).not.toHaveClass('ring-accent');
+  });
+
+  it('right-clicking a tile reports the photo and the pointer position to the host', () => {
+    const { onPhotoContextMenu } = renderBrowser();
+    fireEvent.contextMenu(document.querySelector('[data-media-tile="10"]')!, {
+      clientX: 12,
+      clientY: 34,
+    });
+    expect(onPhotoContextMenu).toHaveBeenCalledWith(PHOTOS[0], 12, 34);
   });
 
   it('a video tile renders a paused, metadata-only video; a missing file says so', () => {

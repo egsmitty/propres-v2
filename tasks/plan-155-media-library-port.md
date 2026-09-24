@@ -144,7 +144,7 @@ tokens; Tailwind v3 gray/indigo/red/amber classes → our Tailwind-4 token class
   an adapter (our `MediaRecord` ↔ `MediaLibraryPhoto`/`MediaFolder`). Mount in a
   modal driven by `mediaLibraryOpen`, with the unified grid + type filter and the
   cap counter. Component test.
-- **Phase 4 — actions (#156) + the Editor switch.** Add the Part-D.5 detail pane
+- **Phase 4 — actions (#156) + the Editor switch (landed; the modal is live).** Add the Part-D.5 detail pane
   (Set slide bg / Set section bg / Insert as media slide / Rename / Move / Delete),
   confirm Canvas/Filmstrip drops still work from the new surface, then **swap the
   mount in `Editor.jsx`** from the panel to the modal — the first user-visible
@@ -211,3 +211,11 @@ _(appended when the port completes)_
   `.tsx`; the eslint hex rule covers `.tsx` components and skips tests; the
   `escapeConsumed` overlay table is 8; `HOVER_HANDLER_BUDGET` lists the video
   tile's play-on-hover as behaviour.
+- **P4 findings.** Four E2E specs pressed an unconditional Escape after opening
+  the library as a "menu gone" safety net — inert for the panel, a close for the
+  modal; they now press it only if the View menu's entry lingers. The library is
+  deliberately **not** added to `shortcutGuard.isModalOpen()`: it would silence
+  the presenter's clicker whenever the library floats over a live service, a
+  regression from today. Whether the library may open at all while presenting
+  (`view:mediaLibrary` / `insert:media` carry no `!isPresenting` gate) is
+  unchanged and Ethan's to decide.
