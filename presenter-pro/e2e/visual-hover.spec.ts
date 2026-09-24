@@ -197,7 +197,10 @@ test.describe('visual baseline — hover states', () => {
     // Media library close.
     await page.getByRole('button', { name: 'View', exact: true }).click();
     await page.getByRole('button', { name: 'Media Library', exact: true }).click();
-    await page.keyboard.press('Escape');
+    // The View menu closes on the click; press Escape only if its entry lingers.
+    // An unconditional Escape would now close the media library itself (P4).
+    const mediaEntry = page.getByRole('button', { name: 'Media Library', exact: true });
+    if (await mediaEntry.isVisible().catch(() => false)) await page.keyboard.press('Escape');
     await hovered(
       page,
       page.getByRole('button', { name: 'Close media library' }),

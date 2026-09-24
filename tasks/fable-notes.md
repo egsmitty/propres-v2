@@ -3017,3 +3017,31 @@ passes is the Version History modal's inner `async function` with a cancel flag.
 `HOVER_HANDLER_BUDGET` counts every `onMouseEnter` — a play-on-hover video is
 behaviour, not a hover look, and needs a budgeted entry with the reason. A
 button's accessible name is its content, never its `title`.
+
+---
+
+## #155-P4 — the detail pane (#156) and the Editor switch (2026-09-24)
+
+The modal is live: `Editor.jsx` mounts it instead of the 320px panel, and the
+right-hand pane's six explicit actions replace the Use / More / Delete footer,
+calling exactly what the panel called with the raw row's numeric id. A tile's
+right-click opens the same six items. `isModalOpen()` was deliberately left
+alone — adding the library would have killed the clicker whenever it floats over
+a live service.
+
+The fresh review found four blockers again, three of them in E2E: four specs
+pressed an unconditional Escape right after opening the library (a "menu gone"
+safety net that was inert for the panel and closes the modal), and two clicked
+the old footer. The fourth was mine: the hook patched `fileName` / `folderId` on
+a rename or move but left `raw` stale, so Insert as media slide would have used
+the old name.
+
+**Traps from coding it.** A JS command's *inferred* return type reaches TS tests
+— `mockResolvedValueOnce({ id })` against `insertMediaSlideIntoCurrentPresentation`
+fails type-check because the return is a whole slide with a UUID-shaped id; cast
+a truthy stub to `Awaited<ReturnType<typeof fn>>` rather than fabricate a slide.
+A `getByRole` regex that shares a prefix with a fallback label ("Set slide
+background" vs "Set Section background") finds two buttons — assert the exact
+fallback string. `update_baselines` uploads an artifact; nothing is committed —
+download it, copy the snapshot dirs, and `git status` must show exactly the
+named PNGs.

@@ -161,7 +161,15 @@ export function useMediaLibrary(): MediaLibraryProp {
       const nextFolderId = toDbId(folderId);
       const ok = await run(() => updateMedia(id, { folder_id: nextFolderId }));
       if (ok) {
-        setPhotos((prev) => prev.map((p) => (p.mediaId === mediaId ? { ...p, folderId } : p)));
+        // Patch the raw row too: actions hand `raw` to the store and to
+        // createMediaSlide, so it must never lag the record (P4 review, B3).
+        setPhotos((prev) =>
+          prev.map((p) =>
+            p.mediaId === mediaId
+              ? { ...p, folderId, raw: { ...p.raw, folder_id: nextFolderId } }
+              : p
+          )
+        );
       }
     },
     [run]
@@ -174,7 +182,9 @@ export function useMediaLibrary(): MediaLibraryProp {
       const ok = await run(() => updateMedia(id, { name }));
       if (ok) {
         setPhotos((prev) =>
-          prev.map((p) => (p.mediaId === mediaId ? { ...p, fileName: name } : p))
+          prev.map((p) =>
+            p.mediaId === mediaId ? { ...p, fileName: name, raw: { ...p.raw, name } } : p
+          )
         );
       }
     },

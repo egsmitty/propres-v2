@@ -181,10 +181,21 @@ describe('useMediaLibrary — media', () => {
     expect(updateMedia).toHaveBeenLastCalledWith(11, { folder_id: null });
   });
 
-  it('renamePhoto sends the new name', async () => {
+  it('renamePhoto sends the new name and the raw row follows, so an inserted media slide gets the new label', async () => {
     const { result } = await renderLoaded();
     await act(() => result.current.renamePhoto('10', 'dawn.png'));
     expect(updateMedia).toHaveBeenCalledWith(10, { name: 'dawn.png' });
+    const renamed = result.current.photos.find((p) => p.mediaId === '10');
+    expect(renamed?.fileName).toBe('dawn.png');
+    expect(renamed?.raw.name).toBe('dawn.png');
+  });
+
+  it('movePhoto keeps the raw row in step with the new folder', async () => {
+    const { result } = await renderLoaded();
+    await act(() => result.current.movePhoto('10', '2'));
+    expect(result.current.photos.find((p) => p.mediaId === '10')?.raw.folder_id).toBe(2);
+    await act(() => result.current.movePhoto('10', null));
+    expect(result.current.photos.find((p) => p.mediaId === '10')?.raw.folder_id).toBeNull();
   });
 
   it('deletePhoto deletes and drops the item locally without a refetch', async () => {

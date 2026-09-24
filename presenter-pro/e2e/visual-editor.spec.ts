@@ -57,10 +57,13 @@ test.describe('visual baseline — editor states', () => {
     });
     await page.getByRole('button', { name: 'View', exact: true }).click();
     await page.getByRole('button', { name: 'Media Library', exact: true }).click();
-    await page.keyboard.press('Escape');
+    // The View menu closes on the click; press Escape only if its entry lingers.
+    // An unconditional Escape would now close the media library itself (P4).
+    const mediaEntry = page.getByRole('button', { name: 'Media Library', exact: true });
+    if (await mediaEntry.isVisible().catch(() => false)) await page.keyboard.press('Escape');
     await page.getByTitle('Sunrise').click();
-    await page.getByRole('button', { name: 'Use', exact: true }).click();
-    await page.getByRole('button', { name: 'Set Slide Background', exact: true }).click();
+    // The detail pane's explicit action (plan #155-P4) closes the library itself.
+    await page.getByRole('button', { name: 'Set slide background', exact: true }).click();
     const closeMedia = page.getByRole('button', { name: 'Close media library' });
     if (await closeMedia.isVisible().catch(() => false)) await closeMedia.click();
     await expect(closeMedia).toHaveCount(0);

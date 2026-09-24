@@ -61,6 +61,8 @@ interface MediaLibraryBrowserProps {
   mediaLibrary: MediaLibraryProp;
   /** Single click on a media tile — the host decides what selection means. */
   onPhotoClick: (photo: LibraryMedia) => void;
+  /** Right-click on a media tile; the host renders its own menu at (x, y). */
+  onPhotoContextMenu?: (photo: LibraryMedia, x: number, y: number) => void;
   selectedMediaId?: string | null;
   columns?: 3 | 4;
   gridMaxHeightClass?: string;
@@ -100,6 +102,14 @@ const mediaTileClass = (selected: boolean) =>
 const tileLabel = 'max-w-[92%] truncate text-[11px] font-medium text-text-primary';
 const hintClass = 'col-span-full py-6 text-center text-sm text-text-tertiary';
 
+/** The one wording for deleting a media item — the tile's trash and the detail pane share it. */
+export async function confirmDeleteMedia(photo: LibraryMedia): Promise<boolean> {
+  return confirmDialog(
+    `Delete "${photo.fileName}" from the media library? The file on your hard drive will not be deleted.`,
+    { title: 'Delete Media', confirmLabel: 'Delete', danger: true }
+  );
+}
+
 /** Ask for a folder name until it is valid or the user cancels; never loses typed text. */
 async function askFolderName(
   title: string,
@@ -128,6 +138,7 @@ export const MediaLibraryBrowser = forwardRef<MediaLibraryBrowserHandle, MediaLi
     {
       mediaLibrary,
       onPhotoClick,
+      onPhotoContextMenu,
       selectedMediaId = null,
       columns = 4,
       gridMaxHeightClass = 'max-h-[60vh]',
@@ -357,11 +368,7 @@ export const MediaLibraryBrowser = forwardRef<MediaLibraryBrowserHandle, MediaLi
     };
 
     const deletePhoto = async (photo: LibraryMedia) => {
-      const ok = await confirmDialog(
-        `Delete "${photo.fileName}" from the media library? The file on your hard drive will not be deleted.`,
-        { title: 'Delete Media', confirmLabel: 'Delete', danger: true }
-      );
-      if (ok) await mediaLibrary.deletePhoto(photo.mediaId);
+      if (await confirmDeleteMedia(photo)) await mediaLibrary.deletePhoto(photo.mediaId);
     };
 
     const gridColsClass = columns === 3 ? 'grid-cols-3' : 'grid-cols-4';
@@ -375,6 +382,12 @@ export const MediaLibraryBrowser = forwardRef<MediaLibraryBrowserHandle, MediaLi
           title={photo.fileName}
           draggable
           onClick={() => onPhotoClick(photo)}
+          onContextMenu={(e) => {
+            if (!onPhotoContextMenu) return;
+            e.preventDefault();
+            e.stopPropagation();
+            onPhotoContextMenu(photo, e.clientX, e.clientY);
+          }}
           onDragStart={(e) => {
             beginDrag({ kind: 'photo', id: photo.mediaId });
             e.dataTransfer?.setData?.(MEDIA_DRAG_TYPE, photo.mediaId);

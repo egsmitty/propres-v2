@@ -5,7 +5,7 @@ import StatusBar from '@/components/layout/StatusBar';
 import Filmstrip from '@/components/editor/Filmstrip';
 import Canvas from '@/components/editor/Canvas';
 import SongLibraryPanel from '@/components/library/SongLibraryPanel';
-import MediaLibraryPanel from '@/components/library/MediaLibraryPanel';
+import MediaLibraryModal from '@/components/library/MediaLibraryModal';
 import SongEditorModal from '@/components/library/SongEditorModal';
 import PresenterPanel from '@/components/presenter/PresenterPanel';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
@@ -317,7 +317,7 @@ export default function Editor() {
   async function handlePresent() {
     if (!presentation) return;
     if (panelOpen) {
-      await alertDialog('Close any open library or editor panels before presenting.', {
+      await alertDialog('Close the Media Library and any open panels before presenting.', {
         title: 'Cannot Present',
       });
       return;
@@ -344,6 +344,7 @@ export default function Editor() {
       {presentationSettingsOpen && <PresentationSettingsModal />}
       {versionHistoryOpen && <VersionHistoryModal />}
       {outputSettingsOpen && <OutputSettingsModal />}
+      {mediaLibraryOpen && <MediaLibraryModal />}
       {newSongEditorOpen && (
         <SongEditorModal
           song={null}
@@ -359,7 +360,6 @@ export default function Editor() {
       />
       <div className="flex flex-1 overflow-hidden relative">
         {songLibraryOpen && <SongLibraryPanel />}
-        {mediaLibraryOpen && <MediaLibraryPanel />}
         <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
           <div className="shrink-0 flex h-full overflow-hidden">
             {filmstripVisible ? (
