@@ -27,7 +27,6 @@ const BUDGET: Record<string, number> = {
   // stage transform) — dynamic by definition.
   'components/shared/SlideRender.jsx': 8,
   'components/editor/PresentationSettingsModal.jsx': 7,
-  'components/library/MediaLibraryPanel.jsx': 7,
   'components/shared/Dialog.jsx': 7,
   'components/layout/MenuBar.jsx': 5,
   'components/shared/ErrorBoundary.jsx': 5,

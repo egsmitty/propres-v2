@@ -99,6 +99,15 @@ PowerPoint-style alternative to ProPresenter.
   (VH1–VH3); a public-domain first-run seed (S1); database lifecycle and a
   startup-failure screen (DB1/DB2/MB1); onboarding accuracy (H2); even toolbar
   spacing (#165) and the in-app menu order matching the native bar (#168).
+- The media library port (#155, #156; September 2026): the Motion-Worship
+  Builder's library system brought over and reformatted to this app — a floating
+  modal with nested folders (three levels, `media_folders.parent_id`, migration
+  6, recursive cascade delete), breadcrumb and folder dropdown, recursive search,
+  a generous item cap, drag-and-drop between folders and onto the canvas or
+  filmstrip, and a detail pane with explicit actions in place of the old
+  Use / More / Delete footer. Still Ethan's calls: a non-dimming floating surface
+  (drag-out works) vs a dimmed modal; a multi-select import not enforcing the
+  cap; whether the library may open while presenting.
 
 ## In Progress
 
@@ -121,8 +130,9 @@ coded, its review unfinished. **Next in order:** the D8 storage migrations
 CMD-S2 Toolbar, FS-38 Filmstrip), then the design docs. The Part 11 decisions
 — above all D6, the save model — are Ethan's.
 
-**Deferred by decision:** redesign-scale UI (the media library, #155; Home and
-the title/rename header, #167) waits on direction.
+**Deferred by decision:** redesign-scale UI for Home and the title/rename header
+(#167) waits on direction. The media library (#155) shipped in September 2026 —
+see What's Built.
 
 ## What's Pending
 
@@ -156,6 +166,15 @@ the title/rename header, #167) waits on direction.
 - Background inheritance is normalized through `src/utils/backgrounds.js`.
 - Background rendering resolves locally in renderer windows rather than making
   every IPC call carry a full media payload.
+- **Media library (plan #155).** `MediaLibraryModal` (floating, non-dimming)
+  hosts `MediaLibraryBrowser`, a near-verbatim port of the Builder's browser
+  reskinned to our tokens, over the `useMediaLibrary` hook, which implements the
+  Builder's `MediaLibraryProp` seam on `src/utils/ipc.ts`. Rows are adapted in
+  `src/utils/mediaLibraryAdapter.ts` (string ids in the UI, the raw row's numeric
+  id to the store); the pure folder math is `src/utils/mediaFolders.ts`. Media
+  is registered by path through the native picker (Electron 44 has no
+  `File.path`), never uploaded. The drag MIME `application/presenterpro-media-id`
+  carries the numeric id as a string and is what Canvas and Filmstrip accept.
 - Section background is the primary background model; it persists under text
   across slide changes within a section until changed.
 - Renderer talks to main only through `src/utils/ipc.ts`, which returns a

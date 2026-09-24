@@ -3045,3 +3045,15 @@ background" vs "Set Section background") finds two buttons — assert the exact
 fallback string. `update_baselines` uploads an artifact; nothing is committed —
 download it, copy the snapshot dirs, and `git status` must show exactly the
 named PNGs.
+
+---
+
+## #155-P5 — the old panel retired; the port is complete (2026-09-24)
+
+Last slice: `MediaLibraryPanel.jsx` deleted (nothing imported it after P4), its
+inline-style ceiling removed, `CLAUDE.md` brought in line. The ratchet's own
+"every ceiling is exact" case was the red — a deleted file counts 0 against its
+7 — so no new assertion was needed; the plan's first draft proposed one before
+reading the test to its end, a small reminder to finish the file. Five PRs in
+all for #155: the nested-folder data layer, the pure folder logic, the ported
+browser + hook + modal (unmounted), the detail pane + Editor switch, and this.
