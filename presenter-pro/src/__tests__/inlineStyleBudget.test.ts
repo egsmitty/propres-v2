@@ -60,6 +60,9 @@ function countInlineStyles(file: string): number {
  * that must stay highlighted while dragging. Ceiling 0 everywhere else.
  */
 const HOVER_HANDLER_BUDGET: Record<string, number> = {
+  // Plan #155-P3: a video tile plays on hover and pauses on leave. That is
+  // behaviour (media playback), not a painted hover look — no class can do it.
+  'components/library/MediaTilePreview.tsx': 1,
   'components/presenter/PresenterPanel.jsx': 2,
   'components/layout/MenuBar.jsx': 1,
   'pages/Editor.jsx': 1,
