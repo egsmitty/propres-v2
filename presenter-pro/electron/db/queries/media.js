@@ -20,48 +20,27 @@ function getMediaFolders(db) {
     .all();
 }
 
-function createMediaFolder(db, { name, parentId } = {}) {
+// Both spellings are accepted (the column name, and the camelCase the
+// renderer's folder model uses) so a caller using either gets the folder it
+// asked for instead of a silent root. `?? null`: a bare undefined bind throws.
+function resolveParentId(fields, fallback) {
+  if (fields.parent_id !== undefined) return fields.parent_id ?? null;
+  if (fields.parentId !== undefined) return fields.parentId ?? null;
+  return fallback ?? null;
+}
+
+function createMediaFolder(db, fields = {}) {
   const stmt = db.prepare(`
     INSERT INTO media_folders (name, parent_id)
     VALUES (?, ?)
   `);
-  // parentId ?? null: a bare undefined bind throws in better-sqlite3, and a
-  // missing parent means the root.
-  const result = stmt.run(name, parentId ?? null);
+  const result = stmt.run(fields.name, resolveParentId(fields, null));
   return db.prepare('SELECT * FROM media_folders WHERE id = ?').get(result.lastInsertRowid);
 }
 
-function updateMediaFolder(db, id, updates = {}) {
-  const current = db.prepare('SELECT * FROM media_folders WHERE id = ?').get(id);
-  if (!current) return null;
-
-  // A plain {...current, ...updates} spread never maps the `parentId` alias
-  // onto the `parent_id` column, and binding a bare `undefined` throws. Resolve
-  // each column explicitly and bind `?? null` so a rename keeps the parent and a
-  // move keeps the name (plan #155-P1, S1).
-  const name = updates.name ?? current.name;
-  const rawParent =
-    updates.parent_id !== undefined
-      ? updates.parent_id
-      : updates.parentId !== undefined
-        ? updates.parentId
-        : current.parent_id;
-
-  db.prepare(
-    `
-    UPDATE media_folders
-    SET name = ?, parent_id = ?
-    WHERE id = ?
-  `
-  ).run(name, rawParent ?? null, id);
-
-  return db.prepare('SELECT * FROM media_folders WHERE id = ?').get(id);
-}
-
-// Every folder below `id` (excluding `id` itself). UNION, never UNION ALL: the
-// dedup terminates even when a corrupt parent_id forms a cycle, so the cascade
-// below is safe without a move-legality guard at the data layer (plan #155-P1,
-// S2). The cascade re-adds `id` itself.
+// Every folder below `id`, excluding `id` itself, ordered by id. UNION, never
+// UNION ALL: the dedup terminates even when a corrupt parent_id forms a cycle
+// (plan #155-P1, S2).
 function getMediaFolderDescendants(db, id) {
   return db
     .prepare(
@@ -73,18 +52,69 @@ function getMediaFolderDescendants(db, id) {
         FROM media_folders mf
         JOIN descendants d ON mf.parent_id = d.id
     )
-    SELECT id FROM descendants
+    SELECT id FROM descendants ORDER BY id
   `
     )
     .all(id);
 }
 
+function updateMediaFolder(db, id, updates = {}) {
+  const current = db.prepare('SELECT * FROM media_folders WHERE id = ?').get(id);
+  if (!current) return null;
+
+  // Resolve each column explicitly: a {...current, ...updates} spread would
+  // never map the parentId alias onto parent_id (plan #155-P1, S1).
+  const name = updates.name ?? current.name;
+  const parentId = resolveParentId(updates, current.parent_id);
+
+  // Write-time legality, so a bad move can never strand a subtree where no
+  // root reaches it (review of PR #172). The depth cap stays a UI rule.
+  if (parentId !== null && parentId !== current.parent_id) {
+    if (parentId === id) {
+      throw new Error('A folder cannot be moved into itself.');
+    }
+    if (!db.prepare('SELECT 1 FROM media_folders WHERE id = ?').get(parentId)) {
+      throw new Error('The destination folder does not exist.');
+    }
+    if (getMediaFolderDescendants(db, id).some((row) => row.id === parentId)) {
+      throw new Error('A folder cannot be moved into its own subtree.');
+    }
+  }
+
+  db.prepare(
+    `
+    UPDATE media_folders
+    SET name = ?, parent_id = ?
+    WHERE id = ?
+  `
+  ).run(name, parentId, id);
+
+  return db.prepare('SELECT * FROM media_folders WHERE id = ?').get(id);
+}
+
+// The whole subtree — the folder, every descendant folder, and every media
+// row in any of them — in one transaction, as two fixed statements. The CTE is
+// seeded with the folder itself, so no id list is built in JS and the
+// parameter count never grows with the tree. Media first, while the folders
+// that name them still exist. UNION dedup makes a corrupt cycle terminate.
+// Files on disk are never touched (media is referenced in place).
+const SUBTREE_CTE = `
+    WITH RECURSIVE subtree(id) AS (
+      SELECT ?
+      UNION
+      SELECT mf.id
+        FROM media_folders mf
+        JOIN subtree s ON mf.parent_id = s.id
+    )`;
+
 function deleteMediaFolder(db, id) {
   const tx = db.transaction((folderId) => {
-    const ids = [folderId, ...getMediaFolderDescendants(db, folderId).map((row) => row.id)];
-    const placeholders = ids.map(() => '?').join(', ');
-    db.prepare(`DELETE FROM media WHERE folder_id IN (${placeholders})`).run(...ids);
-    db.prepare(`DELETE FROM media_folders WHERE id IN (${placeholders})`).run(...ids);
+    db.prepare(`${SUBTREE_CTE} DELETE FROM media WHERE folder_id IN (SELECT id FROM subtree)`).run(
+      folderId
+    );
+    db.prepare(`${SUBTREE_CTE} DELETE FROM media_folders WHERE id IN (SELECT id FROM subtree)`).run(
+      folderId
+    );
   });
   tx(id);
 }

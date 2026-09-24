@@ -2960,3 +2960,17 @@ folded into the plan before any code. **What it missed, and CI caught:**
 The unit gate never runs E2E specs, and both the plan and the fresh review only
 looked under `electron/db/__tests__`. **Trap for every future migration: grep
 `e2e/` for `schema_migrations` as well as the unit tests.**
+
+An independent review of the PR then found seven things, five of them fixed on
+the branch: `updateMediaFolder` now refuses a move into itself, into its own
+subtree, or under a missing folder (a bad payload used to strand a subtree no
+root could reach — the cycle-safe CTE made *delete* safe, not the write);
+`createMediaFolder` takes `parent_id` as well as `parentId`; two assertions that
+sorted both sides (forbidden by `testing-standards.mdc`, and I had cited the
+anti-weakening clause in the same plan) now assert exact order, with `ORDER BY
+id` in the CTE; the cascade became two fixed statements seeded by `SELECT ?`
+instead of a JS id round-trip spliced into `IN (?, …)`; and a mid-tree deletion
+case the plan claimed but the test lacked was added. Declined with reasons: a
+`REFERENCES` FK on `parent_id` (that is MAIN-B17's job, and `media.folder_id`
+has none). Deferred as a Phase 3 hard requirement: the old panel's delete
+confirm counts direct children only.

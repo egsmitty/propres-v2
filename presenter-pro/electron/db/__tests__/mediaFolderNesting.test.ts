@@ -74,8 +74,10 @@ describe('media_folders nesting (plan #155-P1)', () => {
     const grandchild = folder('Morning', child.id as number);
     const sibling = folder('Midweek');
 
+    // Exact and ordered (ORDER BY id): no sorting either side, per the
+    // testing standards — an ordering regression must fail here.
     const ids = (media.getMediaFolderDescendants(db, root.id) as Row[]).map((r) => r.id);
-    expect([...ids].sort()).toEqual([child.id, grandchild.id].sort());
+    expect(ids).toEqual([child.id, grandchild.id]);
     expect(ids).not.toContain(root.id);
     expect(ids).not.toContain(sibling.id);
   });
@@ -96,16 +98,58 @@ describe('media_folders nesting (plan #155-P1)', () => {
 
     // Every folder in the deleted subtree is gone; the sibling remains.
     expect(folderIds()).toEqual([sibling.id]);
-    // Media in the whole deleted subtree is gone; the sibling's and loose media stay.
-    expect((media.getMedia(db) as Row[]).map((m) => m.name).sort()).toEqual(
-      ['loose', 'sibling-bg'].sort()
+    // Media in the whole deleted subtree is gone; the sibling's and loose media
+    // stay, in getMedia's own order (created_at DESC, id DESC = newest first).
+    expect((media.getMedia(db) as Row[]).map((m) => m.name)).toEqual(['loose', 'sibling-bg']);
+  });
+
+  it('deleteMediaFolder mid-tree: deleting the child removes the grandchild and its media, the parent and its media survive', () => {
+    const root = folder('Backgrounds');
+    const child = folder('Sunday', root.id as number);
+    const grandchild = folder('Morning', child.id as number);
+    item({ name: 'root-bg', folder_id: root.id });
+    item({ name: 'child-bg', folder_id: child.id });
+    item({ name: 'grandchild-bg', folder_id: grandchild.id });
+
+    media.deleteMediaFolder(db, child.id);
+
+    expect(folderIds()).toEqual([root.id]);
+    expect((media.getMedia(db) as Row[]).map((m) => m.name)).toEqual(['root-bg']);
+  });
+
+  it('createMediaFolder accepts the column spelling parent_id as well as parentId', () => {
+    const root = folder('Backgrounds');
+    const viaColumn = media.createMediaFolder(db, { name: 'Sunday', parent_id: root.id }) as Row;
+    expect(folderRow(viaColumn.id)?.parent_id).toBe(root.id);
+  });
+
+  it('updateMediaFolder rejects a move under itself, under its own descendant, or under a folder that does not exist — and leaves the row unchanged', () => {
+    const root = folder('Backgrounds');
+    const child = folder('Sunday', root.id as number);
+    const grandchild = folder('Morning', child.id as number);
+    const before = folderRow(child.id);
+
+    expect(() => media.updateMediaFolder(db, child.id, { parentId: child.id })).toThrow(
+      /into itself/
+    );
+    expect(() => media.updateMediaFolder(db, child.id, { parentId: grandchild.id })).toThrow(
+      /its own subtree/
+    );
+    expect(() => media.updateMediaFolder(db, child.id, { parentId: 9999 })).toThrow(
+      /does not exist/
+    );
+    expect(folderRow(child.id)).toEqual(before);
+    // A plain rename with no parent in the payload is still fine afterwards.
+    expect((media.updateMediaFolder(db, child.id, { name: 'Sunday AM' }) as Row).name).toBe(
+      'Sunday AM'
     );
   });
 
   it('deleteMediaFolder terminates and clears a corrupt parent_id cycle (UNION dedup guard)', () => {
     const a = folder('A');
     const b = folder('B', a.id as number);
-    // Persist an illegal cycle straight through the column: A's parent is B.
+    // Persist an illegal cycle straight through the column (bypassing
+    // updateMediaFolder's guard, as a corrupt/old database could): A's parent is B.
     db.prepare('UPDATE media_folders SET parent_id = ? WHERE id = ?').run(b.id, a.id);
     item({ name: 'a-bg', folder_id: a.id });
     item({ name: 'b-bg', folder_id: b.id });

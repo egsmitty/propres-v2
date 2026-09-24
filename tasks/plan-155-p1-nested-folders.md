@@ -69,6 +69,26 @@ touching any renderer surface yet. Branch base `main` @ `748d8f5`. One PR.
    is written; the UI won't offer an illegal one. This is safe **because the
    cascade CTE dedups** (decision 4): even a persisted cycle is deleted cleanly, so
    leaving legality to the UI cannot strand the data layer.
+   **Revised after the independent review of PR #172:** the *depth cap* stays a
+   UI rule, but **reachability is enforced at write time** — `updateMediaFolder`
+   throws on a move into itself, into its own subtree, or under a folder that
+   does not exist. Otherwise one bad payload would leave a folder that no root
+   reaches: never listed in a tree view, never deletable, a silent leak. The
+   cycle-safe CTE only made *delete* safe; it did not stop the corrupt write.
+7. **No `REFERENCES media_folders(id)` on `parent_id` (review finding, declined
+   here).** The app runs `foreign_keys = ON`, so an FK would reject dangling
+   parents natively — but `media.folder_id` has none either, and foreign keys
+   across the media tables are the planned **MAIN-B17** migration in the D8
+   storage set. Adding one column's FK here would fragment that work and
+   diverge the two columns; decision 6's write-time check covers the same
+   hazard in the meantime. Revisit in MAIN-B17.
+8. **The old panel's delete-folder confirm under-counts (review finding,
+   deferred with a hard requirement).** `MediaLibraryPanel.handleDeleteFolder`
+   counts direct-child media only, while the cascade now removes descendants'
+   media too. Unreachable today — the panel can only create root folders — and
+   the panel is retired in Phase 5. **Phase 3's modal must confirm with the
+   Builder's `collectCascadeDescendants` counts (folders + media) before it
+   exposes nesting.** Recorded in the charter.
 
 **Anti-weakening clause (verbatim):** _If an assertion fails, the bug is
 elsewhere — never loosen the assertion to pass. Fix the root cause or record it
@@ -109,11 +129,17 @@ subset of the recursive cascade, no edit (N2).
       impossible on current code (no column; `parentId` ignored). Then the
       behavior cases (exercisable only after Todos 2–3): a rename keeps the parent;
       a **move to another parent** changes only `parent_id`; a **move to root**
-      sets it `null`; `getMediaFolderDescendants` **excludes self**; a **3-deep
-      chain** (root→child→grandchild) — deleting the child removes the grandchild
-      **and the grandchild's media**, proving recursion; a **sibling subtree
-      survives**; and a **cycle** persisted via the raw column (A↔B) is deleted
-      cleanly without hanging (proves the `UNION` guard, S2/S4).
+      sets it `null`; `getMediaFolderDescendants` **excludes self** and returns
+      in id order (asserted exactly — no sorting either side); a **3-deep chain**
+      (root→child→grandchild) deleted at the **root** removes everything below
+      it while a **sibling subtree survives**; the same chain deleted **mid-tree
+      at the child** removes the grandchild **and the grandchild's media** while
+      the root and its media survive (proves recursion in both directions);
+      `createMediaFolder` accepts **both `parent_id` and `parentId`**;
+      `updateMediaFolder` **rejects** a move into itself, into its own subtree,
+      or under a missing folder and leaves the row unchanged; and a **cycle**
+      persisted via the raw column (A↔B) is deleted cleanly without hanging
+      (proves the `UNION` guard, S2/S4).
 - [x] 2. Migration 6 `mediaFolderNesting` (`addColumnIfMissing`) + list entry;
       update `migrations.test.ts` (list → 1–6 + name, B1) and the
       `realSqlite.migrations.test.ts` assertions/fixture (future version → 7,
@@ -172,7 +198,7 @@ assertion; `realSqlite.migrations.test.ts` applied/list/no-op-count → 1–6, t
 `COLUMNS_LEGACY_LACKS` += `media_folders.parent_id`. The single-level cascade
 test stayed green untouched (a subset of the recursive cascade).
 
-**Gate:** type-check ✓ · lint ✓ · vitest 1111/1111 passed (0 skipped) ·
+**Gate:** type-check ✓ · lint ✓ · vitest 1115/1115 passed (0 skipped; 10 nesting cases) ·
 prettier ✓. **E2E:** the first CI run failed on `e2e/migrations.spec.ts` (three
 version-list pins at 1–5); fixed on the branch, CI is the proof.
 
@@ -180,3 +206,21 @@ version-list pins at 1–5); fixed on the branch, CI is the proof.
 migration-list test, the version-6 fixture collision) and the `updateMediaFolder`
 alias/undefined-bind + `UNION`-vs-`UNION ALL` hardening — all folded in before
 coding.
+
+**Independent post-PR review (7 findings) and what changed.**
+- *Fixed:* `updateMediaFolder` now rejects a move into itself / its own subtree /
+  a missing parent (write-time reachability; decision 6 revised).
+- *Fixed:* `createMediaFolder` accepts `parent_id` as well as `parentId` (a
+  column-spelling call used to produce a silent root folder).
+- *Fixed:* two test assertions sorted both sides, which `testing-standards.mdc`
+  forbids; both now assert exact order, and the descendants CTE gained
+  `ORDER BY id` so that order is a contract.
+- *Fixed:* the cascade is two fixed statements with the CTE seeded by the folder
+  itself (`SELECT ?`), instead of a JS id round-trip spliced into a dynamic
+  `IN (?, …)` — no statement churn, no variable-count bound.
+- *Fixed:* the plan claimed a mid-tree (delete-the-child) proof the test did not
+  have; the case was added and the Todo text now matches the tests.
+- *Declined, recorded:* the `REFERENCES` foreign key (belongs to MAIN-B17;
+  decision 7).
+- *Deferred, recorded as a Phase 3 requirement:* the old panel's under-counting
+  delete confirm (decision 8).

@@ -134,7 +134,11 @@ tokens; Tailwind v3 gray/indigo/red/amber classes → our Tailwind-4 token class
   `MAX_FOLDER_PATH_DEPTH=3`) and `dragAutoScroll.ts` into `src/utils/`, keeping
   the Builder's shapes (`MediaFolder`, `FolderedPhotoLike`) so the browser ports
   cleanly; full unit tests. Standalone, no wiring.
-- **Phase 3 — the browser + modal + hook.** Port `MediaLibraryBrowser` reskinned
+- **Phase 3 — the browser + modal + hook.** **Hard requirement carried from the
+  P1 review:** the folder-delete confirm must state the *cascade* counts (every
+  descendant folder + every media row in the subtree, via the ported
+  `collectCascadeDescendants`) — the old panel counts direct children only and
+  is wrong the moment nesting is exposed. Port `MediaLibraryBrowser` reskinned
   to our tokens (drop `EditorSurfaceContext`, swap TrashIcon → lucide, Input →
   ours, use `dialog.js` + `ContextMenu`). Write `useMediaLibrary` over our IPC +
   an adapter (our `MediaRecord` ↔ `MediaLibraryPhoto`/`MediaFolder`). Mount in a
