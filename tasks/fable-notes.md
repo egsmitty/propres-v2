@@ -2974,3 +2974,19 @@ case the plan claimed but the test lacked was added. Declined with reasons: a
 `REFERENCES` FK on `parent_id` (that is MAIN-B17's job, and `media.folder_id`
 has none). Deferred as a Phase 3 hard requirement: the old panel's delete
 confirm counts direct children only.
+
+---
+
+## #155-P2 — the Builder's pure media-folder logic, ported (2026-09-24)
+
+Second slice of the #155 port: `mediaFolders.ts` and `dragAutoScroll.ts` from
+the Builder's #327 rework land in `src/utils/` as standalone TypeScript with 30
+tests — the Builder ships none for them, so the tests were written from the
+functions' own contracts. Behavior is verbatim; the ids stay strings (the Phase
+3 hook adapts our INTEGER rows with `String(id)` so `MediaLibraryBrowser` can be
+a near-verbatim port too). Two constants deliberately differ and are pinned by a
+test: the cap is 1000 (Ethan: generous, not the Builder's cloud-quota 500) and
+folder names allow 40 characters (the Builder's 20 is its editor-field
+affordance; ours have never had a limit and 20 rejects "Christmas Backgrounds
+2026"). Nothing imports the modules yet. No fresh review: no runtime path
+changes.
