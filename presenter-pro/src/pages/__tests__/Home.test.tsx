@@ -82,3 +82,34 @@ describe('Home presentation row — actions reachable by keyboard focus (HOME-11
     expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument();
   });
 });
+
+// Issue #154. Hovering the More actions (…) button should mirror the Pin
+// button's hover treatment — the ring shadow and the border highlight — on both
+// the Home Recent list and the Open list. Before this fix the … button carried
+// no `hover:` classes, so it stayed inert while the Pin beside it lit up.
+describe('Home presentation row — More actions mirrors Pin hover (#154)', () => {
+  const PIN_HOVER_CLASSES = [
+    'hover:shadow-[0_0_0_2px_rgba(74,124,255,0.12)]',
+    'hover:border-border-default',
+  ];
+
+  it('gives the More actions button the same hover classes as the (unpinned) Pin', async () => {
+    const row = await renderHomeWithRow();
+    act(() => {
+      row.focus();
+    });
+
+    const pin = screen.getByRole('button', { name: /Pin presentation/ });
+    const more = screen.getByRole('button', { name: 'More actions' });
+
+    // Guard: the Pin really does carry the hover treatment we are mirroring, so
+    // this test fails loudly if the Pin's own classes drift rather than silently
+    // passing against a stale constant.
+    for (const cls of PIN_HOVER_CLASSES) {
+      expect(pin.className).toContain(cls);
+    }
+    for (const cls of PIN_HOVER_CLASSES) {
+      expect(more.className).toContain(cls);
+    }
+  });
+});

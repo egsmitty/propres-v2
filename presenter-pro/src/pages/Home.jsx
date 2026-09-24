@@ -1071,7 +1071,7 @@ function PresentationRow({
                   listContext
                 );
               }}
-              className="w-11 h-11 rounded-full flex items-center justify-center bg-transparent text-text-tertiary border border-border-subtle"
+              className="w-11 h-11 rounded-full flex items-center justify-center bg-transparent text-text-tertiary border border-border-subtle hover:shadow-[0_0_0_2px_rgba(74,124,255,0.12)] hover:border-border-default"
             >
               <MoreHorizontal size={18} />
             </button>
