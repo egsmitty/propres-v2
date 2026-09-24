@@ -33,6 +33,7 @@ const COLUMNS_LEGACY_LACKS: ReadonlyArray<[table: string, column: string]> = [
   ['songs', 'built_in_key'],
   ['songs', 'built_in_revision'],
   ['media', 'folder_id'],
+  ['media_folders', 'parent_id'],
   ['media', 'canonical_path'],
 ];
 
@@ -68,9 +69,9 @@ function run() {
 }
 
 describe('migration runner on the legacy schema (real SQLite)', () => {
-  it('applies exactly 1–5, records them, and adds every column the legacy schema lacks', () => {
+  it('applies exactly 1–6, records them, and adds every column the legacy schema lacks', () => {
     const result = run();
-    expect(result.applied).toEqual([1, 2, 3, 4, 5]);
+    expect(result.applied).toEqual([1, 2, 3, 4, 5, 6]);
     expect(
       db.prepare('SELECT version, name FROM schema_migrations ORDER BY version').all()
     ).toEqual([
@@ -79,6 +80,7 @@ describe('migration runner on the legacy schema (real SQLite)', () => {
       { version: 3, name: 'claim-legacy-built-in-hymns' },
       { version: 4, name: 'built-in-revision' },
       { version: 5, name: 'presentation-versions' },
+      { version: 6, name: 'media-folder-nesting' },
     ]);
     for (const [table, column] of COLUMNS_LEGACY_LACKS) {
       expect(columnsOf(db, table), `${table}.${column}`).toContain(column);
@@ -133,16 +135,16 @@ describe('migration runner on the legacy schema (real SQLite)', () => {
     const second = run();
     expect(second).toEqual({ applied: [], backupPath: null });
     expect(readdirSync(dir)).toEqual(before);
-    expect(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()).toEqual({ n: 5 });
+    expect(db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()).toEqual({ n: 6 });
   });
 });
 
 describe('migration runner refuses a database from a newer build (MAIN-B12, real SQLite)', () => {
   it('throws NewerSchemaVersionError and writes no second backup when the recorded version exceeds MIGRATIONS', () => {
-    run(); // bring the legacy fixture up to the current version (5)
+    run(); // bring the legacy fixture up to the current version (6)
     const before = readdirSync(dir);
     db.prepare(
-      "INSERT INTO schema_migrations (version, name, applied_at) VALUES (6, 'from-the-future', unixepoch())"
+      "INSERT INTO schema_migrations (version, name, applied_at) VALUES (7, 'from-the-future', unixepoch())"
     ).run();
 
     let thrown: unknown;

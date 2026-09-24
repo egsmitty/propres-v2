@@ -2937,6 +2937,46 @@ so the mirror can't pass against a stale literal.
 
 ---
 
+## #155-P1 — nested media folders, data layer (2026-09-23)
+
+First slice of the #155 media-library port (charter: `plan-155-media-library-port.md`;
+Ethan's directive — bring Motion-Worship Builder's media-library UX into the app,
+reformatted to our sqlite+IPC, without touching the Builder repo). Our
+`media_folders` was flat; the Builder nests 3 levels. Migration 6 adds a nullable
+`parent_id`; `createMediaFolder`/`updateMediaFolder` carry it (with explicit
+`parentId` alias handling and `?? null` binds so a rename keeps the parent and a
+move keeps the name); `deleteMediaFolder` now cascades the whole subtree in one
+transaction via a deduping `WITH RECURSIVE … UNION` CTE (`getMediaFolderDescendants`).
+The UNION dedup is deliberate: it terminates even on a corrupt `parent_id` cycle,
+so move-legality can stay UI-only (Phase 3) without stranding the data layer. No
+UI or IPC change — the folder handlers already pass the data object through.
+
+A fresh pre-implementation review earned its keep: it caught the frozen
+`migrations.test.ts` list (had to go 1–5 → 1–6), the `realSqlite.migrations.test.ts`
+"from-the-future" fixture colliding with the real version 6 (moved to 7), and the
+`updateMediaFolder` alias/undefined-bind and `UNION`-vs-`UNION ALL` traps — all
+folded into the plan before any code. **What it missed, and CI caught:**
+`e2e/migrations.spec.ts` pins the recorded migration list at 1–5 in three tests.
+The unit gate never runs E2E specs, and both the plan and the fresh review only
+looked under `electron/db/__tests__`. **Trap for every future migration: grep
+`e2e/` for `schema_migrations` as well as the unit tests.**
+
+An independent review of the PR then found seven things, five of them fixed on
+the branch: `updateMediaFolder` now refuses a move into itself, into its own
+subtree, or under a missing folder (a bad payload used to strand a subtree no
+root could reach — the cycle-safe CTE made *delete* safe, not the write);
+`createMediaFolder` takes `parent_id` as well as `parentId`; two assertions that
+sorted both sides (forbidden by `testing-standards.mdc`, and I had cited the
+anti-weakening clause in the same plan) now assert exact order, with `ORDER BY
+id` in the CTE; the cascade became two fixed statements seeded by `SELECT ?`
+instead of a JS id round-trip spliced into `IN (?, …)`; and a mid-tree deletion
+case the plan claimed but the test lacked was added. Declined with reasons: a
+`REFERENCES` FK on `parent_id` (that is MAIN-B17's job, and `media.folder_id`
+has none). Deferred as a Phase 3 hard requirement: the old panel's delete
+confirm counts direct children only.
+
+---
+
 ## #155-P2 — the Builder's pure media-folder logic, ported (2026-09-24)
 
 Second slice of the #155 port: `mediaFolders.ts` and `dragAutoScroll.ts` from

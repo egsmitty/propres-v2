@@ -191,10 +191,22 @@ function presentationVersions(db: MigrationDb): void {
   );
 }
 
+/**
+ * Migration 6 (plan #155-P1): the media library gains nested folders. A
+ * nullable `parent_id` on `media_folders` turns the flat list into a tree
+ * (NULL = root). Existing folders become roots, which is correct — the model
+ * was one flat level. Inspection-guarded like every column add here; no index
+ * (the folder tree is small and folder reads are ordered in JS already).
+ */
+function mediaFolderNesting(db: MigrationDb): void {
+  addColumnIfMissing(db, 'media_folders', 'parent_id', 'INTEGER');
+}
+
 export const MIGRATIONS: ReadonlyArray<Migration> = [
   { version: 1, name: 'baseline-schema', up: baselineSchema },
   { version: 2, name: 'presentation-journal', up: presentationJournal },
   { version: 3, name: 'claim-legacy-built-in-hymns', up: claimLegacyBuiltInHymns },
   { version: 4, name: 'built-in-revision', up: builtInRevision },
   { version: 5, name: 'presentation-versions', up: presentationVersions },
+  { version: 6, name: 'media-folder-nesting', up: mediaFolderNesting },
 ];
