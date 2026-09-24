@@ -2934,3 +2934,19 @@ neutral hover treatment to the More button —
 the pair feel the same. One `className` change. A new `Home.test.tsx` test asserts
 the More button carries both hover classes and guards that the Pin still does,
 so the mirror can't pass against a stale literal.
+
+---
+
+## #155-P2 — the Builder's pure media-folder logic, ported (2026-09-24)
+
+Second slice of the #155 port: `mediaFolders.ts` and `dragAutoScroll.ts` from
+the Builder's #327 rework land in `src/utils/` as standalone TypeScript with 30
+tests — the Builder ships none for them, so the tests were written from the
+functions' own contracts. Behavior is verbatim; the ids stay strings (the Phase
+3 hook adapts our INTEGER rows with `String(id)` so `MediaLibraryBrowser` can be
+a near-verbatim port too). Two constants deliberately differ and are pinned by a
+test: the cap is 1000 (Ethan: generous, not the Builder's cloud-quota 500) and
+folder names allow 40 characters (the Builder's 20 is its editor-field
+affordance; ours have never had a limit and 20 rejects "Christmas Backgrounds
+2026"). Nothing imports the modules yet. No fresh review: no runtime path
+changes.
