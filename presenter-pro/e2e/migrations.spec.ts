@@ -110,6 +110,7 @@ const COLUMNS_LEGACY_LACKS: ReadonlyArray<[table: string, column: string]> = [
   ['songs', 'built_in_key'],
   ['media', 'folder_id'],
   ['media', 'canonical_path'],
+  ['media_folders', 'parent_id'],
 ];
 
 async function expectNoFatalStderr(launched: LaunchedApp): Promise<void> {
@@ -120,7 +121,7 @@ async function expectNoFatalStderr(launched: LaunchedApp): Promise<void> {
 }
 
 test.describe('database migrations', () => {
-  test('fresh install: creates the schema and records exactly migrations 1 through 5', async ({
+  test('fresh install: creates the schema and records exactly migrations 1 through 6', async ({
     launched,
   }) => {
     await expectNoFatalStderr(launched);
@@ -132,6 +133,7 @@ test.describe('database migrations', () => {
       { version: 3, name: 'claim-legacy-built-in-hymns' },
       { version: 4, name: 'built-in-revision' },
       { version: 5, name: 'presentation-versions' },
+      { version: 6, name: 'media-folder-nesting' },
     ]);
     // All six application tables exist, by exact name (presentation_journal
     // arrived with migration 2 — a behaviour-change edit to this expectation).
@@ -158,13 +160,14 @@ test.describe('database migrations', () => {
       const dir = launched.userDataDir;
       const db = dbPathIn(dir);
 
-      // Recorded as versions 1 through 5 without a baseline special case.
+      // Recorded as versions 1 through 6 without a baseline special case.
       expect(query(db, 'SELECT version, name FROM schema_migrations')).toEqual([
         { version: 1, name: 'baseline-schema' },
         { version: 2, name: 'presentation-journal' },
         { version: 3, name: 'claim-legacy-built-in-hymns' },
         { version: 4, name: 'built-in-revision' },
         { version: 5, name: 'presentation-versions' },
+        { version: 6, name: 'media-folder-nesting' },
       ]);
 
       // The missing table was created and every missing column added by
@@ -234,6 +237,7 @@ test.describe('database migrations', () => {
         { version: 3 },
         { version: 4 },
         { version: 5 },
+        { version: 6 },
       ]);
       // Still exactly the one backup from the first launch.
       expect(listBackups(dir)).toHaveLength(1);

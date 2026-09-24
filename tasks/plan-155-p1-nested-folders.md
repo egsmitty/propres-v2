@@ -90,6 +90,11 @@ as a suspected regression._
   `COLUMNS_LEGACY_LACKS` list gains `['media_folders','parent_id']` (N1).
 - new nesting query/cascade tests in `realSqlite.queries.test.ts` (or a new
   `mediaFolderNesting.test.ts`). This plan, the charter row, the notes entry.
+- `e2e/migrations.spec.ts` — **found by CI, not by the fresh review**: three
+  tests pin the recorded list at 1–5 (fresh install, legacy upgrade, no-op
+  second launch) and its `COLUMNS_LEGACY_LACKS` says "the exact set". All
+  extended to 6 / `media_folders.parent_id`. The unit gate cannot see E2E specs;
+  any future migration must grep `e2e/` for `schema_migrations` too.
 
 **May NOT change:** the `media` table shape, the protocol, serialization,
 `MediaLibraryPanel.jsx`, any renderer file, the IPC contract/handlers/wrappers.
@@ -168,7 +173,8 @@ assertion; `realSqlite.migrations.test.ts` applied/list/no-op-count → 1–6, t
 test stayed green untouched (a subset of the recursive cascade).
 
 **Gate:** type-check ✓ · lint ✓ · vitest 1111/1111 passed (0 skipped) ·
-prettier ✓.
+prettier ✓. **E2E:** the first CI run failed on `e2e/migrations.spec.ts` (three
+version-list pins at 1–5); fixed on the branch, CI is the proof.
 
 **Fresh review.** A pre-implementation review caught two blockers (the frozen
 migration-list test, the version-6 fixture collision) and the `updateMediaFolder`

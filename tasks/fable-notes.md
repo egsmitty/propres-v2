@@ -2942,4 +2942,8 @@ A fresh pre-implementation review earned its keep: it caught the frozen
 `migrations.test.ts` list (had to go 1–5 → 1–6), the `realSqlite.migrations.test.ts`
 "from-the-future" fixture colliding with the real version 6 (moved to 7), and the
 `updateMediaFolder` alias/undefined-bind and `UNION`-vs-`UNION ALL` traps — all
-folded into the plan before any code.
+folded into the plan before any code. **What it missed, and CI caught:**
+`e2e/migrations.spec.ts` pins the recorded migration list at 1–5 in three tests.
+The unit gate never runs E2E specs, and both the plan and the fresh review only
+looked under `electron/db/__tests__`. **Trap for every future migration: grep
+`e2e/` for `schema_migrations` as well as the unit tests.**
