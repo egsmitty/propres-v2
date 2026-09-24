@@ -2990,3 +2990,30 @@ folder names allow 40 characters (the Builder's 20 is its editor-field
 affordance; ours have never had a limit and 20 rejects "Christmas Backgrounds
 2026"). Nothing imports the modules yet. No fresh review: no runtime path
 changes.
+
+---
+
+## #155-P3 — the ported browser, its hook, and the modal (2026-09-24)
+
+Third slice of the #155 port: the Builder's `MediaLibraryBrowser` reskinned to our
+tokens over a `useMediaLibrary` hook that implements its `MediaLibraryProp` seam
+on `@/utils/ipc`, hosted in a `MediaLibraryModal` the Editor does not mount yet
+(P4 swaps the mount once the detail pane reaches parity). The modal is a floating,
+non-dimming surface on purpose: Ethan kept drag-to-canvas (D.5), and a blocking
+backdrop would end it — his call on P4. Import replaces upload (no `File.path` in
+Electron 44); video tiles play on hover instead of autoplaying.
+
+The fresh review of the plan found five blockers I would have hit late: new files
+must be TypeScript here (AGENTS.md), two guards walked `.jsx` only and would have
+skipped a `.tsx` component, the `escapeConsumed` table is frozen at a count, my
+Escape handler would have closed the library from inside its own rename box, and
+the dimming backdrop would have defeated the drag you asked for.
+
+**Traps from coding it.** Widening a `.jsx`-scoped eslint rule to `.tsx` reaches
+test fixtures for the first time (they are `.tsx`) — scope it with `ignores` for
+tests. The `set-state-in-effect` rule flags `useEffect(() => { void load(); })`
+when `load` is a `useCallback` that sets state after an `await`; the shape that
+passes is the Version History modal's inner `async function` with a cancel flag.
+`HOVER_HANDLER_BUDGET` counts every `onMouseEnter` — a play-on-hover video is
+behaviour, not a hover look, and needs a budgeted entry with the reason. A
+button's accessible name is its content, never its `title`.

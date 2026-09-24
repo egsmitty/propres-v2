@@ -40,7 +40,10 @@ export default [
   // modules that hold user-facing palettes (src/utils/colorPalettes.js and the
   // template data). Components paint with var(--token) only. Plan E1.
   {
-    files: ['src/**/*.jsx'],
+    // Components only. Widened to .tsx for the TypeScript components plan
+    // #155-P3 introduces; tests keep their literal colour fixtures.
+    files: ['src/**/*.{jsx,tsx}'],
+    ignores: ['src/**/__tests__/**', 'src/**/*.test.{jsx,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',

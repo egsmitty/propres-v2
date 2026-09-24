@@ -19,6 +19,8 @@ import React from 'react';
 
 vi.mock('@/utils/ipc', () => ({
   getElectronPlatform: () => 'darwin',
+  getMedia: vi.fn(async () => ({ success: true, data: [] })),
+  getMediaFolders: vi.fn(async () => ({ success: true, data: [] })),
   listVersionSummaries: vi.fn(async () => ({ success: true, data: [] })),
   closeOutputWindow: vi.fn(async () => ({ success: true })),
   closeStageDisplayWindow: vi.fn(async () => ({ success: true })),
@@ -43,6 +45,7 @@ import MenuBar from '@/components/layout/MenuBar';
 import PresentationSettingsModal from '@/components/editor/PresentationSettingsModal';
 import VersionHistoryModal from '@/components/editor/VersionHistoryModal';
 import OutputSettingsModal from '@/components/editor/OutputSettingsModal';
+import MediaLibraryModal from '@/components/library/MediaLibraryModal';
 import { useAppStore } from '@/store/appStore';
 import { useDialogStore } from '@/store/dialogStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -166,14 +169,26 @@ const CASES: Case[] = [
       await waitFor(() => expect(useAppStore.getState().outputSettingsOpen).toBe(false));
     },
   },
+  {
+    // Plan #155-P3. The media library is an overlay now; it must consume Escape
+    // like the others so closing it never stops a live presentation.
+    name: 'Media Library',
+    mount: () => {
+      useAppStore.setState({ mediaLibraryOpen: true });
+      render(<MediaLibraryModal />);
+    },
+    closed: () => {
+      expect(useAppStore.getState().mediaLibraryOpen).toBe(false);
+    },
+  },
 ];
 
 const onCloseShortcuts = vi.fn();
 const onCloseMenu = vi.fn();
 
 describe('an overlay consumes Escape before the Editor sees it', () => {
-  it('covers all 7 overlays that handle Escape', () => {
-    expect(CASES).toHaveLength(7);
+  it('covers all 8 overlays that handle Escape', () => {
+    expect(CASES).toHaveLength(8);
   });
 
   for (const testCase of CASES) {

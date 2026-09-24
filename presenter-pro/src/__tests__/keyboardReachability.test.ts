@@ -22,7 +22,9 @@ const NATIVE_INTERACTIVE = new Set([
 ]);
 
 function walk(dir: string): string[] {
-  return listSourceFiles(dir, { extensions: ['.jsx'], excludeTestFiles: false });
+  // .tsx too (plan #155-P3): new components are TypeScript per AGENTS.md, and
+  // a component this test never walks is a control it never checks.
+  return listSourceFiles(dir, { extensions: ['.jsx', '.tsx'], excludeTestFiles: false });
 }
 
 interface Offender {

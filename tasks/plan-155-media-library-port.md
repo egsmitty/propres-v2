@@ -134,8 +134,8 @@ tokens; Tailwind v3 gray/indigo/red/amber classes → our Tailwind-4 token class
   `MAX_FOLDER_PATH_DEPTH=3`) and `dragAutoScroll.ts` into `src/utils/`, keeping
   the Builder's shapes (`MediaFolder`, `FolderedPhotoLike`) so the browser ports
   cleanly; full unit tests. Standalone, no wiring.
-- **Phase 3 — the browser + modal + hook.** **Hard requirement carried from the
-  P1 review:** the folder-delete confirm must state the *cascade* counts (every
+- **Phase 3 — the browser + modal + hook (landed unmounted; the Editor switch is
+  Phase 4).** **Hard requirement carried from the P1 review:** the folder-delete confirm must state the *cascade* counts (every
   descendant folder + every media row in the subtree, via the ported
   `collectCascadeDescendants`) — the old panel counts direct children only and
   is wrong the moment nesting is exposed. Port `MediaLibraryBrowser` reskinned
@@ -144,10 +144,11 @@ tokens; Tailwind v3 gray/indigo/red/amber classes → our Tailwind-4 token class
   an adapter (our `MediaRecord` ↔ `MediaLibraryPhoto`/`MediaFolder`). Mount in a
   modal driven by `mediaLibraryOpen`, with the unified grid + type filter and the
   cap counter. Component test.
-- **Phase 4 — actions (#156) + consumption + video.** Add the Part-D.5 detail
-  pane (Set slide bg / Set section bg / Insert as media slide / Rename / Delete),
-  keep the `application/presenterpro-media-id` MIME so Canvas/Filmstrip drops keep
-  working, and render `type='video'` tiles with the muted-autoplay thumbnail.
+- **Phase 4 — actions (#156) + the Editor switch.** Add the Part-D.5 detail pane
+  (Set slide bg / Set section bg / Insert as media slide / Rename / Move / Delete),
+  confirm Canvas/Filmstrip drops still work from the new surface, then **swap the
+  mount in `Editor.jsx`** from the panel to the modal — the first user-visible
+  change, and Ethan's running-window check. (Video tiles shipped in P3.)
 - **Phase 5 — cleanup.** Remove the old panel once fully replaced; retune the
   inline-style ratchet for the new files; update docs, records, TODO, charter.
 
@@ -184,3 +185,29 @@ as a suspected regression._
 ## Review
 
 _(appended when the port completes)_
+
+## H. Addenda from the port so far (2026-09-24)
+
+- **Mount sequencing.** P3 landed the modal, browser, hook and adapter with
+  `Editor.jsx` still mounting the old panel; P4 swaps the mount once the detail
+  pane gives feature parity; P5 deletes the panel. `main` never loses a
+  capability between PRs.
+- **A floating, non-dimming surface, not a dimmed modal.** D.1 (modal) and D.5
+  (drag a tile onto the canvas/filmstrip) conflict under a blocking backdrop, so
+  the library is a centred `role="dialog"` panel with pointer events passing
+  through around it, closed by X or Escape. **Ethan decides on P4** whether to
+  keep drag-out or dim.
+- **Import, not upload.** Media is registered by path via the native picker;
+  Electron 44 has no `File.path`. OS-file drop onto the grid and optimistic
+  upload tiles need a preload `webUtils.getPathForFile` plus a `media:register`
+  channel — a follow-up, not in P3–P5. A multi-select import does not enforce the
+  cap (accepted for a generous 1000; the counter turns red).
+- **Tiles are `aspect-video`** (16:9 backgrounds), not the Builder's square.
+- **Video tiles** ship in P3 as `preload="metadata"` + poster, play on hover —
+  not autoplay — so a four-column library never decodes every visible video.
+- **Constants:** `LIBRARY_ITEM_CAP = 1000` (D.3); `FOLDER_NAME_MAX_LENGTH = 40`
+  (the Builder's 20 is its editor-field affordance) — one line to change.
+- **Guards widened for `.tsx` components** (P3): `keyboardReachability` walks
+  `.tsx`; the eslint hex rule covers `.tsx` components and skips tests; the
+  `escapeConsumed` overlay table is 8; `HOVER_HANDLER_BUDGET` lists the video
+  tile's play-on-hover as behaviour.
