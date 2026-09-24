@@ -2924,6 +2924,19 @@ the local checklist).
 
 ---
 
+## #154 — the recent-card "…" button mirrors the Pin hover (2026-09-23)
+
+The three-dots **More actions** button on a Home presentation row had no `hover:`
+classes, so it stayed inert while the **Pin** beside it lit up. Both live in one
+shared `PresentationRow` (Home Recent, Home Pinned, Open). Added the Pin's
+neutral hover treatment to the More button —
+`hover:shadow-[0_0_0_2px_rgba(74,124,255,0.12)] hover:border-border-default` — so
+the pair feel the same. One `className` change. A new `Home.test.tsx` test asserts
+the More button carries both hover classes and guards that the Pin still does,
+so the mirror can't pass against a stale literal.
+
+---
+
 ## #155-P1 — nested media folders, data layer (2026-09-23)
 
 First slice of the #155 media-library port (charter: `plan-155-media-library-port.md`;
