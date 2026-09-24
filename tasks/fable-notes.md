@@ -2921,3 +2921,25 @@ the local checklist).
   and its gate test mocks it to `undefined`. Save uses `!` against the real
   function. Match each site's own strictness.
 
+
+---
+
+## #155-P1 — nested media folders, data layer (2026-09-23)
+
+First slice of the #155 media-library port (charter: `plan-155-media-library-port.md`;
+Ethan's directive — bring Motion-Worship Builder's media-library UX into the app,
+reformatted to our sqlite+IPC, without touching the Builder repo). Our
+`media_folders` was flat; the Builder nests 3 levels. Migration 6 adds a nullable
+`parent_id`; `createMediaFolder`/`updateMediaFolder` carry it (with explicit
+`parentId` alias handling and `?? null` binds so a rename keeps the parent and a
+move keeps the name); `deleteMediaFolder` now cascades the whole subtree in one
+transaction via a deduping `WITH RECURSIVE … UNION` CTE (`getMediaFolderDescendants`).
+The UNION dedup is deliberate: it terminates even on a corrupt `parent_id` cycle,
+so move-legality can stay UI-only (Phase 3) without stranding the data layer. No
+UI or IPC change — the folder handlers already pass the data object through.
+
+A fresh pre-implementation review earned its keep: it caught the frozen
+`migrations.test.ts` list (had to go 1–5 → 1–6), the `realSqlite.migrations.test.ts`
+"from-the-future" fixture colliding with the real version 6 (moved to 7), and the
+`updateMediaFolder` alias/undefined-bind and `UNION`-vs-`UNION ALL` traps — all
+folded into the plan before any code.

@@ -20,12 +20,14 @@ function getMediaFolders(db) {
     .all();
 }
 
-function createMediaFolder(db, { name }) {
+function createMediaFolder(db, { name, parentId } = {}) {
   const stmt = db.prepare(`
-    INSERT INTO media_folders (name)
-    VALUES (?)
+    INSERT INTO media_folders (name, parent_id)
+    VALUES (?, ?)
   `);
-  const result = stmt.run(name);
+  // parentId ?? null: a bare undefined bind throws in better-sqlite3, and a
+  // missing parent means the root.
+  const result = stmt.run(name, parentId ?? null);
   return db.prepare('SELECT * FROM media_folders WHERE id = ?').get(result.lastInsertRowid);
 }
 
@@ -33,22 +35,56 @@ function updateMediaFolder(db, id, updates = {}) {
   const current = db.prepare('SELECT * FROM media_folders WHERE id = ?').get(id);
   if (!current) return null;
 
-  const next = { ...current, ...updates };
+  // A plain {...current, ...updates} spread never maps the `parentId` alias
+  // onto the `parent_id` column, and binding a bare `undefined` throws. Resolve
+  // each column explicitly and bind `?? null` so a rename keeps the parent and a
+  // move keeps the name (plan #155-P1, S1).
+  const name = updates.name ?? current.name;
+  const rawParent =
+    updates.parent_id !== undefined
+      ? updates.parent_id
+      : updates.parentId !== undefined
+        ? updates.parentId
+        : current.parent_id;
+
   db.prepare(
     `
     UPDATE media_folders
-    SET name = ?
+    SET name = ?, parent_id = ?
     WHERE id = ?
   `
-  ).run(next.name, id);
+  ).run(name, rawParent ?? null, id);
 
   return db.prepare('SELECT * FROM media_folders WHERE id = ?').get(id);
 }
 
+// Every folder below `id` (excluding `id` itself). UNION, never UNION ALL: the
+// dedup terminates even when a corrupt parent_id forms a cycle, so the cascade
+// below is safe without a move-legality guard at the data layer (plan #155-P1,
+// S2). The cascade re-adds `id` itself.
+function getMediaFolderDescendants(db, id) {
+  return db
+    .prepare(
+      `
+    WITH RECURSIVE descendants(id) AS (
+      SELECT id FROM media_folders WHERE parent_id = ?
+      UNION
+      SELECT mf.id
+        FROM media_folders mf
+        JOIN descendants d ON mf.parent_id = d.id
+    )
+    SELECT id FROM descendants
+  `
+    )
+    .all(id);
+}
+
 function deleteMediaFolder(db, id) {
   const tx = db.transaction((folderId) => {
-    db.prepare('DELETE FROM media WHERE folder_id = ?').run(folderId);
-    db.prepare('DELETE FROM media_folders WHERE id = ?').run(folderId);
+    const ids = [folderId, ...getMediaFolderDescendants(db, folderId).map((row) => row.id)];
+    const placeholders = ids.map(() => '?').join(', ');
+    db.prepare(`DELETE FROM media WHERE folder_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM media_folders WHERE id IN (${placeholders})`).run(...ids);
   });
   tx(id);
 }
@@ -110,6 +146,7 @@ module.exports = {
   getMediaFolders,
   createMediaFolder,
   updateMediaFolder,
+  getMediaFolderDescendants,
   deleteMediaFolder,
   createMedia,
   updateMedia,
