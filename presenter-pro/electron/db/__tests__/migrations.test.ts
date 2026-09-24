@@ -45,13 +45,17 @@ function createFakeDb() {
 const migrations = MIGRATIONS as Migration[];
 
 describe('MIGRATIONS list', () => {
-  it('is exactly versions 1, 2, 3, 4, 5 and well-formed', () => {
-    expect(migrations.map((m) => m.version)).toEqual([1, 2, 3, 4, 5]);
+  it('is exactly versions 1, 2, 3, 4, 5, 6 and well-formed', () => {
+    expect(migrations.map((m) => m.version)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(() => assertMigrationsWellFormed(migrations)).not.toThrow();
   });
 
   it('names migration 3 claim-legacy-built-in-hymns', () => {
     expect(migrations[2]?.name).toBe('claim-legacy-built-in-hymns');
+  });
+
+  it('names migration 6 media-folder-nesting', () => {
+    expect(migrations[5]?.name).toBe('media-folder-nesting');
   });
 
   it('has no tolerated statement failures', () => {
