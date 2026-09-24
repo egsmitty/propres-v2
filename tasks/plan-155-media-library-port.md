@@ -149,8 +149,9 @@ tokens; Tailwind v3 gray/indigo/red/amber classes → our Tailwind-4 token class
   confirm Canvas/Filmstrip drops still work from the new surface, then **swap the
   mount in `Editor.jsx`** from the panel to the modal — the first user-visible
   change, and Ethan's running-window check. (Video tiles shipped in P3.)
-- **Phase 5 — cleanup.** Remove the old panel once fully replaced; retune the
-  inline-style ratchet for the new files; update docs, records, TODO, charter.
+- **Phase 5 — cleanup (landed).** The old panel deleted; its inline-style ceiling
+  removed (the ratchet's exactness check was the red); `CLAUDE.md` refreshed. The
+  port is complete; the open product calls are listed in §H.
 
 ## F. Blast radius (whole port; each phase names its own slice)
 
